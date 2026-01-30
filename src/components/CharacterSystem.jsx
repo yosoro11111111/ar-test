@@ -6,11 +6,28 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { VRM, VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { DragControls } from 'three/examples/jsm/controls/DragControls'
 
+// ==================== 移动端检测 Hook ====================
+const useMobileDetect = () => {
+  const [isMobile, setIsMobile] = useState(false)
+  
+  useEffect(() => {
+    const checkDevice = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    checkDevice()
+    window.addEventListener('resize', checkDevice)
+    return () => window.removeEventListener('resize', checkDevice)
+  }, [])
+  
+  return { isMobile }
+}
+
 // ==================== 骨骼编辑可视化组件 ====================
-const BoneEditor = ({ vrmModel, isEditing, onBoneChange }) => {
+const BoneEditor = ({ vrmModel, isEditing, onBoneChange, isMobile }) => {
   const [selectedBone, setSelectedBone] = useState(null)
   const [bones, setBones] = useState([])
-  const { scene } = useThree()
+  const { scene, camera } = useThree()
   
   // 主要骨骼列表
   const mainBones = [
@@ -36,19 +53,10 @@ const BoneEditor = ({ vrmModel, isEditing, onBoneChange }) => {
   ]
   
   useEffect(() => {
-    console.log('BoneEditor: useEffect 触发', { 
-      hasVrmModel: !!vrmModel, 
-      hasHumanoid: !!(vrmModel?.humanoid),
-      humanoidKeys: vrmModel ? Object.keys(vrmModel) : [],
-      isEditing 
-    })
-    
     if (!vrmModel?.humanoid || !isEditing) {
-      console.log('BoneEditor: 条件不满足', { hasHumanoid: !!vrmModel?.humanoid, isEditing })
       return
     }
     
-    console.log('BoneEditor: 开始初始化骨骼')
     // 初始化骨骼列表
     const boneList = []
     mainBones.forEach(({ name, label, color }) => {
@@ -56,34 +64,34 @@ const BoneEditor = ({ vrmModel, isEditing, onBoneChange }) => {
         const bone = vrmModel.humanoid.getNormalizedBoneNode(name)
         if (bone) {
           boneList.push({ name, label, color, bone })
-          console.log('BoneEditor: 找到骨骼', name)
-        } else {
-          console.log('BoneEditor: 未找到骨骼', name)
         }
       } catch (e) {
-        console.log('BoneEditor: 获取骨骼失败', name, e.message)
+        // 忽略错误
       }
     })
-    console.log('BoneEditor: 骨骼列表', boneList.length)
     setBones(boneList)
   }, [vrmModel, isEditing])
   
-  console.log('BoneEditor: 渲染检查', { isEditing, boneCount: bones.length })
-  
-  if (!isEditing || bones.length === 0) {
-    console.log('BoneEditor: 不渲染', { isEditing, boneCount: bones.length })
-    return null
+  // 处理骨骼旋转
+  const handleBoneRotate = (boneName, axis, delta) => {
+    const bone = bones.find(b => b.name === boneName)?.bone
+    if (!bone) return
+    
+    bone.rotation[axis] += delta
+    onBoneChange?.(boneName, bone.rotation)
   }
+  
+  if (!isEditing || bones.length === 0) return null
   
   return (
     <>
-      {bones.map(({ name, label, color, bone }) => {
+      {/* 3D场景中的骨骼点 - 只在桌面端显示 */}
+      {!isMobile && bones.map(({ name, label, color, bone }) => {
         const worldPos = new THREE.Vector3()
         bone.getWorldPosition(worldPos)
         
         return (
           <group key={name}>
-            {/* 骨骼控制点 - 使用mesh作为可点击区域 */}
             <mesh
               position={worldPos}
               onPointerDown={(e) => {
@@ -99,7 +107,6 @@ const BoneEditor = ({ vrmModel, isEditing, onBoneChange }) => {
               />
             </mesh>
             
-            {/* 选中时的 TransformControls */}
             {selectedBone === name && (
               <TransformControls
                 object={bone}
@@ -114,7 +121,6 @@ const BoneEditor = ({ vrmModel, isEditing, onBoneChange }) => {
               />
             )}
             
-            {/* 骨骼标签 */}
             <Html position={[worldPos.x, worldPos.y + 0.1, worldPos.z]}>
               <div style={{
                 background: 'rgba(0,0,0,0.8)',
@@ -134,6 +140,179 @@ const BoneEditor = ({ vrmModel, isEditing, onBoneChange }) => {
           </group>
         )
       })}
+      
+      {/* 移动端控制面板 */}
+      {isMobile && (
+        <Html position={[0, 0, 0]} style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+          <div style={{
+            position: 'fixed',
+            top: '120px',
+            left: '10px',
+            right: '10px',
+            background: 'rgba(0,0,0,0.85)',
+            borderRadius: '16px',
+            padding: '16px',
+            zIndex: 2000,
+            pointerEvents: 'auto',
+            maxHeight: '60vh',
+            overflowY: 'auto'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '12px',
+              borderBottom: '1px solid rgba(255,255,255,0.2)',
+              paddingBottom: '8px'
+            }}>
+              <span style={{ color: '#00d4ff', fontWeight: 'bold', fontSize: '16px' }}>
+                🦴 骨骼编辑器
+              </span>
+              <span style={{ color: '#888', fontSize: '12px' }}>
+                选择骨骼进行调整
+              </span>
+            </div>
+            
+            {/* 骨骼列表 */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: '8px',
+              marginBottom: '16px'
+            }}>
+              {bones.map(({ name, label, color }) => (
+                <button
+                  key={name}
+                  onClick={() => setSelectedBone(selectedBone === name ? null : name)}
+                  style={{
+                    padding: '10px 6px',
+                    background: selectedBone === name ? color : 'rgba(255,255,255,0.1)',
+                    border: `2px solid ${selectedBone === name ? color : 'transparent'}`,
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '12px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            
+            {/* 选中骨骼的控制 */}
+            {selectedBone && (
+              <div style={{
+                background: 'rgba(255,255,255,0.1)',
+                borderRadius: '12px',
+                padding: '12px'
+              }}>
+                <div style={{
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  marginBottom: '12px',
+                  textAlign: 'center'
+                }}>
+                  调整: {bones.find(b => b.name === selectedBone)?.label}
+                </div>
+                
+                {/* X轴旋转 */}
+                <div style={{ marginBottom: '10px' }}>
+                  <div style={{ color: '#ff6b6b', fontSize: '12px', marginBottom: '4px' }}>X轴旋转</div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => handleBoneRotate(selectedBone, 'x', -0.1)}
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        background: '#ff6b6b',
+                        border: 'none',
+                        borderRadius: '6px',
+                        color: 'white',
+                        fontSize: '16px'
+                      }}
+                    >-</button>
+                    <button
+                      onClick={() => handleBoneRotate(selectedBone, 'x', 0.1)}
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        background: '#ff6b6b',
+                        border: 'none',
+                        borderRadius: '6px',
+                        color: 'white',
+                        fontSize: '16px'
+                      }}
+                    >+</button>
+                  </div>
+                </div>
+                
+                {/* Y轴旋转 */}
+                <div style={{ marginBottom: '10px' }}>
+                  <div style={{ color: '#4ecdc4', fontSize: '12px', marginBottom: '4px' }}>Y轴旋转</div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => handleBoneRotate(selectedBone, 'y', -0.1)}
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        background: '#4ecdc4',
+                        border: 'none',
+                        borderRadius: '6px',
+                        color: 'white',
+                        fontSize: '16px'
+                      }}
+                    >-</button>
+                    <button
+                      onClick={() => handleBoneRotate(selectedBone, 'y', 0.1)}
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        background: '#4ecdc4',
+                        border: 'none',
+                        borderRadius: '6px',
+                        color: 'white',
+                        fontSize: '16px'
+                      }}
+                    >+</button>
+                  </div>
+                </div>
+                
+                {/* Z轴旋转 */}
+                <div>
+                  <div style={{ color: '#45b7d1', fontSize: '12px', marginBottom: '4px' }}>Z轴旋转</div>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => handleBoneRotate(selectedBone, 'z', -0.1)}
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        background: '#45b7d1',
+                        border: 'none',
+                        borderRadius: '6px',
+                        color: 'white',
+                        fontSize: '16px'
+                      }}
+                    >-</button>
+                    <button
+                      onClick={() => handleBoneRotate(selectedBone, 'z', 0.1)}
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        background: '#45b7d1',
+                        border: 'none',
+                        borderRadius: '6px',
+                        color: 'white',
+                        fontSize: '16px'
+                      }}
+                    >+</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </Html>
+      )}
     </>
   )
 }
@@ -605,6 +784,7 @@ const ExpressionSystem = ({ vrmModel, actionType, intensity = 1.0, isPlaying = t
 }
 
 const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null, isBoneEditing = false, onBoneChange = null }) => {
+  const { isMobile } = useMobileDetect()
   const { scene, gl, camera } = useThree()
   const characterRef = useRef(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -2870,6 +3050,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         vrmModel={vrmModel} 
         isEditing={isBoneEditing} 
         onBoneChange={onBoneChange}
+        isMobile={isMobile}
       />
       
       {touchFeedback.show && (
@@ -2881,69 +3062,84 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       
       {/* 加载进度条 */}
       {isLoading && (
-        <Html center>
+        <Html 
+          center
+          style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 9999
+          }}
+        >
           <div style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             gap: '12px',
-            padding: '24px 32px',
-            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)',
+            padding: isMobile ? '20px 24px' : '24px 32px',
+            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%)',
             borderRadius: '16px',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-            backdropFilter: 'blur(20px)'
+            border: '2px solid rgba(255, 255, 255, 0.3)',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(255, 107, 157, 0.3)',
+            backdropFilter: 'blur(20px)',
+            minWidth: isMobile ? '200px' : '280px'
           }}>
             <div style={{
-              fontSize: '16px',
-              fontWeight: '600',
+              fontSize: isMobile ? '14px' : '18px',
+              fontWeight: '700',
               color: 'white',
-              marginBottom: '4px'
+              marginBottom: '4px',
+              textAlign: 'center'
             }}>
-              加载模型中...
+              🎭 加载模型中...
             </div>
             
             {/* 进度条容器 */}
             <div style={{
-              width: '200px',
-              height: '8px',
-              background: 'rgba(255, 255, 255, 0.1)',
-              borderRadius: '4px',
-              overflow: 'hidden'
+              width: isMobile ? '160px' : '240px',
+              height: '10px',
+              background: 'rgba(255, 255, 255, 0.15)',
+              borderRadius: '5px',
+              overflow: 'hidden',
+              border: '1px solid rgba(255,255,255,0.1)'
             }}>
               <div style={{
                 width: `${loadingProgress}%`,
                 height: '100%',
                 background: 'linear-gradient(90deg, #ff6b9d 0%, #c44569 50%, #ff6b9d 100%)',
-                borderRadius: '4px',
-                transition: 'width 0.2s ease-out',
-                boxShadow: '0 0 10px rgba(255, 107, 157, 0.5)'
+                borderRadius: '5px',
+                transition: 'width 0.3s ease-out',
+                boxShadow: '0 0 15px rgba(255, 107, 157, 0.6)'
               }} />
             </div>
             
             {/* 进度百分比 */}
             <div style={{
-              fontSize: '14px',
-              color: 'rgba(255, 255, 255, 0.7)'
+              fontSize: isMobile ? '16px' : '20px',
+              fontWeight: 'bold',
+              color: '#ff6b9d',
+              textShadow: '0 0 10px rgba(255, 107, 157, 0.5)'
             }}>
-              {loadingProgress.toFixed(1)}%
+              {loadingProgress.toFixed(0)}%
             </div>
             
             {/* 加载动画 */}
             <div style={{
               display: 'flex',
-              gap: '4px',
+              gap: '6px',
               marginTop: '8px'
             }}>
               {[0, 1, 2].map((i) => (
                 <div
                   key={i}
                   style={{
-                    width: '8px',
-                    height: '8px',
+                    width: '10px',
+                    height: '10px',
                     borderRadius: '50%',
                     background: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)',
-                    animation: `bounce 1.4s ease-in-out ${i * 0.16}s infinite`
+                    animation: `bounce 1.4s ease-in-out ${i * 0.16}s infinite`,
+                    boxShadow: '0 0 10px rgba(255, 107, 157, 0.5)'
                   }}
                 />
               ))}
@@ -2954,7 +3150,6 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
             @keyframes bounce {
               0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
               40% { transform: scale(1); opacity: 1; }
-            }
           `}</style>
         </Html>
       )}
