@@ -626,17 +626,24 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       }
       
       let modelUrl
-      if (file.localPath) {
+      const isLocalFile = !!file.localPath
+      
+      if (isLocalFile) {
         modelUrl = file.localPath
+        console.log('使用本地模型路径:', modelUrl)
       } else {
-        if (file.size > 100 * 1024 * 1024) {
+        // 检查文件大小（仅对上传的文件）
+        const fileSize = file.size || 0
+        
+        // 对于本地文件，跳过大小检查
+        if (fileSize > 100 * 1024 * 1024) {
           console.error('模型文件过大，可能导致性能问题')
           setIsLoading(false)
           return
         }
         
         modelUrl = URL.createObjectURL(file)
-        console.log('创建模型URL:', modelUrl)
+        console.log('创建模型URL:', modelUrl, '文件大小:', (fileSize / 1024 / 1024).toFixed(2), 'MB')
       }
       
       loader.current.load(
@@ -645,7 +652,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
           try {
             console.log('GLTF加载完成:', gltf)
             
-            if (!file.localPath) {
+            if (!isLocalFile) {
               try {
                 URL.revokeObjectURL(modelUrl)
                 console.log('清理模型URL成功')
