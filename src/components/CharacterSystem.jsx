@@ -5,10 +5,12 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { VRM, VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { DragControls } from 'three/examples/jsm/controls/DragControls'
 
+// ==================== 增强版粒子系统 ====================
 const ParticleSystem = ({ active, type, position }) => {
   const particlesRef = useRef()
   const [particles, setParticles] = useState([])
   const animationRef = useRef(null)
+  const frameCount = useRef(0)
 
   useEffect(() => {
     if (!active) {
@@ -18,53 +20,171 @@ const ParticleSystem = ({ active, type, position }) => {
       return
     }
 
-    // 根据动作类型配置粒子
+    // 增强版粒子配置 - 根据动作类型定制
     const particleConfigs = {
-      jump: { count: 40, color: '#60a5fa', speed: 0.15, spread: 2 },
-      dance: { count: 60, color: '#a78bfa', speed: 0.08, spread: 1.5 },
-      happy: { count: 50, color: '#fbbf24', speed: 0.1, spread: 1.8 },
-      sad: { count: 30, color: '#60a5fa', speed: 0.05, spread: 1 },
-      wave: { count: 25, color: '#34d399', speed: 0.12, spread: 1.2 },
-      run: { count: 35, color: '#f87171', speed: 0.18, spread: 1.5 },
-      sit: { count: 20, color: '#a78bfa', speed: 0.03, spread: 0.8 },
-      default: { count: 30, color: '#ffffff', speed: 0.1, spread: 1.5 }
+      // 大幅度动作的特殊粒子效果
+      takeBook: { 
+        count: 80, 
+        colors: ['#ff6b6b', '#feca57', '#ff9ff3', '#54a0ff'], 
+        speed: 0.2, 
+        spread: 2.5,
+        shape: 'star',
+        gravity: -0.001, // 向上飘
+        sizeRange: [0.05, 0.15]
+      },
+      somersault: { 
+        count: 100, 
+        colors: ['#48dbfb', '#0abde3', '#006ba6', '#c7ecee'], 
+        speed: 0.25, 
+        spread: 3,
+        shape: 'circle',
+        gravity: 0.005,
+        sizeRange: [0.08, 0.2]
+      },
+      superJump: { 
+        count: 120, 
+        colors: ['#ff9f43', '#ee5a24', '#f368e0', '#ff6b6b', '#ffd93d'], 
+        speed: 0.3, 
+        spread: 3.5,
+        shape: 'burst',
+        gravity: 0.008,
+        sizeRange: [0.1, 0.25]
+      },
+      spinDance: { 
+        count: 90, 
+        colors: ['#a29bfe', '#6c5ce7', '#fd79a8', '#e17055', '#fdcb6e'], 
+        speed: 0.18, 
+        spread: 2.8,
+        shape: 'diamond',
+        gravity: 0.002,
+        sizeRange: [0.06, 0.18]
+      },
+      bigWave: { 
+        count: 70, 
+        colors: ['#00b894', '#00cec9', '#55efc4', '#81ecec'], 
+        speed: 0.22, 
+        spread: 2.2,
+        shape: 'heart',
+        gravity: -0.002,
+        sizeRange: [0.08, 0.2]
+      },
+      bow: { 
+        count: 60, 
+        colors: ['#fdcb6e', '#e17055', '#d63031', '#fab1a0'], 
+        speed: 0.12, 
+        spread: 1.8,
+        shape: 'flower',
+        gravity: -0.001,
+        sizeRange: [0.05, 0.12]
+      },
+      celebrate: { 
+        count: 150, 
+        colors: ['#fd79a8', '#fdcb6e', '#6c5ce7', '#00b894', '#ff6b6b', '#ffd93d'], 
+        speed: 0.35, 
+        spread: 4,
+        shape: 'confetti',
+        gravity: 0.01,
+        sizeRange: [0.1, 0.3]
+      },
+      // 基础动作
+      jump: { count: 50, colors: ['#60a5fa', '#3b82f6', '#2563eb'], speed: 0.18, spread: 2.2, shape: 'circle', gravity: 0.003, sizeRange: [0.05, 0.12] },
+      dance: { count: 70, colors: ['#a78bfa', '#8b5cf6', '#7c3aed'], speed: 0.12, spread: 1.8, shape: 'star', gravity: 0.002, sizeRange: [0.06, 0.15] },
+      happy: { count: 60, colors: ['#fbbf24', '#f59e0b', '#d97706'], speed: 0.15, spread: 2, shape: 'heart', gravity: -0.001, sizeRange: [0.08, 0.18] },
+      sad: { count: 40, colors: ['#60a5fa', '#3b82f6', '#1d4ed8'], speed: 0.06, spread: 1.2, shape: 'tear', gravity: 0.008, sizeRange: [0.04, 0.1] },
+      wave: { count: 45, colors: ['#34d399', '#10b981', '#059669'], speed: 0.15, spread: 1.5, shape: 'wave', gravity: 0.001, sizeRange: [0.05, 0.12] },
+      run: { count: 55, colors: ['#f87171', '#ef4444', '#dc2626'], speed: 0.22, spread: 2, shape: 'dash', gravity: 0.004, sizeRange: [0.06, 0.14] },
+      sit: { count: 30, colors: ['#a78bfa', '#8b5cf6'], speed: 0.04, spread: 1, shape: 'circle', gravity: 0.001, sizeRange: [0.04, 0.1] },
+      default: { count: 40, colors: ['#ffffff', '#f0f0f0', '#e0e0e0'], speed: 0.12, spread: 1.5, shape: 'circle', gravity: 0.002, sizeRange: [0.05, 0.12] }
     }
     
     const config = particleConfigs[type] || particleConfigs.default
     const newParticles = []
 
     for (let i = 0; i < config.count; i++) {
-      const angle = (Math.PI * 2 * i) / config.count
+      const angle = (Math.PI * 2 * i) / config.count + Math.random() * 0.5
       const radius = Math.random() * config.spread
       
       const posX = position && position[0] !== undefined ? position[0] + Math.cos(angle) * radius : Math.cos(angle) * radius
-      const posY = position && position[1] !== undefined ? position[1] + Math.random() * 0.5 : Math.random() * 0.5
+      const posY = position && position[1] !== undefined ? position[1] + Math.random() * 0.8 : Math.random() * 0.8
       const posZ = position && position[2] !== undefined ? position[2] + Math.sin(angle) * radius : Math.sin(angle) * radius
+      
+      // 根据形状设置不同的初始速度
+      let velocityX, velocityY, velocityZ
+      const speed = config.speed * (0.7 + Math.random() * 0.6)
+      
+      switch (config.shape) {
+        case 'burst':
+          velocityX = Math.cos(angle) * speed * 1.5
+          velocityY = speed * (1 + Math.random())
+          velocityZ = Math.sin(angle) * speed * 1.5
+          break
+        case 'confetti':
+          velocityX = (Math.random() - 0.5) * speed * 2
+          velocityY = speed * (0.5 + Math.random())
+          velocityZ = (Math.random() - 0.5) * speed * 2
+          break
+        default:
+          velocityX = Math.cos(angle) * speed
+          velocityY = speed * (0.3 + Math.random() * 0.7)
+          velocityZ = Math.sin(angle) * speed
+      }
       
       newParticles.push({
         position: new THREE.Vector3(posX, posY, posZ),
-        velocity: new THREE.Vector3(
-          Math.cos(angle) * config.speed * Math.random(),
-          config.speed * (0.5 + Math.random() * 0.5),
-          Math.sin(angle) * config.speed * Math.random()
-        ),
-        size: Math.random() * 0.1 + 0.02,
+        velocity: new THREE.Vector3(velocityX, velocityY, velocityZ),
+        initialVelocity: new THREE.Vector3(velocityX, velocityY, velocityZ),
+        size: config.sizeRange[0] + Math.random() * (config.sizeRange[1] - config.sizeRange[0]),
         life: 1.0,
-        decay: 0.01 + Math.random() * 0.02,
-        color: config.color,
+        decay: 0.008 + Math.random() * 0.012,
+        color: config.colors[Math.floor(Math.random() * config.colors.length)],
         rotation: Math.random() * Math.PI * 2,
-        rotationSpeed: (Math.random() - 0.5) * 0.1
+        rotationSpeed: (Math.random() - 0.5) * 0.2,
+        shape: config.shape,
+        gravity: config.gravity,
+        oscillation: Math.random() * Math.PI * 2,
+        oscillationSpeed: 2 + Math.random() * 3
       })
     }
 
     setParticles(newParticles)
+    frameCount.current = 0
     
     // 动画更新粒子
     const animate = () => {
+      frameCount.current++
+      
       setParticles(prevParticles => {
         return prevParticles.map(p => {
-          p.position.add(p.velocity)
-          p.velocity.y -= 0.002 // 重力
+          // 根据形状应用不同的运动逻辑
+          switch (p.shape) {
+            case 'wave':
+              p.position.x += p.velocity.x + Math.sin(frameCount.current * 0.1 + p.oscillation) * 0.02
+              p.position.y += p.velocity.y
+              p.position.z += p.velocity.z
+              break
+            case 'confetti':
+              p.position.x += p.velocity.x + Math.sin(frameCount.current * 0.05 + p.oscillation) * 0.01
+              p.position.y += p.velocity.y
+              p.position.z += p.velocity.z + Math.cos(frameCount.current * 0.05 + p.oscillation) * 0.01
+              p.rotation += p.rotationSpeed * 2
+              break
+            case 'heart':
+              p.position.x += p.velocity.x * 0.5
+              p.position.y += p.velocity.y + Math.sin(frameCount.current * 0.08) * 0.015
+              p.position.z += p.velocity.z * 0.5
+              break
+            default:
+              p.position.add(p.velocity)
+          }
+          
+          // 应用重力/浮力
+          p.velocity.y += p.gravity
+          
+          // 空气阻力
+          p.velocity.x *= 0.98
+          p.velocity.z *= 0.98
+          
+          // 更新生命周期
           p.life -= p.decay
           p.rotation += p.rotationSpeed
           
@@ -88,17 +208,68 @@ const ParticleSystem = ({ active, type, position }) => {
 
   return (
     <group>
-      {particles.map((p, i) => (
-        <mesh key={i} position={p.position} rotation={[0, 0, p.rotation]}>
-          <planeGeometry args={[p.size, p.size]} />
-          <meshBasicMaterial
-            color={p.color}
-            transparent
-            opacity={p.life * 0.8}
-            side={THREE.DoubleSide}
-          />
-        </mesh>
-      ))}
+      {particles.map((p, i) => {
+        // 根据形状渲染不同的几何体
+        let geometry
+        switch (p.shape) {
+          case 'star':
+            return (
+              <mesh key={i} position={p.position} rotation={[0, 0, p.rotation]}>
+                <octahedronGeometry args={[p.size, 0]} />
+                <meshBasicMaterial
+                  color={p.color}
+                  transparent
+                  opacity={p.life * 0.9}
+                />
+              </mesh>
+            )
+          case 'diamond':
+            return (
+              <mesh key={i} position={p.position} rotation={[p.rotation, p.rotation, 0]}>
+                <tetrahedronGeometry args={[p.size, 0]} />
+                <meshBasicMaterial
+                  color={p.color}
+                  transparent
+                  opacity={p.life * 0.85}
+                />
+              </mesh>
+            )
+          case 'heart':
+            return (
+              <mesh key={i} position={p.position} rotation={[0, 0, p.rotation]}>
+                <sphereGeometry args={[p.size, 8, 8]} />
+                <meshBasicMaterial
+                  color={p.color}
+                  transparent
+                  opacity={p.life * 0.9}
+                />
+              </mesh>
+            )
+          case 'confetti':
+            return (
+              <mesh key={i} position={p.position} rotation={[p.rotation, p.rotation * 0.5, p.rotation * 0.3]}>
+                <boxGeometry args={[p.size * 0.3, p.size, p.size * 0.1]} />
+                <meshBasicMaterial
+                  color={p.color}
+                  transparent
+                  opacity={p.life * 0.95}
+                />
+              </mesh>
+            )
+          default:
+            return (
+              <mesh key={i} position={p.position} rotation={[0, 0, p.rotation]}>
+                <planeGeometry args={[p.size, p.size]} />
+                <meshBasicMaterial
+                  color={p.color}
+                  transparent
+                  opacity={p.life * 0.8}
+                  side={THREE.DoubleSide}
+                />
+              </mesh>
+            )
+        }
+      })}
     </group>
   )
 }
@@ -1207,7 +1378,43 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     }
   }
   
-  // 执行骨骼动画
+  // ==================== 优化版骨骼动画系统 ====================
+  
+  // 高级缓动函数
+  const easingFunctions = {
+    // 平滑开始和结束
+    smooth: (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2,
+    // 弹性效果
+    elastic: (t) => {
+      const c4 = (2 * Math.PI) / 3
+      return t === 0 ? 0 : t === 1 ? 1 : -Math.pow(2, 10 * t - 10) * Math.sin((t * 10 - 10.75) * c4)
+    },
+    // 回弹效果
+    bounce: (t) => {
+      const n1 = 7.5625
+      const d1 = 2.75
+      if (t < 1 / d1) {
+        return n1 * t * t
+      } else if (t < 2 / d1) {
+        return n1 * (t -= 1.5 / d1) * t + 0.75
+      } else if (t < 2.5 / d1) {
+        return n1 * (t -= 2.25 / d1) * t + 0.9375
+      } else {
+        return n1 * (t -= 2.625 / d1) * t + 0.984375
+      }
+    },
+    // 三次方缓动
+    cubic: (t) => 1 - Math.pow(1 - t, 3),
+    // 五次方缓动（更平滑）
+    quint: (t) => 1 - Math.pow(1 - t, 5),
+    // 指数缓动
+    expo: (t) => t === 0 ? 0 : t === 1 ? 1 : t < 0.5 ? Math.pow(2, 20 * t - 10) / 2 : (2 - Math.pow(2, -20 * t + 10)) / 2
+  }
+  
+  // 骨骼速度追踪（用于惯性效果）
+  const boneVelocities = useRef(new Map())
+  
+  // 执行骨骼动画（优化版）
   const executeBoneAnimation = (actionName) => {
     if (!vrmModel || !vrmModel.humanoid) {
       console.log('VRM模型未加载，无法执行骨骼动画')
@@ -1230,8 +1437,11 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       return
     }
     
-    console.log('开始执行大幅度动作:', actionName)
+    console.log('开始执行优化版大幅度动作:', actionName)
     animationStartTime.current = Date.now()
+    
+    // 初始化骨骼速度
+    boneVelocities.current.clear()
     
     const animate = () => {
       const elapsed = Date.now() - animationStartTime.current
@@ -1252,7 +1462,22 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       // 计算关键帧之间的插值
       const frameDuration = nextKeyframe.time - currentKeyframe.time
       const frameProgress = frameDuration > 0 ? (progress - currentKeyframe.time) / frameDuration : 0
-      const easeProgress = 1 - Math.pow(1 - frameProgress, 3) // 缓动函数
+      
+      // 根据动作类型选择缓动函数
+      let easeProgress
+      if (actionName === 'somersault' || actionName === 'superJump') {
+        // 翻跟头和大跳用弹性缓动
+        easeProgress = easingFunctions.elastic(frameProgress)
+      } else if (actionName === 'celebrate') {
+        // 庆祝用回弹缓动
+        easeProgress = easingFunctions.bounce(frameProgress)
+      } else if (actionName === 'spinDance') {
+        // 旋转舞用平滑缓动
+        easeProgress = easingFunctions.smooth(frameProgress)
+      } else {
+        // 其他用五次方缓动
+        easeProgress = easingFunctions.quint(frameProgress)
+      }
       
       // 应用姿势
       const currentPose = poses[currentKeyframe.pose] || poses.idle
@@ -1274,10 +1499,27 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         const targetY = initialRot.y + THREE.MathUtils.lerp(currentRot.y, nextRot.y, easeProgress)
         const targetZ = initialRot.z + THREE.MathUtils.lerp(currentRot.z, nextRot.z, easeProgress)
         
-        // 平滑应用到骨骼
-        bone.rotation.x = THREE.MathUtils.lerp(bone.rotation.x, targetX, 0.15)
-        bone.rotation.y = THREE.MathUtils.lerp(bone.rotation.y, targetY, 0.15)
-        bone.rotation.z = THREE.MathUtils.lerp(bone.rotation.z, targetZ, 0.15)
+        // 获取或初始化速度
+        if (!boneVelocities.current.has(boneName)) {
+          boneVelocities.current.set(boneName, { x: 0, y: 0, z: 0 })
+        }
+        const velocity = boneVelocities.current.get(boneName)
+        
+        // 计算目标速度（用于惯性）
+        const deltaX = targetX - bone.rotation.x
+        const deltaY = targetY - bone.rotation.y
+        const deltaZ = targetZ - bone.rotation.z
+        
+        // 更新速度（带阻尼）
+        velocity.x = velocity.x * 0.8 + deltaX * 0.2
+        velocity.y = velocity.y * 0.8 + deltaY * 0.2
+        velocity.z = velocity.z * 0.8 + deltaZ * 0.2
+        
+        // 应用速度和位置（提高响应速度到0.35）
+        const lerpFactor = 0.35
+        bone.rotation.x += velocity.x * lerpFactor
+        bone.rotation.y += velocity.y * lerpFactor
+        bone.rotation.z += velocity.z * lerpFactor
       })
       
       // 继续动画或结束
@@ -1286,10 +1528,52 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       } else {
         console.log('动作完成:', actionName)
         currentBoneAnimation.current = null
-        // 可选：自动返回idle
+        // 自动返回idle，延迟更短
         setTimeout(() => {
-          returnToIdle()
-        }, 500)
+          returnToIdleSmooth()
+        }, 300)
+      }
+    }
+    
+    animate()
+  }
+  
+  // 平滑返回待机姿势（优化版）
+  const returnToIdleSmooth = () => {
+    if (!vrmModel || !vrmModel.humanoid) return
+    
+    const startTime = Date.now()
+    const duration = 800 // 缩短返回时间
+    
+    // 记录起始姿势
+    const startRotations = new Map()
+    initialBoneRotations.current.forEach((rot, boneName) => {
+      const bone = vrmModel.humanoid.getBoneNode(boneName)
+      if (bone) {
+        startRotations.set(boneName, bone.rotation.clone())
+      }
+    })
+    
+    const animate = () => {
+      const elapsed = Date.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      const easeProgress = easingFunctions.smooth(progress)
+      
+      initialBoneRotations.current.forEach((initialRot, boneName) => {
+        const bone = vrmModel.humanoid.getBoneNode(boneName)
+        if (!bone) return
+        
+        const startRot = startRotations.get(boneName)
+        if (!startRot) return
+        
+        // 从当前姿势平滑过渡到初始姿势（提高速度到0.2）
+        bone.rotation.x = THREE.MathUtils.lerp(startRot.x, initialRot.x, easeProgress * 0.2)
+        bone.rotation.y = THREE.MathUtils.lerp(startRot.y, initialRot.y, easeProgress * 0.2)
+        bone.rotation.z = THREE.MathUtils.lerp(startRot.z, initialRot.z, easeProgress * 0.2)
+      })
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate)
       }
     }
     
