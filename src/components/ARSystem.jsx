@@ -1071,21 +1071,62 @@ export const ARScene = ({ selectedFile }) => {
 
   // 拍照
   const takePhoto = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current) {
-      showNotification('摄像头未就绪', 'error')
-      return
-    }
-
     try {
-      const canvas = canvasRef.current
+      // 获取3D画布元素
+      const canvas3D = document.querySelector('canvas')
       const video = videoRef.current
-      const ctx = canvas.getContext('2d')
 
-      canvas.width = video.videoWidth
-      canvas.height = video.videoHeight
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      if (!canvas3D) {
+        showNotification('3D场景未就绪', 'error')
+        return
+      }
 
-      canvas.toBlob((blob) => {
+      // 创建合成画布
+      const compositeCanvas = document.createElement('canvas')
+      const ctx = compositeCanvas.getContext('2d')
+
+      // 设置画布尺寸
+      const width = window.innerWidth
+      const height = window.innerHeight
+      compositeCanvas.width = width
+      compositeCanvas.height = height
+
+      // 如果在AR模式下，先绘制摄像头画面
+      if (isARMode && video && video.readyState >= 2) {
+        // 计算视频绘制尺寸（保持比例填充屏幕）
+        const videoRatio = video.videoWidth / video.videoHeight
+        const screenRatio = width / height
+        let drawWidth, drawHeight, drawX, drawY
+
+        if (videoRatio > screenRatio) {
+          drawHeight = height
+          drawWidth = height * videoRatio
+          drawX = (width - drawWidth) / 2
+          drawY = 0
+        } else {
+          drawWidth = width
+          drawHeight = width / videoRatio
+          drawX = 0
+          drawY = (height - drawHeight) / 2
+        }
+
+        ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight)
+      } else {
+        // 非AR模式下填充黑色背景
+        ctx.fillStyle = '#0f172a'
+        ctx.fillRect(0, 0, width, height)
+      }
+
+      // 绘制3D场景（带透明通道）
+      ctx.drawImage(canvas3D, 0, 0, width, height)
+
+      // 添加水印
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
+      ctx.font = '16px Arial'
+      ctx.fillText('AR Photo - ' + new Date().toLocaleString(), 20, height - 20)
+
+      // 下载图片
+      compositeCanvas.toBlob((blob) => {
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
@@ -1094,12 +1135,13 @@ export const ARScene = ({ selectedFile }) => {
         a.click()
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
-        showNotification('拍照成功!', 'success')
+        showNotification('拍照成功!已保存模型和背景', 'success')
       })
     } catch (error) {
+      console.error('拍照失败:', error)
       showNotification('拍照失败', 'error')
     }
-  }, [showNotification])
+  }, [showNotification, isARMode])
 
   // 开始录像
   const startRecording = useCallback(() => {
