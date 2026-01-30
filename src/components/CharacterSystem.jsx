@@ -5,7 +5,159 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { VRM, VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { DragControls } from 'three/examples/jsm/controls/DragControls'
 
-// 角色系统组件
+const ParticleSystem = ({ active, type, position }) => {
+  const particlesRef = useRef()
+  const [particles, setParticles] = useState([])
+
+  useEffect(() => {
+    if (!active) return
+
+    const particleCount = type === 'jump' ? 30 : type === 'dance' ? 50 : type === 'happy' ? 40 : 20
+    const newParticles = []
+
+    for (let i = 0; i < particleCount; i++) {
+      const posX = position && position[0] !== undefined ? position[0] + (Math.random() - 0.5) * 1.5 : (Math.random() - 0.5) * 1.5
+      const posY = position && position[1] !== undefined ? position[1] + Math.random() * 1 : Math.random() * 1
+      const posZ = position && position[2] !== undefined ? position[2] + (Math.random() - 0.5) * 1.5 : (Math.random() - 0.5) * 1.5
+      
+      newParticles.push({
+        position: [posX, posY, posZ],
+        velocity: [
+          (Math.random() - 0.5) * 0.05,
+          Math.random() * 0.08 + 0.02,
+          (Math.random() - 0.5) * 0.05
+        ],
+        size: Math.random() * 0.08 + 0.02,
+        life: 1.0,
+        color: type === 'happy' ? '#fbbf24' : type === 'dance' ? '#a78bfa' : type === 'jump' ? '#60a5fa' : '#ffffff'
+      })
+    }
+
+    setParticles(newParticles)
+  }, [active, type, position])
+
+  if (!active || particles.length === 0) return null
+
+  const positions = new Float32Array(particles.length * 3)
+  particles.forEach((p, i) => {
+    positions[i * 3] = p.position[0]
+    positions[i * 3 + 1] = p.position[1]
+    positions[i * 3 + 2] = p.position[2]
+  })
+
+  return (
+    <points ref={particlesRef}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={particles.length}
+          array={positions}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial
+        size={0.05}
+        color={particles[0]?.color || '#ffffff'}
+        transparent
+        opacity={0.8}
+        sizeAttenuation
+      />
+    </points>
+  )
+}
+
+const DynamicBackground = ({ actionType }) => {
+  const meshRef = useRef()
+  const { scene } = useThree()
+
+  useEffect(() => {
+    if (!meshRef.current) return
+
+    let color
+    switch (actionType) {
+      case 'dance':
+        color = new THREE.Color('#4c1d95')
+        break
+      case 'happy':
+        color = new THREE.Color('#065f46')
+        break
+      case 'sad':
+        color = new THREE.Color('#1e3a8a')
+        break
+      case 'jump':
+        color = new THREE.Color('#7c2d12')
+        break
+      case 'wave':
+        color = new THREE.Color('#0f766e')
+        break
+      default:
+        color = new THREE.Color('#0f172a')
+    }
+
+    meshRef.current.material.color = color
+  }, [actionType])
+
+  return (
+    <mesh ref={meshRef} position={[0, 0, -5]}>
+      <planeGeometry args={[20, 15]} />
+      <meshBasicMaterial
+        color="#0f172a"
+        transparent
+        opacity={0.3}
+      />
+    </mesh>
+  )
+}
+
+const ExpressionSystem = ({ vrmModel, actionType }) => {
+  useEffect(() => {
+    if (!vrmModel || !vrmModel.expressionManager) return
+
+    const setExpression = (expressionName, value) => {
+      if (vrmModel.expressionManager.getExpression(expressionName)) {
+        vrmModel.expressionManager.setValue(expressionName, value)
+      }
+    }
+
+    switch (actionType) {
+      case 'happy':
+        setExpression('happy', 1)
+        setExpression('aa', 0.3)
+        break
+      case 'sad':
+        setExpression('sad', 1)
+        setExpression('ee', 0.2)
+        break
+      case 'wave':
+        setExpression('blink', 0.5)
+        setExpression('u', 0.3)
+        break
+      case 'dance':
+        setExpression('fun', 1)
+        setExpression('blinkL', 0.3)
+        break
+      case 'jump':
+        setExpression('surprised', 1)
+        setExpression('ih', 0.4)
+        break
+      default:
+        setExpression('neutral', 1)
+    }
+
+    return () => {
+      if (vrmModel.expressionManager) {
+        try {
+          vrmModel.expressionManager.setValue('neutral', 1)
+        } catch (error) {
+          console.error('重置表情失败:', error)
+        }
+      }
+    }
+  }, [vrmModel, actionType])
+
+  return null
+}
+
 const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null }) => {
   const { scene, gl } = useThree()
   const characterRef = useRef(null)
@@ -17,11 +169,26 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const [animations, setAnimations] = useState([])
   const [currentAnimation, setCurrentAnimation] = useState(null)
   const [showAnimationSelect, setShowAnimationSelect] = useState(false)
-  const [scale, setScale] = useState(0.5) // 默认缩放比例
+  const [scale, setScale] = useState(0.5)
   const [isDragging, setIsDragging] = useState(false)
-  const [initialPosition, setInitialPosition] = useState([0, 1, -2]) // 设置初始高度为1
+  const [initialPosition, setInitialPosition] = useState([0, 0, 0])
+  const [currentActionType, setCurrentActionType] = useState('idle')
+  const [showParticles, setShowParticles] = useState(false)
+  const [actionIntensity, setActionIntensity] = useState(1.0)
+  const [isComboMode, setIsComboMode] = useState(false)
+  const [comboSequence, setComboSequence] = useState([])
+  const [isRandomMode, setIsRandomMode] = useState(false)
+  const [animationProgress, setAnimationProgress] = useState(0)
+  const [targetPosition, setTargetPosition] = useState(null)
+  const [targetRotation, setTargetRotation] = useState(null)
+  const [targetScale, setTargetScale] = useState(null)
+  const [isAnimating, setIsAnimating] = useState(false)
+  const [modelAnimations, setModelAnimations] = useState([])
+  const [currentAnimationClip, setCurrentAnimationClip] = useState(null)
   const loader = useRef(null)
   const dragControls = useRef(null)
+  const randomModeInterval = useRef(null)
+  const animationFrameRef = useRef(null)
 
   // 初始化加载器
   useEffect(() => {
@@ -151,21 +318,48 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
                 
                 // 提取动画
                 if (gltf.animations && gltf.animations.length > 0) {
-                  console.log('发现动画:', gltf.animations.length, '个')
-                  setAnimations(gltf.animations.map((anim, index) => ({
+                  console.log('发现模型自带动画:', gltf.animations.length, '个')
+                  const animationList = gltf.animations.map((anim, index) => ({
                     name: anim.name || `动画 ${index + 1}`,
                     animation: anim
-                  })))
+                  }))
+                  setModelAnimations(animationList)
+                  console.log('动画列表:', animationList.map(a => a.name))
                 }
                 
                 // 初始化拖动控制
                 initDragControls()
                 
-                // 尝试设置模型初始姿态为站立
+                // 设置模型初始姿态为站立并看着用户
                 if (vrm.humanoid) {
-                  console.log('VRM人形骨骼存在，尝试设置初始姿态')
-                  // 这里可以设置具体的骨骼姿态
-                  // 例如：vrm.humanoid.getBoneNode('Head').rotation.set(0, 0, 0)
+                  console.log('VRM人形骨骼存在，设置初始姿态')
+                  
+                  // 设置头部看向用户
+                  const headBone = vrm.humanoid.getBoneNode('head')
+                  if (headBone) {
+                    headBone.rotation.set(0, 0, 0)
+                  }
+                  
+                  // 设置手臂自然下垂
+                  const leftArm = vrm.humanoid.getBoneNode('leftUpperArm')
+                  const rightArm = vrm.humanoid.getBoneNode('rightUpperArm')
+                  if (leftArm) {
+                    leftArm.rotation.set(0, 0, 0.1)
+                  }
+                  if (rightArm) {
+                    rightArm.rotation.set(0, 0, -0.1)
+                  }
+                  
+                  // 设置身体直立
+                  const spine = vrm.humanoid.getBoneNode('spine')
+                  if (spine) {
+                    spine.rotation.set(0, 0, 0)
+                  }
+                  
+                  // 设置表情为中性
+                  if (vrm.expressionManager) {
+                    vrm.expressionManager.setValue('neutral', 1)
+                  }
                 }
                 
                 console.log('VRM模型加载完成')
@@ -271,99 +465,300 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   // 执行预设动作
   const executePresetAction = (actionName) => {
     console.log('执行预设动作:', actionName)
+    setCurrentActionType(actionName)
     
-    // 根据动作名称执行不同的操作
-    switch (actionName) {
-      case 'idle':
-        // 恢复到 idle 状态
-        if (currentAnimation) {
-          currentAnimation.stop()
-          setCurrentAnimation(null)
-        }
-        break
-      case 'wave':
-        // 模拟挥手动作
-        if (characterRef.current) {
-          console.log('执行挥手动作')
-          // 添加明显的挥手动画
-          const originalPosition = characterRef.current.position.clone()
-          let waveCount = 0
-          const waveInterval = setInterval(() => {
-            if (waveCount < 3) {
-              // 大幅度挥手
-              characterRef.current.position.y = originalPosition.y + 0.3
-              setTimeout(() => {
-                characterRef.current.position.y = originalPosition.y
-              }, 200)
-              waveCount++
-            } else {
-              clearInterval(waveInterval)
-            }
-          }, 400)
-        }
-        break
-      case 'dance':
-        // 模拟跳舞动作
-        if (characterRef.current) {
-          console.log('执行跳舞动作')
-          // 添加明显的跳舞动画
-          const originalPosition = characterRef.current.position.clone()
-          let danceCount = 0
-          const danceInterval = setInterval(() => {
-            if (danceCount < 10) {
-              // 大幅度跳舞动作
-              if (danceCount % 2 === 0) {
-                characterRef.current.position.y = originalPosition.y + 0.5
-                characterRef.current.position.x = originalPosition.x + 0.2
-              } else {
-                characterRef.current.position.y = originalPosition.y
-                characterRef.current.position.x = originalPosition.x - 0.2
-              }
-              danceCount++
-            } else {
-              characterRef.current.position.set(originalPosition.x, originalPosition.y, originalPosition.z)
-              clearInterval(danceInterval)
-            }
-          }, 300)
-        }
-        break
-      case 'jump':
-        // 模拟跳跃动作
-        if (characterRef.current) {
-          console.log('执行跳跃动作')
-          // 添加明显的跳跃动画
-          const originalPosition = characterRef.current.position.clone()
-          let jumpCount = 0
-          const jumpInterval = setInterval(() => {
-            if (jumpCount < 3) {
-              // 大幅度跳跃
-              characterRef.current.position.y = originalPosition.y + 0.8
-              setTimeout(() => {
-                characterRef.current.position.y = originalPosition.y
-              }, 400)
-              jumpCount++
-            } else {
-              clearInterval(jumpInterval)
-            }
-          }, 600)
-        }
-        break
-      case 'sit':
-        // 模拟坐下动作
-        if (characterRef.current) {
-          console.log('执行坐下动作')
-          // 添加明显的坐下动画
-          const originalPosition = characterRef.current.position.clone()
-          // 坐下
-          characterRef.current.position.y = originalPosition.y - 0.5
-          // 2秒后站起来
-          setTimeout(() => {
-            characterRef.current.position.y = originalPosition.y
-          }, 2000)
-        }
-        break
-      default:
-        console.log('未知动作:', actionName)
+    const feedbackElement = document.createElement('div')
+    feedbackElement.style.position = 'fixed'
+    feedbackElement.style.top = '50%'
+    feedbackElement.style.left = '50%'
+    feedbackElement.style.transform = 'translate(-50%, -50%)'
+    feedbackElement.style.background = 'rgba(99, 102, 241, 0.9)'
+    feedbackElement.style.color = 'white'
+    feedbackElement.style.padding = '12px 24px'
+    feedbackElement.style.borderRadius = '20px'
+    feedbackElement.style.fontSize = '14px'
+    feedbackElement.style.fontWeight = '600'
+    feedbackElement.style.zIndex = '9999'
+    feedbackElement.style.boxShadow = '0 8px 25px rgba(99, 102, 241, 0.5)'
+    feedbackElement.style.backdropFilter = 'blur(10px)'
+    feedbackElement.textContent = `播放动画: ${actionName}`
+    document.body.appendChild(feedbackElement)
+    
+    setTimeout(() => {
+      feedbackElement.style.opacity = '0'
+      feedbackElement.style.transition = 'opacity 0.3s ease'
+      setTimeout(() => {
+        document.body.removeChild(feedbackElement)
+      }, 300)
+    }, 800)
+    
+    setShowParticles(true)
+    setTimeout(() => setShowParticles(false), 1500)
+    
+    playModelAnimation(actionName)
+  }
+
+  const playModelAnimation = (animationName) => {
+    if (!animationMixer || modelAnimations.length === 0) {
+      console.log('动画混合器未初始化或没有动画')
+      return
+    }
+    
+    const animation = modelAnimations.find(a => a.name === animationName)
+    if (!animation) {
+      console.log('未找到动画:', animationName)
+      return
+    }
+    
+    console.log('播放模型动画:', animationName)
+    
+    if (currentAnimation) {
+      currentAnimation.stop()
+    }
+    
+    const clipAction = animationMixer.clipAction(animation.animation)
+    clipAction.setLoop(THREE.LoopRepeat)
+    clipAction.reset()
+    clipAction.fadeIn(0.3)
+    clipAction.play()
+    setCurrentAnimation(clipAction)
+    setCurrentAnimationClip(animationName)
+  }
+
+  const animateWave = (originalPosition, originalRotation, intensity) => {
+    let waveCount = 0
+    const maxWaves = 3
+    
+    const waveAnimation = () => {
+      if (waveCount >= maxWaves) {
+        setTargetPosition(originalPosition)
+        setTargetRotation(originalRotation)
+        return
+      }
+      
+      const phase = waveCount % 2
+      if (phase === 0) {
+        setTargetPosition(new THREE.Vector3(
+          originalPosition.x,
+          originalPosition.y + 0.3 * intensity,
+          originalPosition.z
+        ))
+        setTargetRotation(new THREE.Euler(
+          originalRotation.x,
+          originalRotation.y + 0.25 * intensity,
+          originalRotation.z
+        ))
+      } else {
+        setTargetPosition(originalPosition)
+        setTargetRotation(originalRotation)
+      }
+      
+      waveCount++
+      setTimeout(waveAnimation, 250 / intensity)
+    }
+    
+    waveAnimation()
+  }
+
+  const animateDance = (originalPosition, originalRotation, intensity) => {
+    let danceCount = 0
+    const maxDance = 8
+    
+    const danceAnimation = () => {
+      if (danceCount >= maxDance) {
+        setTargetPosition(originalPosition)
+        setTargetRotation(originalRotation)
+        return
+      }
+      
+      const phase = danceCount % 4
+      const offset = 0.2 * intensity
+      
+      switch (phase) {
+        case 0:
+          setTargetPosition(new THREE.Vector3(
+            originalPosition.x + offset,
+            originalPosition.y + 0.4 * intensity,
+            originalPosition.z
+          ))
+          setTargetRotation(new THREE.Euler(
+            originalRotation.x,
+            originalRotation.y + 0.3 * intensity,
+            originalRotation.z + 0.1
+          ))
+          break
+        case 1:
+          setTargetPosition(new THREE.Vector3(
+            originalPosition.x - offset,
+            originalPosition.y,
+            originalPosition.z
+          ))
+          setTargetRotation(new THREE.Euler(
+            originalRotation.x,
+            originalRotation.y - 0.3 * intensity,
+            originalRotation.z - 0.1
+          ))
+          break
+        case 2:
+          setTargetPosition(new THREE.Vector3(
+            originalPosition.x,
+            originalPosition.y + 0.5 * intensity,
+            originalPosition.z
+          ))
+          setTargetRotation(originalRotation)
+          break
+        case 3:
+          setTargetPosition(originalPosition)
+          setTargetRotation(originalRotation)
+          break
+      }
+      
+      danceCount++
+      setTimeout(danceAnimation, 180 / intensity)
+    }
+    
+    danceAnimation()
+  }
+
+  const animateJump = (originalPosition, originalRotation, intensity) => {
+    setTargetPosition(new THREE.Vector3(
+      originalPosition.x,
+      originalPosition.y + 0.8 * intensity,
+      originalPosition.z
+    ))
+    
+    setTimeout(() => {
+      setTargetPosition(originalPosition)
+    }, 400 / intensity)
+  }
+
+  const animateSit = (originalPosition, originalRotation, intensity) => {
+    setTargetPosition(new THREE.Vector3(
+      originalPosition.x,
+      originalPosition.y - 0.5 * intensity,
+      originalPosition.z
+    ))
+    
+    setTimeout(() => {
+      setTargetPosition(originalPosition)
+    }, 1500 / intensity)
+  }
+
+  const animateRun = (originalPosition, originalRotation, intensity) => {
+    let runCount = 0
+    const maxRun = 6
+    
+    const runAnimation = () => {
+      if (runCount >= maxRun) {
+        setTargetPosition(new THREE.Vector3(
+          originalPosition.x + 1.2,
+          originalPosition.y,
+          originalPosition.z
+        ))
+        setTargetRotation(originalRotation)
+        return
+      }
+      
+      const phase = runCount % 2
+      const offset = 0.15 * intensity
+      
+      if (phase === 0) {
+        setTargetPosition(new THREE.Vector3(
+          originalPosition.x + offset * runCount,
+          originalPosition.y + 0.25 * intensity,
+          originalPosition.z
+        ))
+      } else {
+        setTargetPosition(new THREE.Vector3(
+          originalPosition.x + offset * runCount,
+          originalPosition.y,
+          originalPosition.z
+        ))
+      }
+      
+      runCount++
+      setTimeout(runAnimation, 150 / intensity)
+    }
+    
+    runAnimation()
+  }
+
+  const animateHappy = (originalPosition, originalScale, intensity) => {
+    let happyCount = 0
+    const maxHappy = 5
+    
+    const happyAnimation = () => {
+      if (happyCount >= maxHappy) {
+        setTargetScale(new THREE.Vector3(1, 1, 1))
+        return
+      }
+      
+      const phase = happyCount % 2
+      const scaleMultiplier = 1 + 0.08 * intensity
+      
+      if (phase === 0) {
+        setTargetScale(new THREE.Vector3(
+          scaleMultiplier,
+          scaleMultiplier + 0.05,
+          scaleMultiplier
+        ))
+      } else {
+        setTargetScale(new THREE.Vector3(1, 1, 1))
+      }
+      
+      happyCount++
+      setTimeout(happyAnimation, 200 / intensity)
+    }
+    
+    happyAnimation()
+  }
+
+  const animateSad = (originalPosition, originalRotation, intensity) => {
+    setTargetPosition(new THREE.Vector3(
+      originalPosition.x,
+      originalPosition.y - 0.25 * intensity,
+      originalPosition.z
+    ))
+    setTargetRotation(new THREE.Euler(
+      originalRotation.x + 0.2 * intensity,
+      originalRotation.y,
+      originalRotation.z
+    ))
+    
+    setTimeout(() => {
+      setTargetPosition(originalPosition)
+      setTargetRotation(originalRotation)
+    }, 1800 / intensity)
+  }
+
+  const executeComboAction = (sequence) => {
+    if (sequence.length === 0) return
+
+    let currentIndex = 0
+    const executeNext = () => {
+      if (currentIndex < sequence.length) {
+        executePresetAction(sequence[currentIndex])
+        currentIndex++
+        setTimeout(executeNext, 2000 / actionIntensity)
+      }
+    }
+    executeNext()
+  }
+
+  const toggleRandomMode = () => {
+    setIsRandomMode(!isRandomMode)
+    if (!isRandomMode) {
+      const actions = ['idle', 'wave', 'dance', 'jump', 'happy']
+      randomModeInterval.current = setInterval(() => {
+        const randomAction = actions[Math.floor(Math.random() * actions.length)]
+        executePresetAction(randomAction)
+      }, 3000)
+    } else {
+      if (randomModeInterval.current) {
+        clearInterval(randomModeInterval.current)
+        randomModeInterval.current = null
+        executePresetAction('idle')
+      }
     }
   }
 
@@ -421,8 +816,21 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       dragControls.current.dispose()
     }
     
+    // 获取场景中的相机
+    let camera = null
+    scene.traverse((object) => {
+      if (object.isCamera) {
+        camera = object
+      }
+    })
+    
+    if (!camera) {
+      console.error('未找到相机，无法初始化拖动控制')
+      return
+    }
+    
     // 创建拖动控制
-    dragControls.current = new DragControls([characterRef.current], gl.domElement, gl.domElement)
+    dragControls.current = new DragControls([characterRef.current], camera, gl.domElement)
     
     // 监听拖动事件
     dragControls.current.addEventListener('dragstart', () => {
@@ -454,17 +862,44 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       handleSwing(swingData)
     }
 
-    // 监听动作执行事件
     const handleExecuteAction = (event) => {
       const { actionName } = event.detail
       executePresetAction(actionName)
     }
 
+    const handleExecuteCombo = (event) => {
+      const { sequence } = event.detail
+      executeComboAction(sequence)
+    }
+
+    const handleToggleRandom = () => {
+      toggleRandomMode()
+    }
+
+    const handleResetPosition = () => {
+      if (characterRef.current) {
+        characterRef.current.position.set(0, 1, -2)
+        characterRef.current.rotation.set(0, 0, 0)
+        characterRef.current.scale.set(scale, scale, scale)
+      }
+    }
+
     window.addEventListener('swingDetected', handleSwingEvent)
     window.addEventListener('executeAction', handleExecuteAction)
+    window.addEventListener('executeCombo', handleExecuteCombo)
+    window.addEventListener('toggleRandom', handleToggleRandom)
+    window.addEventListener('resetPosition', handleResetPosition)
+    
     return () => {
       window.removeEventListener('swingDetected', handleSwingEvent)
       window.removeEventListener('executeAction', handleExecuteAction)
+      window.removeEventListener('executeCombo', handleExecuteCombo)
+      window.removeEventListener('toggleRandom', handleToggleRandom)
+      window.removeEventListener('resetPosition', handleResetPosition)
+      
+      if (randomModeInterval.current) {
+        clearInterval(randomModeInterval.current)
+      }
     }
   }, [])
 
@@ -475,14 +910,47 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         animationMixer.update(delta)
       }
       
-      // 更新VRM
       if (vrmModel && typeof vrmModel.update === 'function') {
         vrmModel.update(delta)
       }
       
-      // 添加简单的呼吸动画
+      // 平滑动画系统
+      if (characterRef.current && isAnimating) {
+        const smoothFactor = 0.15
+        
+        if (targetPosition) {
+          characterRef.current.position.x += (targetPosition.x - characterRef.current.position.x) * smoothFactor
+          characterRef.current.position.y += (targetPosition.y - characterRef.current.position.y) * smoothFactor
+          characterRef.current.position.z += (targetPosition.z - characterRef.current.position.z) * smoothFactor
+        }
+        
+        if (targetRotation) {
+          characterRef.current.rotation.x += (targetRotation.x - characterRef.current.rotation.x) * smoothFactor
+          characterRef.current.rotation.y += (targetRotation.y - characterRef.current.rotation.y) * smoothFactor
+          characterRef.current.rotation.z += (targetRotation.z - characterRef.current.rotation.z) * smoothFactor
+        }
+        
+        if (targetScale) {
+          characterRef.current.scale.x += (targetScale.x - characterRef.current.scale.x) * smoothFactor
+          characterRef.current.scale.y += (targetScale.y - characterRef.current.scale.y) * smoothFactor
+          characterRef.current.scale.z += (targetScale.z - characterRef.current.scale.z) * smoothFactor
+        }
+        
+        // 检查动画是否完成
+        if (targetPosition && targetRotation) {
+          const posDiff = Math.abs(characterRef.current.position.y - targetPosition.y)
+          const rotDiff = Math.abs(characterRef.current.rotation.y - targetRotation.y)
+          
+          if (posDiff < 0.01 && rotDiff < 0.01) {
+            setIsAnimating(false)
+          }
+        }
+      }
+      
+      // 添加自然的呼吸动画
       if (characterRef.current && characterRef.current.scale) {
-        characterRef.current.scale.y = 1 + Math.sin(Date.now() * 0.001) * 0.02
+        const breatheScale = 1 + Math.sin(Date.now() * 0.002) * 0.015
+        characterRef.current.scale.y = breatheScale
       }
     } catch (error) {
       console.error('动画更新失败:', error)
@@ -491,147 +959,19 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
 
   return (
     <>
+      <DynamicBackground actionType={currentActionType} />
+      <ParticleSystem 
+        active={showParticles} 
+        type={currentActionType} 
+        position={characterRef?.current?.position || [0, 1, -2]} 
+      />
+      <ExpressionSystem vrmModel={vrmModel} actionType={currentActionType} />
       {isLoading && (
         <mesh position={[0, 2, 0]}>
           <boxGeometry args={[0.5, 0.5, 0.5]} />
           <meshBasicMaterial color="#646cff" />
         </mesh>
       )}
-      
-      {/* 外部UI控件 */}
-      <div style={{
-        position: 'fixed',
-        bottom: '20px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 1000,
-        width: '90%',
-        maxWidth: '400px'
-      }}>
-        {/* 动作选择界面 */}
-        <div style={{
-          background: 'rgba(15, 23, 42, 0.95)',
-          padding: '12px',
-          borderRadius: '12px',
-          boxShadow: '0 6px 20px rgba(0, 0, 0, 0.3)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          marginBottom: '12px'
-        }}>
-          <div style={{
-            display: 'flex',
-            gap: '8px',
-            justifyContent: 'center',
-            flexWrap: 'wrap'
-          }}>
-            {presetAnimations.map((anim, index) => (
-              <button
-                key={index}
-                onClick={() => executePresetAction(anim.action)}
-                style={{
-                  padding: '8px 12px',
-                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)',
-                  transition: 'all 0.3s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = 'scale(1.05)'
-                  e.target.style.boxShadow = '0 6px 16px rgba(99, 102, 241, 0.5)'
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = 'scale(1)'
-                  e.target.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.4)'
-                }}
-              >
-                {anim.name}
-              </button>
-            ))}
-          </div>
-        </div>
-        
-        {/* 缩放控制界面 */}
-        <div style={{
-          background: 'rgba(15, 23, 42, 0.95)',
-          padding: '12px',
-          borderRadius: '12px',
-          boxShadow: '0 6px 20px rgba(0, 0, 0, 0.3)',
-          backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
-        }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '12px'
-          }}>
-            <button
-              onClick={() => handleScaleChange(-0.1)}
-              style={{
-                padding: '8px 12px',
-                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '16px',
-                fontWeight: '600',
-                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = 'scale(1.05)'
-                e.target.style.boxShadow = '0 6px 16px rgba(239, 68, 68, 0.5)'
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = 'scale(1)'
-                e.target.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)'
-              }}
-            >
-              −
-            </button>
-            <div style={{
-              color: 'white',
-              fontSize: '14px',
-              fontWeight: '600',
-              minWidth: '60px',
-              textAlign: 'center'
-            }}>
-              大小: {(scale * 100).toFixed(0)}%
-            </div>
-            <button
-              onClick={() => handleScaleChange(0.1)}
-              style={{
-                padding: '8px 12px',
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '16px',
-                fontWeight: '600',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
-                transition: 'all 0.3s ease'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = 'scale(1.05)'
-                e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.5)'
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = 'scale(1)'
-                e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)'
-              }}
-            >
-              +
-            </button>
-          </div>
-        </div>
-      </div>
     </>
   )
 }
