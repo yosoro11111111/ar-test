@@ -441,16 +441,6 @@ function App() {
     console.log('模型路径:', modelPath)
     
     try {
-      // 检查文件是否存在
-      const response = await fetch(modelPath, { method: 'HEAD' })
-      if (!response.ok) {
-        throw new Error(`模型文件不存在: ${modelPath}`)
-      }
-      
-      // 获取文件大小
-      const fileSize = response.headers.get('content-length') || 0
-      console.log('模型文件大小:', (fileSize / 1024 / 1024).toFixed(2), 'MB')
-      
       // 创建一个包含实际内容的 Blob（至少要有一些内容）
       const dummyContent = new Uint8Array(1)
       dummyContent[0] = 0
