@@ -1,10 +1,113 @@
 import React, { useRef, useEffect, useState } from 'react'
 import { useThree, useFrame } from '@react-three/fiber'
-import { Html } from '@react-three/drei'
+import { Html, TransformControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { VRM, VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { DragControls } from 'three/examples/jsm/controls/DragControls'
+
+// ==================== 骨骼编辑可视化组件 ====================
+const BoneEditor = ({ vrmModel, isEditing, onBoneChange }) => {
+  const [selectedBone, setSelectedBone] = useState(null)
+  const boneRefs = useRef({})
+  
+  // 主要骨骼列表
+  const mainBones = [
+    { name: 'head', label: '头部', color: '#ff6b6b' },
+    { name: 'neck', label: '颈部', color: '#ff9f43' },
+    { name: 'chest', label: '胸部', color: '#feca57' },
+    { name: 'spine', label: '脊柱', color: '#48dbfb' },
+    { name: 'hips', label: '臀部', color: '#54a0ff' },
+    { name: 'leftShoulder', label: '左肩', color: '#5f27cd' },
+    { name: 'rightShoulder', label: '右肩', color: '#5f27cd' },
+    { name: 'leftUpperArm', label: '左上臂', color: '#00d2d3' },
+    { name: 'rightUpperArm', label: '右上臂', color: '#00d2d3' },
+    { name: 'leftLowerArm', label: '左前臂', color: '#1dd1a1' },
+    { name: 'rightLowerArm', label: '右前臂', color: '#1dd1a1' },
+    { name: 'leftHand', label: '左手', color: '#ff9ff3' },
+    { name: 'rightHand', label: '右手', color: '#ff9ff3' },
+    { name: 'leftUpperLeg', label: '左大腿', color: '#ff6b6b' },
+    { name: 'rightUpperLeg', label: '右大腿', color: '#ff6b6b' },
+    { name: 'leftLowerLeg', label: '左小腿', color: '#feca57' },
+    { name: 'rightLowerLeg', label: '右小腿', color: '#feca57' },
+    { name: 'leftFoot', label: '左脚', color: '#48dbfb' },
+    { name: 'rightFoot', label: '右脚', color: '#48dbfb' },
+  ]
+  
+  useEffect(() => {
+    if (!vrmModel?.humanoid) return
+    
+    // 初始化骨骼引用
+    mainBones.forEach(({ name }) => {
+      const bone = vrmModel.humanoid.getNormalizedBoneNode(name)
+      if (bone) {
+        boneRefs.current[name] = bone
+      }
+    })
+  }, [vrmModel])
+  
+  if (!isEditing || !vrmModel?.humanoid) return null
+  
+  return (
+    <>
+      {mainBones.map(({ name, label, color }) => {
+        const bone = boneRefs.current[name]
+        if (!bone) return null
+        
+        const worldPos = new THREE.Vector3()
+        bone.getWorldPosition(worldPos)
+        
+        return (
+          <group key={name}>
+            {/* 骨骼控制点 */}
+            <mesh
+              position={worldPos}
+              onClick={(e) => {
+                e.stopPropagation()
+                setSelectedBone(selectedBone === name ? null : name)
+              }}
+            >
+              <sphereGeometry args={[0.03, 16, 16]} />
+              <meshBasicMaterial 
+                color={selectedBone === name ? '#00ff00' : color} 
+                transparent
+                opacity={0.8}
+              />
+            </mesh>
+            
+            {/* 选中时的 TransformControls */}
+            {selectedBone === name && (
+              <TransformControls
+                object={bone}
+                mode="rotate"
+                onChange={() => {
+                  onBoneChange?.(name, bone.rotation)
+                }}
+              />
+            )}
+            
+            {/* 骨骼标签 */}
+            <Html position={[worldPos.x, worldPos.y + 0.08, worldPos.z]}>
+              <div style={{
+                background: 'rgba(0,0,0,0.7)',
+                color: color,
+                padding: '2px 6px',
+                borderRadius: '4px',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                whiteSpace: 'nowrap',
+                pointerEvents: 'none',
+                userSelect: 'none'
+              }}>
+                {label}
+              </div>
+            </Html>
+          </group>
+        )
+      })}
+    </>
+  )
+}
 
 // ==================== 增强版粒子系统 ====================
 const ParticleSystem = ({ active, type, position }) => {
@@ -472,7 +575,7 @@ const ExpressionSystem = ({ vrmModel, actionType, intensity = 1.0, isPlaying = t
   return null
 }
 
-const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null }) => {
+const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null, isBoneEditing = false, onBoneChange = null }) => {
   const { scene, gl, camera } = useThree()
   const characterRef = useRef(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -2695,6 +2798,13 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       />
       <ExpressionSystem vrmModel={vrmModel} actionType={currentActionType} />
       
+      {/* 骨骼编辑器 */}
+      <BoneEditor 
+        vrmModel={vrmModel} 
+        isEditing={isBoneEditing} 
+        onBoneChange={onBoneChange}
+      />
+      
       {touchFeedback.show && (
         <mesh position={[touchFeedback.x * 0.01, touchFeedback.y * 0.01, 2]}>
           <ringGeometry args={[0.3, 0.4, 32]} />
@@ -2785,7 +2895,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   )
 }
 
-const CharacterController = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null }) => {
+const CharacterController = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null, isBoneEditing = false, onBoneChange = null }) => {
   return (
     <group>
       <CharacterSystem 
@@ -2793,6 +2903,8 @@ const CharacterController = ({ position = [0, 0, 0], rotation = [0, 0, 0], selec
         rotation={rotation} 
         selectedFile={selectedFile} 
         onSwing={onSwing}
+        isBoneEditing={isBoneEditing}
+        onBoneChange={onBoneChange}
       />
     </group>
   )
