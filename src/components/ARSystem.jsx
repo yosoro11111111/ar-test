@@ -1463,9 +1463,7 @@ export const ARScene = ({ selectedFile }) => {
       }
 
       // 强制渲染一帧以确保画布有内容
-      if (gl && gl.render) {
-        gl.render()
-      }
+      // 注意：Three.js 的渲染循环会自动处理，这里不需要手动调用
 
       // 创建合成画布
       const compositeCanvas = document.createElement('canvas')
@@ -1841,13 +1839,18 @@ export const ARScene = ({ selectedFile }) => {
           style={{ background: 'transparent' }}
           onCreated={({ gl }) => { 
             glRef.current = gl
-            console.log('Canvas created, preserveDrawingBuffer:', gl.attributes.preserveDrawingBuffer)
+            console.log('Canvas created')
           }}
         >
           <PerspectiveCamera makeDefault position={[0, 0.8, 2.5]} fov={50} />
-          <ambientLight intensity={0.8} />
-          <spotLight position={[5, 10, 5]} intensity={1.2} castShadow />
-          <directionalLight position={[0, 5, 0]} intensity={0.6} />
+          <ambientLight intensity={2.0} />
+          <hemisphereLight intensity={1.5} groundColor="#444444" />
+          <spotLight position={[5, 10, 5]} intensity={2.0} castShadow />
+          <directionalLight position={[0, 5, 0]} intensity={1.5} />
+          <directionalLight position={[-5, 5, 5]} intensity={1.0} color="#ffffff" />
+          <directionalLight position={[5, 5, -5]} intensity={0.8} color="#ffecd2" />
+          <pointLight position={[0, 3, 3]} intensity={1.5} color="#ffffff" distance={10} />
+          <pointLight position={[-3, 3, 0]} intensity={1.0} color="#e0f7fa" distance={8} />
           
           <ARContent 
             characters={characters}

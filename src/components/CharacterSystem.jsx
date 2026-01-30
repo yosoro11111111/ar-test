@@ -9,7 +9,8 @@ import { DragControls } from 'three/examples/jsm/controls/DragControls'
 // ==================== 骨骼编辑可视化组件 ====================
 const BoneEditor = ({ vrmModel, isEditing, onBoneChange }) => {
   const [selectedBone, setSelectedBone] = useState(null)
-  const boneRefs = useRef({})
+  const [bones, setBones] = useState([])
+  const { scene } = useThree()
   
   // 主要骨骼列表
   const mainBones = [
@@ -35,43 +36,66 @@ const BoneEditor = ({ vrmModel, isEditing, onBoneChange }) => {
   ]
   
   useEffect(() => {
-    if (!vrmModel?.humanoid) return
+    console.log('BoneEditor: useEffect 触发', { 
+      hasVrmModel: !!vrmModel, 
+      hasHumanoid: !!(vrmModel?.humanoid),
+      humanoidKeys: vrmModel ? Object.keys(vrmModel) : [],
+      isEditing 
+    })
     
-    // 初始化骨骼引用
-    mainBones.forEach(({ name }) => {
-      const bone = vrmModel.humanoid.getNormalizedBoneNode(name)
-      if (bone) {
-        boneRefs.current[name] = bone
+    if (!vrmModel?.humanoid || !isEditing) {
+      console.log('BoneEditor: 条件不满足', { hasHumanoid: !!vrmModel?.humanoid, isEditing })
+      return
+    }
+    
+    console.log('BoneEditor: 开始初始化骨骼')
+    // 初始化骨骼列表
+    const boneList = []
+    mainBones.forEach(({ name, label, color }) => {
+      try {
+        const bone = vrmModel.humanoid.getNormalizedBoneNode(name)
+        if (bone) {
+          boneList.push({ name, label, color, bone })
+          console.log('BoneEditor: 找到骨骼', name)
+        } else {
+          console.log('BoneEditor: 未找到骨骼', name)
+        }
+      } catch (e) {
+        console.log('BoneEditor: 获取骨骼失败', name, e.message)
       }
     })
-  }, [vrmModel])
+    console.log('BoneEditor: 骨骼列表', boneList.length)
+    setBones(boneList)
+  }, [vrmModel, isEditing])
   
-  if (!isEditing || !vrmModel?.humanoid) return null
+  console.log('BoneEditor: 渲染检查', { isEditing, boneCount: bones.length })
+  
+  if (!isEditing || bones.length === 0) {
+    console.log('BoneEditor: 不渲染', { isEditing, boneCount: bones.length })
+    return null
+  }
   
   return (
     <>
-      {mainBones.map(({ name, label, color }) => {
-        const bone = boneRefs.current[name]
-        if (!bone) return null
-        
+      {bones.map(({ name, label, color, bone }) => {
         const worldPos = new THREE.Vector3()
         bone.getWorldPosition(worldPos)
         
         return (
           <group key={name}>
-            {/* 骨骼控制点 */}
+            {/* 骨骼控制点 - 使用mesh作为可点击区域 */}
             <mesh
               position={worldPos}
-              onClick={(e) => {
+              onPointerDown={(e) => {
                 e.stopPropagation()
                 setSelectedBone(selectedBone === name ? null : name)
               }}
             >
-              <sphereGeometry args={[0.03, 16, 16]} />
+              <sphereGeometry args={[0.05, 16, 16]} />
               <meshBasicMaterial 
                 color={selectedBone === name ? '#00ff00' : color} 
                 transparent
-                opacity={0.8}
+                opacity={0.9}
               />
             </mesh>
             
@@ -80,6 +104,10 @@ const BoneEditor = ({ vrmModel, isEditing, onBoneChange }) => {
               <TransformControls
                 object={bone}
                 mode="rotate"
+                size={0.5}
+                showX={true}
+                showY={true}
+                showZ={true}
                 onChange={() => {
                   onBoneChange?.(name, bone.rotation)
                 }}
@@ -87,17 +115,18 @@ const BoneEditor = ({ vrmModel, isEditing, onBoneChange }) => {
             )}
             
             {/* 骨骼标签 */}
-            <Html position={[worldPos.x, worldPos.y + 0.08, worldPos.z]}>
+            <Html position={[worldPos.x, worldPos.y + 0.1, worldPos.z]}>
               <div style={{
-                background: 'rgba(0,0,0,0.7)',
+                background: 'rgba(0,0,0,0.8)',
                 color: color,
-                padding: '2px 6px',
+                padding: '4px 8px',
                 borderRadius: '4px',
-                fontSize: '10px',
+                fontSize: '11px',
                 fontWeight: 'bold',
                 whiteSpace: 'nowrap',
                 pointerEvents: 'none',
-                userSelect: 'none'
+                userSelect: 'none',
+                border: selectedBone === name ? '2px solid #00ff00' : 'none'
               }}>
                 {label}
               </div>
@@ -830,6 +859,8 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
               }
             } else {
               console.log('VRM实例加载成功:', vrm)
+              console.log('VRM结构:', Object.keys(vrm))
+              console.log('VRM.humanoid:', vrm.humanoid)
               setVrmModel(vrm)
               
               vrm.scene.position.set(0, 0, 0)
@@ -856,6 +887,42 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
               initDragControls()
               optimizeModelDisplay(vrm.scene)
               setInitialPose(vrm)
+              
+              // 修复VRM材质显示问题
+              vrm.scene.traverse((obj) => {
+                if (obj.isMesh && obj.material) {
+                  // 确保材质正确更新
+                  obj.material.needsUpdate = true
+                  
+                  // 修复黑色材质问题 - 针对 VRM/MToon 材质
+                  if (obj.material.isMToonMaterial) {
+                    // VRM MToon 材质特殊处理
+                    if (obj.material.color) {
+                      console.log('MToon材质颜色:', obj.material.color)
+                    }
+                    // 确保 MToon 材质正确渲染
+                    obj.material.needsUpdate = true
+                  } else if (obj.material.isMeshStandardMaterial || obj.material.isMeshLambertMaterial) {
+                    // 标准材质处理
+                    if (obj.material.color && obj.material.color.r === 0 && obj.material.color.g === 0 && obj.material.color.b === 0) {
+                      obj.material.color.setHex(0xffffff)
+                    }
+                    // 增加自发光让模型更亮
+                    if (!obj.material.emissive) {
+                      obj.material.emissive = new THREE.Color(0x222222)
+                    }
+                  }
+                  
+                  // 确保材质接受光照
+                  obj.material.needsUpdate = true
+                  
+                  // 如果是透明材质，确保渲染顺序正确
+                  if (obj.material.transparent) {
+                    obj.material.depthWrite = false
+                    obj.renderOrder = 1
+                  }
+                }
+              })
               
               console.log('VRM模型加载完成')
             }
