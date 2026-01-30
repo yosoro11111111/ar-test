@@ -154,9 +154,12 @@ const FloatingDecorations = () => {
 }
 
 // ==================== 4. 角色卡槽组件（优化版） ====================
-const CharacterSlot = ({ character, index, onSelect, onRemove, isSelected }) => {
+const CharacterSlot = ({ character, index, onSelect, onRemove, isSelected, isMobile }) => {
   const [isPressed, setIsPressed] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  
+  const slotSize = isMobile ? { width: '60px', height: '60px' } : { width: '90px', height: '90px' }
+  const fontSize = isMobile ? '24px' : '32px'
   
   return (
     <div
@@ -166,8 +169,7 @@ const CharacterSlot = ({ character, index, onSelect, onRemove, isSelected }) => 
       onMouseLeave={() => setIsPressed(false)}
       onMouseEnter={() => character && setShowPreview(true)}
       style={{
-        width: '90px',
-        height: '90px',
+        ...slotSize,
         borderRadius: '28px',
         background: isSelected 
           ? 'linear-gradient(135deg, #ff9ecd 0%, #ff6b9d 50%, #c44569 100%)' 
@@ -301,10 +303,25 @@ const CharacterSlot = ({ character, index, onSelect, onRemove, isSelected }) => 
 }
 
 // ==================== 5. 动作按钮组件（优化版） ====================
-const ActionButton = ({ item, index, onClick, isActive }) => {
+const ActionButton = ({ item, index, onClick, isActive, isMobile }) => {
   const [isPressed, setIsPressed] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const [cooldown, setCooldown] = useState(0)
+  
+  // 移动端尺寸调整
+  const buttonSize = isMobile ? {
+    minWidth: item.highlight ? '90px' : '70px',
+    height: item.highlight ? '70px' : '60px',
+    fontSize: item.highlight ? '28px' : '24px',
+    labelSize: '10px',
+    borderRadius: '16px'
+  } : {
+    minWidth: item.highlight ? '130px' : '110px',
+    height: item.highlight ? '100px' : '90px',
+    fontSize: item.highlight ? '40px' : '32px',
+    labelSize: item.highlight ? '14px' : '12px',
+    borderRadius: '24px'
+  }
   
   const handleClick = useCallback(() => {
     if (cooldown > 0) return
@@ -369,8 +386,8 @@ const ActionButton = ({ item, index, onClick, isActive }) => {
       onMouseEnter={() => setIsHovered(true)}
       disabled={cooldown > 0}
       style={{
-        minWidth: item.highlight ? '130px' : '110px',
-        height: item.highlight ? '100px' : '90px',
+        minWidth: buttonSize.minWidth,
+        height: buttonSize.height,
         background: isActive
           ? 'linear-gradient(135deg, #ff9ecd 0%, #ff6b9d 50%, #c44569 100%)'
           : isFirst 
@@ -381,7 +398,7 @@ const ActionButton = ({ item, index, onClick, isActive }) => {
           : item.highlight 
             ? '3px solid #ffd93d' 
             : '2px solid rgba(255,255,255,0.3)',
-        borderRadius: '24px',
+        borderRadius: buttonSize.borderRadius,
         cursor: cooldown > 0 ? 'not-allowed' : 'pointer',
         transition: 'all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
         display: 'flex',
@@ -428,7 +445,7 @@ const ActionButton = ({ item, index, onClick, isActive }) => {
       }} />
       
       <div style={{ 
-        fontSize: item.highlight ? '40px' : '32px', 
+        fontSize: buttonSize.fontSize, 
         filter: 'drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4))',
         animation: isHovered ? 'bounce 0.5s ease-in-out infinite' : item.highlight ? 'pulse 1.5s ease-in-out infinite' : 'none',
         transform: item.highlight ? 'scale(1.25)' : 'scale(1.15)',
@@ -436,7 +453,7 @@ const ActionButton = ({ item, index, onClick, isActive }) => {
       }}>{theme.icon}</div>
       
       <div style={{ 
-        fontSize: item.highlight ? '14px' : '12px', 
+        fontSize: buttonSize.labelSize, 
         fontWeight: '800', 
         textAlign: 'center', 
         textShadow: '0 2px 6px rgba(0, 0, 0, 0.5)',
@@ -999,9 +1016,21 @@ export const ARScene = ({ selectedFile }) => {
           streamRef.current.getTracks().forEach(t => t.stop())
         }
         
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: cameraFacingMode } })
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: cameraFacingMode,
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          }
+        })
         streamRef.current = stream
-        if (videoRef.current) videoRef.current.srcObject = stream
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream
+          // 确保视频开始播放
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current.play().catch(e => console.log('视频播放失败:', e))
+          }
+        }
       } catch (err) {
         showNotification('摄像头权限被拒绝', 'error')
         setIsARMode(false)
@@ -1070,10 +1099,10 @@ export const ARScene = ({ selectedFile }) => {
       
       {/* AR视频背景 */}
       {isARMode && (
-        <video 
+        <video
           ref={videoRef}
-          autoPlay 
-          playsInline 
+          autoPlay
+          playsInline
           muted
           style={{
             position: 'absolute',
@@ -1082,7 +1111,8 @@ export const ARScene = ({ selectedFile }) => {
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            zIndex: 0
+            zIndex: 0,
+            backgroundColor: '#000'
           }}
         />
       )}
@@ -1111,12 +1141,18 @@ export const ARScene = ({ selectedFile }) => {
           />
           
           {!isARMode && (
-            <OrbitControls 
-              enablePan={false} 
+            <OrbitControls
+              enablePan={true}
+              enableRotate={true}
+              enableZoom={true}
               minDistance={1}
               maxDistance={5}
               target={[0, 0.6, 0]}
               maxPolarAngle={Math.PI / 1.8}
+              touches={{
+                ONE: THREE.TOUCH.ROTATE,
+                TWO: THREE.TOUCH.DOLLY_PAN
+              }}
             />
           )}
         </Canvas>
@@ -1201,35 +1237,39 @@ export const ARScene = ({ selectedFile }) => {
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '12px'
+          gap: isMobile ? '8px' : '12px'
         }}>
-          <TechButton 
-            onClick={() => setShowSettings(!showSettings)} 
+          <TechButton
+            onClick={() => setShowSettings(!showSettings)}
             active={showSettings}
             size="small"
+            isMobile={isMobile}
           >
             ⚙️
           </TechButton>
-          
-          <TechButton 
-            onClick={toggleSwingMode} 
+
+          <TechButton
+            onClick={toggleSwingMode}
             active={isSwingMode}
             size="small"
+            isMobile={isMobile}
           >
             📱
           </TechButton>
-          
-          <TechButton 
+
+          <TechButton
             onClick={toggleCamera}
             size="small"
+            isMobile={isMobile}
           >
             🔄
           </TechButton>
-          
-          <TechButton 
+
+          <TechButton
             onClick={() => setIsARMode(!isARMode)}
             active={!isARMode}
             size="small"
+            isMobile={isMobile}
           >
             {isARMode ? '📷' : '🎥'}
           </TechButton>
@@ -1289,16 +1329,16 @@ export const ARScene = ({ selectedFile }) => {
       {/* 左侧角色选择区 */}
       <div style={{
         position: 'absolute',
-        left: '20px',
+        left: isMobile ? '10px' : '20px',
         top: '50%',
         transform: 'translateY(-50%)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '16px',
+        gap: isMobile ? '10px' : '16px',
         zIndex: 100,
         background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.6) 100%)',
-        padding: '20px',
-        borderRadius: '28px',
+        padding: isMobile ? '12px' : '20px',
+        borderRadius: isMobile ? '20px' : '28px',
         backdropFilter: 'blur(15px)',
         border: '1px solid rgba(255,255,255,0.1)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
@@ -1311,22 +1351,23 @@ export const ARScene = ({ selectedFile }) => {
             isSelected={selectedCharacterIndex === index}
             onSelect={setSelectedCharacterIndex}
             onRemove={removeCharacter}
+            isMobile={isMobile}
           />
         ))}
         
         <button
           onClick={() => setShowModelSelect(true)}
           style={{
-            width: '90px',
-            height: '90px',
-            borderRadius: '28px',
+            width: isMobile ? '60px' : '90px',
+            height: isMobile ? '60px' : '90px',
+            borderRadius: isMobile ? '20px' : '28px',
             background: 'linear-gradient(135deg, rgba(255, 158, 205, 0.3) 0%, rgba(255, 107, 157, 0.3) 100%)',
             border: '2px dashed rgba(255, 184, 208, 0.5)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: '36px',
+            fontSize: isMobile ? '24px' : '36px',
             color: 'white',
             transition: 'all 0.3s ease',
             backdropFilter: 'blur(10px)'
@@ -1419,39 +1460,40 @@ export const ARScene = ({ selectedFile }) => {
       {/* 右侧控制按钮 */}
       <div style={{
         position: 'absolute',
-        right: '20px',
+        right: isMobile ? '10px' : '20px',
         top: '50%',
         transform: 'translateY(-50%)',
         display: 'flex',
         flexDirection: 'column',
-        gap: '16px',
+        gap: isMobile ? '10px' : '16px',
         zIndex: 100,
         background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.6) 100%)',
-        padding: '20px',
-        borderRadius: '28px',
+        padding: isMobile ? '12px' : '20px',
+        borderRadius: isMobile ? '20px' : '28px',
         backdropFilter: 'blur(15px)',
         border: '1px solid rgba(255,255,255,0.1)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
       }}>
-        <TechButton onClick={takePhoto} size="medium">📸</TechButton>
-        
-        <TechButton 
-          onClick={isRecording ? stopRecording : startRecording} 
+        <TechButton onClick={takePhoto} size={isMobile ? 'small' : 'medium'} isMobile={isMobile}>📸</TechButton>
+
+        <TechButton
+          onClick={isRecording ? stopRecording : startRecording}
           active={isRecording}
-          size="medium"
+          size={isMobile ? 'small' : 'medium'}
+          isMobile={isMobile}
         >
           {isRecording ? '⏹️' : '🎥'}
         </TechButton>
-        
+
         {isRecording && (
           <div style={{
             position: 'absolute',
-            right: '90px',
+            right: isMobile ? '60px' : '90px',
             background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)',
             color: 'white',
-            padding: '8px 16px',
+            padding: isMobile ? '4px 10px' : '8px 16px',
             borderRadius: '20px',
-            fontSize: '14px',
+            fontSize: isMobile ? '12px' : '14px',
             fontWeight: 'bold',
             whiteSpace: 'nowrap',
             animation: 'pulse 1s ease-in-out infinite'
@@ -1459,11 +1501,12 @@ export const ARScene = ({ selectedFile }) => {
             ● {formatTime(recordingTime)}
           </div>
         )}
-        
-        <TechButton 
-          onClick={toggleRandomMode} 
+
+        <TechButton
+          onClick={toggleRandomMode}
           active={isRandomMode}
-          size="medium"
+          size={isMobile ? 'small' : 'medium'}
+          isMobile={isMobile}
         >
           🎲
         </TechButton>
@@ -1472,19 +1515,19 @@ export const ARScene = ({ selectedFile }) => {
       {/* 底部动作栏 */}
       <div style={{
         position: 'absolute',
-        bottom: '20px',
+        bottom: isMobile ? '10px' : '20px',
         left: '50%',
         transform: 'translateX(-50%)',
         display: 'flex',
-        gap: '12px',
+        gap: isMobile ? '8px' : '12px',
         zIndex: 100,
         background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.8) 100%)',
-        padding: '16px 24px',
-        borderRadius: '32px',
+        padding: isMobile ? '10px 16px' : '16px 24px',
+        borderRadius: isMobile ? '24px' : '32px',
         backdropFilter: 'blur(20px)',
         border: '1px solid rgba(255,255,255,0.15)',
         boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
-        maxWidth: '90vw',
+        maxWidth: isMobile ? '85vw' : '90vw',
         overflowX: 'auto'
       }}>
         {actionList.map((item, index) => (
@@ -1494,6 +1537,7 @@ export const ARScene = ({ selectedFile }) => {
             index={index}
             isActive={currentAction === item.action}
             onClick={() => executeAction(item.action)}
+            isMobile={isMobile}
           />
         ))}
       </div>
