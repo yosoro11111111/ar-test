@@ -1234,29 +1234,29 @@ export const ARScene = ({ selectedFile }) => {
     }
   }, [cameraFacingMode, isARMode, showNotification])
 
-  // 陀螺仪监听
-  useEffect(() => {
-    if (!isSwingMode || !window.DeviceOrientationEvent) return
-    
-    const handleOrientation = (event) => {
-      const { alpha, beta, gamma } = event
-      const gyroData = { x: beta, y: gamma, z: alpha }
-      
-      const swingX = Math.abs(gyroData.x - lastGyroDataRef.current.x)
-      const swingY = Math.abs(gyroData.y - lastGyroDataRef.current.y)
-      const swingZ = Math.abs(gyroData.z - lastGyroDataRef.current.z)
-      
-      if (swingX > swingThreshold || swingY > swingThreshold || swingZ > swingThreshold) {
-        if (window.dispatchEvent) {
-          window.dispatchEvent(new CustomEvent('swingDetected', { detail: { swingX, swingY, swingZ } }))
-        }
-      }
-      lastGyroDataRef.current = gyroData
-    }
-    
-    window.addEventListener('deviceorientation', handleOrientation)
-    return () => window.removeEventListener('deviceorientation', handleOrientation)
-  }, [isSwingMode])
+  // 陀螺仪监听 - 已禁用，避免模型跟随手机陀螺仪移动
+  // useEffect(() => {
+  //   if (!isSwingMode || !window.DeviceOrientationEvent) return
+  //   
+  //   const handleOrientation = (event) => {
+  //     const { alpha, beta, gamma } = event
+  //     const gyroData = { x: beta, y: gamma, z: alpha }
+  //     
+  //     const swingX = Math.abs(gyroData.x - lastGyroDataRef.current.x)
+  //     const swingY = Math.abs(gyroData.y - lastGyroDataRef.current.y)
+  //     const swingZ = Math.abs(gyroData.z - lastGyroDataRef.current.z)
+  //     
+  //     if (swingX > swingThreshold || swingY > swingThreshold || swingZ > swingThreshold) {
+  //       if (window.dispatchEvent) {
+  //         window.dispatchEvent(new CustomEvent('swingDetected', { detail: { swingX, swingY, swingZ } }))
+  //       }
+  //     }
+  //     lastGyroDataRef.current = gyroData
+  //   }
+  //   
+  //   window.addEventListener('deviceorientation', handleOrientation)
+  //   return () => window.removeEventListener('deviceorientation', handleOrientation)
+  // }, [isSwingMode])
 
   // 摄像头初始化
   useEffect(() => {
