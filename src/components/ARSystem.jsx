@@ -1452,26 +1452,49 @@ export const ARScene = ({ selectedFile }) => {
   // 实际拍照函数
   const capturePhoto = useCallback(() => {
     try {
-      // 使用 ref 获取准确的3D画布
-      const gl = glRef.current
-      const canvas3D = gl?.domElement
+      // 获取3D画布 - 使用多种方式尝试
+      let canvas3D = null
+      
+      // 方式1: 通过 glRef
+      if (glRef.current?.domElement) {
+        canvas3D = glRef.current.domElement
+      }
+      
+      // 方式2: 通过 querySelector 查找 canvas
+      if (!canvas3D) {
+        canvas3D = document.querySelector('canvas')
+      }
+      
+      // 方式3: 查找所有 canvas 并选择最大的那个（通常是3D场景）
+      if (!canvas3D) {
+        const canvases = document.querySelectorAll('canvas')
+        let maxArea = 0
+        canvases.forEach(c => {
+          const area = c.width * c.height
+          if (area > maxArea) {
+            maxArea = area
+            canvas3D = c
+          }
+        })
+      }
+      
       const video = videoRef.current
 
       if (!canvas3D) {
         showNotification('3D场景未就绪', 'error')
+        console.error('无法找到3D画布')
         return
       }
 
-      // 强制渲染一帧以确保画布有内容
-      // 注意：Three.js 的渲染循环会自动处理，这里不需要手动调用
+      console.log('找到3D画布:', canvas3D.width, 'x', canvas3D.height)
 
       // 创建合成画布
       const compositeCanvas = document.createElement('canvas')
       const ctx = compositeCanvas.getContext('2d')
 
-      // 设置画布尺寸 - 使用高清分辨率
-      const width = window.innerWidth * 2
-      const height = window.innerHeight * 2
+      // 设置画布尺寸 - 使用设备分辨率
+      const width = window.innerWidth
+      const height = window.innerHeight
       compositeCanvas.width = width
       compositeCanvas.height = height
       
@@ -1508,18 +1531,19 @@ export const ARScene = ({ selectedFile }) => {
       }
 
       // 绘制3D场景（带透明通道）
+      // 使用 canvas3D 的实际尺寸
       ctx.drawImage(canvas3D, 0, 0, width, height)
       console.log('已绘制3D场景')
 
       // 添加精美水印
       ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
-      ctx.font = 'bold 32px Arial'
+      ctx.font = 'bold 24px Arial'
       ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'
       ctx.shadowBlur = 10
-      ctx.fillText('📸 AR Photo', 40, height - 40)
+      ctx.fillText('📸 AR Photo', 20, height - 30)
       
-      ctx.font = '24px Arial'
-      ctx.fillText(new Date().toLocaleString(), 40, height - 80)
+      ctx.font = '16px Arial'
+      ctx.fillText(new Date().toLocaleString(), 20, height - 60)
 
       // 下载高清图片
       compositeCanvas.toBlob((blob) => {
@@ -1532,7 +1556,7 @@ export const ARScene = ({ selectedFile }) => {
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
         showNotification('📸 拍照成功！高清照片已保存', 'success')
-      }, 'image/png', 1.0)
+      }, 'image/png', 0.95)
     } catch (error) {
       console.error('拍照失败:', error)
       showNotification('拍照失败，请重试', 'error')
