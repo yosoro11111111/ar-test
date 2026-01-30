@@ -1016,20 +1016,35 @@ export const ARScene = ({ selectedFile }) => {
           streamRef.current.getTracks().forEach(t => t.stop())
         }
         
+        console.log('正在请求摄像头权限...')
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
             facingMode: cameraFacingMode,
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
-          }
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
         })
+        console.log('摄像头权限获取成功，轨道数:', stream.getVideoTracks().length)
         streamRef.current = stream
         if (videoRef.current) {
           videoRef.current.srcObject = stream
+          console.log('视频流已设置到video元素')
           // 确保视频开始播放
           videoRef.current.onloadedmetadata = () => {
-            videoRef.current.play().catch(e => console.log('视频播放失败:', e))
+            console.log('视频元数据加载完成，准备播放')
+            videoRef.current.play().then(() => {
+              console.log('视频播放成功')
+            }).catch(e => {
+              console.error('视频播放失败:', e)
+              showNotification('视频播放失败，请刷新页面重试', 'error')
+            })
           }
+          videoRef.current.onerror = (e) => {
+            console.error('视频元素错误:', e)
+          }
+        } else {
+          console.error('videoRef.current 不存在')
         }
       } catch (err) {
         showNotification('摄像头权限被拒绝', 'error')
@@ -1104,30 +1119,34 @@ export const ARScene = ({ selectedFile }) => {
           autoPlay
           playsInline
           muted
+          webkit-playsinline="true"
+          x5-playsinline="true"
           style={{
-            position: 'absolute',
+            position: 'fixed',
             top: 0,
             left: 0,
-            width: '100%',
-            height: '100%',
+            width: '100vw',
+            height: '100vh',
             objectFit: 'cover',
             zIndex: 0,
-            backgroundColor: '#000'
+            backgroundColor: '#000',
+            display: 'block'
           }}
         />
       )}
 
-      {/* 3D画布 */}
-      <div style={{ 
-        position: 'absolute', 
-        top: 0, 
-        left: 0, 
-        width: '100%', 
-        height: '100%', 
-        zIndex: 1,
-        background: isARMode ? 'transparent' : 'linear-gradient(to bottom, #0f172a 0%, #1e293b 100%)'
+      {/* 3D画布 - AR模式下pointerEvents设为none让触摸穿透到视频 */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: isARMode ? 1 : 1,
+        background: isARMode ? 'transparent' : 'linear-gradient(to bottom, #0f172a 0%, #1e293b 100%)',
+        pointerEvents: isARMode ? 'none' : 'auto'
       }}>
-        <Canvas gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}>
+        <Canvas gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }} style={{ background: 'transparent' }}>
           <PerspectiveCamera makeDefault position={[0, 0.8, 2.5]} fov={50} />
           <ambientLight intensity={0.8} />
           <spotLight position={[5, 10, 5]} intensity={1.2} castShadow />
