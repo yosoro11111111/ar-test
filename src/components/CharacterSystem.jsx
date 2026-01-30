@@ -331,6 +331,12 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const [touchPosition, setTouchPosition] = useState(new THREE.Vector3())
   const loader = useRef(null)
   const dragControls = useRef(null)
+  
+  // 骨骼动画系统引用
+  const boneAnimationRef = useRef(null)
+  const currentBoneAnimation = useRef(null)
+  const animationStartTime = useRef(0)
+  const initialBoneRotations = useRef(new Map())
   const randomModeInterval = useRef(null)
   const animationFrameRef = useRef(null)
   const raycaster = useRef(new THREE.Raycaster())
@@ -856,6 +862,470 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     }
   }
 
+  // ==================== 程序化骨骼动画系统 ====================
+  
+  // 保存骨骼初始旋转
+  const saveInitialBoneRotations = () => {
+    if (!vrmModel || !vrmModel.humanoid) return
+    
+    initialBoneRotations.current.clear()
+    const boneNames = [
+      'hips', 'spine', 'chest', 'neck', 'head',
+      'leftShoulder', 'leftUpperArm', 'leftLowerArm', 'leftHand',
+      'rightShoulder', 'rightUpperArm', 'rightLowerArm', 'rightHand',
+      'leftUpperLeg', 'leftLowerLeg', 'leftFoot',
+      'rightUpperLeg', 'rightLowerLeg', 'rightFoot'
+    ]
+    
+    boneNames.forEach(boneName => {
+      const bone = vrmModel.humanoid.getBoneNode(boneName)
+      if (bone) {
+        initialBoneRotations.current.set(boneName, bone.rotation.clone())
+      }
+    })
+  }
+  
+  // 骨骼动画插值函数
+  const lerpBoneRotation = (bone, targetRotation, alpha) => {
+    if (!bone) return
+    bone.rotation.x = THREE.MathUtils.lerp(bone.rotation.x, targetRotation.x, alpha)
+    bone.rotation.y = THREE.MathUtils.lerp(bone.rotation.y, targetRotation.y, alpha)
+    bone.rotation.z = THREE.MathUtils.lerp(bone.rotation.z, targetRotation.z, alpha)
+  }
+  
+  // 大幅度动作库
+  const dramaticActions = {
+    // 从书架拿书 - 大幅度伸手动作
+    takeBook: {
+      duration: 3000,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.2, pose: 'reachUpStart' },
+        { time: 0.5, pose: 'reachUpHigh' },
+        { time: 0.7, pose: 'grabBook' },
+        { time: 0.8, pose: 'pullBook' },
+        { time: 1.0, pose: 'holdBook' }
+      ]
+    },
+    // 翻跟头
+    somersault: {
+      duration: 2000,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.15, pose: 'crouch' },
+        { time: 0.3, pose: 'jumpBack' },
+        { time: 0.5, pose: 'tuck' },
+        { time: 0.7, pose: 'unfold' },
+        { time: 0.85, pose: 'land' },
+        { time: 1.0, pose: 'idle' }
+      ]
+    },
+    // 超级跳跃
+    superJump: {
+      duration: 2500,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.1, pose: 'crouchDeep' },
+        { time: 0.25, pose: 'jumpUp' },
+        { time: 0.5, pose: 'airPose' },
+        { time: 0.75, pose: 'fallDown' },
+        { time: 0.9, pose: 'land' },
+        { time: 1.0, pose: 'idle' }
+      ]
+    },
+    // 旋转舞蹈
+    spinDance: {
+      duration: 3000,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.1, pose: 'armsOut' },
+        { time: 0.25, pose: 'spin1' },
+        { time: 0.5, pose: 'spin2' },
+        { time: 0.75, pose: 'spin3' },
+        { time: 0.9, pose: 'armsOut' },
+        { time: 1.0, pose: 'idle' }
+      ]
+    },
+    // 大挥手
+    bigWave: {
+      duration: 2000,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.1, pose: 'armUp' },
+        { time: 0.3, pose: 'waveLeft' },
+        { time: 0.5, pose: 'waveRight' },
+        { time: 0.7, pose: 'waveLeft' },
+        { time: 0.9, pose: 'armUp' },
+        { time: 1.0, pose: 'idle' }
+      ]
+    },
+    // 鞠躬
+    bow: {
+      duration: 2000,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.2, pose: 'bowStart' },
+        { time: 0.5, pose: 'bowDeep' },
+        { time: 0.8, pose: 'bowStart' },
+        { time: 1.0, pose: 'idle' }
+      ]
+    },
+    // 庆祝动作
+    celebrate: {
+      duration: 3000,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.1, pose: 'armsUp' },
+        { time: 0.3, pose: 'jump1' },
+        { time: 0.5, pose: 'jump2' },
+        { time: 0.7, pose: 'jump3' },
+        { time: 0.9, pose: 'armsUp' },
+        { time: 1.0, pose: 'idle' }
+      ]
+    }
+  }
+  
+  // 姿势定义
+  const poses = {
+    idle: {
+      spine: { x: 0, y: 0, z: 0 },
+      chest: { x: -0.05, y: 0, z: 0 },
+      head: { x: 0.1, y: 0, z: 0 },
+      leftUpperArm: { x: 0, y: 0, z: 0.15 },
+      rightUpperArm: { x: 0, y: 0, z: -0.15 },
+      leftLowerArm: { x: 0.1, y: 0, z: 0 },
+      rightLowerArm: { x: 0.1, y: 0, z: 0 },
+      leftHand: { x: 0, y: 0, z: 0 },
+      rightHand: { x: 0, y: 0, z: 0 },
+      leftUpperLeg: { x: 0, y: 0, z: 0 },
+      rightUpperLeg: { x: 0, y: 0, z: 0 },
+      leftLowerLeg: { x: 0.1, y: 0, z: 0 },
+      rightLowerLeg: { x: 0.1, y: 0, z: 0 }
+    },
+    // 拿书动作姿势
+    reachUpStart: {
+      spine: { x: -0.2, y: 0, z: 0 },
+      chest: { x: -0.1, y: 0, z: 0 },
+      rightUpperArm: { x: 0, y: 0, z: -2.5 },
+      rightLowerArm: { x: 0, y: 0, z: 0 },
+      head: { x: -0.3, y: 0, z: 0 }
+    },
+    reachUpHigh: {
+      spine: { x: -0.4, y: 0, z: 0 },
+      chest: { x: -0.2, y: 0, z: 0 },
+      rightUpperArm: { x: -2.8, y: 0.5, z: -0.5 },
+      rightLowerArm: { x: -0.5, y: 0, z: 0 },
+      head: { x: -0.5, y: 0, z: 0 }
+    },
+    grabBook: {
+      spine: { x: -0.4, y: 0, z: 0 },
+      rightUpperArm: { x: -2.8, y: 0.3, z: -0.3 },
+      rightLowerArm: { x: -0.3, y: 0, z: 0 },
+      rightHand: { x: 0, y: 0, z: -0.5 }
+    },
+    pullBook: {
+      spine: { x: -0.2, y: 0, z: 0 },
+      rightUpperArm: { x: -2.0, y: 0, z: -0.5 },
+      rightLowerArm: { x: -1.0, y: 0, z: 0 },
+      head: { x: 0, y: 0.3, z: 0 }
+    },
+    holdBook: {
+      spine: { x: 0, y: 0, z: 0 },
+      rightUpperArm: { x: -0.5, y: 0, z: -0.8 },
+      rightLowerArm: { x: -1.5, y: 0, z: 0 },
+      leftUpperArm: { x: 0, y: 0, z: 0.8 },
+      leftLowerArm: { x: -1.0, y: 0, z: 0 }
+    },
+    // 翻跟头姿势
+    crouch: {
+      hips: { x: 0, y: -0.3, z: 0 },
+      leftUpperLeg: { x: -1.2, y: 0, z: 0 },
+      rightUpperLeg: { x: -1.2, y: 0, z: 0 },
+      leftLowerLeg: { x: 2.0, y: 0, z: 0 },
+      rightLowerLeg: { x: 2.0, y: 0, z: 0 },
+      spine: { x: 0.3, y: 0, z: 0 }
+    },
+    jumpBack: {
+      hips: { x: 0.5, y: 0.5, z: 0 },
+      leftUpperLeg: { x: -0.8, y: 0, z: 0 },
+      rightUpperLeg: { x: -0.8, y: 0, z: 0 },
+      spine: { x: -0.5, y: 0, z: 0 }
+    },
+    tuck: {
+      hips: { x: 1.5, y: 1.0, z: 0 },
+      leftUpperLeg: { x: -2.0, y: 0, z: 0 },
+      rightUpperLeg: { x: -2.0, y: 0, z: 0 },
+      leftLowerLeg: { x: 2.5, y: 0, z: 0 },
+      rightLowerLeg: { x: 2.5, y: 0, z: 0 },
+      leftUpperArm: { x: 0, y: 0, z: 2.0 },
+      rightUpperArm: { x: 0, y: 0, z: -2.0 },
+      spine: { x: 0.5, y: 0, z: 0 }
+    },
+    unfold: {
+      hips: { x: 0.5, y: 0.3, z: 0 },
+      leftUpperLeg: { x: -0.5, y: 0, z: 0 },
+      rightUpperLeg: { x: -0.5, y: 0, z: 0 },
+      spine: { x: -0.2, y: 0, z: 0 }
+    },
+    land: {
+      hips: { x: 0, y: -0.2, z: 0 },
+      leftUpperLeg: { x: -0.8, y: 0, z: 0 },
+      rightUpperLeg: { x: -0.8, y: 0, z: 0 },
+      leftLowerLeg: { x: 1.5, y: 0, z: 0 },
+      rightLowerLeg: { x: 1.5, y: 0, z: 0 }
+    },
+    // 超级跳跃姿势
+    crouchDeep: {
+      hips: { x: 0, y: -0.5, z: 0 },
+      leftUpperLeg: { x: -1.5, y: 0, z: 0 },
+      rightUpperLeg: { x: -1.5, y: 0, z: 0 },
+      leftLowerLeg: { x: 2.2, y: 0, z: 0 },
+      rightLowerLeg: { x: 2.2, y: 0, z: 0 },
+      spine: { x: 0.4, y: 0, z: 0 },
+      leftUpperArm: { x: 0, y: 0, z: 2.5 },
+      rightUpperArm: { x: 0, y: 0, z: -2.5 }
+    },
+    jumpUp: {
+      hips: { x: 0, y: 2.0, z: 0 },
+      leftUpperLeg: { x: -0.3, y: 0, z: 0 },
+      rightUpperLeg: { x: -0.3, y: 0, z: 0 },
+      leftLowerLeg: { x: 0.5, y: 0, z: 0 },
+      rightLowerLeg: { x: 0.5, y: 0, z: 0 },
+      leftUpperArm: { x: -2.5, y: 0, z: 0.5 },
+      rightUpperArm: { x: -2.5, y: 0, z: -0.5 },
+      spine: { x: -0.2, y: 0, z: 0 }
+    },
+    airPose: {
+      hips: { x: 0, y: 2.5, z: 0 },
+      leftUpperLeg: { x: -0.5, y: 0, z: 0.3 },
+      rightUpperLeg: { x: -0.5, y: 0, z: -0.3 },
+      leftUpperArm: { x: -2.0, y: 0.5, z: 1.0 },
+      rightUpperArm: { x: -2.0, y: -0.5, z: -1.0 },
+      spine: { x: 0.1, y: 0, z: 0 }
+    },
+    fallDown: {
+      hips: { x: 0, y: 1.0, z: 0 },
+      leftUpperLeg: { x: -0.3, y: 0, z: 0 },
+      rightUpperLeg: { x: -0.3, y: 0, z: 0 },
+      leftUpperArm: { x: 0.5, y: 0, z: 0.5 },
+      rightUpperArm: { x: 0.5, y: 0, z: -0.5 }
+    },
+    // 旋转舞蹈姿势
+    armsOut: {
+      leftUpperArm: { x: 0, y: 0, z: 1.8 },
+      rightUpperArm: { x: 0, y: 0, z: -1.8 },
+      leftLowerArm: { x: 0, y: 0, z: 0 },
+      rightLowerArm: { x: 0, y: 0, z: 0 },
+      spine: { x: 0, y: 0, z: 0 }
+    },
+    spin1: {
+      hips: { x: 0, y: 0.5, z: 0 },
+      spine: { x: 0, y: 2.0, z: 0 },
+      leftUpperArm: { x: 0.5, y: 0.5, z: 1.5 },
+      rightUpperArm: { x: -0.5, y: -0.5, z: -1.5 },
+      leftUpperLeg: { x: -0.3, y: 0, z: 0.2 },
+      rightUpperLeg: { x: -0.5, y: 0, z: -0.2 }
+    },
+    spin2: {
+      hips: { x: 0, y: 0.5, z: 0 },
+      spine: { x: 0, y: 4.0, z: 0 },
+      leftUpperArm: { x: 0, y: 1.0, z: 1.5 },
+      rightUpperArm: { x: 0, y: -1.0, z: -1.5 }
+    },
+    spin3: {
+      hips: { x: 0, y: 0.3, z: 0 },
+      spine: { x: 0, y: 6.0, z: 0 },
+      leftUpperArm: { x: -0.5, y: 0.5, z: 1.5 },
+      rightUpperArm: { x: 0.5, y: -0.5, z: -1.5 },
+      leftUpperLeg: { x: -0.5, y: 0, z: 0 },
+      rightUpperLeg: { x: -0.3, y: 0, z: 0 }
+    },
+    // 大挥手姿势
+    armUp: {
+      rightUpperArm: { x: 0, y: 0, z: -2.8 },
+      rightLowerArm: { x: 0, y: 0, z: 0 },
+      spine: { x: 0, y: 0.2, z: 0 }
+    },
+    waveLeft: {
+      rightUpperArm: { x: 0, y: 0, z: -2.5 },
+      rightLowerArm: { x: 0, y: 0, z: -0.8 },
+      head: { x: 0, y: -0.3, z: 0 }
+    },
+    waveRight: {
+      rightUpperArm: { x: 0, y: 0, z: -2.5 },
+      rightLowerArm: { x: 0, y: 0, z: 0.8 },
+      head: { x: 0, y: 0.3, z: 0 }
+    },
+    // 鞠躬姿势
+    bowStart: {
+      spine: { x: 0.3, y: 0, z: 0 },
+      chest: { x: 0.4, y: 0, z: 0 },
+      head: { x: 0.5, y: 0, z: 0 },
+      leftUpperArm: { x: 0, y: 0, z: 0.3 },
+      rightUpperArm: { x: 0, y: 0, z: -0.3 }
+    },
+    bowDeep: {
+      spine: { x: 0.8, y: 0, z: 0 },
+      chest: { x: 0.8, y: 0, z: 0 },
+      head: { x: 0.8, y: 0, z: 0 },
+      leftUpperArm: { x: 0.2, y: 0, z: 0.5 },
+      rightUpperArm: { x: 0.2, y: 0, z: -0.5 },
+      leftUpperLeg: { x: -0.3, y: 0, z: 0 },
+      rightUpperLeg: { x: -0.3, y: 0, z: 0 }
+    },
+    // 庆祝姿势
+    armsUp: {
+      leftUpperArm: { x: -2.8, y: 0, z: 0.3 },
+      rightUpperArm: { x: -2.8, y: 0, z: -0.3 },
+      leftLowerArm: { x: -0.3, y: 0, z: 0 },
+      rightLowerArm: { x: -0.3, y: 0, z: 0 },
+      spine: { x: -0.1, y: 0, z: 0 },
+      head: { x: -0.2, y: 0, z: 0 }
+    },
+    jump1: {
+      hips: { x: 0, y: 0.8, z: 0 },
+      leftUpperLeg: { x: -0.5, y: 0, z: 0 },
+      rightUpperLeg: { x: -0.5, y: 0, z: 0 },
+      leftLowerLeg: { x: 1.0, y: 0, z: 0 },
+      rightLowerLeg: { x: 1.0, y: 0, z: 0 },
+      leftUpperArm: { x: -2.5, y: 0.5, z: 0.5 },
+      rightUpperArm: { x: -2.5, y: -0.5, z: -0.5 }
+    },
+    jump2: {
+      hips: { x: 0, y: 1.2, z: 0 },
+      leftUpperLeg: { x: -0.8, y: 0, z: 0.2 },
+      rightUpperLeg: { x: -0.8, y: 0, z: -0.2 },
+      leftUpperArm: { x: -2.8, y: 0, z: 1.0 },
+      rightUpperArm: { x: -2.8, y: 0, z: -1.0 }
+    },
+    jump3: {
+      hips: { x: 0, y: 0.8, z: 0 },
+      leftUpperLeg: { x: -0.5, y: 0, z: 0 },
+      rightUpperLeg: { x: -0.5, y: 0, z: 0 },
+      leftUpperArm: { x: -2.5, y: -0.5, z: 0.5 },
+      rightUpperArm: { x: -2.5, y: 0.5, z: -0.5 }
+    }
+  }
+  
+  // 执行骨骼动画
+  const executeBoneAnimation = (actionName) => {
+    if (!vrmModel || !vrmModel.humanoid) {
+      console.log('VRM模型未加载，无法执行骨骼动画')
+      return
+    }
+    
+    // 停止当前动画
+    if (currentBoneAnimation.current) {
+      cancelAnimationFrame(currentBoneAnimation.current)
+    }
+    
+    // 保存初始姿势
+    if (initialBoneRotations.current.size === 0) {
+      saveInitialBoneRotations()
+    }
+    
+    const action = dramaticActions[actionName]
+    if (!action) {
+      console.log('未找到动作:', actionName)
+      return
+    }
+    
+    console.log('开始执行大幅度动作:', actionName)
+    animationStartTime.current = Date.now()
+    
+    const animate = () => {
+      const elapsed = Date.now() - animationStartTime.current
+      const progress = Math.min(elapsed / action.duration, 1)
+      
+      // 找到当前和下一个关键帧
+      let currentKeyframe = action.keyframes[0]
+      let nextKeyframe = action.keyframes[action.keyframes.length - 1]
+      
+      for (let i = 0; i < action.keyframes.length - 1; i++) {
+        if (progress >= action.keyframes[i].time && progress <= action.keyframes[i + 1].time) {
+          currentKeyframe = action.keyframes[i]
+          nextKeyframe = action.keyframes[i + 1]
+          break
+        }
+      }
+      
+      // 计算关键帧之间的插值
+      const frameDuration = nextKeyframe.time - currentKeyframe.time
+      const frameProgress = frameDuration > 0 ? (progress - currentKeyframe.time) / frameDuration : 0
+      const easeProgress = 1 - Math.pow(1 - frameProgress, 3) // 缓动函数
+      
+      // 应用姿势
+      const currentPose = poses[currentKeyframe.pose] || poses.idle
+      const nextPose = poses[nextKeyframe.pose] || poses.idle
+      
+      // 合并姿势（插值）
+      const allBones = new Set([...Object.keys(currentPose), ...Object.keys(nextPose)])
+      
+      allBones.forEach(boneName => {
+        const bone = vrmModel.humanoid.getBoneNode(boneName)
+        if (!bone) return
+        
+        const currentRot = currentPose[boneName] || { x: 0, y: 0, z: 0 }
+        const nextRot = nextPose[boneName] || { x: 0, y: 0, z: 0 }
+        const initialRot = initialBoneRotations.current.get(boneName) || { x: 0, y: 0, z: 0 }
+        
+        // 插值计算目标旋转
+        const targetX = initialRot.x + THREE.MathUtils.lerp(currentRot.x, nextRot.x, easeProgress)
+        const targetY = initialRot.y + THREE.MathUtils.lerp(currentRot.y, nextRot.y, easeProgress)
+        const targetZ = initialRot.z + THREE.MathUtils.lerp(currentRot.z, nextRot.z, easeProgress)
+        
+        // 平滑应用到骨骼
+        bone.rotation.x = THREE.MathUtils.lerp(bone.rotation.x, targetX, 0.15)
+        bone.rotation.y = THREE.MathUtils.lerp(bone.rotation.y, targetY, 0.15)
+        bone.rotation.z = THREE.MathUtils.lerp(bone.rotation.z, targetZ, 0.15)
+      })
+      
+      // 继续动画或结束
+      if (progress < 1) {
+        currentBoneAnimation.current = requestAnimationFrame(animate)
+      } else {
+        console.log('动作完成:', actionName)
+        currentBoneAnimation.current = null
+        // 可选：自动返回idle
+        setTimeout(() => {
+          returnToIdle()
+        }, 500)
+      }
+    }
+    
+    animate()
+  }
+  
+  // 返回待机姿势
+  const returnToIdle = () => {
+    if (!vrmModel || !vrmModel.humanoid) return
+    
+    const startTime = Date.now()
+    const duration = 1000
+    
+    const animate = () => {
+      const elapsed = Date.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      const easeProgress = 1 - Math.pow(1 - progress, 3)
+      
+      initialBoneRotations.current.forEach((initialRot, boneName) => {
+        const bone = vrmModel.humanoid.getBoneNode(boneName)
+        if (!bone) return
+        
+        // 从当前姿势平滑过渡到初始姿势
+        bone.rotation.x = THREE.MathUtils.lerp(bone.rotation.x, initialRot.x, easeProgress * 0.1)
+        bone.rotation.y = THREE.MathUtils.lerp(bone.rotation.y, initialRot.y, easeProgress * 0.1)
+        bone.rotation.z = THREE.MathUtils.lerp(bone.rotation.z, initialRot.z, easeProgress * 0.1)
+      })
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate)
+      }
+    }
+    
+    animate()
+  }
+
   const executePresetAction = (actionName) => {
     console.log('执行预设动作:', actionName)
     setCurrentActionType(actionName)
@@ -889,7 +1359,15 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     setShowParticles(true)
     setTimeout(() => setShowParticles(false), 1500)
     
-    playModelAnimation(actionName)
+    // 检查是否是大幅度骨骼动画
+    const dramaticActionNames = ['takeBook', 'somersault', 'superJump', 'spinDance', 'bigWave', 'bow', 'celebrate']
+    if (dramaticActionNames.includes(actionName)) {
+      // 使用骨骼动画系统
+      executeBoneAnimation(actionName)
+    } else {
+      // 使用传统动画系统
+      playModelAnimation(actionName)
+    }
   }
 
   const playModelAnimation = (animationName) => {
