@@ -366,7 +366,8 @@ const MobileBoneEditor = ({ characters, selectedCharacterIndex, onBoneChange }) 
   const [hasVRM, setHasVRM] = useState(false)
   
   const character = characters[selectedCharacterIndex]
-  const selectedFile = character?.path
+  // 尝试多种可能的属性名来获取模型标识
+  const selectedFile = character?.path || character?.localPath || character?.filename || character?.name
   
   const mainBones = [
     { name: 'head', label: '头部', color: '#ff6b6b' },
