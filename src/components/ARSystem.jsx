@@ -303,22 +303,34 @@ const ActionButton = ({ item, index, onClick, isActive }) => {
   
   const getActionTheme = (action) => {
     const themes = {
+      // 基础动作
       idle: { bg: 'linear-gradient(135deg, #a8e6cf 0%, #7fcdcd 100%)', icon: '😌' },
       wave: { bg: 'linear-gradient(135deg, #ffd93d 0%, #ffb347 100%)', icon: '👋' },
       dance: { bg: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)', icon: '💃' },
       jump: { bg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', icon: '⬆️' },
       sit: { bg: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', icon: '🪑' },
       run: { bg: 'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)', icon: '🏃' },
+      // 表情动作
       happy: { bg: 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)', icon: '😄' },
       sad: { bg: 'linear-gradient(135deg, #a8caba 0%, #5d4e75 100%)', icon: '😢' },
       angry: { bg: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)', icon: '😠' },
       surprise: { bg: 'linear-gradient(135deg, #c471ed 0%, #f64f59 100%)', icon: '😲' },
       love: { bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', icon: '😍' },
       sleep: { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', icon: '😴' },
+      // 日常动作
       eat: { bg: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', icon: '🍰' },
       read: { bg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', icon: '📖' },
       sing: { bg: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', icon: '🎤' },
       photo: { bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', icon: '📸' },
+      // 大幅度特殊动作 - 更炫酷的渐变
+      takeBook: { bg: 'linear-gradient(135deg, #ff6b6b 0%, #feca57 50%, #ff9ff3 100%)', icon: '📚', highlight: true },
+      somersault: { bg: 'linear-gradient(135deg, #48dbfb 0%, #0abde3 50%, #006ba6 100%)', icon: '🤸', highlight: true },
+      superJump: { bg: 'linear-gradient(135deg, #ff9f43 0%, #ee5a24 50%, #f368e0 100%)', icon: '🚀', highlight: true },
+      spinDance: { bg: 'linear-gradient(135deg, #a29bfe 0%, #6c5ce7 50%, #fd79a8 100%)', icon: '🌪️', highlight: true },
+      bigWave: { bg: 'linear-gradient(135deg, #00b894 0%, #00cec9 50%, #55efc4 100%)', icon: '👋✨', highlight: true },
+      bow: { bg: 'linear-gradient(135deg, #fdcb6e 0%, #e17055 50%, #d63031 100%)', icon: '🙇', highlight: true },
+      celebrate: { bg: 'linear-gradient(135deg, #fd79a8 0%, #fdcb6e 50%, #6c5ce7 100%)', icon: '🎉', highlight: true },
+      // 系统动作
       combo: { bg: 'linear-gradient(135deg, #d299c2 0%, #fef9d7 100%)', icon: '✨' },
       random: { bg: 'linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%)', icon: '🎲' }
     }
@@ -337,14 +349,18 @@ const ActionButton = ({ item, index, onClick, isActive }) => {
       onMouseEnter={() => setIsHovered(true)}
       disabled={cooldown > 0}
       style={{
-        minWidth: '110px',
-        height: '90px',
+        minWidth: item.highlight ? '130px' : '110px',
+        height: item.highlight ? '100px' : '90px',
         background: isActive
           ? 'linear-gradient(135deg, #ff9ecd 0%, #ff6b9d 50%, #c44569 100%)'
           : isFirst 
             ? 'linear-gradient(135deg, #ff9ecd 0%, #ff6b9d 50%, #c44569 100%)' 
             : theme.bg,
-        border: isActive || isFirst ? '3px solid #ffb8d0' : '2px solid rgba(255,255,255,0.3)',
+        border: isActive || isFirst 
+          ? '3px solid #ffb8d0' 
+          : item.highlight 
+            ? '3px solid #ffd93d' 
+            : '2px solid rgba(255,255,255,0.3)',
         borderRadius: '24px',
         cursor: cooldown > 0 ? 'not-allowed' : 'pointer',
         transition: 'all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
@@ -356,12 +372,15 @@ const ActionButton = ({ item, index, onClick, isActive }) => {
         color: 'white',
         boxShadow: isActive || isFirst
           ? '0 10px 40px rgba(255, 107, 157, 0.7), inset 0 2px 16px rgba(255, 255, 255, 0.5), 0 0 0 4px rgba(255, 184, 208, 0.4)' 
-          : '0 8px 24px rgba(0, 0, 0, 0.25), inset 0 2px 10px rgba(255, 255, 255, 0.25)',
+          : item.highlight
+            ? '0 12px 40px rgba(255, 217, 61, 0.5), inset 0 2px 16px rgba(255, 255, 255, 0.4), 0 0 0 4px rgba(255, 217, 61, 0.3)'
+            : '0 8px 24px rgba(0, 0, 0, 0.25), inset 0 2px 10px rgba(255, 255, 255, 0.25)',
         backdropFilter: 'blur(15px)',
-        transform: isPressed ? 'scale(0.9) translateY(6px)' : isHovered ? 'scale(1.1) translateY(-8px) rotate(-2deg)' : 'scale(1) translateY(0)',
+        transform: isPressed ? 'scale(0.9) translateY(6px)' : isHovered ? 'scale(1.15) translateY(-10px) rotate(-2deg)' : 'scale(1) translateY(0)',
         position: 'relative',
         overflow: 'hidden',
-        opacity: cooldown > 0 ? 0.6 : 1
+        opacity: cooldown > 0 ? 0.6 : 1,
+        animation: item.highlight ? 'pulse 2s ease-in-out infinite' : 'none'
       }}
     >
       {/* 冷却遮罩 */}
@@ -389,20 +408,21 @@ const ActionButton = ({ item, index, onClick, isActive }) => {
       }} />
       
       <div style={{ 
-        fontSize: '32px', 
+        fontSize: item.highlight ? '40px' : '32px', 
         filter: 'drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4))',
-        animation: isHovered ? 'bounce 0.5s ease-in-out infinite' : 'none',
-        transform: 'scale(1.15)',
+        animation: isHovered ? 'bounce 0.5s ease-in-out infinite' : item.highlight ? 'pulse 1.5s ease-in-out infinite' : 'none',
+        transform: item.highlight ? 'scale(1.25)' : 'scale(1.15)',
         zIndex: 1
       }}>{theme.icon}</div>
       
       <div style={{ 
-        fontSize: '12px', 
+        fontSize: item.highlight ? '14px' : '12px', 
         fontWeight: '800', 
         textAlign: 'center', 
         textShadow: '0 2px 6px rgba(0, 0, 0, 0.5)',
         letterSpacing: '0.8px',
-        zIndex: 1
+        zIndex: 1,
+        color: item.highlight ? '#ffd93d' : 'white'
       }}>{item.name}</div>
       
       {/* 激活指示器 */}
@@ -423,6 +443,26 @@ const ActionButton = ({ item, index, onClick, isActive }) => {
           animation: 'pulse 1.2s ease-in-out infinite',
           zIndex: 2
         }}>⭐</div>
+      )}
+      
+      {/* 大幅度动作特殊标识 */}
+      {item.highlight && !isActive && !isFirst && (
+        <div style={{
+          position: 'absolute',
+          top: '4px',
+          right: '4px',
+          width: '18px',
+          height: '18px',
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, #ff6b6b 0%, #ffd93d 100%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '11px',
+          boxShadow: '0 2px 8px rgba(255, 107, 107, 0.6)',
+          animation: 'pulse 1.5s ease-in-out infinite',
+          zIndex: 2
+        }}>✨</div>
       )}
     </button>
   )
@@ -663,26 +703,38 @@ export const ARScene = ({ selectedFile }) => {
   const [comboCount, setComboCount] = useState(0)
   const [showCombo, setShowCombo] = useState(false)
 
-  // 动作列表
+  // 动作列表 - 包含基础动作和大幅度复杂动作
   const actionList = [
-    { name: '待机', action: 'idle', icon: '😌' },
-    { name: '挥手', action: 'wave', icon: '👋' },
-    { name: '跳舞', action: 'dance', icon: '💃' },
-    { name: '跳跃', action: 'jump', icon: '⬆️' },
-    { name: '坐下', action: 'sit', icon: '🪑' },
-    { name: '奔跑', action: 'run', icon: '🏃' },
-    { name: '开心', action: 'happy', icon: '😄' },
-    { name: '伤心', action: 'sad', icon: '😢' },
-    { name: '生气', action: 'angry', icon: '😠' },
-    { name: '惊讶', action: 'surprise', icon: '😲' },
-    { name: '爱心', action: 'love', icon: '😍' },
-    { name: '睡觉', action: 'sleep', icon: '😴' },
-    { name: '吃东西', action: 'eat', icon: '🍰' },
-    { name: '看书', action: 'read', icon: '📖' },
-    { name: '唱歌', action: 'sing', icon: '🎤' },
-    { name: '拍照', action: 'photo', icon: '📸' },
-    { name: '连击', action: 'combo', icon: '✨' },
-    { name: '随机', action: 'random', icon: '🎲' }
+    // 基础动作
+    { name: '待机', action: 'idle', icon: '😌', category: 'basic' },
+    { name: '挥手', action: 'wave', icon: '👋', category: 'basic' },
+    { name: '跳舞', action: 'dance', icon: '💃', category: 'basic' },
+    { name: '跳跃', action: 'jump', icon: '⬆️', category: 'basic' },
+    { name: '坐下', action: 'sit', icon: '🪑', category: 'basic' },
+    { name: '奔跑', action: 'run', icon: '🏃', category: 'basic' },
+    // 表情动作
+    { name: '开心', action: 'happy', icon: '😄', category: 'emotion' },
+    { name: '伤心', action: 'sad', icon: '😢', category: 'emotion' },
+    { name: '生气', action: 'angry', icon: '😠', category: 'emotion' },
+    { name: '惊讶', action: 'surprise', icon: '😲', category: 'emotion' },
+    { name: '爱心', action: 'love', icon: '😍', category: 'emotion' },
+    { name: '睡觉', action: 'sleep', icon: '😴', category: 'emotion' },
+    // 日常动作
+    { name: '吃东西', action: 'eat', icon: '🍰', category: 'daily' },
+    { name: '看书', action: 'read', icon: '📖', category: 'daily' },
+    { name: '唱歌', action: 'sing', icon: '🎤', category: 'daily' },
+    { name: '拍照', action: 'photo', icon: '📸', category: 'daily' },
+    // 大幅度特殊动作 ⭐
+    { name: '拿书', action: 'takeBook', icon: '📚', category: 'dramatic', highlight: true },
+    { name: '翻跟头', action: 'somersault', icon: '🤸', category: 'dramatic', highlight: true },
+    { name: '大跳跃', action: 'superJump', icon: '🚀', category: 'dramatic', highlight: true },
+    { name: '旋转舞', action: 'spinDance', icon: '🌪️', category: 'dramatic', highlight: true },
+    { name: '大挥手', action: 'bigWave', icon: '👋✨', category: 'dramatic', highlight: true },
+    { name: '鞠躬', action: 'bow', icon: '🙇', category: 'dramatic', highlight: true },
+    { name: '庆祝', action: 'celebrate', icon: '🎉', category: 'dramatic', highlight: true },
+    // 系统动作
+    { name: '连击', action: 'combo', icon: '✨', category: 'system' },
+    { name: '随机', action: 'random', icon: '🎲', category: 'system' }
   ]
 
   // 显示通知
