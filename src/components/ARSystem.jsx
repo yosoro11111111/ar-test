@@ -790,8 +790,14 @@ export const ARScene = ({ selectedFile }) => {
     }
   }, [selectedFile, selectedCharacterIndex, showNotification])
 
-  // 执行动作
+  // 执行动作 - 立即响应
   const executeAction = useCallback((action) => {
+    // 立即 dispatch 事件，让角色先动起来
+    if (window.dispatchEvent) {
+      window.dispatchEvent(new CustomEvent('executeAction', { detail: { action, intensity: actionIntensity } }))
+    }
+    
+    // 同时更新 UI 状态
     setCurrentAction(action)
     
     if (action === 'combo') {
@@ -800,20 +806,13 @@ export const ARScene = ({ selectedFile }) => {
         if (newCount >= 3) {
           setShowCombo(true)
           setTimeout(() => setShowCombo(false), 2000)
-          showNotification(`连击 x${newCount}!`, 'success')
         }
         return newCount
       })
     } else {
       setComboCount(0)
     }
-    
-    if (window.dispatchEvent) {
-      window.dispatchEvent(new CustomEvent('executeAction', { detail: { action, intensity: actionIntensity } }))
-    }
-    
-    showNotification(`执行动作: ${actionList.find(a => a.action === action)?.name || action}`, 'success')
-  }, [actionIntensity, showNotification])
+  }, [actionIntensity])
 
   // 切换摆动模式
   const toggleSwingMode = useCallback(() => {

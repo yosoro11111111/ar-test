@@ -1824,8 +1824,12 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
 
   useEffect(() => {
     const handleExecuteAction = (event) => {
-      const { actionName } = event.detail
-      executePresetAction(actionName)
+      const { action, actionName } = event.detail
+      // 支持 action 或 actionName 两种参数名
+      const targetAction = action || actionName
+      if (targetAction) {
+        executePresetAction(targetAction)
+      }
     }
 
     const handleExecuteCombo = (event) => {
