@@ -359,6 +359,234 @@ const useDebugLog = () => {
   return { logs, addLog, clearLogs }
 }
 
+// ==================== 移动端骨骼编辑器组件 ====================
+const MobileBoneEditor = ({ characters, selectedCharacterIndex, onBoneChange }) => {
+  const [selectedBone, setSelectedBone] = useState(null)
+  const character = characters[selectedCharacterIndex]
+  const vrmModel = character?.vrm
+  
+  const mainBones = [
+    { name: 'head', label: '头部', color: '#ff6b6b' },
+    { name: 'neck', label: '颈部', color: '#ff9f43' },
+    { name: 'chest', label: '胸部', color: '#feca57' },
+    { name: 'spine', label: '脊柱', color: '#48dbfb' },
+    { name: 'hips', label: '臀部', color: '#54a0ff' },
+    { name: 'leftShoulder', label: '左肩', color: '#5f27cd' },
+    { name: 'rightShoulder', label: '右肩', color: '#5f27cd' },
+    { name: 'leftUpperArm', label: '左上臂', color: '#00d2d3' },
+    { name: 'rightUpperArm', label: '右上臂', color: '#00d2d3' },
+    { name: 'leftLowerArm', label: '左前臂', color: '#1dd1a1' },
+    { name: 'rightLowerArm', label: '右前臂', color: '#1dd1a1' },
+    { name: 'leftHand', label: '左手', color: '#ff9ff3' },
+    { name: 'rightHand', label: '右手', color: '#ff9ff3' },
+    { name: 'leftUpperLeg', label: '左大腿', color: '#ff6b6b' },
+    { name: 'rightUpperLeg', label: '右大腿', color: '#ff6b6b' },
+    { name: 'leftLowerLeg', label: '左小腿', color: '#feca57' },
+    { name: 'rightLowerLeg', label: '右小腿', color: '#feca57' },
+    { name: 'leftFoot', label: '左脚', color: '#48dbfb' },
+    { name: 'rightFoot', label: '右脚', color: '#48dbfb' },
+  ]
+  
+  const [bones, setBones] = useState([])
+  
+  useEffect(() => {
+    if (!vrmModel?.humanoid) return
+    
+    const boneList = []
+    mainBones.forEach(({ name, label, color }) => {
+      try {
+        const bone = vrmModel.humanoid.getNormalizedBoneNode(name)
+        if (bone) {
+          boneList.push({ name, label, color, bone })
+        }
+      } catch (e) {
+        // 忽略错误
+      }
+    })
+    setBones(boneList)
+  }, [vrmModel])
+  
+  const handleBoneRotate = (boneName, axis, delta) => {
+    const bone = bones.find(b => b.name === boneName)?.bone
+    if (!bone) return
+    
+    bone.rotation[axis] += delta
+    onBoneChange?.(boneName, bone.rotation)
+  }
+  
+  return (
+    <div style={{
+      position: 'fixed',
+      bottom: '0',
+      left: '0',
+      right: '0',
+      background: 'rgba(0,0,0,0.95)',
+      borderRadius: '20px 20px 0 0',
+      padding: '16px 16px 100px 16px',
+      zIndex: 9999,
+      border: '2px solid rgba(0,212,255,0.5)',
+      borderBottom: 'none',
+      boxShadow: '0 -4px 30px rgba(0,0,0,0.7)',
+      maxHeight: '70vh',
+      overflowY: 'auto'
+    }}>
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '12px',
+        borderBottom: '2px solid rgba(255,255,255,0.2)',
+        paddingBottom: '10px'
+      }}>
+        <span style={{ color: '#00d4ff', fontWeight: 'bold', fontSize: '16px' }}>
+          🦴 骨骼编辑器
+        </span>
+        <span style={{ color: '#888', fontSize: '12px' }}>
+          选择骨骼后单指拖动
+        </span>
+      </div>
+      
+      {/* 骨骼列表 - 网格布局 */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(4, 1fr)',
+        gap: '8px',
+        marginBottom: '12px'
+      }}>
+        {bones.map(({ name, label, color }) => (
+          <button
+            key={name}
+            onClick={() => setSelectedBone(selectedBone === name ? null : name)}
+            style={{
+              padding: '10px 4px',
+              background: selectedBone === name ? color : 'rgba(255,255,255,0.1)',
+              border: `2px solid ${selectedBone === name ? color : 'transparent'}`,
+              borderRadius: '8px',
+              color: 'white',
+              fontSize: '10px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      
+      {/* 选中骨骼的控制 - 拖动区域 */}
+      {selectedBone && (
+        <div 
+          style={{
+            background: 'rgba(255,255,255,0.1)',
+            borderRadius: '12px',
+            padding: '16px',
+            touchAction: 'none',
+            minHeight: '120px'
+          }}
+          onTouchStart={(e) => {
+            e.preventDefault()
+            const touch = e.touches[0]
+            const bone = bones.find(b => b.name === selectedBone)?.bone
+            if (!bone) return
+            
+            bone.userData.dragStartX = touch.clientX
+            bone.userData.dragStartY = touch.clientY
+            bone.userData.startRotationX = bone.rotation.x
+            bone.userData.startRotationY = bone.rotation.y
+          }}
+          onTouchMove={(e) => {
+            e.preventDefault()
+            const touch = e.touches[0]
+            const bone = bones.find(b => b.name === selectedBone)?.bone
+            if (!bone || !bone.userData.dragStartX) return
+            
+            const deltaX = touch.clientX - bone.userData.dragStartX
+            const deltaY = touch.clientY - bone.userData.dragStartY
+            
+            const sensitivity = 0.005
+            bone.rotation.y = bone.userData.startRotationY + deltaX * sensitivity
+            bone.rotation.x = bone.userData.startRotationX + deltaY * sensitivity
+            
+            onBoneChange?.(selectedBone, bone.rotation)
+          }}
+          onTouchEnd={(e) => {
+            e.preventDefault()
+            const bone = bones.find(b => b.name === selectedBone)?.bone
+            if (bone) {
+              bone.userData.dragStartX = null
+              bone.userData.dragStartY = null
+            }
+          }}
+        >
+          <div style={{
+            color: '#fff',
+            fontWeight: 'bold',
+            marginBottom: '12px',
+            textAlign: 'center',
+            fontSize: '14px'
+          }}>
+            {bones.find(b => b.name === selectedBone)?.label} - 在此区域单指拖动旋转
+          </div>
+          
+          {/* 显示当前旋转值 */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '12px',
+            fontSize: '12px',
+            color: '#aaa',
+            textAlign: 'center',
+            marginBottom: '12px'
+          }}>
+            <div style={{ color: '#ff6b6b' }}>X: {(bones.find(b => b.name === selectedBone)?.bone.rotation.x || 0).toFixed(2)}</div>
+            <div style={{ color: '#4ecdc4' }}>Y: {(bones.find(b => b.name === selectedBone)?.bone.rotation.y || 0).toFixed(2)}</div>
+            <div style={{ color: '#45b7d1' }}>Z: {(bones.find(b => b.name === selectedBone)?.bone.rotation.z || 0).toFixed(2)}</div>
+          </div>
+          
+          {/* 微调按钮 */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '6px' }}>
+            {['x', 'y', 'z'].map((axis) => (
+              <React.Fragment key={axis}>
+                <button
+                  onClick={() => handleBoneRotate(selectedBone, axis, -0.05)}
+                  style={{
+                    padding: '10px 4px',
+                    background: axis === 'x' ? '#ff6b6b' : axis === 'y' ? '#4ecdc4' : '#45b7d1',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: 'white',
+                    fontSize: '12px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {axis.toUpperCase()}-
+                </button>
+                <button
+                  onClick={() => handleBoneRotate(selectedBone, axis, 0.05)}
+                  style={{
+                    padding: '10px 4px',
+                    background: axis === 'x' ? '#ff6b6b' : axis === 'y' ? '#4ecdc4' : '#45b7d1',
+                    border: 'none',
+                    borderRadius: '6px',
+                    color: 'white',
+                    fontSize: '12px',
+                    fontWeight: 'bold'
+                  }}
+                >
+                  {axis.toUpperCase()}+
+                </button>
+              </React.Fragment>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ==================== 移动端检测 Hook ====================
 const useMobileDetect = () => {
   const [isMobile, setIsMobile] = useState(false)
@@ -1504,16 +1732,12 @@ export const ARScene = ({ selectedFile }) => {
         return
       }
 
+      // 判断是否应该使用摄像头画面（视频就绪且有流）
+      const hasVideoStream = video && video.readyState >= 2 && video.videoWidth > 0 && streamRef.current
+      
       addLog(`3D画布: ${canvas3D.width}x${canvas3D.height}`)
       addLog(`视频状态: ${video?.readyState}, 尺寸: ${video?.videoWidth}x${video?.videoHeight}`)
-      addLog(`AR模式: ${isARMode}, 视频暂停: ${video?.paused}`)
-
-      // 检查视频是否就绪
-      if (isARMode && (!video || video.readyState < 2)) {
-        addLog('错误: 视频未就绪')
-        showNotification('摄像头未就绪，请稍后再试', 'error')
-        return
-      }
+      addLog(`有视频流: ${hasVideoStream}, 流状态: ${streamRef.current ? '存在' : '不存在'}`)
 
       // 创建合成画布 - 使用视频的实际分辨率
       const compositeCanvas = document.createElement('canvas')
@@ -1521,7 +1745,7 @@ export const ARScene = ({ selectedFile }) => {
 
       // 设置画布尺寸 - 使用视频的实际分辨率或屏幕分辨率
       let width, height
-      if (isARMode && video && video.videoWidth > 0) {
+      if (hasVideoStream) {
         width = video.videoWidth
         height = video.videoHeight
       } else {
@@ -1533,24 +1757,25 @@ export const ARScene = ({ selectedFile }) => {
       
       addLog(`开始拍照: ${width}x${height}`)
 
-      // 如果在AR模式下，先绘制摄像头画面
-      if (isARMode && video && video.readyState >= 2) {
+      // 如果有视频流，先绘制摄像头画面
+      if (hasVideoStream) {
         try {
           // 直接绘制视频，保持原始比例
           ctx.drawImage(video, 0, 0, width, height)
-          addLog('摄像头画面已绘制')
+          addLog('✅ 摄像头画面已绘制')
           
           // 验证是否绘制成功 - 检查画布是否有内容
           const imageData = ctx.getImageData(0, 0, 1, 1)
           addLog(`像素检查: R=${imageData.data[0]}, G=${imageData.data[1]}, B=${imageData.data[2]}`)
         } catch (drawError) {
-          addLog(`绘制视频失败: ${drawError.message}`)
+          addLog(`❌ 绘制视频失败: ${drawError.message}`)
           // 如果绘制失败，使用黑色背景
           ctx.fillStyle = '#000000'
           ctx.fillRect(0, 0, width, height)
         }
       } else {
-        // 非AR模式下使用渐变背景
+        // 没有视频流时使用渐变背景
+        addLog('⚠️ 无视频流，使用背景')
         const gradient = ctx.createLinearGradient(0, 0, width, height)
         gradient.addColorStop(0, '#1a1a2e')
         gradient.addColorStop(0.5, '#16213e')
@@ -2732,6 +2957,17 @@ export const ARScene = ({ selectedFile }) => {
         }}>
           🦴 骨骼编辑模式 - 点击骨骼控制点进行调整
         </div>
+      )}
+
+      {/* 移动端骨骼编辑器面板 */}
+      {isMobile && isBoneEditing && (
+        <MobileBoneEditor 
+          characters={characters}
+          selectedCharacterIndex={selectedCharacterIndex}
+          onBoneChange={(boneName, rotation) => {
+            console.log('骨骼变化:', boneName, rotation)
+          }}
+        />
       )}
 
       {/* 全新底部动作栏 - 分类标签式 */}
