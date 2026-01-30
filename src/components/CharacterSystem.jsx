@@ -874,7 +874,10 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
               
               // 将 vrm 模型暴露到 window，供移动端骨骼编辑器使用
               window.vrmModels = window.vrmModels || {}
-              window.vrmModels[selectedFile] = vrm
+              // 使用文件名作为 key，确保 MobileBoneEditor 可以通过 character.path 找到
+              const modelKey = file.name || file.localPath || selectedFile
+              window.vrmModels[modelKey] = vrm
+              console.log('VRM 模型已暴露到 window.vrmModels:', modelKey)
               
               vrm.scene.position.set(0, 0, 0)
               vrm.scene.rotation.set(0, Math.PI, 0) // 旋转180度，让模型面对用户
