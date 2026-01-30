@@ -342,22 +342,32 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
           transform: 'translateX(-50%)',
           zIndex: 1000,
           width: '90%',
-          maxWidth: '400px'
+          maxWidth: '450px'
         }}>
           <button
             onClick={() => setShowAnimationSelect(!showAnimationSelect)}
             style={{
-              padding: '12px 20px',
-              background: '#646cff',
+              padding: '14px 20px',
+              background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
               color: 'white',
               border: 'none',
-              borderRadius: '12px',
+              borderRadius: '14px',
               cursor: 'pointer',
               fontSize: '16px',
-              fontWeight: '600',
+              fontWeight: '700',
               width: '100%',
-              boxShadow: '0 4px 15px rgba(100, 108, 255, 0.4)',
-              transition: 'all 0.3s ease'
+              boxShadow: '0 8px 25px rgba(99, 102, 241, 0.4)',
+              transition: 'all 0.3s ease',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'translateY(-2px)'
+              e.target.style.boxShadow = '0 12px 30px rgba(99, 102, 241, 0.5)'
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'translateY(0)'
+              e.target.style.boxShadow = '0 8px 25px rgba(99, 102, 241, 0.4)'
             }}
           >
             {showAnimationSelect ? '关闭动作选择' : '选择动作'}
@@ -365,34 +375,53 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
 
           {showAnimationSelect && (
             <div style={{
-              marginTop: '12px',
-              background: 'rgba(0, 0, 0, 0.8)',
+              marginTop: '16px',
+              background: 'rgba(15, 23, 42, 0.9)',
               color: 'white',
-              padding: '16px',
-              borderRadius: '12px',
-              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.4)'
+              padding: '20px',
+              borderRadius: '16px',
+              boxShadow: '0 12px 30px rgba(0, 0, 0, 0.4)',
+              backdropFilter: 'blur(10px)',
+              border: '1px solid rgba(255, 255, 255, 0.1)'
             }}>
-              <h4 style={{ margin: '0 0 12px 0', color: '#646cff' }}>预设动作</h4>
+              <h4 style={{ 
+                margin: '0 0 16px 0', 
+                color: '#60a5fa',
+                fontSize: '18px',
+                fontWeight: '700',
+                textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+              }}>🎭 预设动作</h4>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
-                gap: '8px',
-                marginBottom: '16px'
+                gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
+                gap: '12px',
+                marginBottom: '20px'
               }}>
                 {presetAnimations.map((anim, index) => (
                   <button
                     key={index}
                     onClick={() => executePresetAction(anim.action)}
                     style={{
-                      padding: '8px',
-                      background: 'rgba(100, 108, 255, 0.2)',
+                      padding: '12px',
+                      background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(79, 70, 229, 0.2) 100%)',
                       color: 'white',
-                      border: '2px solid rgba(100, 108, 255, 0.5)',
-                      borderRadius: '8px',
+                      border: '2px solid rgba(99, 102, 241, 0.4)',
+                      borderRadius: '12px',
                       cursor: 'pointer',
                       fontSize: '14px',
-                      fontWeight: '500',
-                      transition: 'all 0.3s ease'
+                      fontWeight: '600',
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.4) 0%, rgba(79, 70, 229, 0.4) 100%)'
+                      e.target.style.transform = 'scale(1.08)'
+                      e.target.style.boxShadow = '0 8px 25px rgba(99, 102, 241, 0.4)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(79, 70, 229, 0.2) 100%)'
+                      e.target.style.transform = 'scale(1)'
+                      e.target.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.2)'
                     }}
                   >
                     {anim.name}
@@ -402,28 +431,45 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
 
               {animations.length > 0 && (
                 <>
-                  <h4 style={{ margin: '0 0 12px 0', color: '#646cff' }}>模型动画</h4>
+                  <h4 style={{ 
+                    margin: '0 0 16px 0', 
+                    color: '#34d399',
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+                  }}>✨ 模型动画</h4>
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-                    gap: '8px',
-                    marginBottom: '16px'
+                    gap: '10px',
+                    marginBottom: '20px'
                   }}>
                     {animations.map((anim, index) => (
                       <button
                         key={index}
                         onClick={() => playAnimation(anim)}
                         style={{
-                          padding: '8px',
-                          background: 'rgba(16, 185, 129, 0.2)',
+                          padding: '10px',
+                          background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.2) 100%)',
                           color: 'white',
-                          border: '2px solid rgba(16, 185, 129, 0.5)',
-                          borderRadius: '8px',
+                          border: '2px solid rgba(16, 185, 129, 0.4)',
+                          borderRadius: '10px',
                           cursor: 'pointer',
                           fontSize: '14px',
-                          fontWeight: '500',
+                          fontWeight: '600',
                           transition: 'all 0.3s ease',
-                          wordBreak: 'break-word'
+                          wordBreak: 'break-word',
+                          boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.4) 0%, rgba(5, 150, 105, 0.4) 100%)'
+                          e.target.style.transform = 'scale(1.08)'
+                          e.target.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.4)'
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.2) 100%)'
+                          e.target.style.transform = 'scale(1)'
+                          e.target.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.2)'
                         }}
                       >
                         {anim.name}
@@ -435,58 +481,87 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
 
               {/* 缩放控制 */}
               <div style={{
-                marginTop: '16px',
-                paddingTop: '16px',
-                borderTop: '1px solid rgba(255, 255, 255, 0.2)'
+                marginTop: '20px',
+                paddingTop: '20px',
+                borderTop: '1px solid rgba(255, 255, 255, 0.1)'
               }}>
-                <h4 style={{ margin: '0 0 12px 0', color: '#646cff' }}>模型缩放</h4>
+                <h4 style={{ 
+                  margin: '0 0 16px 0', 
+                  color: '#fbbf24',
+                  fontSize: '18px',
+                  fontWeight: '700',
+                  textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+                }}>📏 模型缩放</h4>
                 <div style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  gap: '12px'
+                  gap: '16px'
                 }}>
                   <button
                     onClick={() => handleScaleChange(-0.1)}
                     style={{
-                      padding: '8px 16px',
-                      background: 'rgba(239, 68, 68, 0.2)',
+                      padding: '12px 20px',
+                      background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%)',
                       color: 'white',
-                      border: '2px solid rgba(239, 68, 68, 0.5)',
-                      borderRadius: '8px',
+                      border: '2px solid rgba(239, 68, 68, 0.4)',
+                      borderRadius: '10px',
                       cursor: 'pointer',
-                      fontSize: '16px',
-                      fontWeight: '600',
-                      transition: 'all 0.3s ease'
+                      fontSize: '20px',
+                      fontWeight: '700',
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.4) 0%, rgba(220, 38, 38, 0.4) 100%)'
+                      e.target.style.transform = 'scale(1.08)'
+                      e.target.style.boxShadow = '0 8px 25px rgba(239, 68, 68, 0.4)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%)'
+                      e.target.style.transform = 'scale(1)'
+                      e.target.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.2)'
                     }}
                   >
                     −
                   </button>
                   <div style={{
                     flex: 1,
-                    padding: '8px 16px',
-                    background: 'rgba(255, 255, 255, 0.1)',
+                    padding: '12px 20px',
+                    background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)',
                     color: 'white',
                     border: '2px solid rgba(255, 255, 255, 0.2)',
-                    borderRadius: '8px',
+                    borderRadius: '10px',
                     textAlign: 'center',
-                    fontSize: '16px',
-                    fontWeight: '600'
+                    fontSize: '18px',
+                    fontWeight: '700',
+                    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)'
                   }}>
                     {Math.round(scale * 100)}%
                   </div>
                   <button
                     onClick={() => handleScaleChange(0.1)}
                     style={{
-                      padding: '8px 16px',
-                      background: 'rgba(16, 185, 129, 0.2)',
+                      padding: '12px 20px',
+                      background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.2) 100%)',
                       color: 'white',
-                      border: '2px solid rgba(16, 185, 129, 0.5)',
-                      borderRadius: '8px',
+                      border: '2px solid rgba(16, 185, 129, 0.4)',
+                      borderRadius: '10px',
                       cursor: 'pointer',
-                      fontSize: '16px',
-                      fontWeight: '600',
-                      transition: 'all 0.3s ease'
+                      fontSize: '20px',
+                      fontWeight: '700',
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.4) 0%, rgba(5, 150, 105, 0.4) 100%)'
+                      e.target.style.transform = 'scale(1.08)'
+                      e.target.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.4)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(5, 150, 105, 0.2) 100%)'
+                      e.target.style.transform = 'scale(1)'
+                      e.target.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.2)'
                     }}
                   >
                     +

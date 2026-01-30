@@ -129,7 +129,24 @@ function App() {
   }
 
   return (
-    <div className="app-container" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+    <div className="app-container" style={{ 
+      width: '100vw', 
+      height: '100vh', 
+      overflow: 'hidden',
+      background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
+      position: 'relative'
+    }}>
+      {/* 背景装饰 */}
+      <div style={{
+        position: 'absolute',
+        top: '0',
+        left: '0',
+        right: '0',
+        bottom: '0',
+        backgroundImage: 'radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.1) 0%, transparent 50%)',
+        zIndex: 0
+      }} />
+      
       {/* 文件上传界面 */}
       {showFileInput && (
         <div style={{
@@ -137,59 +154,113 @@ function App() {
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          background: 'rgba(0, 0, 0, 0.9)',
+          background: 'rgba(15, 23, 42, 0.95)',
           color: 'white',
-          padding: '30px',
-          borderRadius: '20px',
+          padding: '35px',
+          borderRadius: '24px',
           zIndex: 1000,
           textAlign: 'center',
           width: '95%',
           maxWidth: '500px',
           boxSizing: 'border-box',
-          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)'
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
-          <h3 style={{
-            fontSize: '20px',
+          <div style={{
+            fontSize: '48px',
             marginBottom: '20px',
-            color: '#646cff',
-            fontWeight: '600'
-          }}>加载VRM模型</h3>
+            animation: 'float 3s ease-in-out infinite'
+          }}>✨</div>
+          <h3 style={{
+            fontSize: '24px',
+            marginBottom: '16px',
+            color: '#60a5fa',
+            fontWeight: '700',
+            textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+          }}>AR模型系统</h3>
           <p style={{
             fontSize: '16px',
-            marginBottom: '25px',
-            lineHeight: '1.4'
-          }}>请选择一个VRM格式的模型文件（.vrm或.glb）</p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".vrm,.glb,model/gltf-binary"
-            onChange={handleFileChange}
-            style={{
-              marginTop: '10px',
-              marginBottom: '20px',
-              width: '100%',
-              padding: '12px',
-              boxSizing: 'border-box',
-              background: 'rgba(255, 255, 255, 0.1)',
-              border: '2px solid rgba(100, 108, 255, 0.5)',
-              borderRadius: '8px',
-              color: 'white'
-            }}
-          />
+            marginBottom: '30px',
+            lineHeight: '1.5',
+            color: 'rgba(255, 255, 255, 0.8)',
+            maxWidth: '400px',
+            marginLeft: 'auto',
+            marginRight: 'auto'
+          }}>选择一个VRM格式的模型文件，或从本地模型库中选择</p>
+          
+          {/* 文件上传区域 */}
+          <div style={{
+            marginBottom: '24px',
+            position: 'relative'
+          }}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".vrm,.glb,model/gltf-binary"
+              onChange={handleFileChange}
+              style={{
+                position: 'absolute',
+                top: '0',
+                left: '0',
+                width: '100%',
+                height: '100%',
+                opacity: '0',
+                cursor: 'pointer',
+                zIndex: '2'
+              }}
+            />
+            <div style={{
+              padding: '40px 20px',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '2px dashed rgba(96, 165, 250, 0.5)',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              position: 'relative',
+              zIndex: '1'
+            }}>
+              <div style={{
+                fontSize: '32px',
+                marginBottom: '12px'
+              }}>📁</div>
+              <p style={{
+                margin: '0',
+                fontSize: '14px',
+                color: 'rgba(255, 255, 255, 0.7)'
+              }}>点击或拖拽文件到此处上传</p>
+              <p style={{
+                margin: '8px 0 0 0',
+                fontSize: '12px',
+                color: 'rgba(255, 255, 255, 0.5)'
+              }}>支持 .vrm, .glb, .gltf 格式</p>
+            </div>
+          </div>
+          
           <button
             onClick={openModelSelect}
             style={{
-              padding: '12px 24px',
-              background: '#10b981',
+              padding: '16px 24px',
+              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               color: 'white',
               border: 'none',
-              borderRadius: '8px',
+              borderRadius: '12px',
               cursor: 'pointer',
               fontSize: '16px',
               fontWeight: '600',
               width: '100%',
-              boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)',
-              transition: 'all 0.3s ease'
+              boxShadow: '0 8px 25px rgba(16, 185, 129, 0.4)',
+              transition: 'all 0.3s ease',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'translateY(-2px)'
+              e.target.style.boxShadow = '0 12px 30px rgba(16, 185, 129, 0.5)'
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'translateY(0)'
+              e.target.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.4)'
             }}
           >
             从本地模型库选择
@@ -204,96 +275,133 @@ function App() {
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          background: 'rgba(0, 0, 0, 0.95)',
+          background: 'rgba(15, 23, 42, 0.95)',
           color: 'white',
-          padding: '25px',
-          borderRadius: '16px',
+          padding: '30px',
+          borderRadius: '24px',
           zIndex: 1000,
           width: '95%',
-          maxWidth: '500px',
-          maxHeight: '80vh',
+          maxWidth: '600px',
+          maxHeight: '85vh',
           boxSizing: 'border-box',
-          boxShadow: '0 10px 30px rgba(0, 0, 0, 0.5)',
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
           overflow: 'hidden'
         }}>
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            marginBottom: '20px'
+            marginBottom: '24px',
+            paddingBottom: '16px',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
           }}>
             <h3 style={{
-              fontSize: '20px',
-              color: '#646cff',
-              fontWeight: '600',
-              margin: 0
+              fontSize: '24px',
+              color: '#60a5fa',
+              fontWeight: '700',
+              margin: 0,
+              textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
             }}>选择模型</h3>
             <button
               onClick={closeModelSelect}
               style={{
-                padding: '8px 16px',
-                background: '#ef4444',
+                padding: '10px 20px',
+                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                 color: 'white',
                 border: 'none',
-                borderRadius: '8px',
+                borderRadius: '10px',
                 cursor: 'pointer',
                 fontSize: '14px',
-                fontWeight: '600'
+                fontWeight: '600',
+                boxShadow: '0 4px 15px rgba(239, 68, 68, 0.4)',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'translateY(-2px)'
+                e.target.style.boxShadow = '0 6px 20px rgba(239, 68, 68, 0.5)'
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'translateY(0)'
+                e.target.style.boxShadow = '0 4px 15px rgba(239, 68, 68, 0.4)'
               }}
             >
               关闭
             </button>
           </div>
           <div style={{
-            maxHeight: 'calc(80vh - 120px)',
+            maxHeight: 'calc(85vh - 150px)',
             overflowY: 'auto',
-            paddingRight: '10px'
+            paddingRight: '15px',
+            marginBottom: '16px'
           }}>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-              gap: '12px'
+              gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+              gap: '16px'
             }}>
               {modelList.map((model, index) => (
                 <button
                   key={index}
                   onClick={() => handleSelectLocalModel(model)}
                   style={{
-                    padding: '12px',
-                    background: 'rgba(100, 108, 255, 0.2)',
+                    padding: '16px',
+                    background: 'rgba(96, 165, 250, 0.15)',
                     color: 'white',
-                    border: '2px solid rgba(100, 108, 255, 0.5)',
-                    borderRadius: '8px',
+                    border: '2px solid rgba(96, 165, 250, 0.4)',
+                    borderRadius: '12px',
                     cursor: 'pointer',
                     fontSize: '14px',
                     fontWeight: '600',
                     transition: 'all 0.3s ease',
                     textAlign: 'center',
-                    minHeight: '80px',
+                    minHeight: '90px',
                     display: 'flex',
                     flexDirection: 'column',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
+                    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
+                    position: 'relative',
+                    overflow: 'hidden'
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.background = 'rgba(100, 108, 255, 0.4)'
-                    e.target.style.transform = 'scale(1.05)'
+                    e.target.style.background = 'rgba(96, 165, 250, 0.3)'
+                    e.target.style.transform = 'scale(1.08)'
+                    e.target.style.boxShadow = '0 8px 25px rgba(96, 165, 250, 0.4)'
                   }}
                   onMouseLeave={(e) => {
-                    e.target.style.background = 'rgba(100, 108, 255, 0.2)'
+                    e.target.style.background = 'rgba(96, 165, 250, 0.15)'
                     e.target.style.transform = 'scale(1)'
+                    e.target.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.2)'
                   }}
                 >
-                  {model.name}
+                  <div style={{
+                    position: 'absolute',
+                    top: '-10px',
+                    right: '-10px',
+                    fontSize: '10px',
+                    background: 'rgba(96, 165, 250, 0.2)',
+                    padding: '4px 8px',
+                    borderRadius: '8px',
+                    color: '#93c5fd'
+                  }}>Model {index + 1}</div>
+                  <div style={{
+                    position: 'relative',
+                    zIndex: 1
+                  }}>{model.name}</div>
                 </button>
               ))}
             </div>
           </div>
           <div style={{
             marginTop: '20px',
-            fontSize: '12px',
-            color: 'rgba(255, 255, 255, 0.7)',
-            textAlign: 'center'
+            fontSize: '14px',
+            color: 'rgba(255, 255, 255, 0.6)',
+            textAlign: 'center',
+            paddingTop: '16px',
+            borderTop: '1px solid rgba(255, 255, 255, 0.1)'
           }}>
+            <div style={{fontSize: '18px', marginBottom: '8px', color: '#60a5fa'}}>🧸</div>
             共 {modelList.length} 个模型可供选择
           </div>
         </div>
@@ -306,15 +414,33 @@ function App() {
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
-          background: 'rgba(0, 0, 0, 0.9)',
+          background: 'rgba(15, 23, 42, 0.95)',
           color: 'white',
-          padding: '20px',
-          borderRadius: '12px',
+          padding: '30px',
+          borderRadius: '20px',
           zIndex: 1000,
           fontSize: '16px',
-          boxShadow: '0 5px 20px rgba(0, 0, 0, 0.3)'
+          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          textAlign: 'center',
+          minWidth: '200px'
         }}>
-          加载VRM模型中...
+          <div style={{
+            fontSize: '32px',
+            marginBottom: '16px',
+            animation: 'spin 2s linear infinite'
+          }}>🔄</div>
+          <p style={{
+            margin: 0,
+            color: '#60a5fa',
+            fontWeight: '600'
+          }}>加载中...</p>
+          <p style={{
+            margin: '8px 0 0 0',
+            fontSize: '14px',
+            color: 'rgba(255, 255, 255, 0.7)'
+          }}>正在加载模型资源</p>
         </div>
       )}
 
@@ -324,18 +450,29 @@ function App() {
           onClick={toggleRenderMode}
           style={{
             position: 'absolute',
-            top: '10px',
-            right: '10px',
-            padding: '10px 16px',
-            background: '#646cff',
+            top: '20px',
+            right: '20px',
+            padding: '14px 20px',
+            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
             color: 'white',
             border: 'none',
-            borderRadius: '8px',
+            borderRadius: '12px',
             cursor: 'pointer',
             fontSize: '14px',
             fontWeight: '600',
             zIndex: 1000,
-            boxShadow: '0 2px 10px rgba(100, 108, 255, 0.4)'
+            boxShadow: '0 8px 25px rgba(99, 102, 241, 0.4)',
+            transition: 'all 0.3s ease',
+            textTransform: 'uppercase',
+            letterSpacing: '0.5px'
+          }}
+          onMouseEnter={(e) => {
+            e.target.style.transform = 'translateY(-2px)'
+            e.target.style.boxShadow = '0 12px 30px rgba(99, 102, 241, 0.5)'
+          }}
+          onMouseLeave={(e) => {
+            e.target.style.transform = 'translateY(0)'
+            e.target.style.boxShadow = '0 8px 25px rgba(99, 102, 241, 0.4)'
           }}
         >
           切换到{renderMode === 'ar' ? 'Model Viewer' : 'AR模式'}
