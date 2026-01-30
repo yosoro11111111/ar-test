@@ -684,6 +684,7 @@ const Notification = ({ message, type = 'info', onClose }) => {
 // ==================== 9. 3D场景内容 ====================
 // ==================== 道具显示组件 ====================
 const PropDisplay = ({ propId }) => {
+  console.log('PropDisplay 渲染, propId:', propId)
   if (!propId || propId === 'none') return null
 
   const propConfigs = {
@@ -1938,7 +1939,7 @@ export const ARScene = ({ selectedFile }) => {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {/* 操作1：双指拖拽移动 */}
+              {/* 操作1：点击 */}
               <div style={{
                 display: 'flex',
                 alignItems: 'flex-start',
@@ -1960,14 +1961,14 @@ export const ARScene = ({ selectedFile }) => {
                   flexShrink: 0
                 }}>👆</div>
                 <div>
-                  <h3 style={{ color: 'white', margin: '0 0 6px 0', fontSize: '16px' }}>双指拖拽移动角色</h3>
+                  <h3 style={{ color: 'white', margin: '0 0 6px 0', fontSize: '16px' }}>点击</h3>
                   <p style={{ color: 'rgba(255,255,255,0.6)', margin: 0, fontSize: '13px', lineHeight: '1.5' }}>
-                    先点击选中角色（出现蓝色光环），然后用双指拖拽即可移动角色位置
+                    点击角色可以选中/取消选中，选中后角色会有蓝色光环。点击角色还可以触发互动反馈
                   </p>
                 </div>
               </div>
 
-              {/* 操作2：双指缩放 */}
+              {/* 操作2：双指滑动 */}
               <div style={{
                 display: 'flex',
                 alignItems: 'flex-start',
@@ -1987,16 +1988,16 @@ export const ARScene = ({ selectedFile }) => {
                   justifyContent: 'center',
                   fontSize: '24px',
                   flexShrink: 0
-                }}>🤏</div>
+                }}>👆👆</div>
                 <div>
-                  <h3 style={{ color: 'white', margin: '0 0 6px 0', fontSize: '16px' }}>双指缩放角色</h3>
+                  <h3 style={{ color: 'white', margin: '0 0 6px 0', fontSize: '16px' }}>双指滑动</h3>
                   <p style={{ color: 'rgba(255,255,255,0.6)', margin: 0, fontSize: '13px', lineHeight: '1.5' }}>
-                    使用双指捏合手势可以放大或缩小角色
+                    选中角色后，使用双指滑动可以移动角色位置。双指捏合可以缩放角色大小
                   </p>
                 </div>
               </div>
 
-              {/* 操作3：旋转画布 */}
+              {/* 操作3：长按 */}
               <div style={{
                 display: 'flex',
                 alignItems: 'flex-start',
@@ -2016,11 +2017,11 @@ export const ARScene = ({ selectedFile }) => {
                   justifyContent: 'center',
                   fontSize: '24px',
                   flexShrink: 0
-                }}>🔄</div>
+                }}>⏱️</div>
                 <div>
-                  <h3 style={{ color: 'white', margin: '0 0 6px 0', fontSize: '16px' }}>旋转画布</h3>
+                  <h3 style={{ color: 'white', margin: '0 0 6px 0', fontSize: '16px' }}>长按</h3>
                   <p style={{ color: 'rgba(255,255,255,0.6)', margin: 0, fontSize: '13px', lineHeight: '1.5' }}>
-                    点击右侧 🔄 按钮可以旋转画布，双指也可以旋转视角
+                    长按角色可以触发特殊动作或表情，松开手指后动作结束
                   </p>
                 </div>
               </div>
