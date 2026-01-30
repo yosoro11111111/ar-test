@@ -8,61 +8,98 @@ import { DragControls } from 'three/examples/jsm/controls/DragControls'
 const ParticleSystem = ({ active, type, position }) => {
   const particlesRef = useRef()
   const [particles, setParticles] = useState([])
+  const animationRef = useRef(null)
 
   useEffect(() => {
-    if (!active) return
+    if (!active) {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
+      return
+    }
 
-    const particleCount = type === 'jump' ? 30 : type === 'dance' ? 50 : type === 'happy' ? 40 : 20
+    // 根据动作类型配置粒子
+    const particleConfigs = {
+      jump: { count: 40, color: '#60a5fa', speed: 0.15, spread: 2 },
+      dance: { count: 60, color: '#a78bfa', speed: 0.08, spread: 1.5 },
+      happy: { count: 50, color: '#fbbf24', speed: 0.1, spread: 1.8 },
+      sad: { count: 30, color: '#60a5fa', speed: 0.05, spread: 1 },
+      wave: { count: 25, color: '#34d399', speed: 0.12, spread: 1.2 },
+      run: { count: 35, color: '#f87171', speed: 0.18, spread: 1.5 },
+      sit: { count: 20, color: '#a78bfa', speed: 0.03, spread: 0.8 },
+      default: { count: 30, color: '#ffffff', speed: 0.1, spread: 1.5 }
+    }
+    
+    const config = particleConfigs[type] || particleConfigs.default
     const newParticles = []
 
-    for (let i = 0; i < particleCount; i++) {
-      const posX = position && position[0] !== undefined ? position[0] + (Math.random() - 0.5) * 1.5 : (Math.random() - 0.5) * 1.5
-      const posY = position && position[1] !== undefined ? position[1] + Math.random() * 1 : Math.random() * 1
-      const posZ = position && position[2] !== undefined ? position[2] + (Math.random() - 0.5) * 1.5 : (Math.random() - 0.5) * 1.5
+    for (let i = 0; i < config.count; i++) {
+      const angle = (Math.PI * 2 * i) / config.count
+      const radius = Math.random() * config.spread
+      
+      const posX = position && position[0] !== undefined ? position[0] + Math.cos(angle) * radius : Math.cos(angle) * radius
+      const posY = position && position[1] !== undefined ? position[1] + Math.random() * 0.5 : Math.random() * 0.5
+      const posZ = position && position[2] !== undefined ? position[2] + Math.sin(angle) * radius : Math.sin(angle) * radius
       
       newParticles.push({
-        position: [posX, posY, posZ],
-        velocity: [
-          (Math.random() - 0.5) * 0.05,
-          Math.random() * 0.08 + 0.02,
-          (Math.random() - 0.5) * 0.05
-        ],
-        size: Math.random() * 0.08 + 0.02,
+        position: new THREE.Vector3(posX, posY, posZ),
+        velocity: new THREE.Vector3(
+          Math.cos(angle) * config.speed * Math.random(),
+          config.speed * (0.5 + Math.random() * 0.5),
+          Math.sin(angle) * config.speed * Math.random()
+        ),
+        size: Math.random() * 0.1 + 0.02,
         life: 1.0,
-        color: type === 'happy' ? '#fbbf24' : type === 'dance' ? '#a78bfa' : type === 'jump' ? '#60a5fa' : '#ffffff'
+        decay: 0.01 + Math.random() * 0.02,
+        color: config.color,
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 0.1
       })
     }
 
     setParticles(newParticles)
+    
+    // 动画更新粒子
+    const animate = () => {
+      setParticles(prevParticles => {
+        return prevParticles.map(p => {
+          p.position.add(p.velocity)
+          p.velocity.y -= 0.002 // 重力
+          p.life -= p.decay
+          p.rotation += p.rotationSpeed
+          
+          return p
+        }).filter(p => p.life > 0)
+      })
+      
+      animationRef.current = requestAnimationFrame(animate)
+    }
+    
+    animate()
+    
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
+    }
   }, [active, type, position])
 
   if (!active || particles.length === 0) return null
 
-  const positions = new Float32Array(particles.length * 3)
-  particles.forEach((p, i) => {
-    positions[i * 3] = p.position[0]
-    positions[i * 3 + 1] = p.position[1]
-    positions[i * 3 + 2] = p.position[2]
-  })
-
   return (
-    <points ref={particlesRef}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={particles.length}
-          array={positions}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <pointsMaterial
-        size={0.05}
-        color={particles[0]?.color || '#ffffff'}
-        transparent
-        opacity={0.8}
-        sizeAttenuation
-      />
-    </points>
+    <group>
+      {particles.map((p, i) => (
+        <mesh key={i} position={p.position} rotation={[0, 0, p.rotation]}>
+          <planeGeometry args={[p.size, p.size]} />
+          <meshBasicMaterial
+            color={p.color}
+            transparent
+            opacity={p.life * 0.8}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+      ))}
+    </group>
   )
 }
 
@@ -109,51 +146,156 @@ const DynamicBackground = ({ actionType }) => {
   )
 }
 
-const ExpressionSystem = ({ vrmModel, actionType }) => {
+const ExpressionSystem = ({ vrmModel, actionType, intensity = 1.0, isPlaying = true }) => {
+  const [expressionProgress, setExpressionProgress] = useState(0)
+  const expressionRef = useRef(null)
+  
   useEffect(() => {
     if (!vrmModel || !vrmModel.expressionManager) return
-
-    const setExpression = (expressionName, value) => {
+    
+    let animationId = null
+    let startTime = Date.now()
+    
+    const setExpression = (expressionName, value, duration = 300) => {
       if (vrmModel.expressionManager.getExpression(expressionName)) {
-        vrmModel.expressionManager.setValue(expressionName, value)
+        // 使用平滑过渡
+        const startValue = vrmModel.expressionManager.getValue(expressionName) || 0
+        const startTime = Date.now()
+        
+        const animate = () => {
+          const elapsed = Date.now() - startTime
+          const progress = Math.min(elapsed / duration, 1)
+          // 使用缓动函数
+          const easeProgress = 1 - Math.pow(1 - progress, 3)
+          const currentValue = startValue + (value - startValue) * easeProgress
+          
+          vrmModel.expressionManager.setValue(expressionName, currentValue * intensity)
+          
+          if (progress < 1) {
+            animationId = requestAnimationFrame(animate)
+          }
+        }
+        
+        animate()
+      }
+    }
+    
+    const resetAllExpressions = (duration = 500) => {
+      const expressions = ['happy', 'sad', 'angry', 'relaxed', 'surprised', 'neutral', 'aa', 'ih', 'ou', 'ee', 'oh']
+      expressions.forEach(expr => {
+        if (vrmModel.expressionManager.getExpression(expr)) {
+          setExpression(expr, 0, duration)
+        }
+      })
+    }
+
+    // 表情配置系统 - 更丰富的表情组合
+    const expressionConfigs = {
+      happy: {
+        primary: { name: 'happy', value: 0.8, delay: 0 },
+        secondary: [
+          { name: 'aa', value: 0.4, delay: 100 },
+          { name: 'relaxed', value: 0.3, delay: 200 }
+        ],
+        duration: 2000
+      },
+      sad: {
+        primary: { name: 'sad', value: 0.9, delay: 0 },
+        secondary: [
+          { name: 'ee', value: 0.3, delay: 150 },
+          { name: 'relaxed', value: 0.2, delay: 300 }
+        ],
+        duration: 2500
+      },
+      wave: {
+        primary: { name: 'happy', value: 0.6, delay: 0 },
+        secondary: [
+          { name: 'blink', value: 0.7, delay: 200 },
+          { name: 'u', value: 0.4, delay: 400 }
+        ],
+        duration: 1500
+      },
+      dance: {
+        primary: { name: 'fun', value: 1, delay: 0 },
+        secondary: [
+          { name: 'aa', value: 0.5, delay: 100 },
+          { name: 'blinkL', value: 0.6, delay: 300 },
+          { name: 'blinkR', value: 0.6, delay: 500 }
+        ],
+        duration: 3000
+      },
+      jump: {
+        primary: { name: 'surprised', value: 1, delay: 0 },
+        secondary: [
+          { name: 'ih', value: 0.6, delay: 100 },
+          { name: 'oh', value: 0.4, delay: 300 }
+        ],
+        duration: 1200
+      },
+      run: {
+        primary: { name: 'angry', value: 0.5, delay: 0 },
+        secondary: [
+          { name: 'ee', value: 0.4, delay: 100 },
+          { name: 'oh', value: 0.3, delay: 200 }
+        ],
+        duration: 2000
+      },
+      sit: {
+        primary: { name: 'relaxed', value: 0.8, delay: 0 },
+        secondary: [
+          { name: 'neutral', value: 0.5, delay: 200 }
+        ],
+        duration: 3000
+      },
+      idle: {
+        primary: { name: 'neutral', value: 1, delay: 0 },
+        secondary: [],
+        duration: 1000
       }
     }
 
-    switch (actionType) {
-      case 'happy':
-        setExpression('happy', 1)
-        setExpression('aa', 0.3)
-        break
-      case 'sad':
-        setExpression('sad', 1)
-        setExpression('ee', 0.2)
-        break
-      case 'wave':
-        setExpression('blink', 0.5)
-        setExpression('u', 0.3)
-        break
-      case 'dance':
-        setExpression('fun', 1)
-        setExpression('blinkL', 0.3)
-        break
-      case 'jump':
-        setExpression('surprised', 1)
-        setExpression('ih', 0.4)
-        break
-      default:
-        setExpression('neutral', 1)
-    }
-
-    return () => {
-      if (vrmModel.expressionManager) {
-        try {
-          vrmModel.expressionManager.setValue('neutral', 1)
-        } catch (error) {
-          console.error('重置表情失败:', error)
+    const config = expressionConfigs[actionType] || expressionConfigs.idle
+    
+    if (isPlaying) {
+      // 先重置所有表情
+      resetAllExpressions(300)
+      
+      // 应用主表情
+      setTimeout(() => {
+        setExpression(config.primary.name, config.primary.value, 400)
+      }, config.primary.delay)
+      
+      // 应用次要表情
+      config.secondary.forEach(expr => {
+        setTimeout(() => {
+          setExpression(expr.name, expr.value, 300)
+        }, expr.delay)
+      })
+      
+      // 设置表情持续时间后自动淡出
+      const fadeOutTimer = setTimeout(() => {
+        if (actionType !== 'idle') {
+          resetAllExpressions(800)
+          setTimeout(() => {
+            setExpression('neutral', 1, 500)
+          }, 800)
+        }
+      }, config.duration)
+      
+      return () => {
+        clearTimeout(fadeOutTimer)
+        if (animationId) {
+          cancelAnimationFrame(animationId)
         }
       }
     }
-  }, [vrmModel, actionType])
+
+    return () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId)
+      }
+    }
+  }, [vrmModel, actionType, intensity, isPlaying])
 
   return null
 }
@@ -194,9 +336,40 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const raycaster = useRef(new THREE.Raycaster())
   const mouse = useRef(new THREE.Vector2())
   const touchStartTime = useRef(0)
+  
+  // 视线追踪系统
+  const [lookAtTarget, setLookAtTarget] = useState(new THREE.Vector3(0, 1.5, 5))
+  const [isLookingAtCamera, setIsLookingAtCamera] = useState(true)
+  const lookAtSmoothness = useRef(0.1)
+  const currentLookAt = useRef(new THREE.Vector3(0, 1.5, 5))
+  
+  // 物理模拟系统
+  const [physicsEnabled, setPhysicsEnabled] = useState(true)
+  const velocity = useRef(new THREE.Vector3(0, 0, 0))
+  const angularVelocity = useRef(new THREE.Vector3(0, 0, 0))
+  const gravity = useRef(-9.8)
+  const groundLevel = useRef(0)
+  const isGrounded = useRef(true)
+  
+  // 性能监控系统
+  const [fps, setFps] = useState(60)
+  const frameCount = useRef(0)
+  const lastTime = useRef(Date.now())
+  const [memoryUsage, setMemoryUsage] = useState(0)
 
   const [optimalScale, setOptimalScale] = useState(1.0)
   const [optimalCameraPosition, setOptimalCameraPosition] = useState([0, 0, 3])
+  
+  // 动画混合权重系统
+  const [animationWeights, setAnimationWeights] = useState({})
+  const [blendTree, setBlendTree] = useState({
+    idle: 1.0,
+    walk: 0,
+    run: 0,
+    dance: 0
+  })
+  const [actionQueue, setActionQueue] = useState([])
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false)
 
   const ambientLightRef = useRef()
   const directionalLightRef = useRef()
@@ -204,6 +377,43 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
 
   const breathePhase = useRef(0)
   const blinkPhase = useRef(0)
+  
+  // Q版变形系统 - 让角色更可爱
+  const [chibiMode, setChibiMode] = useState(false)
+  const chibiScale = useRef({ head: 1.3, body: 0.8, limbs: 0.7 })
+  
+  // 弹性骨骼系统 - 果冻般柔软感
+  const springBones = useRef([])
+  const [springPhysicsEnabled, setSpringPhysicsEnabled] = useState(true)
+  
+  // 惯性跟随系统 - 头发衣服延迟跟随
+  const followBones = useRef([])
+  const followTargets = useRef(new Map())
+  
+  // 微动作系统 - 随机小动作
+  const [microActionsEnabled, setMicroActionsEnabled] = useState(true)
+  const lastMicroActionTime = useRef(0)
+  const microActionInterval = useRef(3000 + Math.random() * 2000)
+  
+  // 情感状态机
+  const [emotionState, setEmotionState] = useState('neutral')
+  const emotionTimer = useRef(null)
+  
+  // 口型同步
+  const [lipSyncEnabled, setLipSyncEnabled] = useState(true)
+  const lipSyncValue = useRef(0)
+  
+  // 耳朵尾巴物理
+  const earBones = useRef([])
+  const tailBones = useRef([])
+  
+  // 手部姿态
+  const [handGesture, setHandGesture] = useState('relax')
+  
+  // 脚步IK
+  const footIKEnabled = useRef(true)
+  const leftFootTarget = useRef(new THREE.Vector3())
+  const rightFootTarget = useRef(new THREE.Vector3())
 
   const [touchFeedback, setTouchFeedback] = useState({ show: false, x: 0, y: 0 })
 
@@ -375,7 +585,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     console.log('模型尺寸:', size)
     
     const maxDimension = Math.max(size.x, size.y, size.z)
-    const targetSize = 1.5
+    const targetSize = 1.6 // 稍微大一点，让角色更清晰
     const optimalScaleValue = targetSize / maxDimension
     
     console.log('最佳缩放:', optimalScaleValue)
@@ -386,75 +596,178 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     const center = new THREE.Vector3()
     box.getCenter(center)
     
+    // 水平居中
     model.position.x = -center.x * optimalScaleValue
+    // 垂直位置：让脚底站在地面上 (y=0)
     model.position.y = -box.min.y * optimalScaleValue
-    model.position.z = -center.z * optimalScaleValue
+    // 前后位置：让角色站在场景中央偏前一点
+    model.position.z = -center.z * optimalScaleValue + 0.5 // 稍微向前
     
     console.log('模型位置:', model.position)
     
-    const cameraDistance = maxDimension * optimalScaleValue * 2.5
-    setOptimalCameraPosition([0, size.y * optimalScaleValue * 0.6, cameraDistance])
+    // 相机位置：让角色在画面中央，稍微俯视
+    const cameraDistance = maxDimension * optimalScaleValue * 2.2
+    const cameraHeight = size.y * optimalScaleValue * 0.5 // 相机高度在角色腰部偏上
     
-    camera.position.set(0, size.y * optimalScaleValue * 0.6, cameraDistance)
-    camera.lookAt(0, size.y * optimalScaleValue * 0.5, 0)
+    setOptimalCameraPosition([0, cameraHeight, cameraDistance])
+    
+    // 平滑移动相机到最佳位置
+    const targetCameraPos = new THREE.Vector3(0, cameraHeight, cameraDistance)
+    const targetLookAt = new THREE.Vector3(0, size.y * optimalScaleValue * 0.4, 0) // 看向角色胸部位置
+    
+    // 使用动画平滑过渡
+    const startPos = camera.position.clone()
+    const startTime = Date.now()
+    const duration = 1000 // 1秒过渡
+    
+    const animateCamera = () => {
+      const elapsed = Date.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      // 使用缓动函数
+      const easeProgress = 1 - Math.pow(1 - progress, 3)
+      
+      camera.position.lerpVectors(startPos, targetCameraPos, easeProgress)
+      camera.lookAt(targetLookAt)
+      
+      if (progress < 1) {
+        requestAnimationFrame(animateCamera)
+      }
+    }
+    
+    animateCamera()
     
     console.log('相机位置:', camera.position)
     
+    // 设置光照，让角色更明亮可爱
     if (ambientLightRef.current) {
-      ambientLightRef.current.intensity = 0.6
+      ambientLightRef.current.intensity = 0.7
     }
     if (directionalLightRef.current) {
-      directionalLightRef.current.position.set(5, 10, 7.5)
-      directionalLightRef.current.intensity = 1.2
+      directionalLightRef.current.position.set(3, 8, 5)
+      directionalLightRef.current.intensity = 1.0
     }
     if (pointLightRef.current) {
-      pointLightRef.current.position.set(-5, 5, 5)
-      pointLightRef.current.intensity = 0.8
+      pointLightRef.current.position.set(-3, 4, 3)
+      pointLightRef.current.intensity = 0.6
+      pointLightRef.current.color = new THREE.Color('#fff5e6') // 暖色调
     }
+    
+    // 添加边缘光，让角色更立体
+    const rimLight = new THREE.SpotLight(0xffffff, 0.5)
+    rimLight.position.set(0, 5, -5)
+    rimLight.lookAt(0, 1, 0)
+    scene.add(rimLight)
   }
 
   const setInitialPose = (vrm) => {
     if (vrm.humanoid) {
-      console.log('VRM人形骨骼存在，设置初始姿态')
+      console.log('VRM人形骨骼存在，设置初始姿态 - 站立并看向用户')
       
+      // 头部 - 稍微向下看，营造可爱的感觉
       const headBone = vrm.humanoid.getBoneNode('head')
       if (headBone) {
-        headBone.rotation.set(0, 0, 0)
+        headBone.rotation.set(0.1, 0, 0) // 稍微低头
       }
       
+      // 脖子 - 自然状态
+      const neckBone = vrm.humanoid.getBoneNode('neck')
+      if (neckBone) {
+        neckBone.rotation.set(0, 0, 0)
+      }
+      
+      // 手臂 - 自然下垂，稍微向外张开，不要张开双手
       const leftArm = vrm.humanoid.getBoneNode('leftUpperArm')
       const rightArm = vrm.humanoid.getBoneNode('rightUpperArm')
+      const leftLowerArm = vrm.humanoid.getBoneNode('leftLowerArm')
+      const rightLowerArm = vrm.humanoid.getBoneNode('rightLowerArm')
+      const leftHand = vrm.humanoid.getBoneNode('leftHand')
+      const rightHand = vrm.humanoid.getBoneNode('rightHand')
+      
       if (leftArm) {
-        leftArm.rotation.set(0, 0, 0.1)
+        leftArm.rotation.set(0, 0, 0.15) // 稍微向外
       }
       if (rightArm) {
-        rightArm.rotation.set(0, 0, -0.1)
+        rightArm.rotation.set(0, 0, -0.15) // 稍微向外
+      }
+      if (leftLowerArm) {
+        leftLowerArm.rotation.set(0.1, 0, 0) // 轻微弯曲
+      }
+      if (rightLowerArm) {
+        rightLowerArm.rotation.set(0.1, 0, 0) // 轻微弯曲
+      }
+      if (leftHand) {
+        leftHand.rotation.set(0, 0, 0)
+      }
+      if (rightHand) {
+        rightHand.rotation.set(0, 0, 0)
       }
       
+      // 脊柱 - 挺直站立
       const spine = vrm.humanoid.getBoneNode('spine')
       if (spine) {
         spine.rotation.set(0, 0, 0)
       }
       
+      // 胸部 - 自然挺胸
+      const chest = vrm.humanoid.getBoneNode('chest')
+      if (chest) {
+        chest.rotation.set(-0.05, 0, 0) // 轻微挺胸
+      }
+      
+      // 臀部 - 水平
       const hips = vrm.humanoid.getBoneNode('hips')
       if (hips) {
         hips.rotation.set(0, 0, 0)
+        // 设置初始高度，让脚站在地面上
+        hips.position.y = 0
       }
       
+      // 腿部 - 站立姿势
       const leftLeg = vrm.humanoid.getBoneNode('leftUpperLeg')
       const rightLeg = vrm.humanoid.getBoneNode('rightUpperLeg')
+      const leftLowerLeg = vrm.humanoid.getBoneNode('leftLowerLeg')
+      const rightLowerLeg = vrm.humanoid.getBoneNode('rightLowerLeg')
+      const leftFoot = vrm.humanoid.getBoneNode('leftFoot')
+      const rightFoot = vrm.humanoid.getBoneNode('rightFoot')
+      
       if (leftLeg) {
         leftLeg.rotation.set(0, 0, 0)
       }
       if (rightLeg) {
         rightLeg.rotation.set(0, 0, 0)
       }
+      if (leftLowerLeg) {
+        leftLowerLeg.rotation.set(0.1, 0, 0) // 膝盖轻微弯曲，更自然
+      }
+      if (rightLowerLeg) {
+        rightLowerLeg.rotation.set(0.1, 0, 0)
+      }
+      if (leftFoot) {
+        leftFoot.rotation.set(0, 0, 0)
+      }
+      if (rightFoot) {
+        rightFoot.rotation.set(0, 0, 0)
+      }
       
+      // 肩膀 - 自然放松
+      const leftShoulder = vrm.humanoid.getBoneNode('leftShoulder')
+      const rightShoulder = vrm.humanoid.getBoneNode('rightShoulder')
+      if (leftShoulder) {
+        leftShoulder.rotation.set(0, 0, 0)
+      }
+      if (rightShoulder) {
+        rightShoulder.rotation.set(0, 0, 0)
+      }
+      
+      // 设置表情为自然微笑
       if (vrm.expressionManager) {
-        vrm.expressionManager.setValue('neutral', 1)
+        vrm.expressionManager.setValue('neutral', 0.8)
+        vrm.expressionManager.setValue('happy', 0.2) // 轻微微笑
       }
       
       vrm.scene.updateMatrixWorld(true)
+      
+      console.log('初始姿态设置完成 - 角色站立并看向用户')
     }
   }
 
@@ -587,20 +900,26 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     
     const animation = modelAnimations.find(a => a.name === animationName)
     if (!animation) {
-      console.log('未找到动画:', animationName)
+      console.log('未找到动画:', animationName, '，播放待机动画')
+      const idleAnimation = modelAnimations.find(a => a.name.toLowerCase().includes('idle'))
+      if (idleAnimation) {
+        playModelAnimation(idleAnimation.name)
+      } else {
+        console.warn('未找到待机动画，模型将保持当前状态')
+      }
       return
     }
     
     console.log('播放模型动画:', animationName)
     
     if (currentAnimation) {
-      currentAnimation.stop()
+      currentAnimation.fadeOut(0.3)
     }
     
     const clipAction = animationMixer.clipAction(animation.animation)
     clipAction.setLoop(THREE.LoopRepeat)
     clipAction.reset()
-    clipAction.fadeIn(0.3)
+    clipAction.fadeIn(0.5)
     clipAction.play()
     setCurrentAnimation(clipAction)
     setCurrentAnimationClip(animationName)
@@ -668,14 +987,23 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const handleTouchMove = (event) => {
     event.stopPropagation()
     
-    if (isTouching && characterRef.current) {
-      const rect = gl.domElement.getBoundingClientRect()
-      const x = ((event.clientX - rect.left) / rect.width) * 2 - 1
-      const y = -((event.clientY - rect.top) / rect.height) * 2 + 1
-      
-      mouse.current.set(x, y)
+    const rect = gl.domElement.getBoundingClientRect()
+    const x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+    const y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+    
+    mouse.current.set(x, y)
+    
+    // 更新视线目标到鼠标位置
+    if (isLookingAtCamera) {
       raycaster.current.setFromCamera(mouse.current, camera)
-      
+      const targetDistance = 5
+      const target = new THREE.Vector3()
+      raycaster.current.ray.at(targetDistance, target)
+      setLookAtTarget(target)
+    }
+    
+    if (isTouching && characterRef.current) {
+      raycaster.current.setFromCamera(mouse.current, camera)
       const intersects = raycaster.current.intersectObject(characterRef.current, true)
       
       if (intersects.length > 0) {
@@ -849,21 +1177,358 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         characterRef.current.scale.y *= breatheScale
       }
       
+      // 智能自动眨眼系统
       if (vrmModel && vrmModel.expressionManager) {
         blinkPhase.current += delta
         
-        if (Math.sin(blinkPhase.current * 0.5) > 0.98) {
+        // 基于动作的眨眼频率调整
+        let blinkFrequency = 0.5 // 默认频率
+        let blinkDuration = 150 // 默认持续时间
+        
+        switch (currentActionType) {
+          case 'dance':
+            blinkFrequency = 0.8 // 跳舞时眨眼更快
+            blinkDuration = 100
+            break
+          case 'surprised':
+          case 'jump':
+            blinkFrequency = 0.1 // 惊讶时几乎不眨眼
+            blinkDuration = 200
+            break
+          case 'sad':
+            blinkFrequency = 0.3 // 悲伤时眨眼较慢
+            blinkDuration = 250
+            break
+          case 'happy':
+            blinkFrequency = 0.6 // 开心时眨眼较快
+            blinkDuration = 120
+            break
+          default:
+            blinkFrequency = 0.5
+        }
+        
+        // 使用正弦波生成自然的眨眼节奏
+        const blinkTrigger = Math.sin(blinkPhase.current * blinkFrequency)
+        if (blinkTrigger > 0.985) {
+          // 平滑的眨眼动画
+          const startTime = Date.now()
+          const animateBlink = () => {
+            const elapsed = Date.now() - startTime
+            const progress = Math.min(elapsed / (blinkDuration / 2), 1)
+            
+            if (progress < 0.5) {
+              // 闭眼
+              vrmModel.expressionManager.setValue('blink', progress * 2)
+            } else {
+              // 睁眼
+              vrmModel.expressionManager.setValue('blink', 2 - progress * 2)
+            }
+            
+            if (progress < 1) {
+              requestAnimationFrame(animateBlink)
+            } else {
+              vrmModel.expressionManager.setValue('blink', 0)
+            }
+          }
+          animateBlink()
+        }
+        
+        // 随机眨眼增加自然感
+        if (Math.random() < 0.001) {
           vrmModel.expressionManager.setValue('blink', 1)
           setTimeout(() => {
             if (vrmModel.expressionManager) {
               vrmModel.expressionManager.setValue('blink', 0)
             }
-          }, 150)
+          }, 100)
         }
       }
       
       if (isTouching && characterRef.current) {
         characterRef.current.rotation.y += 0.02
+      }
+      
+      // 视线追踪系统 - 让角色看向相机或鼠标位置
+      if (vrmModel && vrmModel.humanoid && isLookingAtCamera) {
+        try {
+          // 平滑插值当前视线目标
+          currentLookAt.current.lerp(lookAtTarget, lookAtSmoothness.current)
+          
+          // 获取头部骨骼
+          const headBone = vrmModel.humanoid.getNormalizedBoneNode('head')
+          if (headBone) {
+            // 计算看向目标的方向
+            const targetPos = currentLookAt.current.clone()
+            const headPos = new THREE.Vector3()
+            headBone.getWorldPosition(headPos)
+            
+            // 限制头部旋转角度
+            const lookDirection = targetPos.sub(headPos).normalize()
+            const yaw = Math.atan2(lookDirection.x, lookDirection.z)
+            const pitch = Math.asin(lookDirection.y)
+            
+            // 限制角度范围
+            const maxYaw = Math.PI / 4 // 45度
+            const maxPitch = Math.PI / 6 // 30度
+            
+            const clampedYaw = Math.max(-maxYaw, Math.min(maxYaw, yaw))
+            const clampedPitch = Math.max(-maxPitch, Math.min(maxPitch, pitch))
+            
+            // 平滑应用旋转
+            headBone.rotation.y = THREE.MathUtils.lerp(headBone.rotation.y, clampedYaw, 0.1)
+            headBone.rotation.x = THREE.MathUtils.lerp(headBone.rotation.x, -clampedPitch, 0.1)
+          }
+          
+          // 脊柱也跟随轻微转动
+          const spineBone = vrmModel.humanoid.getNormalizedBoneNode('spine')
+          if (spineBone) {
+            const spineYaw = Math.atan2(
+              currentLookAt.current.x - characterRef.current.position.x,
+              currentLookAt.current.z - characterRef.current.position.z
+            ) * 0.3 // 脊柱转动幅度较小
+            spineBone.rotation.y = THREE.MathUtils.lerp(spineBone.rotation.y, spineYaw, 0.05)
+          }
+        } catch (error) {
+          // 忽略视线追踪错误
+        }
+      }
+      
+      // 物理模拟系统
+      if (physicsEnabled && characterRef.current && currentActionType === 'jump') {
+        // 应用重力
+        if (!isGrounded.current) {
+          velocity.current.y += gravity.current * delta
+          characterRef.current.position.add(velocity.current.clone().multiplyScalar(delta))
+          
+          // 地面碰撞检测
+          if (characterRef.current.position.y <= groundLevel.current) {
+            characterRef.current.position.y = groundLevel.current
+            velocity.current.y = 0
+            isGrounded.current = true
+            
+            // 着陆效果
+            setShowParticles(true)
+            setTimeout(() => setShowParticles(false), 500)
+          }
+        }
+      }
+      
+      // Q版变形系统 - 实时调整骨骼比例
+      if (vrmModel && vrmModel.humanoid && chibiMode) {
+        try {
+          const headBone = vrmModel.humanoid.getNormalizedBoneNode('head')
+          const neckBone = vrmModel.humanoid.getNormalizedBoneNode('neck')
+          const chestBone = vrmModel.humanoid.getNormalizedBoneNode('chest')
+          
+          if (headBone) {
+            // 头部放大1.3倍
+            const targetHeadScale = chibiScale.current.head
+            headBone.scale.setScalar(THREE.MathUtils.lerp(headBone.scale.x, targetHeadScale, 0.1))
+          }
+          
+          if (neckBone) {
+            // 脖子缩短
+            neckBone.scale.y = THREE.MathUtils.lerp(neckBone.scale.y, 0.7, 0.1)
+          }
+          
+          if (chestBone) {
+            // 身体稍微缩小变圆
+            chestBone.scale.x = THREE.MathUtils.lerp(chestBone.scale.x, 1.1, 0.1)
+            chestBone.scale.z = THREE.MathUtils.lerp(chestBone.scale.z, 1.1, 0.1)
+            chestBone.scale.y = THREE.MathUtils.lerp(chestBone.scale.y, 0.9, 0.1)
+          }
+          
+          // 缩短四肢
+          const leftUpperArm = vrmModel.humanoid.getNormalizedBoneNode('leftUpperArm')
+          const rightUpperArm = vrmModel.humanoid.getNormalizedBoneNode('rightUpperArm')
+          const leftLowerArm = vrmModel.humanoid.getNormalizedBoneNode('leftLowerArm')
+          const rightLowerArm = vrmModel.humanoid.getNormalizedBoneNode('rightLowerArm')
+          
+          ;[leftUpperArm, rightUpperArm, leftLowerArm, rightLowerArm].forEach(bone => {
+            if (bone) {
+              bone.scale.y = THREE.MathUtils.lerp(bone.scale.y, chibiScale.current.limbs, 0.1)
+            }
+          })
+        } catch (error) {
+          // 忽略Q版变形错误
+        }
+      }
+      
+      // 弹性骨骼系统 - 果冻般柔软感
+      if (springPhysicsEnabled && vrmModel && vrmModel.springBoneManager) {
+        try {
+          vrmModel.springBoneManager.update(delta * 2) // 加速模拟以获得更Q弹的效果
+        } catch (error) {
+          // 忽略弹性骨骼错误
+        }
+      }
+      
+      // 惯性跟随系统 - 头发衣服延迟跟随
+      if (followBones.current.length > 0 && characterRef.current) {
+        followBones.current.forEach((boneData, index) => {
+          if (boneData.bone && boneData.target) {
+            const delay = boneData.delay || 0.1
+            boneData.bone.position.lerp(boneData.target.position, delay)
+            boneData.bone.rotation.x = THREE.MathUtils.lerp(boneData.bone.rotation.x, boneData.target.rotation.x, delay)
+            boneData.bone.rotation.y = THREE.MathUtils.lerp(boneData.bone.rotation.y, boneData.target.rotation.y, delay)
+            boneData.bone.rotation.z = THREE.MathUtils.lerp(boneData.bone.rotation.z, boneData.target.rotation.z, delay)
+          }
+        })
+      }
+      
+      // 呼吸起伏动画 - 胸部和肩膀自然起伏（仅在idle状态时轻微呼吸）
+      if (vrmModel && vrmModel.humanoid && currentActionType === 'idle') {
+        try {
+          const chestBone = vrmModel.humanoid.getNormalizedBoneNode('chest')
+          const leftShoulder = vrmModel.humanoid.getNormalizedBoneNode('leftShoulder')
+          const rightShoulder = vrmModel.humanoid.getNormalizedBoneNode('rightShoulder')
+          
+          const breatheTime = Date.now() * 0.001
+          const breatheIntensity = 0.008 // 减小呼吸幅度
+          
+          if (chestBone) {
+            // 胸部前后起伏
+            chestBone.position.z = Math.sin(breatheTime * 2) * breatheIntensity
+            chestBone.rotation.x = Math.sin(breatheTime * 2) * breatheIntensity * 0.5
+          }
+          
+          if (leftShoulder) {
+            leftShoulder.position.y = Math.sin(breatheTime * 2 + 0.2) * breatheIntensity * 0.5
+          }
+          
+          if (rightShoulder) {
+            rightShoulder.position.y = Math.sin(breatheTime * 2 + 0.2) * breatheIntensity * 0.5
+          }
+        } catch (error) {
+          // 忽略呼吸动画错误
+        }
+      }
+      
+      // 微动作系统 - 随机小动作增加生动感（仅在idle状态下）
+      if (microActionsEnabled && vrmModel && vrmModel.humanoid && currentActionType === 'idle') {
+        const now = Date.now()
+        if (now - lastMicroActionTime.current > microActionInterval.current) {
+          lastMicroActionTime.current = now
+          microActionInterval.current = 4000 + Math.random() * 6000 // 4-10秒随机间隔，减少频率
+          
+          // 随机选择微动作
+          const microActions = ['earWiggle', 'headTilt', 'shoulderShrug', 'weightShift']
+          const randomAction = microActions[Math.floor(Math.random() * microActions.length)]
+          
+          try {
+            switch (randomAction) {
+              case 'earWiggle':
+                // 耳朵抖动（如果有）
+                if (earBones.current.length > 0) {
+                  earBones.current.forEach(ear => {
+                    if (ear) {
+                      ear.rotation.z = Math.sin(Date.now() * 0.02) * 0.05 // 减小幅度
+                    }
+                  })
+                }
+                break
+              case 'headTilt':
+                // 头部轻微倾斜
+                const head = vrmModel.humanoid.getNormalizedBoneNode('head')
+                if (head) {
+                  head.rotation.z = (Math.random() - 0.5) * 0.05 // 减小幅度
+                  setTimeout(() => {
+                    if (head) head.rotation.z = 0
+                  }, 1000)
+                }
+                break
+              case 'shoulderShrug':
+                // 耸肩
+                const leftShoulder = vrmModel.humanoid.getNormalizedBoneNode('leftShoulder')
+                const rightShoulder = vrmModel.humanoid.getNormalizedBoneNode('rightShoulder')
+                if (leftShoulder && rightShoulder) {
+                  leftShoulder.position.y += 0.02
+                  rightShoulder.position.y += 0.02
+                  setTimeout(() => {
+                    if (leftShoulder) leftShoulder.position.y -= 0.02
+                    if (rightShoulder) rightShoulder.position.y -= 0.02
+                  }, 500)
+                }
+                break
+              case 'weightShift':
+                // 重心转移
+                const hips = vrmModel.humanoid.getNormalizedBoneNode('hips')
+                if (hips) {
+                  hips.position.x = Math.sin(Date.now() * 0.001) * 0.02
+                }
+                break
+            }
+          } catch (error) {
+            // 忽略微动作错误
+          }
+        }
+      }
+      
+      // 口型同步系统
+      if (lipSyncEnabled && vrmModel && vrmModel.expressionManager) {
+        // 根据动作类型调整口型
+        let targetLipValue = 0
+        switch (currentActionType) {
+          case 'happy':
+          case 'dance':
+            targetLipValue = 0.3 + Math.sin(Date.now() * 0.01) * 0.2
+            break
+          case 'sad':
+            targetLipValue = 0.1
+            break
+          case 'surprised':
+          case 'jump':
+            targetLipValue = 0.6
+            break
+          default:
+            targetLipValue = 0
+        }
+        
+        lipSyncValue.current = THREE.MathUtils.lerp(lipSyncValue.current, targetLipValue, 0.1)
+        
+        try {
+          vrmModel.expressionManager.setValue('aa', lipSyncValue.current)
+        } catch (error) {
+          // 忽略口型同步错误
+        }
+      }
+      
+      // 耳朵尾巴物理模拟
+      if (earBones.current.length > 0 || tailBones.current.length > 0) {
+        const time = Date.now() * 0.001
+        
+        earBones.current.forEach((ear, index) => {
+          if (ear) {
+            // 耳朵根据动作摆动
+            const swayAmount = currentActionType === 'happy' ? 0.15 : 0.05
+            const swaySpeed = currentActionType === 'dance' ? 8 : 3
+            ear.rotation.z = Math.sin(time * swaySpeed + index) * swayAmount
+            ear.rotation.x = Math.cos(time * swaySpeed * 0.7) * swayAmount * 0.5
+          }
+        })
+        
+        tailBones.current.forEach((tail, index) => {
+          if (tail) {
+            // 尾巴摆动
+            const tailSway = currentActionType === 'happy' ? 0.3 : 0.1
+            tail.rotation.y = Math.sin(time * 4 + index * 0.5) * tailSway
+            tail.rotation.x = Math.sin(time * 3) * tailSway * 0.3
+          }
+        })
+      }
+      
+      // 性能监控系统
+      frameCount.current++
+      const currentTime = Date.now()
+      if (currentTime - lastTime.current >= 1000) {
+        setFps(frameCount.current)
+        frameCount.current = 0
+        lastTime.current = currentTime
+        
+        // 内存使用监控
+        if (performance && performance.memory) {
+          setMemoryUsage(Math.round(performance.memory.usedJSHeapSize / 1048576))
+        }
       }
     } catch (error) {
       console.error('动画更新失败:', error)
@@ -886,18 +1551,10 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       <ExpressionSystem vrmModel={vrmModel} actionType={currentActionType} />
       
       {touchFeedback.show && (
-        <div style={{
-          position: 'fixed',
-          left: touchFeedback.x,
-          top: touchFeedback.y,
-          transform: 'translate(-50%, -50%)',
-          width: '60px',
-          height: '60px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%)',
-          pointerEvents: 'none',
-          animation: 'ripple 0.5s ease-out forwards'
-        }} />
+        <mesh position={[touchFeedback.x * 0.01, touchFeedback.y * 0.01, 2]}>
+          <ringGeometry args={[0.3, 0.4, 32]} />
+          <meshBasicMaterial color="white" transparent opacity={0.5} />
+        </mesh>
       )}
       
       {isLoading && (
