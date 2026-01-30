@@ -1533,8 +1533,8 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         velocity.y = velocity.y * 0.8 + deltaY * 0.2
         velocity.z = velocity.z * 0.8 + deltaZ * 0.2
         
-        // 应用速度和位置（提高响应速度到0.35）
-        const lerpFactor = 0.35
+        // 应用速度和位置（提高响应速度到0.6，更快响应）
+        const lerpFactor = 0.6
         bone.rotation.x += velocity.x * lerpFactor
         bone.rotation.y += velocity.y * lerpFactor
         bone.rotation.z += velocity.z * lerpFactor
@@ -1632,34 +1632,45 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     console.log('执行预设动作:', actionName)
     setCurrentActionType(actionName)
     
+    // 立即显示视觉反馈 - 更快的响应
     const feedbackElement = document.createElement('div')
     feedbackElement.style.position = 'fixed'
     feedbackElement.style.top = '50%'
     feedbackElement.style.left = '50%'
-    feedbackElement.style.transform = 'translate(-50%, -50%)'
+    feedbackElement.style.transform = 'translate(-50%, -50%) scale(0.8)'
     feedbackElement.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
     feedbackElement.style.color = 'white'
-    feedbackElement.style.padding = '16px 32px'
-    feedbackElement.style.borderRadius = '25px'
-    feedbackElement.style.fontSize = '16px'
+    feedbackElement.style.padding = '12px 24px'
+    feedbackElement.style.borderRadius = '20px'
+    feedbackElement.style.fontSize = '14px'
     feedbackElement.style.fontWeight = '700'
     feedbackElement.style.zIndex = '9999'
-    feedbackElement.style.boxShadow = '0 10px 40px rgba(102, 126, 234, 0.5)'
+    feedbackElement.style.boxShadow = '0 8px 32px rgba(102, 126, 234, 0.4)'
     feedbackElement.style.backdropFilter = 'blur(10px)'
     feedbackElement.style.border = '2px solid rgba(255, 255, 255, 0.3)'
+    feedbackElement.style.transition = 'all 0.15s ease'
     feedbackElement.textContent = `✨ ${actionName} ✨`
     document.body.appendChild(feedbackElement)
     
+    // 立即执行动画
+    requestAnimationFrame(() => {
+      feedbackElement.style.transform = 'translate(-50%, -50%) scale(1)'
+    })
+    
+    // 快速消失
     setTimeout(() => {
       feedbackElement.style.opacity = '0'
-      feedbackElement.style.transition = 'opacity 0.3s ease'
+      feedbackElement.style.transform = 'translate(-50%, -50%) scale(0.8)'
       setTimeout(() => {
-        document.body.removeChild(feedbackElement)
-      }, 300)
-    }, 800)
+        if (feedbackElement.parentNode) {
+          document.body.removeChild(feedbackElement)
+        }
+      }, 150)
+    }, 400)
     
+    // 立即显示粒子效果
     setShowParticles(true)
-    setTimeout(() => setShowParticles(false), 1500)
+    setTimeout(() => setShowParticles(false), 800)
     
     // 检查是否是大幅度骨骼动画
     const dramaticActionNames = ['takeBook', 'somersault', 'superJump', 'spinDance', 'bigWave', 'bow', 'celebrate']
@@ -1693,13 +1704,13 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     console.log('播放模型动画:', animationName)
     
     if (currentAnimation) {
-      currentAnimation.fadeOut(0.3)
+      currentAnimation.fadeOut(0.1) // 更快的淡出
     }
     
     const clipAction = animationMixer.clipAction(animation.animation)
     clipAction.setLoop(THREE.LoopRepeat)
     clipAction.reset()
-    clipAction.fadeIn(0.5)
+    clipAction.fadeIn(0.15) // 更快的淡入，立即响应
     clipAction.play()
     setCurrentAnimation(clipAction)
     setCurrentAnimationClip(animationName)
