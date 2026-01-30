@@ -1082,8 +1082,152 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     bone.rotation.z = THREE.MathUtils.lerp(bone.rotation.z, targetRotation.z, alpha)
   }
   
-  // 大幅度动作库
+  // 大幅度动作库（包含基础动作和特殊动作）
   const dramaticActions = {
+    // 基础动作
+    idle: {
+      duration: 1000,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 1, pose: 'idle' }
+      ]
+    },
+    wave: {
+      duration: 2000,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.1, pose: 'armUp' },
+        { time: 0.3, pose: 'waveLeft' },
+        { time: 0.5, pose: 'waveRight' },
+        { time: 0.7, pose: 'waveLeft' },
+        { time: 0.9, pose: 'armUp' },
+        { time: 1, pose: 'idle' }
+      ]
+    },
+    dance: {
+      duration: 3000,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.1, pose: 'armsOut' },
+        { time: 0.25, pose: 'spin1' },
+        { time: 0.5, pose: 'spin2' },
+        { time: 0.75, pose: 'spin3' },
+        { time: 0.9, pose: 'armsOut' },
+        { time: 1, pose: 'idle' }
+      ]
+    },
+    jump: {
+      duration: 1500,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.1, pose: 'crouch' },
+        { time: 0.3, pose: 'jumpUp' },
+        { time: 0.6, pose: 'fallDown' },
+        { time: 0.8, pose: 'land' },
+        { time: 1, pose: 'idle' }
+      ]
+    },
+    sit: {
+      duration: 1500,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.3, pose: 'crouchDeep' },
+        { time: 0.6, pose: 'sitPose' },
+        { time: 1, pose: 'sitPose' }
+      ]
+    },
+    // 表情动作
+    happy: {
+      duration: 1500,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.2, pose: 'armsUp' },
+        { time: 0.8, pose: 'armsUp' },
+        { time: 1, pose: 'idle' }
+      ]
+    },
+    sad: {
+      duration: 2000,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.3, pose: 'sadPose' },
+        { time: 0.7, pose: 'sadPose' },
+        { time: 1, pose: 'idle' }
+      ]
+    },
+    angry: {
+      duration: 1500,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.2, pose: 'angryPose' },
+        { time: 0.8, pose: 'angryPose' },
+        { time: 1, pose: 'idle' }
+      ]
+    },
+    surprise: {
+      duration: 1500,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.1, pose: 'surprisePose' },
+        { time: 0.8, pose: 'surprisePose' },
+        { time: 1, pose: 'idle' }
+      ]
+    },
+    love: {
+      duration: 2000,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.2, pose: 'lovePose' },
+        { time: 0.8, pose: 'lovePose' },
+        { time: 1, pose: 'idle' }
+      ]
+    },
+    sleep: {
+      duration: 2000,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.3, pose: 'sleepPose' },
+        { time: 1, pose: 'sleepPose' }
+      ]
+    },
+    // 日常动作
+    eat: {
+      duration: 2000,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.2, pose: 'eatStart' },
+        { time: 0.5, pose: 'eatBite' },
+        { time: 0.8, pose: 'eatChew' },
+        { time: 1, pose: 'idle' }
+      ]
+    },
+    read: {
+      duration: 2000,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.3, pose: 'holdBook' },
+        { time: 0.7, pose: 'readPose' },
+        { time: 1, pose: 'holdBook' }
+      ]
+    },
+    sing: {
+      duration: 2000,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.2, pose: 'singPose' },
+        { time: 0.8, pose: 'singPose' },
+        { time: 1, pose: 'idle' }
+      ]
+    },
+    photo: {
+      duration: 2000,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.2, pose: 'photoPose' },
+        { time: 0.8, pose: 'photoPose' },
+        { time: 1, pose: 'idle' }
+      ]
+    },
     // 从书架拿书 - 大幅度伸手动作
     takeBook: {
       duration: 3000,
@@ -1393,6 +1537,96 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       rightUpperLeg: { x: -0.5, y: 0, z: 0 },
       leftUpperArm: { x: -2.5, y: -0.5, z: 0.5 },
       rightUpperArm: { x: -2.5, y: 0.5, z: -0.5 }
+    },
+    // 表情姿势
+    sadPose: {
+      spine: { x: 0.2, y: 0, z: 0 },
+      chest: { x: 0.1, y: 0, z: 0 },
+      head: { x: 0.3, y: 0, z: 0 },
+      leftUpperArm: { x: 0, y: 0, z: 0.1 },
+      rightUpperArm: { x: 0, y: 0, z: -0.1 }
+    },
+    angryPose: {
+      spine: { x: -0.1, y: 0, z: 0 },
+      chest: { x: -0.1, y: 0, z: 0 },
+      head: { x: -0.1, y: 0, z: 0 },
+      leftUpperArm: { x: 0, y: 0, z: 0.5 },
+      rightUpperArm: { x: 0, y: 0, z: -0.5 }
+    },
+    surprisePose: {
+      spine: { x: -0.2, y: 0, z: 0 },
+      chest: { x: -0.1, y: 0, z: 0 },
+      head: { x: -0.3, y: 0, z: 0 },
+      leftUpperArm: { x: -1.5, y: 0, z: 1.0 },
+      rightUpperArm: { x: -1.5, y: 0, z: -1.0 }
+    },
+    lovePose: {
+      spine: { x: -0.1, y: 0, z: 0 },
+      chest: { x: -0.1, y: 0, z: 0 },
+      head: { x: -0.2, y: 0, z: 0 },
+      leftUpperArm: { x: -1.0, y: 0.5, z: 0.8 },
+      rightUpperArm: { x: -1.0, y: -0.5, z: -0.8 },
+      leftLowerArm: { x: -1.0, y: 0, z: 0 },
+      rightLowerArm: { x: -1.0, y: 0, z: 0 }
+    },
+    sleepPose: {
+      hips: { x: 0, y: -0.8, z: 0 },
+      spine: { x: 0.3, y: 0, z: 0 },
+      chest: { x: 0.2, y: 0, z: 0 },
+      head: { x: 0.5, y: 0, z: 0 },
+      leftUpperLeg: { x: -1.0, y: 0, z: 0 },
+      rightUpperLeg: { x: -1.0, y: 0, z: 0 },
+      leftLowerLeg: { x: 1.5, y: 0, z: 0 },
+      rightLowerLeg: { x: 1.5, y: 0, z: 0 },
+      leftUpperArm: { x: 0, y: 0, z: 0.5 },
+      rightUpperArm: { x: 0, y: 0, z: -0.5 }
+    },
+    // 日常姿势
+    sitPose: {
+      hips: { x: 0, y: -0.8, z: 0 },
+      leftUpperLeg: { x: -1.2, y: 0, z: 0 },
+      rightUpperLeg: { x: -1.2, y: 0, z: 0 },
+      leftLowerLeg: { x: 1.8, y: 0, z: 0 },
+      rightLowerLeg: { x: 1.8, y: 0, z: 0 },
+      spine: { x: 0.1, y: 0, z: 0 }
+    },
+    eatStart: {
+      rightUpperArm: { x: -1.5, y: 0, z: -0.5 },
+      rightLowerArm: { x: -1.5, y: 0, z: 0 },
+      head: { x: -0.1, y: 0, z: 0 }
+    },
+    eatBite: {
+      rightUpperArm: { x: -1.5, y: 0, z: -0.3 },
+      rightLowerArm: { x: -2.0, y: 0, z: 0 },
+      head: { x: 0.1, y: 0, z: 0 }
+    },
+    eatChew: {
+      rightUpperArm: { x: -1.0, y: 0, z: -0.5 },
+      rightLowerArm: { x: -1.0, y: 0, z: 0 },
+      head: { x: 0.05, y: 0, z: 0 }
+    },
+    readPose: {
+      spine: { x: -0.2, y: 0, z: 0 },
+      chest: { x: -0.1, y: 0, z: 0 },
+      head: { x: -0.3, y: 0, z: 0 },
+      leftUpperArm: { x: -0.5, y: 0.3, z: 0.8 },
+      rightUpperArm: { x: -0.5, y: -0.3, z: -0.8 },
+      leftLowerArm: { x: -1.0, y: 0, z: 0 },
+      rightLowerArm: { x: -1.0, y: 0, z: 0 }
+    },
+    singPose: {
+      spine: { x: -0.1, y: 0, z: 0 },
+      chest: { x: -0.1, y: 0, z: 0 },
+      head: { x: -0.2, y: 0, z: 0 },
+      leftUpperArm: { x: -1.0, y: 0, z: 0.5 },
+      rightUpperArm: { x: -1.5, y: 0, z: -0.5 },
+      rightLowerArm: { x: -0.5, y: 0, z: 0 }
+    },
+    photoPose: {
+      rightUpperArm: { x: -1.5, y: 0, z: -0.8 },
+      rightLowerArm: { x: -1.0, y: 0, z: 0 },
+      head: { x: -0.1, y: -0.2, z: 0 },
+      spine: { x: -0.05, y: 0.1, z: 0 }
     }
   }
   
@@ -1672,15 +1906,9 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     setShowParticles(true)
     setTimeout(() => setShowParticles(false), 800)
     
-    // 检查是否是大幅度骨骼动画
-    const dramaticActionNames = ['takeBook', 'somersault', 'superJump', 'spinDance', 'bigWave', 'bow', 'celebrate']
-    if (dramaticActionNames.includes(actionName)) {
-      // 使用骨骼动画系统
-      executeBoneAnimation(actionName)
-    } else {
-      // 使用传统动画系统
-      playModelAnimation(actionName)
-    }
+    // 使用骨骼动画系统执行所有动作
+    // VRM模型通常没有自带动画，所以使用程序化骨骼动画
+    executeBoneAnimation(actionName)
   }
 
   const playModelAnimation = (animationName) => {
@@ -1931,7 +2159,8 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         animationMixer.update(delta)
       }
       
-      if (vrmModel && typeof vrmModel.update === 'function') {
+      // VRM update 会覆盖骨骼动画，所以在执行骨骼动画时跳过
+      if (vrmModel && typeof vrmModel.update === 'function' && !currentBoneAnimation.current) {
         vrmModel.update(delta)
       }
       
@@ -1966,11 +2195,12 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         }
       }
       
-      if (characterRef.current && characterRef.current.scale) {
-        breathePhase.current += delta * 2
-        const breatheScale = 1 + Math.sin(breathePhase.current) * 0.012
-        characterRef.current.scale.y *= breatheScale
-      }
+      // 呼吸动画暂时禁用，避免干扰骨骼动画
+      // if (characterRef.current && characterRef.current.scale) {
+      //   breathePhase.current += delta * 2
+      //   const breatheScale = 1 + Math.sin(breathePhase.current) * 0.012
+      //   characterRef.current.scale.y *= breatheScale
+      // }
       
       // 智能自动眨眼系统
       if (vrmModel && vrmModel.expressionManager) {
@@ -2044,7 +2274,8 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       }
       
       // 视线追踪系统 - 让角色看向相机或鼠标位置
-      if (vrmModel && vrmModel.humanoid && isLookingAtCamera) {
+      // 在执行骨骼动画时禁用，避免冲突
+      if (vrmModel && vrmModel.humanoid && isLookingAtCamera && !currentBoneAnimation.current) {
         try {
           // 平滑插值当前视线目标
           currentLookAt.current.lerp(lookAtTarget, lookAtSmoothness.current)
@@ -2109,7 +2340,8 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       }
       
       // Q版变形系统 - 实时调整骨骼比例
-      if (vrmModel && vrmModel.humanoid && chibiMode) {
+      // 在执行骨骼动画时禁用，避免冲突
+      if (vrmModel && vrmModel.humanoid && chibiMode && !currentBoneAnimation.current) {
         try {
           const headBone = vrmModel.humanoid.getNormalizedBoneNode('head')
           const neckBone = vrmModel.humanoid.getNormalizedBoneNode('neck')
@@ -2171,8 +2403,8 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         })
       }
       
-      // 呼吸起伏动画 - 胸部和肩膀自然起伏（仅在idle状态时轻微呼吸）
-      if (vrmModel && vrmModel.humanoid && currentActionType === 'idle') {
+      // 呼吸起伏动画 - 胸部和肩膀自然起伏（仅在idle状态时轻微呼吸，且不在骨骼动画时）
+      if (vrmModel && vrmModel.humanoid && currentActionType === 'idle' && !currentBoneAnimation.current) {
         try {
           const chestBone = vrmModel.humanoid.getNormalizedBoneNode('chest')
           const leftShoulder = vrmModel.humanoid.getNormalizedBoneNode('leftShoulder')
@@ -2199,8 +2431,8 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         }
       }
       
-      // 微动作系统 - 随机小动作增加生动感（仅在idle状态下）
-      if (microActionsEnabled && vrmModel && vrmModel.humanoid && currentActionType === 'idle') {
+      // 微动作系统 - 随机小动作增加生动感（仅在idle状态下，且不在骨骼动画时）
+      if (microActionsEnabled && vrmModel && vrmModel.humanoid && currentActionType === 'idle' && !currentBoneAnimation.current) {
         const now = Date.now()
         if (now - lastMicroActionTime.current > microActionInterval.current) {
           lastMicroActionTime.current = now
