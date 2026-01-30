@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react'
 import { useThree, useFrame } from '@react-three/fiber'
+import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { VRM, VRMLoaderPlugin } from '@pixiv/three-vrm'
@@ -475,6 +476,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const { scene, gl, camera } = useThree()
   const characterRef = useRef(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [loadingProgress, setLoadingProgress] = useState(0)
   const [characterModel, setCharacterModel] = useState(null)
   const [animationMixer, setAnimationMixer] = useState(null)
   const [vrmModel, setVrmModel] = useState(null)
@@ -609,6 +611,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const loadVRMModel = (file) => {
     try {
       setIsLoading(true)
+      setLoadingProgress(0)
       
       // 调试日志
       console.log('loadVRMModel 被调用:', file)
@@ -657,6 +660,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         if (fileSize > 100 * 1024 * 1024) {
           console.error('模型文件过大，可能导致性能问题')
           setIsLoading(false)
+          setLoadingProgress(0)
           return
         }
 
@@ -742,6 +746,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
             }
             
             setIsLoading(false)
+            setLoadingProgress(100)
             console.log('模型加载完成，已添加到场景')
           } catch (error) {
             console.error('处理加载完成的模型失败:', error)
@@ -753,11 +758,13 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
               }
             }
             setIsLoading(false)
+            setLoadingProgress(0)
           }
         },
         (progress) => {
           if (progress.lengthComputable) {
             const percentComplete = (progress.loaded / progress.total) * 100
+            setLoadingProgress(percentComplete)
             console.log(`模型加载进度: ${percentComplete.toFixed(2)}%`)
           }
         },
@@ -772,11 +779,13 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
             }
           }
           setIsLoading(false)
+          setLoadingProgress(0)
         }
       )
     } catch (error) {
       console.error('模型加载初始化失败:', error)
       setIsLoading(false)
+      setLoadingProgress(0)
     }
   }
 
@@ -2595,11 +2604,84 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         </mesh>
       )}
       
+      {/* 加载进度条 */}
       {isLoading && (
-        <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[0.5, 0.5, 0.5]} />
-          <meshBasicMaterial color="#646cff" />
-        </mesh>
+        <Html center>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '24px 32px',
+            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)',
+            borderRadius: '16px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(20px)'
+          }}>
+            <div style={{
+              fontSize: '16px',
+              fontWeight: '600',
+              color: 'white',
+              marginBottom: '4px'
+            }}>
+              加载模型中...
+            </div>
+            
+            {/* 进度条容器 */}
+            <div style={{
+              width: '200px',
+              height: '8px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              borderRadius: '4px',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                width: `${loadingProgress}%`,
+                height: '100%',
+                background: 'linear-gradient(90deg, #ff6b9d 0%, #c44569 50%, #ff6b9d 100%)',
+                borderRadius: '4px',
+                transition: 'width 0.2s ease-out',
+                boxShadow: '0 0 10px rgba(255, 107, 157, 0.5)'
+              }} />
+            </div>
+            
+            {/* 进度百分比 */}
+            <div style={{
+              fontSize: '14px',
+              color: 'rgba(255, 255, 255, 0.7)'
+            }}>
+              {loadingProgress.toFixed(1)}%
+            </div>
+            
+            {/* 加载动画 */}
+            <div style={{
+              display: 'flex',
+              gap: '4px',
+              marginTop: '8px'
+            }}>
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)',
+                    animation: `bounce 1.4s ease-in-out ${i * 0.16}s infinite`
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+          
+          <style>{`
+            @keyframes bounce {
+              0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+              40% { transform: scale(1); opacity: 1; }
+            }
+          `}</style>
+        </Html>
       )}
     </>
   )
