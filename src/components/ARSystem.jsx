@@ -1068,7 +1068,7 @@ const PropDisplay = ({ propId }) => {
 }
 
 // ==================== 可拖拽角色组件 ====================
-const DraggableCharacter = ({ position, index, isSelected, character, characterScale, actionIntensity, onPositionChange, propId }) => {
+const DraggableCharacter = ({ position, index, isSelected, character, characterScale, actionIntensity, onPositionChange, propId, isBoneEditing, onBoneChange }) => {
   const groupRef = useRef()
   const [isDragging, setIsDragging] = useState(false)
   const { camera, gl } = useThree()
@@ -1154,6 +1154,8 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
         selectedFile={fileToLoad}
         scale={characterScale * (isSelected ? 1.1 : 0.9)}
         actionIntensity={actionIntensity}
+        isBoneEditing={isBoneEditing && isSelected}
+        onBoneChange={onBoneChange}
       />
       {/* 道具显示在角色身上 */}
       <PropDisplay propId={propId} />
@@ -1162,7 +1164,7 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
 }
 
 // ==================== 9. 3D场景内容 ====================
-const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionIntensity, isARMode, characterPositions, onPositionChange, characterProps }) => {
+const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionIntensity, isARMode, characterPositions, onPositionChange, characterProps, isBoneEditing, onBoneChange }) => {
   return (
     <>
       {/* AR模式下不显示背景特效，避免挡住摄像头画面 */}
@@ -1193,6 +1195,8 @@ const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionI
               actionIntensity={actionIntensity}
               onPositionChange={onPositionChange}
               propId={propId}
+              isBoneEditing={isBoneEditing}
+              onBoneChange={onBoneChange}
             />
           </group>
         )
@@ -1220,7 +1224,7 @@ export const ARScene = ({ selectedFile }) => {
   const [characters, setCharacters] = useState([null, null, null])
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState(0)
   const [showModelSelect, setShowModelSelect] = useState(false)
-  const [characterScale, setCharacterScale] = useState(1.0)
+  const [characterScale, setCharacterScale] = useState(1.5)
   const [actionIntensity, setActionIntensity] = useState(1.0)
   const [isRandomMode, setIsRandomMode] = useState(false)
   const [currentAction, setCurrentAction] = useState('idle')
@@ -1239,6 +1243,9 @@ export const ARScene = ({ selectedFile }) => {
   // 画布旋转状态
   const [canvasRotation, setCanvasRotation] = useState(0)
   const [isRotating, setIsRotating] = useState(false)
+  
+  // 骨骼编辑模式
+  const [isBoneEditing, setIsBoneEditing] = useState(false)
   
   // 角色位置状态 - 支持拖拽移动
   const [characterPositions, setCharacterPositions] = useState([
@@ -1446,12 +1453,18 @@ export const ARScene = ({ selectedFile }) => {
   const capturePhoto = useCallback(() => {
     try {
       // 使用 ref 获取准确的3D画布
-      const canvas3D = glRef.current?.domElement
+      const gl = glRef.current
+      const canvas3D = gl?.domElement
       const video = videoRef.current
 
       if (!canvas3D) {
         showNotification('3D场景未就绪', 'error')
         return
+      }
+
+      // 强制渲染一帧以确保画布有内容
+      if (gl && gl.render) {
+        gl.render()
       }
 
       // 创建合成画布
@@ -1464,9 +1477,7 @@ export const ARScene = ({ selectedFile }) => {
       compositeCanvas.width = width
       compositeCanvas.height = height
       
-      // 填充白色背景
-      ctx.fillStyle = '#ffffff'
-      ctx.fillRect(0, 0, width, height)
+      console.log('拍照 - AR模式:', isARMode, '视频就绪:', video?.readyState)
 
       // 如果在AR模式下，先绘制摄像头画面
       if (isARMode && video && video.readyState >= 2) {
@@ -1487,6 +1498,7 @@ export const ARScene = ({ selectedFile }) => {
         }
 
         ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight)
+        console.log('已绘制摄像头画面')
       } else {
         // 非AR模式下使用渐变背景
         const gradient = ctx.createLinearGradient(0, 0, width, height)
@@ -1499,6 +1511,7 @@ export const ARScene = ({ selectedFile }) => {
 
       // 绘制3D场景（带透明通道）
       ctx.drawImage(canvas3D, 0, 0, width, height)
+      console.log('已绘制3D场景')
 
       // 添加精美水印
       ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
@@ -1819,9 +1832,17 @@ export const ARScene = ({ selectedFile }) => {
         background: isARMode ? 'transparent' : 'linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 50%, #16213e 100%)'
       }}>
         <Canvas 
-          gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }} 
+          gl={{ 
+            alpha: true, 
+            antialias: true, 
+            powerPreference: "high-performance",
+            preserveDrawingBuffer: true
+          }} 
           style={{ background: 'transparent' }}
-          onCreated={({ gl }) => { glRef.current = gl }}
+          onCreated={({ gl }) => { 
+            glRef.current = gl
+            console.log('Canvas created, preserveDrawingBuffer:', gl.attributes.preserveDrawingBuffer)
+          }}
         >
           <PerspectiveCamera makeDefault position={[0, 0.8, 2.5]} fov={50} />
           <ambientLight intensity={0.8} />
@@ -1836,6 +1857,10 @@ export const ARScene = ({ selectedFile }) => {
             isARMode={isARMode}
             characterPositions={characterPositions}
             characterProps={characterProps}
+            isBoneEditing={isBoneEditing}
+            onBoneChange={(boneName, rotation) => {
+              console.log('骨骼变化:', boneName, rotation)
+            }}
             onPositionChange={(index, newPos) => {
               setCharacterPositions(prev => {
                 const updated = [...prev]
@@ -2517,7 +2542,56 @@ export const ARScene = ({ selectedFile }) => {
         >
           🔄
         </button>
+
+        {/* 骨骼编辑按钮 */}
+        <button
+          onClick={() => setIsBoneEditing(!isBoneEditing)}
+          style={{
+            width: isMobile ? '48px' : '56px',
+            height: isMobile ? '48px' : '56px',
+            borderRadius: '16px',
+            background: isBoneEditing
+              ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)'
+              : 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+            border: isBoneEditing
+              ? '2px solid #00d4ff'
+              : '1px solid rgba(255,255,255,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isMobile ? '20px' : '24px',
+            cursor: 'pointer',
+            color: 'white',
+            transition: 'all 0.3s ease',
+            boxShadow: isBoneEditing
+              ? '0 0 20px rgba(0, 212, 255, 0.5)'
+              : 'none'
+          }}
+        >
+          🦴
+        </button>
       </div>
+
+      {/* 骨骼编辑模式提示 */}
+      {isBoneEditing && (
+        <div style={{
+          position: 'fixed',
+          top: isMobile ? '80px' : '100px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.9) 0%, rgba(0, 153, 204, 0.9) 100%)',
+          padding: isMobile ? '8px 16px' : '12px 24px',
+          borderRadius: '20px',
+          color: 'white',
+          fontSize: isMobile ? '12px' : '14px',
+          fontWeight: 'bold',
+          zIndex: 1001,
+          boxShadow: '0 4px 20px rgba(0, 212, 255, 0.5)',
+          animation: 'slideDown 0.3s ease'
+        }}>
+          🦴 骨骼编辑模式 - 点击骨骼控制点进行调整
+        </div>
+      )}
 
       {/* 全新底部动作栏 - 分类标签式 */}
       <div style={{
