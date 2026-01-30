@@ -159,7 +159,7 @@ const ExpressionSystem = ({ vrmModel, actionType }) => {
 }
 
 const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null }) => {
-  const { scene, gl } = useThree()
+  const { scene, gl, camera } = useThree()
   const characterRef = useRef(null)
   const [isLoading, setIsLoading] = useState(false)
   const [characterModel, setCharacterModel] = useState(null)
@@ -169,7 +169,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const [animations, setAnimations] = useState([])
   const [currentAnimation, setCurrentAnimation] = useState(null)
   const [showAnimationSelect, setShowAnimationSelect] = useState(false)
-  const [scale, setScale] = useState(0.5)
+  const [scale, setScale] = useState(1.0)
   const [isDragging, setIsDragging] = useState(false)
   const [initialPosition, setInitialPosition] = useState([0, 0, 0])
   const [currentActionType, setCurrentActionType] = useState('idle')
@@ -185,39 +185,50 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const [isAnimating, setIsAnimating] = useState(false)
   const [modelAnimations, setModelAnimations] = useState([])
   const [currentAnimationClip, setCurrentAnimationClip] = useState(null)
+  const [isTouching, setIsTouching] = useState(false)
+  const [touchPosition, setTouchPosition] = useState(new THREE.Vector3())
   const loader = useRef(null)
   const dragControls = useRef(null)
   const randomModeInterval = useRef(null)
   const animationFrameRef = useRef(null)
+  const raycaster = useRef(new THREE.Raycaster())
+  const mouse = useRef(new THREE.Vector2())
+  const touchStartTime = useRef(0)
 
-  // 初始化加载器
+  const [optimalScale, setOptimalScale] = useState(1.0)
+  const [optimalCameraPosition, setOptimalCameraPosition] = useState([0, 0, 3])
+
+  const ambientLightRef = useRef()
+  const directionalLightRef = useRef()
+  const pointLightRef = useRef()
+
+  const breathePhase = useRef(0)
+  const blinkPhase = useRef(0)
+
+  const [touchFeedback, setTouchFeedback] = useState({ show: false, x: 0, y: 0 })
+
   useEffect(() => {
     loader.current = new GLTFLoader()
     loader.current.register((parser) => new VRMLoaderPlugin(parser))
-    // 设置跨域，确保本地文件也能正常加载
     loader.current.setCrossOrigin('anonymous')
   }, [])
 
-  // 监听文件选择变化，自动加载模型
   useEffect(() => {
     if (selectedFile) {
       loadVRMModel(selectedFile)
     }
   }, [selectedFile])
 
-  // 加载VRM模型
   const loadVRMModel = (file) => {
     try {
       setIsLoading(true)
       
-      // 检查是否是本地模型
       if (file.localPath) {
         console.log('开始加载本地模型:', file.name, '路径:', file.localPath)
       } else {
         console.log('开始加载模型文件:', file.name, '大小:', (file.size / 1024 / 1024).toFixed(2), 'MB')
       }
       
-      // 清理之前的模型
       if (characterModel) {
         try {
           scene.remove(characterModel)
@@ -227,32 +238,26 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         }
       }
       
-      // 确定模型URL
       let modelUrl
       if (file.localPath) {
-        // 本地模型路径
         modelUrl = file.localPath
       } else {
-        // 检查文件大小，避免加载过大的模型
-        if (file.size > 100 * 1024 * 1024) { // 100MB限制
+        if (file.size > 100 * 1024 * 1024) {
           console.error('模型文件过大，可能导致性能问题')
           setIsLoading(false)
           return
         }
         
-        // 创建blob URL
         modelUrl = URL.createObjectURL(file)
         console.log('创建模型URL:', modelUrl)
       }
       
-      // 加载模型
       loader.current.load(
         modelUrl,
         (gltf) => {
           try {
             console.log('GLTF加载完成:', gltf)
             
-            // 清理blob URL（如果是文件对象创建的）
             if (!file.localPath) {
               try {
                 URL.revokeObjectURL(modelUrl)
@@ -262,117 +267,71 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
               }
             }
             
-            // 检查VRM实例是否存在
             const vrm = gltf.userData.vrm
             if (!vrm) {
               console.error('VRM实例不存在，尝试加载普通GLTF模型')
-              // 尝试作为普通GLTF模型加载
-                try {
-                  const modelPosition = position[1] !== 0 ? position : initialPosition
-                  gltf.scene.position.set(...modelPosition)
-                  gltf.scene.rotation.set(...rotation.map(r => r * Math.PI / 180))
-                  gltf.scene.scale.set(scale, scale, scale)
-                  scene.add(gltf.scene)
-                  characterRef.current = gltf.scene
-                  setCharacterModel(gltf.scene)
-                  
-                  // 初始化动画混合器
-                  const mixer = new THREE.AnimationMixer(gltf.scene)
-                  setAnimationMixer(mixer)
-                  
-                  // 提取动画
-                  if (gltf.animations && gltf.animations.length > 0) {
-                    console.log('发现动画:', gltf.animations.length, '个')
-                    setAnimations(gltf.animations.map((anim, index) => ({
-                      name: anim.name || `动画 ${index + 1}`,
-                      animation: anim
-                    })))
-                  }
-                  
-                  // 初始化拖动控制
-                  initDragControls()
-                  
-                  console.log('普通GLTF模型加载完成')
-                } catch (error) {
-                  console.error('加载普通GLTF模型失败:', error)
+              try {
+                gltf.scene.position.set(0, 0, 0)
+                gltf.scene.rotation.set(0, 0, 0)
+                gltf.scene.scale.set(1, 1, 1)
+                scene.add(gltf.scene)
+                characterRef.current = gltf.scene
+                setCharacterModel(gltf.scene)
+                
+                const mixer = new THREE.AnimationMixer(gltf.scene)
+                setAnimationMixer(mixer)
+                
+                if (gltf.animations && gltf.animations.length > 0) {
+                  console.log('发现动画:', gltf.animations.length, '个')
+                  setAnimations(gltf.animations.map((anim, index) => ({
+                    name: anim.name || `动画 ${index + 1}`,
+                    animation: anim
+                  })))
                 }
+                
+                optimizeModelDisplay(gltf.scene)
+                initDragControls()
+                
+                console.log('普通GLTF模型加载完成')
+              } catch (error) {
+                console.error('加载普通GLTF模型失败:', error)
+              }
             } else {
               console.log('VRM实例加载成功:', vrm)
               setVrmModel(vrm)
               
-              // 设置角色位置和旋转
-              try {
-                const modelPosition = position[1] !== 0 ? position : initialPosition
-                vrm.scene.position.set(...modelPosition)
-                vrm.scene.rotation.set(...rotation.map(r => r * Math.PI / 180))
-                vrm.scene.scale.set(scale, scale, scale)
-                
-                // 添加到场景
-                scene.add(vrm.scene)
-                characterRef.current = vrm.scene
-                setCharacterModel(vrm.scene)
-                
-                // 初始化动画混合器
-                const mixer = new THREE.AnimationMixer(vrm.scene)
-                setAnimationMixer(mixer)
-                
-                // 提取动画
-                if (gltf.animations && gltf.animations.length > 0) {
-                  console.log('发现模型自带动画:', gltf.animations.length, '个')
-                  const animationList = gltf.animations.map((anim, index) => ({
-                    name: anim.name || `动画 ${index + 1}`,
-                    animation: anim
-                  }))
-                  setModelAnimations(animationList)
-                  console.log('动画列表:', animationList.map(a => a.name))
-                }
-                
-                // 初始化拖动控制
-                initDragControls()
-                
-                // 设置模型初始姿态为站立并看着用户
-                if (vrm.humanoid) {
-                  console.log('VRM人形骨骼存在，设置初始姿态')
-                  
-                  // 设置头部看向用户
-                  const headBone = vrm.humanoid.getBoneNode('head')
-                  if (headBone) {
-                    headBone.rotation.set(0, 0, 0)
-                  }
-                  
-                  // 设置手臂自然下垂
-                  const leftArm = vrm.humanoid.getBoneNode('leftUpperArm')
-                  const rightArm = vrm.humanoid.getBoneNode('rightUpperArm')
-                  if (leftArm) {
-                    leftArm.rotation.set(0, 0, 0.1)
-                  }
-                  if (rightArm) {
-                    rightArm.rotation.set(0, 0, -0.1)
-                  }
-                  
-                  // 设置身体直立
-                  const spine = vrm.humanoid.getBoneNode('spine')
-                  if (spine) {
-                    spine.rotation.set(0, 0, 0)
-                  }
-                  
-                  // 设置表情为中性
-                  if (vrm.expressionManager) {
-                    vrm.expressionManager.setValue('neutral', 1)
-                  }
-                }
-                
-                console.log('VRM模型加载完成')
-              } catch (error) {
-                console.error('设置VRM模型属性失败:', error)
+              vrm.scene.position.set(0, 0, 0)
+              vrm.scene.rotation.set(0, 0, 0)
+              vrm.scene.scale.set(1, 1, 1)
+              
+              scene.add(vrm.scene)
+              characterRef.current = vrm.scene
+              setCharacterModel(vrm.scene)
+              
+              const mixer = new THREE.AnimationMixer(vrm.scene)
+              setAnimationMixer(mixer)
+              
+              if (gltf.animations && gltf.animations.length > 0) {
+                console.log('发现模型自带动画:', gltf.animations.length, '个')
+                const animationList = gltf.animations.map((anim, index) => ({
+                  name: anim.name || `动画 ${index + 1}`,
+                  animation: anim
+                }))
+                setModelAnimations(animationList)
+                console.log('动画列表:', animationList.map(a => a.name))
               }
+              
+              initDragControls()
+              optimizeModelDisplay(vrm.scene)
+              setInitialPose(vrm)
+              
+              console.log('VRM模型加载完成')
             }
             
             setIsLoading(false)
             console.log('模型加载完成，已添加到场景')
           } catch (error) {
             console.error('处理加载完成的模型失败:', error)
-            // 清理blob URL（如果是文件对象创建的）
             if (!file.localPath) {
               try {
                 URL.revokeObjectURL(modelUrl)
@@ -384,7 +343,6 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
           }
         },
         (progress) => {
-          // 加载进度回调
           if (progress.lengthComputable) {
             const percentComplete = (progress.loaded / progress.total) * 100
             console.log(`模型加载进度: ${percentComplete.toFixed(2)}%`)
@@ -392,7 +350,6 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         },
         (error) => {
           console.error('模型加载失败:', error)
-          // 清理blob URL（如果是文件对象创建的）
           if (!file.localPath) {
             try {
               URL.revokeObjectURL(modelUrl)
@@ -410,11 +367,139 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     }
   }
 
-  // 处理文件选择
+  const optimizeModelDisplay = (model) => {
+    const box = new THREE.Box3().setFromObject(model)
+    const size = new THREE.Vector3()
+    box.getSize(size)
+    
+    console.log('模型尺寸:', size)
+    
+    const maxDimension = Math.max(size.x, size.y, size.z)
+    const targetSize = 1.5
+    const optimalScaleValue = targetSize / maxDimension
+    
+    console.log('最佳缩放:', optimalScaleValue)
+    setOptimalScale(optimalScaleValue)
+    
+    model.scale.set(optimalScaleValue, optimalScaleValue, optimalScaleValue)
+    
+    const center = new THREE.Vector3()
+    box.getCenter(center)
+    
+    model.position.x = -center.x * optimalScaleValue
+    model.position.y = -box.min.y * optimalScaleValue
+    model.position.z = -center.z * optimalScaleValue
+    
+    console.log('模型位置:', model.position)
+    
+    const cameraDistance = maxDimension * optimalScaleValue * 2.5
+    setOptimalCameraPosition([0, size.y * optimalScaleValue * 0.6, cameraDistance])
+    
+    camera.position.set(0, size.y * optimalScaleValue * 0.6, cameraDistance)
+    camera.lookAt(0, size.y * optimalScaleValue * 0.5, 0)
+    
+    console.log('相机位置:', camera.position)
+    
+    if (ambientLightRef.current) {
+      ambientLightRef.current.intensity = 0.6
+    }
+    if (directionalLightRef.current) {
+      directionalLightRef.current.position.set(5, 10, 7.5)
+      directionalLightRef.current.intensity = 1.2
+    }
+    if (pointLightRef.current) {
+      pointLightRef.current.position.set(-5, 5, 5)
+      pointLightRef.current.intensity = 0.8
+    }
+  }
+
+  const setInitialPose = (vrm) => {
+    if (vrm.humanoid) {
+      console.log('VRM人形骨骼存在，设置初始姿态')
+      
+      const headBone = vrm.humanoid.getBoneNode('head')
+      if (headBone) {
+        headBone.rotation.set(0, 0, 0)
+      }
+      
+      const leftArm = vrm.humanoid.getBoneNode('leftUpperArm')
+      const rightArm = vrm.humanoid.getBoneNode('rightUpperArm')
+      if (leftArm) {
+        leftArm.rotation.set(0, 0, 0.1)
+      }
+      if (rightArm) {
+        rightArm.rotation.set(0, 0, -0.1)
+      }
+      
+      const spine = vrm.humanoid.getBoneNode('spine')
+      if (spine) {
+        spine.rotation.set(0, 0, 0)
+      }
+      
+      const hips = vrm.humanoid.getBoneNode('hips')
+      if (hips) {
+        hips.rotation.set(0, 0, 0)
+      }
+      
+      const leftLeg = vrm.humanoid.getBoneNode('leftUpperLeg')
+      const rightLeg = vrm.humanoid.getBoneNode('rightUpperLeg')
+      if (leftLeg) {
+        leftLeg.rotation.set(0, 0, 0)
+      }
+      if (rightLeg) {
+        rightLeg.rotation.set(0, 0, 0)
+      }
+      
+      if (vrm.expressionManager) {
+        vrm.expressionManager.setValue('neutral', 1)
+      }
+      
+      vrm.scene.updateMatrixWorld(true)
+    }
+  }
+
+  const initDragControls = () => {
+    if (!characterRef.current) return
+
+    const draggableObjects = []
+    characterRef.current.traverse((child) => {
+      if (child.isMesh) {
+        draggableObjects.push(child)
+      }
+    })
+
+    if (draggableObjects.length > 0) {
+      try {
+        if (dragControls.current) {
+          dragControls.current.dispose()
+        }
+
+        dragControls.current = new DragControls(draggableObjects, camera, gl.domElement)
+
+        dragControls.current.addEventListener('dragstart', () => {
+          setIsDragging(true)
+          if (camera && camera.userData.orbitControls) {
+            camera.userData.orbitControls.enabled = false
+          }
+        })
+
+        dragControls.current.addEventListener('dragend', () => {
+          setIsDragging(false)
+          if (camera && camera.userData.orbitControls) {
+            camera.userData.orbitControls.enabled = true
+          }
+        })
+
+        console.log('拖动控制初始化完成')
+      } catch (error) {
+        console.error('初始化拖动控制失败:', error)
+      }
+    }
+  }
+
   const handleFileChange = (e) => {
     const file = e.target.files[0]
     if (file) {
-      // 更宽松的文件类型检测
       const isValidFile = file.type === 'model/gltf-binary' || 
                          file.type === 'application/octet-stream' ||
                          file.name.endsWith('.vrm') || 
@@ -430,7 +515,6 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     }
   }
 
-  // 预设动作列表
   const presetAnimations = [
     { name: ' idle', action: 'idle' },
     { name: ' wave', action: 'wave' },
@@ -439,7 +523,6 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     { name: ' sit', action: 'sit' }
   ]
 
-  // 播放动画
   const playAnimation = (animation) => {
     if (!animationMixer) {
       console.error('动画混合器未初始化')
@@ -447,12 +530,10 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     }
 
     try {
-      // 停止当前动画
       if (currentAnimation) {
         currentAnimation.stop()
       }
 
-      // 播放新动画
       const clipAction = animationMixer.clipAction(animation.animation)
       clipAction.play()
       setCurrentAnimation(clipAction)
@@ -462,7 +543,6 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     }
   }
 
-  // 执行预设动作
   const executePresetAction = (actionName) => {
     console.log('执行预设动作:', actionName)
     setCurrentActionType(actionName)
@@ -472,16 +552,17 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     feedbackElement.style.top = '50%'
     feedbackElement.style.left = '50%'
     feedbackElement.style.transform = 'translate(-50%, -50%)'
-    feedbackElement.style.background = 'rgba(99, 102, 241, 0.9)'
+    feedbackElement.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
     feedbackElement.style.color = 'white'
-    feedbackElement.style.padding = '12px 24px'
-    feedbackElement.style.borderRadius = '20px'
-    feedbackElement.style.fontSize = '14px'
-    feedbackElement.style.fontWeight = '600'
+    feedbackElement.style.padding = '16px 32px'
+    feedbackElement.style.borderRadius = '25px'
+    feedbackElement.style.fontSize = '16px'
+    feedbackElement.style.fontWeight = '700'
     feedbackElement.style.zIndex = '9999'
-    feedbackElement.style.boxShadow = '0 8px 25px rgba(99, 102, 241, 0.5)'
+    feedbackElement.style.boxShadow = '0 10px 40px rgba(102, 126, 234, 0.5)'
     feedbackElement.style.backdropFilter = 'blur(10px)'
-    feedbackElement.textContent = `播放动画: ${actionName}`
+    feedbackElement.style.border = '2px solid rgba(255, 255, 255, 0.3)'
+    feedbackElement.textContent = `✨ ${actionName} ✨`
     document.body.appendChild(feedbackElement)
     
     setTimeout(() => {
@@ -525,343 +606,104 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     setCurrentAnimationClip(animationName)
   }
 
-  const animateWave = (originalPosition, originalRotation, intensity) => {
-    let waveCount = 0
-    const maxWaves = 3
+  const handleTouchStart = (event) => {
+    event.stopPropagation()
+    touchStartTime.current = Date.now()
     
-    const waveAnimation = () => {
-      if (waveCount >= maxWaves) {
-        setTargetPosition(originalPosition)
-        setTargetRotation(originalRotation)
-        return
-      }
-      
-      const phase = waveCount % 2
-      if (phase === 0) {
-        setTargetPosition(new THREE.Vector3(
-          originalPosition.x,
-          originalPosition.y + 0.3 * intensity,
-          originalPosition.z
-        ))
-        setTargetRotation(new THREE.Euler(
-          originalRotation.x,
-          originalRotation.y + 0.25 * intensity,
-          originalRotation.z
-        ))
-      } else {
-        setTargetPosition(originalPosition)
-        setTargetRotation(originalRotation)
-      }
-      
-      waveCount++
-      setTimeout(waveAnimation, 250 / intensity)
-    }
+    const rect = gl.domElement.getBoundingClientRect()
+    const x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+    const y = -((event.clientY - rect.top) / rect.height) * 2 + 1
     
-    waveAnimation()
-  }
-
-  const animateDance = (originalPosition, originalRotation, intensity) => {
-    let danceCount = 0
-    const maxDance = 8
+    mouse.current.set(x, y)
+    raycaster.current.setFromCamera(mouse.current, camera)
     
-    const danceAnimation = () => {
-      if (danceCount >= maxDance) {
-        setTargetPosition(originalPosition)
-        setTargetRotation(originalRotation)
-        return
-      }
-      
-      const phase = danceCount % 4
-      const offset = 0.2 * intensity
-      
-      switch (phase) {
-        case 0:
-          setTargetPosition(new THREE.Vector3(
-            originalPosition.x + offset,
-            originalPosition.y + 0.4 * intensity,
-            originalPosition.z
-          ))
-          setTargetRotation(new THREE.Euler(
-            originalRotation.x,
-            originalRotation.y + 0.3 * intensity,
-            originalRotation.z + 0.1
-          ))
-          break
-        case 1:
-          setTargetPosition(new THREE.Vector3(
-            originalPosition.x - offset,
-            originalPosition.y,
-            originalPosition.z
-          ))
-          setTargetRotation(new THREE.Euler(
-            originalRotation.x,
-            originalRotation.y - 0.3 * intensity,
-            originalRotation.z - 0.1
-          ))
-          break
-        case 2:
-          setTargetPosition(new THREE.Vector3(
-            originalPosition.x,
-            originalPosition.y + 0.5 * intensity,
-            originalPosition.z
-          ))
-          setTargetRotation(originalRotation)
-          break
-        case 3:
-          setTargetPosition(originalPosition)
-          setTargetRotation(originalRotation)
-          break
-      }
-      
-      danceCount++
-      setTimeout(danceAnimation, 180 / intensity)
-    }
-    
-    danceAnimation()
-  }
-
-  const animateJump = (originalPosition, originalRotation, intensity) => {
-    setTargetPosition(new THREE.Vector3(
-      originalPosition.x,
-      originalPosition.y + 0.8 * intensity,
-      originalPosition.z
-    ))
-    
-    setTimeout(() => {
-      setTargetPosition(originalPosition)
-    }, 400 / intensity)
-  }
-
-  const animateSit = (originalPosition, originalRotation, intensity) => {
-    setTargetPosition(new THREE.Vector3(
-      originalPosition.x,
-      originalPosition.y - 0.5 * intensity,
-      originalPosition.z
-    ))
-    
-    setTimeout(() => {
-      setTargetPosition(originalPosition)
-    }, 1500 / intensity)
-  }
-
-  const animateRun = (originalPosition, originalRotation, intensity) => {
-    let runCount = 0
-    const maxRun = 6
-    
-    const runAnimation = () => {
-      if (runCount >= maxRun) {
-        setTargetPosition(new THREE.Vector3(
-          originalPosition.x + 1.2,
-          originalPosition.y,
-          originalPosition.z
-        ))
-        setTargetRotation(originalRotation)
-        return
-      }
-      
-      const phase = runCount % 2
-      const offset = 0.15 * intensity
-      
-      if (phase === 0) {
-        setTargetPosition(new THREE.Vector3(
-          originalPosition.x + offset * runCount,
-          originalPosition.y + 0.25 * intensity,
-          originalPosition.z
-        ))
-      } else {
-        setTargetPosition(new THREE.Vector3(
-          originalPosition.x + offset * runCount,
-          originalPosition.y,
-          originalPosition.z
-        ))
-      }
-      
-      runCount++
-      setTimeout(runAnimation, 150 / intensity)
-    }
-    
-    runAnimation()
-  }
-
-  const animateHappy = (originalPosition, originalScale, intensity) => {
-    let happyCount = 0
-    const maxHappy = 5
-    
-    const happyAnimation = () => {
-      if (happyCount >= maxHappy) {
-        setTargetScale(new THREE.Vector3(1, 1, 1))
-        return
-      }
-      
-      const phase = happyCount % 2
-      const scaleMultiplier = 1 + 0.08 * intensity
-      
-      if (phase === 0) {
-        setTargetScale(new THREE.Vector3(
-          scaleMultiplier,
-          scaleMultiplier + 0.05,
-          scaleMultiplier
-        ))
-      } else {
-        setTargetScale(new THREE.Vector3(1, 1, 1))
-      }
-      
-      happyCount++
-      setTimeout(happyAnimation, 200 / intensity)
-    }
-    
-    happyAnimation()
-  }
-
-  const animateSad = (originalPosition, originalRotation, intensity) => {
-    setTargetPosition(new THREE.Vector3(
-      originalPosition.x,
-      originalPosition.y - 0.25 * intensity,
-      originalPosition.z
-    ))
-    setTargetRotation(new THREE.Euler(
-      originalRotation.x + 0.2 * intensity,
-      originalRotation.y,
-      originalRotation.z
-    ))
-    
-    setTimeout(() => {
-      setTargetPosition(originalPosition)
-      setTargetRotation(originalRotation)
-    }, 1800 / intensity)
-  }
-
-  const executeComboAction = (sequence) => {
-    if (sequence.length === 0) return
-
-    let currentIndex = 0
-    const executeNext = () => {
-      if (currentIndex < sequence.length) {
-        executePresetAction(sequence[currentIndex])
-        currentIndex++
-        setTimeout(executeNext, 2000 / actionIntensity)
-      }
-    }
-    executeNext()
-  }
-
-  const toggleRandomMode = () => {
-    setIsRandomMode(!isRandomMode)
-    if (!isRandomMode) {
-      const actions = ['idle', 'wave', 'dance', 'jump', 'happy']
-      randomModeInterval.current = setInterval(() => {
-        const randomAction = actions[Math.floor(Math.random() * actions.length)]
-        executePresetAction(randomAction)
-      }, 3000)
-    } else {
-      if (randomModeInterval.current) {
-        clearInterval(randomModeInterval.current)
-        randomModeInterval.current = null
-        executePresetAction('idle')
-      }
-    }
-  }
-
-  // 处理摆动动作
-  const handleSwing = (swingData) => {
-    if (!characterRef.current) return
-    
-    console.log('处理摆动动作:', swingData)
-    
-    const { swingX, swingY, swingZ } = swingData
-    const originalPosition = characterRef.current.position.clone()
-    const originalRotation = characterRef.current.rotation.clone()
-    
-    // 根据摆动幅度执行不同的动作
-    if (swingX > 1) {
-      // 左右摆动，执行挥手动作
-      characterRef.current.rotation.y = originalRotation.y + (swingX * 0.1)
-      setTimeout(() => {
-        characterRef.current.rotation.y = originalRotation.y
-      }, 300)
-    } else if (swingY > 1) {
-      // 上下摆动，执行跳跃动作
-      characterRef.current.position.y = originalPosition.y + 0.5
-      setTimeout(() => {
-        characterRef.current.position.y = originalPosition.y
-      }, 400)
-    } else if (swingZ > 1) {
-      // 旋转摆动，执行跳舞动作
-      characterRef.current.rotation.z = originalRotation.z + (swingZ * 0.1)
-      setTimeout(() => {
-        characterRef.current.rotation.z = originalRotation.z
-      }, 300)
-    }
-  }
-
-  // 缩放控制
-  const handleScaleChange = (delta) => {
-    const newScale = Math.max(0.1, Math.min(2, scale + delta))
-    setScale(newScale)
-    
-    // 更新模型缩放
     if (characterRef.current) {
-      characterRef.current.scale.set(newScale, newScale, newScale)
-    }
-    
-    console.log('模型缩放:', newScale)
-  }
-
-  // 初始化拖动控制
-  const initDragControls = () => {
-    if (!characterRef.current || !gl.domElement) return
-    
-    // 清理之前的拖动控制
-    if (dragControls.current) {
-      dragControls.current.dispose()
-    }
-    
-    // 获取场景中的相机
-    let camera = null
-    scene.traverse((object) => {
-      if (object.isCamera) {
-        camera = object
+      const intersects = raycaster.current.intersectObject(characterRef.current, true)
+      
+      if (intersects.length > 0) {
+        setIsTouching(true)
+        setTouchPosition(intersects[0].point)
+        
+        setTouchFeedback({
+          show: true,
+          x: event.clientX,
+          y: event.clientY
+        })
+        
+        setTimeout(() => {
+          setTouchFeedback({ show: false, x: 0, y: 0 })
+        }, 500)
+        
+        if (vrmModel && vrmModel.expressionManager) {
+          const expressions = ['happy', 'surprised', 'blink']
+          const randomExpression = expressions[Math.floor(Math.random() * expressions.length)]
+          vrmModel.expressionManager.setValue(randomExpression, 1)
+          
+          setTimeout(() => {
+            vrmModel.expressionManager.setValue(randomExpression, 0)
+          }, 800)
+        }
+        
+        setShowParticles(true)
+        setTimeout(() => setShowParticles(false), 1000)
       }
-    })
-    
-    if (!camera) {
-      console.error('未找到相机，无法初始化拖动控制')
-      return
     }
-    
-    // 创建拖动控制
-    dragControls.current = new DragControls([characterRef.current], camera, gl.domElement)
-    
-    // 监听拖动事件
-    dragControls.current.addEventListener('dragstart', () => {
-      setIsDragging(true)
-      console.log('开始拖动模型')
-    })
-    
-    dragControls.current.addEventListener('dragend', () => {
-      setIsDragging(false)
-      console.log('结束拖动模型')
-    })
-    
-    console.log('拖动控制初始化完成')
   }
 
-  // 清理拖动控制
+  const handleTouchEnd = (event) => {
+    event.stopPropagation()
+    const touchDuration = Date.now() - touchStartTime.current
+    
+    if (isTouching && touchDuration < 300) {
+      const randomAnimations = modelAnimations.length > 0 ? modelAnimations : presetAnimations
+      if (randomAnimations.length > 0) {
+        const randomAnim = randomAnimations[Math.floor(Math.random() * randomAnimations.length)]
+        executePresetAction(randomAnim.name || randomAnim.action)
+      }
+    }
+    
+    setIsTouching(false)
+  }
+
+  const handleTouchMove = (event) => {
+    event.stopPropagation()
+    
+    if (isTouching && characterRef.current) {
+      const rect = gl.domElement.getBoundingClientRect()
+      const x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+      const y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+      
+      mouse.current.set(x, y)
+      raycaster.current.setFromCamera(mouse.current, camera)
+      
+      const intersects = raycaster.current.intersectObject(characterRef.current, true)
+      
+      if (intersects.length > 0) {
+        setTouchPosition(intersects[0].point)
+      }
+    }
+  }
+
   useEffect(() => {
+    const canvas = gl.domElement
+    canvas.addEventListener('mousedown', handleTouchStart)
+    canvas.addEventListener('mouseup', handleTouchEnd)
+    canvas.addEventListener('mousemove', handleTouchMove)
+    canvas.addEventListener('touchstart', handleTouchStart)
+    canvas.addEventListener('touchend', handleTouchEnd)
+    canvas.addEventListener('touchmove', handleTouchMove)
+
     return () => {
-      if (dragControls.current) {
-        dragControls.current.dispose()
-      }
+      canvas.removeEventListener('mousedown', handleTouchStart)
+      canvas.removeEventListener('mouseup', handleTouchEnd)
+      canvas.removeEventListener('mousemove', handleTouchMove)
+      canvas.removeEventListener('touchstart', handleTouchStart)
+      canvas.removeEventListener('touchend', handleTouchEnd)
+      canvas.removeEventListener('touchmove', handleTouchMove)
     }
-  }, [])
+  }, [characterRef.current, vrmModel])
 
-  // 监听摆动事件
   useEffect(() => {
-    const handleSwingEvent = (event) => {
-      const swingData = event.detail
-      handleSwing(swingData)
-    }
-
     const handleExecuteAction = (event) => {
       const { actionName } = event.detail
       executePresetAction(actionName)
@@ -869,7 +711,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
 
     const handleExecuteCombo = (event) => {
       const { sequence } = event.detail
-      executeComboAction(sequence)
+      executeCombo(sequence)
     }
 
     const handleToggleRandom = () => {
@@ -878,32 +720,88 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
 
     const handleResetPosition = () => {
       if (characterRef.current) {
-        characterRef.current.position.set(0, 1, -2)
+        characterRef.current.position.set(0, 0, 0)
         characterRef.current.rotation.set(0, 0, 0)
-        characterRef.current.scale.set(scale, scale, scale)
+        characterRef.current.scale.set(optimalScale, optimalScale, optimalScale)
       }
     }
 
-    window.addEventListener('swingDetected', handleSwingEvent)
+    const handleSwingDetected = (event) => {
+      const { swingX, swingY, swingZ } = event.detail
+      const swingMagnitude = Math.sqrt(swingX * swingX + swingY * swingY + swingZ * swingZ)
+      
+      const animations = modelAnimations.length > 0 ? modelAnimations : presetAnimations
+      if (animations.length > 0) {
+        const randomAnim = animations[Math.floor(Math.random() * animations.length)]
+        executePresetAction(randomAnim.name || randomAnim.action)
+      }
+    }
+
     window.addEventListener('executeAction', handleExecuteAction)
     window.addEventListener('executeCombo', handleExecuteCombo)
     window.addEventListener('toggleRandom', handleToggleRandom)
     window.addEventListener('resetPosition', handleResetPosition)
-    
+    window.addEventListener('swingDetected', handleSwingDetected)
+
     return () => {
-      window.removeEventListener('swingDetected', handleSwingEvent)
       window.removeEventListener('executeAction', handleExecuteAction)
       window.removeEventListener('executeCombo', handleExecuteCombo)
       window.removeEventListener('toggleRandom', handleToggleRandom)
       window.removeEventListener('resetPosition', handleResetPosition)
+      window.removeEventListener('swingDetected', handleSwingDetected)
+    }
+  }, [modelAnimations, optimalScale])
+
+  const executeCombo = (sequence) => {
+    console.log('执行连招:', sequence)
+    setIsComboMode(true)
+    setComboSequence(sequence)
+    
+    let index = 0
+    const playNext = () => {
+      if (index < sequence.length) {
+        executePresetAction(sequence[index])
+        index++
+        setTimeout(playNext, 2000)
+      } else {
+        setIsComboMode(false)
+        setComboSequence([])
+      }
+    }
+    
+    playNext()
+  }
+
+  const toggleRandomMode = () => {
+    setIsRandomMode(!isRandomMode)
+    
+    if (!isRandomMode) {
+      if (randomModeInterval.current) {
+        clearInterval(randomModeInterval.current)
+      }
       
+      const animations = modelAnimations.length > 0 ? modelAnimations : presetAnimations
+      if (animations.length > 0) {
+        randomModeInterval.current = setInterval(() => {
+          const randomAnim = animations[Math.floor(Math.random() * animations.length)]
+          executePresetAction(randomAnim.name || randomAnim.action)
+        }, 3000)
+      }
+    } else {
+      if (randomModeInterval.current) {
+        clearInterval(randomModeInterval.current)
+      }
+    }
+  }
+
+  useEffect(() => {
+    return () => {
       if (randomModeInterval.current) {
         clearInterval(randomModeInterval.current)
       }
     }
   }, [])
 
-  // 动画更新
   useFrame((state, delta) => {
     try {
       if (animationMixer && typeof animationMixer.update === 'function') {
@@ -914,7 +812,6 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         vrmModel.update(delta)
       }
       
-      // 平滑动画系统
       if (characterRef.current && isAnimating) {
         const smoothFactor = 0.15
         
@@ -936,7 +833,6 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
           characterRef.current.scale.z += (targetScale.z - characterRef.current.scale.z) * smoothFactor
         }
         
-        // 检查动画是否完成
         if (targetPosition && targetRotation) {
           const posDiff = Math.abs(characterRef.current.position.y - targetPosition.y)
           const rotDiff = Math.abs(characterRef.current.rotation.y - targetRotation.y)
@@ -947,10 +843,27 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         }
       }
       
-      // 添加自然的呼吸动画
       if (characterRef.current && characterRef.current.scale) {
-        const breatheScale = 1 + Math.sin(Date.now() * 0.002) * 0.015
-        characterRef.current.scale.y = breatheScale
+        breathePhase.current += delta * 2
+        const breatheScale = 1 + Math.sin(breathePhase.current) * 0.012
+        characterRef.current.scale.y *= breatheScale
+      }
+      
+      if (vrmModel && vrmModel.expressionManager) {
+        blinkPhase.current += delta
+        
+        if (Math.sin(blinkPhase.current * 0.5) > 0.98) {
+          vrmModel.expressionManager.setValue('blink', 1)
+          setTimeout(() => {
+            if (vrmModel.expressionManager) {
+              vrmModel.expressionManager.setValue('blink', 0)
+            }
+          }, 150)
+        }
+      }
+      
+      if (isTouching && characterRef.current) {
+        characterRef.current.rotation.y += 0.02
       }
     } catch (error) {
       console.error('动画更新失败:', error)
@@ -959,15 +872,36 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
 
   return (
     <>
+      <ambientLight ref={ambientLightRef} intensity={0.5} />
+      <directionalLight ref={directionalLightRef} position={[5, 10, 7.5]} intensity={1.0} castShadow />
+      <pointLight ref={pointLightRef} position={[-5, 5, 5]} intensity={0.6} color="#ffecd2" />
+      <pointLight position={[0, -5, 5]} intensity={0.3} color="#fcb69f" />
+      
       <DynamicBackground actionType={currentActionType} />
       <ParticleSystem 
         active={showParticles} 
         type={currentActionType} 
-        position={characterRef?.current?.position || [0, 1, -2]} 
+        position={characterRef?.current?.position || [0, 0, 0]} 
       />
       <ExpressionSystem vrmModel={vrmModel} actionType={currentActionType} />
+      
+      {touchFeedback.show && (
+        <div style={{
+          position: 'fixed',
+          left: touchFeedback.x,
+          top: touchFeedback.y,
+          transform: 'translate(-50%, -50%)',
+          width: '60px',
+          height: '60px',
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%)',
+          pointerEvents: 'none',
+          animation: 'ripple 0.5s ease-out forwards'
+        }} />
+      )}
+      
       {isLoading && (
-        <mesh position={[0, 2, 0]}>
+        <mesh position={[0, 0, 0]}>
           <boxGeometry args={[0.5, 0.5, 0.5]} />
           <meshBasicMaterial color="#646cff" />
         </mesh>
@@ -976,11 +910,18 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   )
 }
 
-// 角色控制器组件
-export const CharacterController = ({ position, rotation, selectedFile }) => {
+const CharacterController = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null }) => {
   return (
-    <CharacterSystem position={position} rotation={rotation} selectedFile={selectedFile} />
+    <group>
+      <CharacterSystem 
+        position={position} 
+        rotation={rotation} 
+        selectedFile={selectedFile} 
+        onSwing={onSwing}
+      />
+    </group>
   )
 }
 
 export default CharacterSystem
+export { CharacterController }
