@@ -31,6 +31,49 @@ export const ARScene = ({ selectedFile }) => {
   const recordingTimerRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const recordedChunksRef = useRef([])
+  const [isSwingMode, setIsSwingMode] = useState(false)
+  const gyroscopeRef = useRef(null)
+  const lastGyroDataRef = useRef({ x: 0, y: 0, z: 0 })
+  const swingThreshold = 0.5 // 摆动阈值
+
+  // 切换摆动模式
+  const toggleSwingMode = () => {
+    setIsSwingMode(!isSwingMode)
+    console.log('摆动模式:', !isSwingMode ? '开启' : '关闭')
+  }
+
+  // 监听陀螺仪数据
+  useEffect(() => {
+    if (isSwingMode && window.DeviceOrientationEvent) {
+      const handleOrientation = (event) => {
+        const { alpha, beta, gamma } = event
+        const gyroData = { x: beta, y: gamma, z: alpha }
+
+        // 计算摆动幅度
+        const swingX = Math.abs(gyroData.x - lastGyroDataRef.current.x)
+        const swingY = Math.abs(gyroData.y - lastGyroDataRef.current.y)
+        const swingZ = Math.abs(gyroData.z - lastGyroDataRef.current.z)
+
+        // 检测大幅度摆动
+        if (swingX > swingThreshold || swingY > swingThreshold || swingZ > swingThreshold) {
+          console.log('检测到大幅度摆动:', { swingX, swingY, swingZ })
+          // 触发摆动动作
+          if (window.dispatchEvent) {
+            window.dispatchEvent(new CustomEvent('swingDetected', {
+              detail: { swingX, swingY, swingZ }
+            }))
+          }
+        }
+
+        lastGyroDataRef.current = gyroData
+      }
+
+      window.addEventListener('deviceorientation', handleOrientation)
+      return () => {
+        window.removeEventListener('deviceorientation', handleOrientation)
+      }
+    }
+  }, [isSwingMode])
 
   // 摄像头控制
   useEffect(() => {
@@ -310,30 +353,93 @@ export const ARScene = ({ selectedFile }) => {
         width: '90%',
         maxWidth: '300px'
       }}>
+        {/* 动作选择界面 */}
+        <div style={{
+          background: 'rgba(15, 23, 42, 0.9)',
+          padding: '12px',
+          borderRadius: '12px',
+          marginBottom: '12px',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
+        }}>
+          <div style={{
+            fontSize: '12px',
+            fontWeight: '600',
+            color: '#60a5fa',
+            marginBottom: '8px',
+            textAlign: 'center'
+          }}>模型动作</div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '8px'
+          }}>
+            {['idle', 'wave', 'dance', 'jump', 'sit'].map((action) => (
+              <button
+                key={action}
+                onClick={() => {
+                  // 触发动作事件
+                  if (window.dispatchEvent) {
+                    window.dispatchEvent(new CustomEvent('executeAction', {
+                      detail: { actionName: action }
+                    }))
+                  }
+                }}
+                style={{
+                  padding: '6px 8px',
+                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '10px',
+                  fontWeight: '600',
+                  transition: 'all 0.3s ease',
+                  boxShadow: '0 3px 10px rgba(99, 102, 241, 0.4)'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = 'translateY(-2px)'
+                  e.target.style.boxShadow = '0 5px 15px rgba(99, 102, 241, 0.5)'
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'translateY(0)'
+                  e.target.style.boxShadow = '0 3px 10px rgba(99, 102, 241, 0.4)'
+                }}
+              >
+                {action === 'idle' && '站立'}
+                {action === 'wave' && '挥手'}
+                {action === 'dance' && '跳舞'}
+                {action === 'jump' && '跳跃'}
+                {action === 'sit' && '坐下'}
+              </button>
+            ))}
+          </div>
+        </div>
+        
         <button 
           onClick={() => setIsARMode(!isARMode)}
           style={{
-            padding: '12px 20px',
+            padding: '8px 16px',
             background: isARMode ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
             color: 'white',
             border: 'none',
-            borderRadius: '12px',
+            borderRadius: '8px',
             cursor: 'pointer',
-            fontSize: '14px',
+            fontSize: '12px',
             fontWeight: '600',
             width: '100%',
-            boxShadow: isARMode ? '0 6px 20px rgba(239, 68, 68, 0.4)' : '0 6px 20px rgba(99, 102, 241, 0.4)',
+            boxShadow: isARMode ? '0 4px 15px rgba(239, 68, 68, 0.4)' : '0 4px 15px rgba(99, 102, 241, 0.4)',
             transition: 'all 0.3s ease',
             textTransform: 'uppercase',
             letterSpacing: '0.5px'
           }}
           onMouseEnter={(e) => {
             e.target.style.transform = 'translateY(-2px)'
-            e.target.style.boxShadow = isARMode ? '0 8px 25px rgba(239, 68, 68, 0.5)' : '0 8px 25px rgba(99, 102, 241, 0.5)'
+            e.target.style.boxShadow = isARMode ? '0 6px 20px rgba(239, 68, 68, 0.5)' : '0 6px 20px rgba(99, 102, 241, 0.5)'
           }}
           onMouseLeave={(e) => {
             e.target.style.transform = 'translateY(0)'
-            e.target.style.boxShadow = isARMode ? '0 6px 20px rgba(239, 68, 68, 0.4)' : '0 6px 20px rgba(99, 102, 241, 0.4)'
+            e.target.style.boxShadow = isARMode ? '0 4px 15px rgba(239, 68, 68, 0.4)' : '0 4px 15px rgba(99, 102, 241, 0.4)'
           }}
         >
           {isARMode ? '关闭AR模式' : '启动AR模式'}
@@ -344,14 +450,14 @@ export const ARScene = ({ selectedFile }) => {
             <button 
               onClick={() => setCameraFacingMode(prev => prev === 'environment' ? 'user' : 'environment')}
               style={{
-                marginTop: '12px',
-                padding: '10px 16px',
+                marginTop: '8px',
+                padding: '6px 12px',
                 background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                 color: 'white',
                 border: 'none',
-                borderRadius: '10px',
+                borderRadius: '8px',
                 cursor: 'pointer',
-                fontSize: '12px',
+                fontSize: '10px',
                 fontWeight: '600',
                 width: '100%',
                 boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)',
@@ -379,17 +485,17 @@ export const ARScene = ({ selectedFile }) => {
               <button
                 onClick={takePhoto}
                 style={{
-                  padding: '12px',
+                  padding: '8px',
                   background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '50%',
                   cursor: 'pointer',
-                  fontSize: '16px',
+                  fontSize: '14px',
                   fontWeight: '600',
-                  width: '50px',
-                  height: '50px',
-                  boxShadow: '0 6px 20px rgba(16, 185, 129, 0.4)',
+                  width: '40px',
+                  height: '40px',
+                  boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)',
                   transition: 'all 0.3s ease',
                   display: 'flex',
                   alignItems: 'center',
@@ -397,11 +503,11 @@ export const ARScene = ({ selectedFile }) => {
                 }}
                 onMouseEnter={(e) => {
                   e.target.style.transform = 'scale(1.1)'
-                  e.target.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.5)'
+                  e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.5)'
                 }}
                 onMouseLeave={(e) => {
                   e.target.style.transform = 'scale(1)'
-                  e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.4)'
+                  e.target.style.boxShadow = '0 4px 15px rgba(16, 185, 129, 0.4)'
                 }}
               >
                 📷
@@ -409,17 +515,17 @@ export const ARScene = ({ selectedFile }) => {
               <button
                 onClick={isRecording ? stopRecording : startRecording}
                 style={{
-                  padding: '12px',
+                  padding: '8px',
                   background: isRecording ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '50%',
                   cursor: 'pointer',
-                  fontSize: '16px',
+                  fontSize: '14px',
                   fontWeight: '600',
-                  width: '50px',
-                  height: '50px',
-                  boxShadow: isRecording ? '0 6px 20px rgba(239, 68, 68, 0.4)' : '0 6px 20px rgba(245, 158, 11, 0.4)',
+                  width: '40px',
+                  height: '40px',
+                  boxShadow: isRecording ? '0 4px 15px rgba(239, 68, 68, 0.4)' : '0 4px 15px rgba(245, 158, 11, 0.4)',
                   transition: 'all 0.3s ease',
                   display: 'flex',
                   alignItems: 'center',
@@ -427,14 +533,44 @@ export const ARScene = ({ selectedFile }) => {
                 }}
                 onMouseEnter={(e) => {
                   e.target.style.transform = 'scale(1.1)'
-                  e.target.style.boxShadow = isRecording ? '0 8px 25px rgba(239, 68, 68, 0.5)' : '0 8px 25px rgba(245, 158, 11, 0.5)'
+                  e.target.style.boxShadow = isRecording ? '0 6px 20px rgba(239, 68, 68, 0.5)' : '0 6px 20px rgba(245, 158, 11, 0.5)'
                 }}
                 onMouseLeave={(e) => {
                   e.target.style.transform = 'scale(1)'
-                  e.target.style.boxShadow = isRecording ? '0 6px 20px rgba(239, 68, 68, 0.4)' : '0 6px 20px rgba(245, 158, 11, 0.4)'
+                  e.target.style.boxShadow = isRecording ? '0 4px 15px rgba(239, 68, 68, 0.4)' : '0 4px 15px rgba(245, 158, 11, 0.4)'
                 }}
               >
                 {isRecording ? '⏹️' : '🎥'}
+              </button>
+              <button
+                onClick={toggleSwingMode}
+                style={{
+                  padding: '8px',
+                  background: isSwingMode ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '50%',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  width: '40px',
+                  height: '40px',
+                  boxShadow: isSwingMode ? '0 4px 15px rgba(139, 92, 246, 0.4)' : '0 4px 15px rgba(99, 102, 241, 0.4)',
+                  transition: 'all 0.3s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = 'scale(1.1)'
+                  e.target.style.boxShadow = isSwingMode ? '0 6px 20px rgba(139, 92, 246, 0.5)' : '0 6px 20px rgba(99, 102, 241, 0.5)'
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'scale(1)'
+                  e.target.style.boxShadow = isSwingMode ? '0 4px 15px rgba(139, 92, 246, 0.4)' : '0 4px 15px rgba(99, 102, 241, 0.4)'
+                }}
+              >
+                🔄
               </button>
             </div>
 
