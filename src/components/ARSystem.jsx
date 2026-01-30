@@ -5,6 +5,344 @@ import * as THREE from 'three'
 import { CharacterController } from './CharacterSystem'
 import modelList from '../models/modelList'
 
+// ==================== 分步引导组件 ====================
+const TutorialGuide = ({ isMobile, onClose }) => {
+  const [currentStep, setCurrentStep] = useState(0)
+  
+  const steps = [
+    {
+      icon: '👆',
+      title: '点击选中',
+      desc: '点击角色可以选中/取消选中，选中后角色会有蓝色光环显示',
+      color: 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)',
+      demo: 'single-tap'
+    },
+    {
+      icon: '👆👆',
+      title: '双指移动',
+      desc: '选中角色后，使用双指滑动可以移动角色位置',
+      color: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)',
+      demo: 'two-finger-move'
+    },
+    {
+      icon: '🤏',
+      title: '双指缩放',
+      desc: '双指捏合可以放大或缩小角色尺寸',
+      color: 'linear-gradient(135deg, #ffd93d 0%, #ffb347 100%)',
+      demo: 'pinch-zoom'
+    },
+    {
+      icon: '🎬',
+      title: '动作面板',
+      desc: '底部动作栏可以触发各种动作，分类标签方便查找',
+      color: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)',
+      demo: 'action-panel'
+    },
+    {
+      icon: '📸',
+      title: '拍照录像',
+      desc: '右侧工具栏可以拍照、录像、随机动作和选择道具',
+      color: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)',
+      demo: 'tools'
+    }
+  ]
+  
+  const nextStep = () => {
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(currentStep + 1)
+    } else {
+      onClose()
+    }
+  }
+  
+  const prevStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1)
+    }
+  }
+  
+  const step = steps[currentStep]
+  
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0,0,0,0.9)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 3000,
+      backdropFilter: 'blur(20px)'
+    }}>
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(26, 26, 46, 0.98) 0%, rgba(22, 33, 62, 0.98) 100%)',
+        borderRadius: '32px',
+        padding: isMobile ? '24px' : '40px',
+        maxWidth: '480px',
+        width: '90%',
+        border: '1px solid rgba(255,255,255,0.15)',
+        boxShadow: '0 25px 80px rgba(0,0,0,0.6)',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* 进度指示器 */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '4px',
+          background: 'rgba(255,255,255,0.1)'
+        }}>
+          <div style={{
+            height: '100%',
+            width: `${((currentStep + 1) / steps.length) * 100}%`,
+            background: 'linear-gradient(90deg, #ff6b9d 0%, #00d4ff 100%)',
+            transition: 'width 0.5s ease'
+          }} />
+        </div>
+        
+        {/* 步骤指示点 */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: '8px',
+          marginBottom: '24px',
+          marginTop: '8px'
+        }}>
+          {steps.map((_, index) => (
+            <div
+              key={index}
+              style={{
+                width: index === currentStep ? '24px' : '8px',
+                height: '8px',
+                borderRadius: '4px',
+                background: index === currentStep 
+                  ? 'linear-gradient(135deg, #ff6b9d 0%, #00d4ff 100%)'
+                  : index < currentStep ? '#00d4ff' : 'rgba(255,255,255,0.3)',
+                transition: 'all 0.3s ease'
+              }}
+            />
+          ))}
+        </div>
+        
+        {/* 关闭按钮 */}
+        <button
+          onClick={onClose}
+          style={{
+            position: 'absolute',
+            top: '16px',
+            right: '16px',
+            width: '36px',
+            height: '36px',
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.1)',
+            border: 'none',
+            color: 'white',
+            fontSize: '20px',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease'
+          }}
+        >×</button>
+        
+        {/* 演示动画区域 */}
+        <div style={{
+          width: '100%',
+          height: isMobile ? '160px' : '200px',
+          background: 'rgba(0,0,0,0.3)',
+          borderRadius: '20px',
+          marginBottom: '24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          {/* 背景装饰 */}
+          <div style={{
+            position: 'absolute',
+            inset: 0,
+            background: step.color,
+            opacity: 0.1
+          }} />
+          
+          {/* 动态演示 */}
+          <div style={{
+            width: isMobile ? '80px' : '100px',
+            height: isMobile ? '80px' : '100px',
+            borderRadius: '50%',
+            background: step.color,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isMobile ? '40px' : '50px',
+            animation: step.demo === 'single-tap' ? 'tapPulse 1.5s ease-in-out infinite' :
+                      step.demo === 'two-finger-move' ? 'moveLeftRight 2s ease-in-out infinite' :
+                      step.demo === 'pinch-zoom' ? 'pinchZoom 2s ease-in-out infinite' :
+                      step.demo === 'action-panel' ? 'slideUp 1.5s ease-in-out infinite' :
+                      'pulse 2s ease-in-out infinite',
+            boxShadow: `0 0 40px ${step.color.includes('ff6b9d') ? 'rgba(255,107,157,0.5)' : 
+                       step.color.includes('00d4ff') ? 'rgba(0,212,255,0.5)' :
+                       step.color.includes('ffd93d') ? 'rgba(255,217,61,0.5)' :
+                       step.color.includes('a855f7') ? 'rgba(168,85,247,0.5)' :
+                       'rgba(34,211,238,0.5)'}`
+          }}>
+            {step.icon}
+          </div>
+          
+          {/* 手势指示 */}
+          {step.demo === 'single-tap' && (
+            <div style={{
+              position: 'absolute',
+              width: '30px',
+              height: '30px',
+              border: '2px solid white',
+              borderRadius: '50%',
+              animation: 'ripple 1.5s ease-out infinite'
+            }} />
+          )}
+          
+          {step.demo === 'two-finger-move' && (
+            <>
+              <div style={{
+                position: 'absolute',
+                width: '20px',
+                height: '20px',
+                background: 'white',
+                borderRadius: '50%',
+                left: '30%',
+                animation: 'fingerMove 2s ease-in-out infinite'
+              }} />
+              <div style={{
+                position: 'absolute',
+                width: '20px',
+                height: '20px',
+                background: 'white',
+                borderRadius: '50%',
+                right: '30%',
+                animation: 'fingerMove 2s ease-in-out infinite reverse'
+              }} />
+            </>
+          )}
+        </div>
+        
+        {/* 内容 */}
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <h2 style={{
+            color: 'white',
+            margin: '0 0 12px 0',
+            fontSize: isMobile ? '22px' : '26px',
+            fontWeight: 'bold'
+          }}>
+            {step.title}
+          </h2>
+          <p style={{
+            color: 'rgba(255,255,255,0.7)',
+            margin: 0,
+            fontSize: isMobile ? '14px' : '15px',
+            lineHeight: '1.6'
+          }}>
+            {step.desc}
+          </p>
+        </div>
+        
+        {/* 按钮组 */}
+        <div style={{
+          display: 'flex',
+          gap: '12px'
+        }}>
+          {currentStep > 0 && (
+            <button
+              onClick={prevStep}
+              style={{
+                flex: 1,
+                padding: '14px',
+                background: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '14px',
+                color: 'white',
+                fontSize: '15px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              上一步
+            </button>
+          )}
+          <button
+            onClick={nextStep}
+            style={{
+              flex: currentStep === 0 ? 1 : 2,
+              padding: '14px',
+              background: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)',
+              border: 'none',
+              borderRadius: '14px',
+              color: 'white',
+              fontSize: '15px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 8px 24px rgba(255, 107, 157, 0.4)'
+            }}
+          >
+            {currentStep === steps.length - 1 ? '开始游戏 🎮' : '下一步 →'}
+          </button>
+        </div>
+        
+        {/* 跳过按钮 */}
+        <button
+          onClick={onClose}
+          style={{
+            width: '100%',
+            marginTop: '12px',
+            padding: '10px',
+            background: 'transparent',
+            border: 'none',
+            color: 'rgba(255,255,255,0.5)',
+            fontSize: '13px',
+            cursor: 'pointer',
+            transition: 'all 0.3s ease'
+          }}
+        >
+          跳过教程
+        </button>
+      </div>
+      
+      {/* 动画样式 */}
+      <style>{`
+        @keyframes tapPulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(0.9); }
+        }
+        @keyframes moveLeftRight {
+          0%, 100% { transform: translateX(-20px); }
+          50% { transform: translateX(20px); }
+        }
+        @keyframes pinchZoom {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.3); }
+        }
+        @keyframes slideUp {
+          0%, 100% { transform: translateY(10px); opacity: 0.7; }
+          50% { transform: translateY(-10px); opacity: 1; }
+        }
+        @keyframes ripple {
+          0% { transform: scale(0.5); opacity: 1; }
+          100% { transform: scale(2); opacity: 0; }
+        }
+        @keyframes fingerMove {
+          0%, 100% { transform: translateX(0); }
+          50% { transform: translateX(40px); }
+        }
+      `}</style>
+    </div>
+  )
+}
+
 // ==================== 移动端检测 Hook ====================
 const useMobileDetect = () => {
   const [isMobile, setIsMobile] = useState(false)
@@ -886,11 +1224,17 @@ export const ARScene = ({ selectedFile }) => {
   const [actionIntensity, setActionIntensity] = useState(1.0)
   const [isRandomMode, setIsRandomMode] = useState(false)
   const [currentAction, setCurrentAction] = useState('idle')
+  const [activeCategory, setActiveCategory] = useState('all')
   const [notification, setNotification] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showHelp, setShowHelp] = useState(true) // 默认显示帮助
   const [comboCount, setComboCount] = useState(0)
   const [showCombo, setShowCombo] = useState(false)
+  
+  // 拍照倒计时状态
+  const [photoCountdown, setPhotoCountdown] = useState(0)
+  const [isCountingDown, setIsCountingDown] = useState(false)
+  const glRef = useRef(null)
   
   // 画布旋转状态
   const [canvasRotation, setCanvasRotation] = useState(0)
@@ -951,14 +1295,17 @@ export const ARScene = ({ selectedFile }) => {
     { name: '拿书', action: 'takeBook', icon: '📚', category: 'dramatic', highlight: true },
     { name: '翻跟头', action: 'somersault', icon: '🤸', category: 'dramatic', highlight: true },
     { name: '大跳跃', action: 'superJump', icon: '🚀', category: 'dramatic', highlight: true },
-    { name: '旋转舞', action: 'spinDance', icon: '🌪️', category: 'dramatic', highlight: true },
-    { name: '大挥手', action: 'bigWave', icon: '👋✨', category: 'dramatic', highlight: true },
-    { name: '鞠躬', action: 'bow', icon: '🙇', category: 'dramatic', highlight: true },
-    { name: '庆祝', action: 'celebrate', icon: '🎉', category: 'dramatic', highlight: true },
-    // 系统动作
-    { name: '连击', action: 'combo', icon: '✨', category: 'system' },
-    { name: '随机', action: 'random', icon: '🎲', category: 'system' }
+    { name: '旋转舞', action: 'spinDance', icon: '🌪️', category: 'dance', highlight: true },
+    { name: '大挥手', action: 'bigWave', icon: '👋✨', category: 'basic', highlight: true },
+    { name: '鞠躬', action: 'bow', icon: '🙇', category: 'emotion', highlight: true },
+    { name: '庆祝', action: 'celebrate', icon: '🎉', category: 'emotion', highlight: true }
   ]
+
+  // 根据分类筛选动作
+  const filteredActions = useMemo(() => {
+    if (activeCategory === 'all') return actionList
+    return actionList.filter(action => action.category === activeCategory)
+  }, [activeCategory])
 
   // 显示通知
   const showNotification = useCallback((message, type = 'info') => {
@@ -1070,11 +1417,36 @@ export const ARScene = ({ selectedFile }) => {
     showNotification('角色已移除', 'info')
   }, [showNotification])
 
-  // 拍照
+  // 拍照 - 带倒计时
   const takePhoto = useCallback(() => {
+    if (isCountingDown) return
+    
+    // 开始倒计时
+    setIsCountingDown(true)
+    setPhotoCountdown(3)
+    
+    const countdownInterval = setInterval(() => {
+      setPhotoCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(countdownInterval)
+          // 倒计时结束，执行拍照
+          setTimeout(() => {
+            capturePhoto()
+            setIsCountingDown(false)
+            setPhotoCountdown(0)
+          }, 500)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }, [isCountingDown])
+  
+  // 实际拍照函数
+  const capturePhoto = useCallback(() => {
     try {
-      // 获取3D画布元素
-      const canvas3D = document.querySelector('canvas')
+      // 使用 ref 获取准确的3D画布
+      const canvas3D = glRef.current?.domElement
       const video = videoRef.current
 
       if (!canvas3D) {
@@ -1086,15 +1458,18 @@ export const ARScene = ({ selectedFile }) => {
       const compositeCanvas = document.createElement('canvas')
       const ctx = compositeCanvas.getContext('2d')
 
-      // 设置画布尺寸
-      const width = window.innerWidth
-      const height = window.innerHeight
+      // 设置画布尺寸 - 使用高清分辨率
+      const width = window.innerWidth * 2
+      const height = window.innerHeight * 2
       compositeCanvas.width = width
       compositeCanvas.height = height
+      
+      // 填充白色背景
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, width, height)
 
       // 如果在AR模式下，先绘制摄像头画面
       if (isARMode && video && video.readyState >= 2) {
-        // 计算视频绘制尺寸（保持比例填充屏幕）
         const videoRatio = video.videoWidth / video.videoHeight
         const screenRatio = width / height
         let drawWidth, drawHeight, drawX, drawY
@@ -1113,20 +1488,29 @@ export const ARScene = ({ selectedFile }) => {
 
         ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight)
       } else {
-        // 非AR模式下填充黑色背景
-        ctx.fillStyle = '#0f172a'
+        // 非AR模式下使用渐变背景
+        const gradient = ctx.createLinearGradient(0, 0, width, height)
+        gradient.addColorStop(0, '#1a1a2e')
+        gradient.addColorStop(0.5, '#16213e')
+        gradient.addColorStop(1, '#0f3460')
+        ctx.fillStyle = gradient
         ctx.fillRect(0, 0, width, height)
       }
 
       // 绘制3D场景（带透明通道）
       ctx.drawImage(canvas3D, 0, 0, width, height)
 
-      // 添加水印
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
-      ctx.font = '16px Arial'
-      ctx.fillText('AR Photo - ' + new Date().toLocaleString(), 20, height - 20)
+      // 添加精美水印
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+      ctx.font = 'bold 32px Arial'
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)'
+      ctx.shadowBlur = 10
+      ctx.fillText('📸 AR Photo', 40, height - 40)
+      
+      ctx.font = '24px Arial'
+      ctx.fillText(new Date().toLocaleString(), 40, height - 80)
 
-      // 下载图片
+      // 下载高清图片
       compositeCanvas.toBlob((blob) => {
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
@@ -1136,11 +1520,11 @@ export const ARScene = ({ selectedFile }) => {
         a.click()
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
-        showNotification('拍照成功!已保存模型和背景', 'success')
-      })
+        showNotification('📸 拍照成功！高清照片已保存', 'success')
+      }, 'image/png', 1.0)
     } catch (error) {
       console.error('拍照失败:', error)
-      showNotification('拍照失败', 'error')
+      showNotification('拍照失败，请重试', 'error')
     }
   }, [showNotification, isARMode])
 
@@ -1366,6 +1750,15 @@ export const ARScene = ({ selectedFile }) => {
           50% { transform: scale(1.2) rotate(5deg); }
           100% { transform: scale(1) rotate(0deg); }
         }
+        @keyframes countdownPulse {
+          0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+          50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        @keyframes glow {
+          from { box-shadow: 0 0 20px rgba(0, 212, 255, 0.4); }
+          to { box-shadow: 0 0 40px rgba(0, 212, 255, 0.8), 0 0 60px rgba(255, 107, 157, 0.4); }
+        }
         input[type="range"]::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
@@ -1415,17 +1808,21 @@ export const ARScene = ({ selectedFile }) => {
         </div>
       )}
 
-      {/* 3D画布 - AR模式下背景透明 */}
+      {/* 3D画布 - 扩大至全屏 */}
       <div style={{
-        position: 'absolute',
+        position: 'fixed',
         top: 0,
         left: 0,
-        width: '100%',
-        height: '100%',
+        width: '100vw',
+        height: '100vh',
         zIndex: 1,
-        background: isARMode ? 'transparent' : 'linear-gradient(to bottom, #0f172a 0%, #1e293b 100%)'
+        background: isARMode ? 'transparent' : 'linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 50%, #16213e 100%)'
       }}>
-        <Canvas gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }} style={{ background: 'transparent' }}>
+        <Canvas 
+          gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }} 
+          style={{ background: 'transparent' }}
+          onCreated={({ gl }) => { glRef.current = gl }}
+        >
           <PerspectiveCamera makeDefault position={[0, 0.8, 2.5]} fov={50} />
           <ambientLight intensity={0.8} />
           <spotLight position={[5, 10, 5]} intensity={1.2} castShadow />
@@ -1495,91 +1892,190 @@ export const ARScene = ({ selectedFile }) => {
         </div>
       )}
       
-      {/* 顶部导航栏 */}
+      {/* 拍照倒计时显示 */}
+      {isCountingDown && photoCountdown > 0 && (
+        <div style={{
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '150px',
+          height: '150px',
+          borderRadius: '50%',
+          background: 'linear-gradient(135deg, rgba(0, 212, 255, 0.9) 0%, rgba(255, 107, 157, 0.9) 100%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: '80px',
+          fontWeight: 'bold',
+          color: 'white',
+          textShadow: '0 4px 20px rgba(0,0,0,0.3)',
+          zIndex: 10000,
+          animation: 'countdownPulse 1s ease-in-out',
+          boxShadow: '0 0 60px rgba(0, 212, 255, 0.6)'
+        }}>
+          {photoCountdown}
+        </div>
+      )}
+      
+      {/* 全新顶部状态栏 - AR模式下更透明 */}
       <div style={{
-        position: 'absolute',
-        top: '0',
-        left: '0',
-        right: '0',
-        height: '75px',
-        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.95) 0%, rgba(124, 58, 237, 0.95) 100%)',
-        backdropFilter: 'blur(20px)',
+        position: 'fixed',
+        top: isMobile ? '8px' : '16px',
+        left: isMobile ? '8px' : '16px',
+        right: isMobile ? '8px' : '16px',
+        height: isMobile ? '60px' : '70px',
+        background: isARMode 
+          ? 'linear-gradient(135deg, rgba(26, 26, 46, 0.4) 0%, rgba(22, 33, 62, 0.5) 100%)'
+          : 'linear-gradient(135deg, rgba(26, 26, 46, 0.85) 0%, rgba(22, 33, 62, 0.9) 100%)',
+        backdropFilter: 'blur(20px) saturate(180%)',
+        borderRadius: isMobile ? '16px' : '20px',
+        border: '1px solid rgba(255, 255, 255, 0.15)',
         zIndex: 1000,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 24px',
-        boxShadow: '0 4px 30px rgba(139, 92, 246, 0.4)'
+        padding: isMobile ? '0 12px' : '0 20px',
+        boxShadow: isARMode 
+          ? '0 4px 16px rgba(0, 0, 0, 0.2)'
+          : '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
       }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px'
-        }}>
-          <div style={{
-            width: '45px',
-            height: '45px',
-            borderRadius: '14px',
-            background: 'linear-gradient(135deg, #ff9ecd 0%, #ff6b9d 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '24px',
-            boxShadow: '0 4px 15px rgba(255, 107, 157, 0.5)'
-          }}>🌸</div>
-          <div>
-            <div style={{
-              fontSize: '20px',
-              fontWeight: 'bold',
-              color: 'white',
-              textShadow: '0 2px 8px rgba(0,0,0,0.3)'
-            }}>AR虚拟角色</div>
-            <div style={{
-              fontSize: '12px',
-              color: 'rgba(255,255,255,0.8)'
-            }}>Interactive Character System</div>
-          </div>
-        </div>
-        
+        {/* 左侧：Logo和标题 */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: isMobile ? '8px' : '12px'
         }}>
-          <TechButton
+          <div style={{
+            width: isMobile ? '36px' : '44px',
+            height: isMobile ? '36px' : '44px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #00d4ff 0%, #ff6b9d 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isMobile ? '20px' : '24px',
+            boxShadow: '0 4px 20px rgba(0, 212, 255, 0.4)',
+            animation: 'glow 2s ease-in-out infinite alternate'
+          }}>�</div>
+          <div>
+            <div style={{
+              fontSize: isMobile ? '16px' : '18px',
+              fontWeight: 'bold',
+              background: 'linear-gradient(135deg, #fff 0%, #a0a0a0 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent'
+            }}>AR角色</div>
+            <div style={{
+              fontSize: isMobile ? '10px' : '11px',
+              color: 'rgba(255,255,255,0.5)',
+              letterSpacing: '1px'
+            }}>VIRTUAL CHARACTER</div>
+          </div>
+        </div>
+        
+        {/* 中间：角色选择指示器 */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: isMobile ? '6px' : '10px',
+          background: 'rgba(255,255,255,0.05)',
+          padding: isMobile ? '4px' : '6px',
+          borderRadius: '12px'
+        }}>
+          {[0, 1, 2].map(index => (
+            <button
+              key={index}
+              onClick={() => setSelectedCharacterIndex(index)}
+              style={{
+                width: isMobile ? '32px' : '40px',
+                height: isMobile ? '32px' : '40px',
+                borderRadius: '10px',
+                background: selectedCharacterIndex === index
+                  ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)'
+                  : 'rgba(255,255,255,0.1)',
+                border: selectedCharacterIndex === index
+                  ? '2px solid #00d4ff'
+                  : '2px solid transparent',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: isMobile ? '14px' : '16px',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: selectedCharacterIndex === index
+                  ? '0 0 20px rgba(0, 212, 255, 0.5)'
+                  : 'none'
+              }}
+            >
+              {characters[index] ? '👤' : '+'}
+            </button>
+          ))}
+        </div>
+        
+        {/* 右侧：快捷操作 */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: isMobile ? '6px' : '10px'
+        }}>
+          <button
+            onClick={() => setShowHelp(true)}
+            style={{
+              width: isMobile ? '32px' : '40px',
+              height: isMobile ? '32px' : '40px',
+              borderRadius: '10px',
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: isMobile ? '14px' : '18px',
+              cursor: 'pointer',
+              color: 'white',
+              transition: 'all 0.3s ease'
+            }}
+          >❓</button>
+
+          <button
             onClick={() => setShowSettings(!showSettings)}
-            active={showSettings}
-            size="small"
-            isMobile={isMobile}
-          >
-            ⚙️
-          </TechButton>
+            style={{
+              width: isMobile ? '32px' : '40px',
+              height: isMobile ? '32px' : '40px',
+              borderRadius: '10px',
+              background: showSettings
+                ? 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)'
+                : 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: isMobile ? '14px' : '18px',
+              cursor: 'pointer',
+              color: 'white',
+              transition: 'all 0.3s ease'
+            }}
+          >⚙️</button>
 
-          <TechButton
-            onClick={toggleSwingMode}
-            active={isSwingMode}
-            size="small"
-            isMobile={isMobile}
-          >
-            📱
-          </TechButton>
-
-          <TechButton
-            onClick={toggleCamera}
-            size="small"
-            isMobile={isMobile}
-          >
-            🔄
-          </TechButton>
-
-          <TechButton
+          <button
             onClick={() => setIsARMode(!isARMode)}
-            active={!isARMode}
-            size="small"
-            isMobile={isMobile}
-          >
-            {isARMode ? '📷' : '🎥'}
-          </TechButton>
+            style={{
+              width: isMobile ? '32px' : '40px',
+              height: isMobile ? '32px' : '40px',
+              borderRadius: '10px',
+              background: isARMode
+                ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)'
+                : 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: isMobile ? '14px' : '18px',
+              cursor: 'pointer',
+              color: 'white',
+              transition: 'all 0.3s ease'
+            }}
+          >{isARMode ? '📷' : '🎥'}</button>
         </div>
       </div>
 
@@ -1882,280 +2378,244 @@ export const ARScene = ({ selectedFile }) => {
         </div>
       )}
 
-      {/* 游戏帮助弹窗 */}
+      {/* 分步引导式游戏帮助 */}
       {showHelp && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.85)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 3000,
-          backdropFilter: 'blur(10px)'
-        }}>
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%)',
-            borderRadius: '32px',
-            padding: isMobile ? '24px' : '40px',
-            maxWidth: '500px',
-            width: '90%',
-            maxHeight: '85vh',
-            overflow: 'auto',
-            border: '1px solid rgba(255,255,255,0.15)',
-            boxShadow: '0 25px 80px rgba(0,0,0,0.6)'
-          }}>
-            <div style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '24px'
-            }}>
-              <h2 style={{
-                color: 'white',
-                margin: 0,
-                fontSize: isMobile ? '20px' : '28px',
-                background: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent'
-              }}>🎮 游戏帮助</h2>
-              <button
-                onClick={() => setShowHelp(false)}
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  background: 'rgba(255,255,255,0.1)',
-                  border: 'none',
-                  color: 'white',
-                  fontSize: '24px',
-                  cursor: 'pointer',
-                  transition: 'all 0.3s ease'
-                }}
-              >×</button>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {/* 操作1：点击 */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '16px',
-                padding: '16px',
-                background: 'rgba(255,255,255,0.05)',
-                borderRadius: '16px',
-                border: '1px solid rgba(255,255,255,0.1)'
-              }}>
-                <div style={{
-                  width: '50px',
-                  height: '50px',
-                  borderRadius: '14px',
-                  background: 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '24px',
-                  flexShrink: 0
-                }}>👆</div>
-                <div>
-                  <h3 style={{ color: 'white', margin: '0 0 6px 0', fontSize: '16px' }}>点击</h3>
-                  <p style={{ color: 'rgba(255,255,255,0.6)', margin: 0, fontSize: '13px', lineHeight: '1.5' }}>
-                    点击角色可以选中/取消选中，选中后角色会有蓝色光环。点击角色还可以触发互动反馈
-                  </p>
-                </div>
-              </div>
-
-              {/* 操作2：双指滑动 */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '16px',
-                padding: '16px',
-                background: 'rgba(255,255,255,0.05)',
-                borderRadius: '16px',
-                border: '1px solid rgba(255,255,255,0.1)'
-              }}>
-                <div style={{
-                  width: '50px',
-                  height: '50px',
-                  borderRadius: '14px',
-                  background: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '24px',
-                  flexShrink: 0
-                }}>👆👆</div>
-                <div>
-                  <h3 style={{ color: 'white', margin: '0 0 6px 0', fontSize: '16px' }}>双指滑动</h3>
-                  <p style={{ color: 'rgba(255,255,255,0.6)', margin: 0, fontSize: '13px', lineHeight: '1.5' }}>
-                    选中角色后，使用双指滑动可以移动角色位置。双指捏合可以缩放角色大小
-                  </p>
-                </div>
-              </div>
-
-              {/* 操作3：长按 */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '16px',
-                padding: '16px',
-                background: 'rgba(255,255,255,0.05)',
-                borderRadius: '16px',
-                border: '1px solid rgba(255,255,255,0.1)'
-              }}>
-                <div style={{
-                  width: '50px',
-                  height: '50px',
-                  borderRadius: '14px',
-                  background: 'linear-gradient(135deg, #ffd93d 0%, #ffb347 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '24px',
-                  flexShrink: 0
-                }}>⏱️</div>
-                <div>
-                  <h3 style={{ color: 'white', margin: '0 0 6px 0', fontSize: '16px' }}>长按</h3>
-                  <p style={{ color: 'rgba(255,255,255,0.6)', margin: 0, fontSize: '13px', lineHeight: '1.5' }}>
-                    长按角色可以触发特殊动作或表情，松开手指后动作结束
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setShowHelp(false)}
-              style={{
-                width: '100%',
-                marginTop: '24px',
-                padding: '16px',
-                background: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)',
-                border: 'none',
-                borderRadius: '16px',
-                color: 'white',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 8px 24px rgba(255, 107, 157, 0.4)'
-              }}
-            >
-              开始游戏 🎮
-            </button>
-          </div>
-        </div>
+        <TutorialGuide 
+          isMobile={isMobile}
+          onClose={() => setShowHelp(false)}
+        />
       )}
 
-      {/* 右侧控制按钮 */}
+      {/* 全新右侧悬浮工具栏 */}
       <div style={{
-        position: 'absolute',
+        position: 'fixed',
         right: isMobile ? '8px' : '20px',
-        top: '50%',
-        transform: 'translateY(-50%)',
+        top: isMobile ? '80px' : '100px',
         display: 'flex',
         flexDirection: 'column',
-        gap: isMobile ? '8px' : '16px',
-        zIndex: 100,
-        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.6) 100%)',
-        padding: isMobile ? '10px' : '20px',
-        borderRadius: isMobile ? '16px' : '28px',
-        backdropFilter: 'blur(15px)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+        gap: isMobile ? '8px' : '12px',
+        zIndex: 100
       }}>
-        <TechButton onClick={takePhoto} size={isMobile ? 'small' : 'medium'} isMobile={isMobile}>📸</TechButton>
+        {/* 拍照按钮 */}
+        <button
+          onClick={takePhoto}
+          disabled={isCountingDown}
+          style={{
+            width: isMobile ? '48px' : '56px',
+            height: isMobile ? '48px' : '56px',
+            borderRadius: '16px',
+            background: isCountingDown
+              ? 'rgba(255,255,255,0.1)'
+              : 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isMobile ? '20px' : '24px',
+            cursor: isCountingDown ? 'not-allowed' : 'pointer',
+            color: 'white',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 4px 20px rgba(255, 107, 157, 0.4)',
+            opacity: isCountingDown ? 0.5 : 1
+          }}
+        >
+          {isCountingDown ? '⏳' : '📸'}
+        </button>
 
-        <TechButton
+        {/* 录像按钮 */}
+        <button
           onClick={isRecording ? stopRecording : startRecording}
-          active={isRecording}
-          size={isMobile ? 'small' : 'medium'}
-          isMobile={isMobile}
+          style={{
+            width: isMobile ? '48px' : '56px',
+            height: isMobile ? '48px' : '56px',
+            borderRadius: '16px',
+            background: isRecording
+              ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)'
+              : 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isMobile ? '20px' : '24px',
+            cursor: 'pointer',
+            color: 'white',
+            transition: 'all 0.3s ease',
+            boxShadow: isRecording ? '0 0 20px rgba(255, 107, 107, 0.6)' : 'none',
+            animation: isRecording ? 'pulse 1s ease-in-out infinite' : 'none'
+          }}
         >
           {isRecording ? '⏹️' : '🎥'}
-        </TechButton>
+        </button>
 
-        {isRecording && (
-          <div style={{
-            position: 'absolute',
-            right: isMobile ? '60px' : '90px',
-            background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)',
-            color: 'white',
-            padding: isMobile ? '4px 10px' : '8px 16px',
-            borderRadius: '20px',
-            fontSize: isMobile ? '12px' : '14px',
-            fontWeight: 'bold',
-            whiteSpace: 'nowrap',
-            animation: 'pulse 1s ease-in-out infinite'
-          }}>
-            ● {formatTime(recordingTime)}
-          </div>
-        )}
-
-        <TechButton
+        {/* 随机动作按钮 */}
+        <button
           onClick={toggleRandomMode}
-          active={isRandomMode}
-          size={isMobile ? 'small' : 'medium'}
-          isMobile={isMobile}
+          style={{
+            width: isMobile ? '48px' : '56px',
+            height: isMobile ? '48px' : '56px',
+            borderRadius: '16px',
+            background: isRandomMode
+              ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)'
+              : 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isMobile ? '20px' : '24px',
+            cursor: 'pointer',
+            color: 'white',
+            transition: 'all 0.3s ease',
+            boxShadow: isRandomMode ? '0 0 20px rgba(0, 212, 255, 0.5)' : 'none'
+          }}
         >
           🎲
-        </TechButton>
+        </button>
 
-        {/* 道具选择按钮 */}
-        <TechButton
+        {/* 道具按钮 */}
+        <button
           onClick={() => {
             setPropTargetCharacter(selectedCharacterIndex)
             setShowPropSelect(true)
           }}
-          active={showPropSelect}
-          size={isMobile ? 'small' : 'medium'}
-          isMobile={isMobile}
+          style={{
+            width: isMobile ? '48px' : '56px',
+            height: isMobile ? '48px' : '56px',
+            borderRadius: '16px',
+            background: showPropSelect
+              ? 'linear-gradient(135deg, #ffd93d 0%, #ffb347 100%)'
+              : 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isMobile ? '20px' : '24px',
+            cursor: 'pointer',
+            color: 'white',
+            transition: 'all 0.3s ease'
+          }}
         >
           🎁
-        </TechButton>
+        </button>
 
-        {/* 旋转画布按钮 */}
-        <TechButton
+        {/* 旋转按钮 */}
+        <button
           onClick={rotateCanvas}
-          active={isRotating}
-          size={isMobile ? 'small' : 'medium'}
-          isMobile={isMobile}
+          style={{
+            width: isMobile ? '48px' : '56px',
+            height: isMobile ? '48px' : '56px',
+            borderRadius: '16px',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isMobile ? '20px' : '24px',
+            cursor: 'pointer',
+            color: 'white',
+            transition: 'all 0.3s ease'
+          }}
         >
           🔄
-        </TechButton>
+        </button>
       </div>
 
-      {/* 底部动作栏 */}
+      {/* 全新底部动作栏 - 分类标签式 */}
       <div style={{
-        position: 'absolute',
-        bottom: isMobile ? '8px' : '20px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        display: 'flex',
-        gap: isMobile ? '6px' : '12px',
-        zIndex: 100,
-        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.8) 100%)',
-        padding: isMobile ? '8px 12px' : '16px 24px',
-        borderRadius: isMobile ? '20px' : '32px',
-        backdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255,255,255,0.15)',
-        boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
-        maxWidth: isMobile ? '85vw' : '90vw',
-        overflowX: 'auto'
+        position: 'fixed',
+        bottom: isMobile ? '8px' : '16px',
+        left: isMobile ? '8px' : '16px',
+        right: isMobile ? '70px' : '90px',
+        zIndex: 100
       }}>
-        {actionList.map((item, index) => (
-          <ActionButton
-            key={item.action}
-            item={item}
-            index={index}
-            isActive={currentAction === item.action}
-            onClick={() => executeAction(item.action)}
-            isMobile={isMobile}
-          />
-        ))}
+        {/* 动作分类标签 */}
+        <div style={{
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '8px',
+          overflowX: 'auto',
+          padding: '4px'
+        }}>
+          {['all', 'basic', 'emotion', 'combat', 'dance'].map((category) => (
+            <button
+              key={category}
+              onClick={() => setActiveCategory(category)}
+              style={{
+                padding: isMobile ? '6px 12px' : '8px 16px',
+                background: activeCategory === category
+                  ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)'
+                  : 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '20px',
+                color: 'white',
+                fontSize: isMobile ? '11px' : '12px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                whiteSpace: 'nowrap',
+                boxShadow: activeCategory === category
+                  ? '0 0 15px rgba(0, 212, 255, 0.4)'
+                  : 'none'
+              }}
+            >
+              {category === 'all' ? '全部' : 
+               category === 'basic' ? '基础' :
+               category === 'emotion' ? '表情' :
+               category === 'combat' ? '战斗' : '舞蹈'}
+            </button>
+          ))}
+        </div>
+        
+        {/* 动作按钮网格 */}
+        <div style={{
+          display: 'flex',
+          gap: isMobile ? '6px' : '10px',
+          overflowX: 'auto',
+          padding: isMobile ? '8px' : '12px',
+          background: isARMode
+            ? 'linear-gradient(135deg, rgba(26, 26, 46, 0.5) 0%, rgba(22, 33, 62, 0.6) 100%)'
+            : 'linear-gradient(135deg, rgba(26, 26, 46, 0.9) 0%, rgba(22, 33, 62, 0.95) 100%)',
+          backdropFilter: 'blur(20px)',
+          borderRadius: isMobile ? '16px' : '20px',
+          border: '1px solid rgba(255,255,255,0.15)',
+          boxShadow: isARMode
+            ? '0 4px 16px rgba(0,0,0,0.2)'
+            : '0 8px 32px rgba(0,0,0,0.4)'
+        }}>
+          {filteredActions.map((item, index) => (
+            <button
+              key={item.action}
+              onClick={() => executeAction(item.action)}
+              style={{
+                minWidth: isMobile ? '60px' : '80px',
+                padding: isMobile ? '10px 8px' : '14px 12px',
+                background: currentAction === item.action
+                  ? 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)'
+                  : 'rgba(255,255,255,0.08)',
+                border: currentAction === item.action
+                  ? '2px solid #ff6b9d'
+                  : '2px solid rgba(255,255,255,0.1)',
+                borderRadius: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '4px',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: currentAction === item.action
+                  ? '0 0 20px rgba(255, 107, 157, 0.4)'
+                  : 'none'
+              }}
+            >
+              <span style={{ fontSize: isMobile ? '20px' : '24px' }}>{item.icon}</span>
+              <span style={{ 
+                fontSize: isMobile ? '10px' : '11px', 
+                color: 'white',
+                fontWeight: '600',
+                whiteSpace: 'nowrap'
+              }}>{item.name}</span>
+            </button>
+          ))}
+        </div>
       </div>
       
       {/* 隐藏的画布 */}
