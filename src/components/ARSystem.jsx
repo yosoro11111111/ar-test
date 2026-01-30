@@ -9,50 +9,51 @@ const CharacterSlot = ({ character, index, onSelect, onRemove, isSelected }) => 
     <div
       onClick={() => onSelect(index)}
       style={{
-        width: '70px',
-        height: '70px',
+        width: '75px',
+        height: '75px',
         borderRadius: '50%',
         background: isSelected 
           ? 'linear-gradient(135deg, #f472b6 0%, #db2777 100%)' 
-          : 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%)',
+          : 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%)',
         border: isSelected 
           ? '3px solid #f9a8d4' 
-          : '2px solid rgba(255, 255, 255, 0.3)',
+          : '2px solid rgba(255, 255, 255, 0.25)',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+        transition: 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
         position: 'relative',
         boxShadow: isSelected 
-          ? '0 8px 30px rgba(244, 114, 182, 0.4), inset 0 2px 10px rgba(255, 255, 255, 0.2)' 
-          : '0 4px 15px rgba(0, 0, 0, 0.1), inset 0 1px 5px rgba(255, 255, 255, 0.1)',
-        backdropFilter: 'blur(10px)'
+          ? '0 8px 32px rgba(244, 114, 182, 0.5), inset 0 2px 10px rgba(255, 255, 255, 0.25)' 
+          : '0 4px 16px rgba(0, 0, 0, 0.15), inset 0 1px 6px rgba(255, 255, 255, 0.15)',
+        backdropFilter: 'blur(12px)'
       }}
       onMouseEnter={(e) => {
-        e.target.style.transform = 'scale(1.15) translateY(-5px)'
+        e.target.style.transform = 'scale(1.2) translateY(-8px)'
         e.target.style.boxShadow = isSelected 
-          ? '0 12px 40px rgba(244, 114, 182, 0.5), inset 0 2px 10px rgba(255, 255, 255, 0.3)' 
-          : '0 8px 25px rgba(0, 0, 0, 0.2), inset 0 1px 5px rgba(255, 255, 255, 0.2)'
+          ? '0 12px 48px rgba(244, 114, 182, 0.6), inset 0 2px 12px rgba(255, 255, 255, 0.35)' 
+          : '0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 8px rgba(255, 255, 255, 0.25)'
         e.target.style.background = isSelected 
           ? 'linear-gradient(135deg, #f472b6 0%, #db2777 100%)' 
-          : 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.1) 100%)'
+          : 'linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%)'
       }}
       onMouseLeave={(e) => {
         e.target.style.transform = 'scale(1) translateY(0)'
         e.target.style.boxShadow = isSelected 
-          ? '0 8px 30px rgba(244, 114, 182, 0.4), inset 0 2px 10px rgba(255, 255, 255, 0.2)' 
-          : '0 4px 15px rgba(0, 0, 0, 0.1), inset 0 1px 5px rgba(255, 255, 255, 0.1)'
+          ? '0 8px 32px rgba(244, 114, 182, 0.5), inset 0 2px 10px rgba(255, 255, 255, 0.25)' 
+          : '0 4px 16px rgba(0, 0, 0, 0.15), inset 0 1px 6px rgba(255, 255, 255, 0.15)'
         e.target.style.background = isSelected 
           ? 'linear-gradient(135deg, #f472b6 0%, #db2777 100%)' 
-          : 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%)'
+          : 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%)'
       }}
     >
       {character ? (
         <>
           <div style={{ 
-            fontSize: '28px',
-            filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))'
+            fontSize: '30px',
+            filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 0.25))',
+            animation: 'float 3s ease-in-out infinite'
           }}>✨</div>
           <button
             onClick={(e) => {
@@ -61,29 +62,29 @@ const CharacterSlot = ({ character, index, onSelect, onRemove, isSelected }) => 
             }}
             style={{
               position: 'absolute',
-              top: '-8px',
-              right: '-8px',
-              width: '24px',
-              height: '24px',
+              top: '-10px',
+              right: '-10px',
+              width: '26px',
+              height: '26px',
               borderRadius: '50%',
               background: 'linear-gradient(135deg, #fb7185 0%, #f43f5e 100%)',
               color: 'white',
               border: '2px solid white',
-              fontSize: '14px',
+              fontSize: '16px',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 4px 15px rgba(244, 63, 94, 0.4)',
-              transition: 'all 0.3s ease'
+              boxShadow: '0 4px 16px rgba(244, 63, 94, 0.5)',
+              transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
             }}
             onMouseEnter={(e) => {
-              e.target.style.transform = 'scale(1.2)'
-              e.target.style.boxShadow = '0 6px 20px rgba(244, 63, 94, 0.6)'
+              e.target.style.transform = 'scale(1.3) rotate(90deg)'
+              e.target.style.boxShadow = '0 6px 24px rgba(244, 63, 94, 0.7)'
             }}
             onMouseLeave={(e) => {
-              e.target.style.transform = 'scale(1)'
-              e.target.style.boxShadow = '0 4px 15px rgba(244, 63, 94, 0.4)'
+              e.target.style.transform = 'scale(1) rotate(0deg)'
+              e.target.style.boxShadow = '0 4px 16px rgba(244, 63, 94, 0.5)'
             }}
           >
             ×
@@ -91,9 +92,9 @@ const CharacterSlot = ({ character, index, onSelect, onRemove, isSelected }) => 
         </>
       ) : (
         <div style={{ 
-          fontSize: '32px', 
-          opacity: 0.6,
-          filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1))'
+          fontSize: '36px', 
+          opacity: 0.7,
+          filter: 'drop-shadow(0 3px 6px rgba(0, 0, 0, 0.15))'
         }}>+</div>
       )}
     </div>
@@ -103,7 +104,6 @@ const CharacterSlot = ({ character, index, onSelect, onRemove, isSelected }) => 
 const ARContent = ({ selectedFile }) => {
   return (
     <>
-      {/* 显示角色模型 */}
       {selectedFile && (
         <CharacterController 
           position={[0, 0, 0]} 
@@ -115,11 +115,115 @@ const ARContent = ({ selectedFile }) => {
   )
 }
 
-// 主AR场景组件
+const TechButton = ({ children, onClick, style, active = false, size = 'medium' }) => {
+  const sizeStyles = {
+    small: { width: '45px', height: '45px', fontSize: '18px' },
+    medium: { width: '55px', height: '55px', fontSize: '22px' },
+    large: { width: '65px', height: '65px', fontSize: '26px' }
+  }
+
+  const baseStyle = {
+    ...sizeStyles[size],
+    borderRadius: '50%',
+    background: active 
+      ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' 
+      : 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%)',
+    color: 'white',
+    border: active ? '2px solid #a78bfa' : '2px solid rgba(255, 255, 255, 0.2)',
+    cursor: 'pointer',
+    boxShadow: active 
+      ? '0 6px 24px rgba(139, 92, 246, 0.5), inset 0 1px 6px rgba(255, 255, 255, 0.2)' 
+      : '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 4px rgba(255, 255, 255, 0.1)',
+    transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backdropFilter: 'blur(10px)',
+    ...style
+  }
+
+  return (
+    <button
+      onClick={onClick}
+      style={baseStyle}
+      onMouseEnter={(e) => {
+        e.target.style.transform = 'scale(1.15) translateY(-4px)'
+        e.target.style.boxShadow = active 
+          ? '0 8px 32px rgba(139, 92, 246, 0.6), inset 0 1px 8px rgba(255, 255, 255, 0.3)' 
+          : '0 6px 24px rgba(0, 0, 0, 0.3), inset 0 1px 6px rgba(255, 255, 255, 0.2)'
+        e.target.style.background = active 
+          ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' 
+          : 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.1) 100%)'
+      }}
+      onMouseLeave={(e) => {
+        e.target.style.transform = 'scale(1) translateY(0)'
+        e.target.style.boxShadow = active 
+          ? '0 6px 24px rgba(139, 92, 246, 0.5), inset 0 1px 6px rgba(255, 255, 255, 0.2)' 
+          : '0 4px 16px rgba(0, 0, 0, 0.2), inset 0 1px 4px rgba(255, 255, 255, 0.1)'
+        e.target.style.background = active 
+          ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' 
+          : 'linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%)'
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+const ActionButton = ({ item, index, onClick }) => {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        minWidth: '95px',
+        height: '75px',
+        background: index === 0 
+          ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' 
+          : 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)',
+        border: index === 0 ? '2px solid #a78bfa' : '2px solid rgba(255, 255, 255, 0.15)',
+        borderRadius: '16px',
+        cursor: 'pointer',
+        transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '6px',
+        color: 'white',
+        boxShadow: index === 0 
+          ? '0 6px 24px rgba(139, 92, 246, 0.4), inset 0 1px 6px rgba(255, 255, 255, 0.2)' 
+          : '0 4px 16px rgba(0, 0, 0, 0.15), inset 0 1px 4px rgba(255, 255, 255, 0.1)',
+        backdropFilter: 'blur(10px)'
+      }}
+      onMouseEnter={(e) => {
+        e.target.style.transform = 'translateY(-6px) scale(1.08)'
+        e.target.style.boxShadow = index === 0 
+          ? '0 8px 32px rgba(139, 92, 246, 0.5), inset 0 1px 8px rgba(255, 255, 255, 0.3)' 
+          : '0 6px 24px rgba(0, 0, 0, 0.25), inset 0 1px 6px rgba(255, 255, 255, 0.2)'
+        e.target.style.background = index === 0 
+          ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' 
+          : 'linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.1) 100%)'
+      }}
+      onMouseLeave={(e) => {
+        e.target.style.transform = 'translateY(0) scale(1)'
+        e.target.style.boxShadow = index === 0 
+          ? '0 6px 24px rgba(139, 92, 246, 0.4), inset 0 1px 6px rgba(255, 255, 255, 0.2)' 
+          : '0 4px 16px rgba(0, 0, 0, 0.15), inset 0 1px 4px rgba(255, 255, 255, 0.1)'
+        e.target.style.background = index === 0 
+          ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' 
+          : 'linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%)'
+      }}
+    >
+      <div style={{ fontSize: '26px', filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2))' }}>{item.icon}</div>
+      <div style={{ fontSize: '10px', fontWeight: '700', textAlign: 'center', textShadow: '0 1px 2px rgba(0, 0, 0, 0.3)' }}>{item.name}</div>
+    </button>
+  )
+}
+
 export const ARScene = ({ selectedFile }) => {
   const [isARMode, setIsARMode] = useState(false)
   const videoRef = useRef(null)
-  const [cameraFacingMode, setCameraFacingMode] = useState('environment') // 'environment' 或 'user'
+  const [cameraFacingMode, setCameraFacingMode] = useState('environment')
   const streamRef = useRef(null)
   const canvasRef = useRef(null)
   const [isRecording, setIsRecording] = useState(false)
@@ -140,28 +244,23 @@ export const ARScene = ({ selectedFile }) => {
   const [showAnimationPanel, setShowAnimationPanel] = useState(false)
   const [modelAnimations, setModelAnimations] = useState([])
 
-  // 切换摆动模式
   const toggleSwingMode = () => {
     setIsSwingMode(!isSwingMode)
     console.log('摆动模式:', !isSwingMode ? '开启' : '关闭')
   }
 
-  // 监听陀螺仪数据
   useEffect(() => {
     if (isSwingMode && window.DeviceOrientationEvent) {
       const handleOrientation = (event) => {
         const { alpha, beta, gamma } = event
         const gyroData = { x: beta, y: gamma, z: alpha }
 
-        // 计算摆动幅度
         const swingX = Math.abs(gyroData.x - lastGyroDataRef.current.x)
         const swingY = Math.abs(gyroData.y - lastGyroDataRef.current.y)
         const swingZ = Math.abs(gyroData.z - lastGyroDataRef.current.z)
 
-        // 检测大幅度摆动
         if (swingX > swingThreshold || swingY > swingThreshold || swingZ > swingThreshold) {
           console.log('检测到大幅度摆动:', { swingX, swingY, swingZ })
-          // 触发摆动动作
           if (window.dispatchEvent) {
             window.dispatchEvent(new CustomEvent('swingDetected', {
               detail: { swingX, swingY, swingZ }
@@ -179,38 +278,33 @@ export const ARScene = ({ selectedFile }) => {
     }
   }, [isSwingMode])
 
-  // 摄像头控制
   useEffect(() => {
     if (isARMode) {
       try {
-        console.log('尝试获取摄像头权限...');
+        console.log('尝试获取摄像头权限...')
         
-        // 检查是否在安全环境中（HTTPS或localhost）
-        const isSecureContext = window.isSecureContext || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const isSecureContext = window.isSecureContext || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
         if (!isSecureContext) {
-          console.error('摄像头访问需要在安全环境中（HTTPS或localhost）');
-          alert('摄像头访问需要在安全环境中（HTTPS或localhost）。请在HTTPS环境下使用此功能。');
-          setIsARMode(false);
-          return;
+          console.error('摄像头访问需要在安全环境中（HTTPS或localhost）')
+          alert('摄像头访问需要在安全环境中（HTTPS或localhost）。请在HTTPS环境下使用此功能。')
+          setIsARMode(false)
+          return
         }
         
-        // 检查浏览器是否支持摄像头访问
         if (!navigator || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          console.error('浏览器不支持摄像头访问');
-          alert('您的浏览器不支持摄像头访问，请使用现代浏览器如Chrome、Firefox或Safari。');
-          setIsARMode(false);
-          return;
+          console.error('浏览器不支持摄像头访问')
+          alert('您的浏览器不支持摄像头访问，请使用现代浏览器如Chrome、Firefox或Safari。')
+          setIsARMode(false)
+          return
         }
         
-        console.log('浏览器支持摄像头访问，准备请求权限...');
+        console.log('浏览器支持摄像头访问，准备请求权限...')
         
-        // 关闭之前的流
         if (streamRef.current) {
-          streamRef.current.getTracks().forEach(t => t.stop());
-          streamRef.current = null;
+          streamRef.current.getTracks().forEach(t => t.stop())
+          streamRef.current = null
         }
         
-        // 请求摄像头，指定方向
         navigator.mediaDevices.getUserMedia({ 
           video: {
             facingMode: cameraFacingMode
@@ -218,184 +312,166 @@ export const ARScene = ({ selectedFile }) => {
         })
         .then(stream => {
           try {
-            console.log('摄像头权限获取成功，流大小:', stream.getTracks().length);
-            streamRef.current = stream;
+            console.log('摄像头权限获取成功，流大小:', stream.getTracks().length)
+            streamRef.current = stream
             if (videoRef.current) {
-              videoRef.current.srcObject = stream;
-              console.log('摄像头视频流已设置到video元素');
+              videoRef.current.srcObject = stream
+              console.log('摄像头视频流已设置到video元素')
             }
           } catch (error) {
-            console.error('设置摄像头视频流失败:', error);
-            setIsARMode(false);
+            console.error('设置摄像头视频流失败:', error)
+            setIsARMode(false)
           }
         })
         .catch(err => {
-          console.error("AR Access Denied:", err);
-          // 提示用户权限被拒绝
-          alert('摄像头权限被拒绝，请在浏览器设置中允许摄像头访问。');
-          // 不要立即关闭AR模式，让用户有机会修改设置
-          // setIsARMode(false);
-        });
+          console.error("AR Access Denied:", err)
+          alert('摄像头权限被拒绝，请在浏览器设置中允许摄像头访问。')
+        })
       } catch (error) {
-        console.error('摄像头初始化失败:', error);
-        setIsARMode(false);
+        console.error('摄像头初始化失败:', error)
+        setIsARMode(false)
       }
     } else {
       try {
         if (streamRef.current) {
           streamRef.current.getTracks().forEach(t => {
             try {
-              t.stop();
+              t.stop()
             } catch (stopError) {
-              console.error('停止摄像头轨道失败:', stopError);
+              console.error('停止摄像头轨道失败:', stopError)
             }
-          });
-          streamRef.current = null;
-          console.log('摄像头已关闭');
+          })
+          streamRef.current = null
+          console.log('摄像头已关闭')
         }
         if (videoRef.current) {
-          videoRef.current.srcObject = null;
+          videoRef.current.srcObject = null
         }
       } catch (error) {
-        console.error('关闭摄像头失败:', error);
+        console.error('关闭摄像头失败:', error)
       }
     }
-  }, [isARMode, cameraFacingMode]);
+  }, [isARMode, cameraFacingMode])
 
-  // 当模型文件加载时自动启动AR模式
   useEffect(() => {
     if (selectedFile) {
-      console.log('检测到模型文件，等待模型加载完成后启动AR模式...');
-      // 延迟启动AR模式，确保模型有足够时间加载
+      console.log('检测到模型文件，等待模型加载完成后启动AR模式...')
       const timer = setTimeout(() => {
-        console.log('启动AR模式...');
-        setIsARMode(true);
-      }, 500);
+        console.log('启动AR模式...')
+        setIsARMode(true)
+      }, 500)
       
-      return () => clearTimeout(timer);
+      return () => clearTimeout(timer)
     }
-  }, [selectedFile]);
+  }, [selectedFile])
 
-  // 拍照功能
   const takePhoto = () => {
     if (!videoRef.current || !canvasRef.current) {
-      console.error('摄像头或画布未初始化');
-      return;
+      console.error('摄像头或画布未初始化')
+      return
     }
 
     try {
-      const canvas = canvasRef.current;
-      const video = videoRef.current;
-      const ctx = canvas.getContext('2d');
+      const canvas = canvasRef.current
+      const video = videoRef.current
+      const ctx = canvas.getContext('2d')
 
-      // 设置画布尺寸
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
 
-      // 绘制视频画面
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
 
-      // 转换为图片并下载
       canvas.toBlob((blob) => {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `ar-photo-${Date.now()}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        console.log('拍照成功');
-      });
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `ar-photo-${Date.now()}.png`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        console.log('拍照成功')
+      })
     } catch (error) {
-      console.error('拍照失败:', error);
+      console.error('拍照失败:', error)
     }
-  };
+  }
 
-  // 开始录像
   const startRecording = () => {
     if (!streamRef.current) {
-      console.error('摄像头流未初始化');
-      return;
+      console.error('摄像头流未初始化')
+      return
     }
 
     try {
-      // 创建MediaRecorder
       const mediaRecorder = new MediaRecorder(streamRef.current, {
         mimeType: 'video/webm'
-      });
+      })
 
-      mediaRecorderRef.current = mediaRecorder;
-      recordedChunksRef.current = [];
-      setRecordingTime(0);
+      mediaRecorderRef.current = mediaRecorder
+      recordedChunksRef.current = []
+      setRecordingTime(0)
 
-      // 监听数据可用事件
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          recordedChunksRef.current.push(event.data);
+          recordedChunksRef.current.push(event.data)
         }
-      };
+      }
 
-      // 监听录制结束事件
       mediaRecorder.onstop = () => {
         const blob = new Blob(recordedChunksRef.current, {
           type: 'video/webm'
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `ar-video-${Date.now()}.webm`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        console.log('录像完成');
-      };
+        })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `ar-video-${Date.now()}.webm`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        console.log('录像完成')
+      }
 
-      // 开始录制
-      mediaRecorder.start();
-      setIsRecording(true);
+      mediaRecorder.start()
+      setIsRecording(true)
 
-      // 开始计时
       recordingTimerRef.current = setInterval(() => {
-        setRecordingTime(prev => prev + 1);
-      }, 1000);
+        setRecordingTime(prev => prev + 1)
+      }, 1000)
 
-      console.log('开始录像');
+      console.log('开始录像')
     } catch (error) {
-      console.error('开始录像失败:', error);
+      console.error('开始录像失败:', error)
     }
-  };
+  }
 
-  // 停止录像
   const stopRecording = () => {
     if (!mediaRecorderRef.current) {
-      console.error('录像未开始');
-      return;
+      console.error('录像未开始')
+      return
     }
 
     try {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
+      mediaRecorderRef.current.stop()
+      setIsRecording(false)
 
-      // 清除计时器
       if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-        recordingTimerRef.current = null;
+        clearInterval(recordingTimerRef.current)
+        recordingTimerRef.current = null
       }
 
-      console.log('停止录像');
+      console.log('停止录像')
     } catch (error) {
-      console.error('停止录像失败:', error);
+      console.error('停止录像失败:', error)
     }
-  };
+  }
 
-  // 格式化时间
   const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  }
 
   return (
     <div style={{ width: '100%', height: '100vh', position: 'relative', overflow: 'hidden' }}>
@@ -413,7 +489,7 @@ export const ARScene = ({ selectedFile }) => {
             height: '100%',
             objectFit: 'cover',
             zIndex: 0,
-            filter: 'grayscale(10%)'
+            filter: 'grayscale(5%)'
           }}
         />
       )}
@@ -447,57 +523,48 @@ export const ARScene = ({ selectedFile }) => {
         </Canvas>
       </div>
       
-      {/* 顶部导航栏 */}
       <div style={{
         position: 'absolute',
         top: '0',
         left: '0',
         right: '0',
-        height: '60px',
-        background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+        height: '70px',
+        background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.9) 0%, rgba(124, 58, 237, 0.9) 100%)',
+        backdropFilter: 'blur(20px)',
         zIndex: 1000,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 20px',
-        boxShadow: '0 4px 20px rgba(59, 130, 246, 0.3)'
+        padding: '0 24px',
+        boxShadow: '0 8px 32px rgba(139, 92, 246, 0.4)',
+        borderBottom: '2px solid rgba(255, 255, 255, 0.2)'
       }}>
-        <button
+        <TechButton 
+          size="small"
           onClick={() => window.location.reload()}
-          style={{
-            padding: '8px 16px',
-            background: 'rgba(255, 255, 255, 0.2)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '600',
-            transition: 'all 0.3s ease'
-          }}
         >
           ✕
-        </button>
+        </TechButton>
         <div style={{
           color: 'white',
-          fontSize: '16px',
-          fontWeight: '700',
-          textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)'
+          fontSize: '18px',
+          fontWeight: '800',
+          textShadow: '0 3px 8px rgba(0, 0, 0, 0.3)',
+          letterSpacing: '1px'
         }}>
-          AR角色系统
+          ✨ AR角色系统 ✨
         </div>
         <div style={{ width: '50px' }} />
       </div>
 
-      {/* 左侧角色选择 */}
       <div style={{
         position: 'absolute',
-        top: '80px',
-        left: '20px',
+        top: '90px',
+        left: '24px',
         zIndex: 1000,
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px'
+        gap: '14px'
       }}>
         {characters.map((character, index) => (
           <CharacterSlot
@@ -515,180 +582,83 @@ export const ARScene = ({ selectedFile }) => {
         ))}
       </div>
 
-      {/* 右侧控制按钮 */}
       <div style={{
         position: 'absolute',
-        top: '80px',
-        right: '20px',
+        top: '90px',
+        right: '24px',
         zIndex: 1000,
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px'
+        gap: '14px'
       }}>
-        <button
+        <TechButton 
+          size="medium"
+          active={showAnimationPanel}
           onClick={() => setShowModelSelect(true)}
-          style={{
-            width: '50px',
-            height: '50px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '20px',
-            boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)',
-            transition: 'all 0.3s ease',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'scale(1.1)'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'scale(1)'
-          }}
         >
           ➕
-        </button>
-        <button
+        </TechButton>
+        <TechButton 
+          size="medium"
           onClick={() => setCharacterScale(Math.max(0.5, characterScale - 0.1))}
-          style={{
-            width: '50px',
-            height: '50px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '20px',
-            boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)',
-            transition: 'all 0.3s ease',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'scale(1.1)'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'scale(1)'
-          }}
         >
           ➖
-        </button>
-        <button
+        </TechButton>
+        <TechButton 
+          size="medium"
           onClick={() => setCharacterScale(Math.min(2.0, characterScale + 0.1))}
-          style={{
-            width: '50px',
-            height: '50px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '20px',
-            boxShadow: '0 4px 15px rgba(245, 158, 11, 0.4)',
-            transition: 'all 0.3s ease',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'scale(1.1)'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'scale(1)'
-          }}
         >
           ➕
-        </button>
-        <button
+        </TechButton>
+        <TechButton 
+          size="medium"
+          active={isSwingMode}
           onClick={toggleSwingMode}
-          style={{
-            width: '50px',
-            height: '50px',
-            borderRadius: '50%',
-            background: isSwingMode ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '20px',
-            boxShadow: isSwingMode ? '0 4px 15px rgba(139, 92, 246, 0.4)' : '0 4px 15px rgba(99, 102, 241, 0.4)',
-            transition: 'all 0.3s ease',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'scale(1.1)'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'scale(1)'
-          }}
         >
           🔄
-        </button>
-        <button
+        </TechButton>
+        <TechButton 
+          size="medium"
+          active={showAnimationPanel}
           onClick={() => setShowAnimationPanel(!showAnimationPanel)}
-          style={{
-            width: '50px',
-            height: '50px',
-            borderRadius: '50%',
-            background: showAnimationPanel ? 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)' : 'linear-gradient(135deg, #f472b6 0%, #db2777 100%)',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '20px',
-            boxShadow: showAnimationPanel ? '0 4px 15px rgba(236, 72, 153, 0.4)' : '0 4px 15px rgba(244, 114, 182, 0.4)',
-            transition: 'all 0.3s ease',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'scale(1.1)'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'scale(1)'
-          }}
         >
           🎬
-        </button>
+        </TechButton>
       </div>
 
-      {/* 动画面板 */}
       {showAnimationPanel && (
         <div style={{
           position: 'absolute',
-          top: '80px',
-          right: '80px',
-          width: '200px',
+          top: '90px',
+          right: '90px',
+          width: '220px',
           background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
           backdropFilter: 'blur(20px)',
-          borderRadius: '16px',
-          padding: '16px',
+          borderRadius: '20px',
+          padding: '20px',
           zIndex: 1000,
-          boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4)',
-          border: '1px solid rgba(255, 255, 255, 0.1)'
+          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.5)',
+          border: '2px solid rgba(139, 92, 246, 0.3)'
         }}>
           <div style={{
-            fontSize: '14px',
-            fontWeight: '700',
+            fontSize: '15px',
+            fontWeight: '800',
             color: '#f9a8d4',
-            marginBottom: '12px',
+            marginBottom: '16px',
             textAlign: 'center',
-            textShadow: '0 2px 4px rgba(249, 168, 212, 0.3)'
+            textShadow: '0 2px 8px rgba(249, 168, 212, 0.4)',
+            letterSpacing: '1px'
           }}>
-            ✨ 模型动画
+            ✨ 模型动画 ✨
           </div>
           {modelAnimations.length > 0 ? (
             <div style={{
               display: 'flex',
               flexDirection: 'column',
-              gap: '8px',
-              maxHeight: '300px',
-              overflowY: 'auto'
+              gap: '10px',
+              maxHeight: '320px',
+              overflowY: 'auto',
+              paddingRight: '8px'
             }}>
               {modelAnimations.map((anim, index) => (
                 <button
@@ -701,42 +671,44 @@ export const ARScene = ({ selectedFile }) => {
                     }
                   }}
                   style={{
-                    padding: '10px 12px',
-                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(99, 102, 241, 0.1) 100%)',
+                    padding: '12px 16px',
+                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.25) 0%, rgba(139, 92, 246, 0.15) 100%)',
                     color: 'white',
-                    border: '1px solid rgba(99, 102, 241, 0.3)',
-                    borderRadius: '10px',
+                    border: '2px solid rgba(139, 92, 246, 0.4)',
+                    borderRadius: '12px',
                     cursor: 'pointer',
-                    fontSize: '12px',
-                    fontWeight: '600',
-                    transition: 'all 0.3s ease',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
                     textAlign: 'left',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '8px'
+                    gap: '10px',
+                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.2)'
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.4) 0%, rgba(99, 102, 241, 0.3) 100%)'
-                    e.target.style.transform = 'translateX(5px)'
-                    e.target.style.boxShadow = '0 4px 15px rgba(99, 102, 241, 0.3)'
+                    e.target.style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.4) 0%, rgba(139, 92, 246, 0.3) 100%)'
+                    e.target.style.transform = 'translateX(6px) scale(1.02)'
+                    e.target.style.boxShadow = '0 6px 20px rgba(139, 92, 246, 0.4)'
                   }}
                   onMouseLeave={(e) => {
-                    e.target.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(99, 102, 241, 0.1) 100%)'
-                    e.target.style.transform = 'translateX(0)'
-                    e.target.style.boxShadow = 'none'
+                    e.target.style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.25) 0%, rgba(139, 92, 246, 0.15) 100%)'
+                    e.target.style.transform = 'translateX(0) scale(1)'
+                    e.target.style.boxShadow = '0 4px 12px rgba(139, 92, 246, 0.2)'
                   }}
                 >
-                  <span style={{ fontSize: '16px' }}>🎭</span>
+                  <span style={{ fontSize: '18px' }}>🎭</span>
                   <span>{anim.name}</span>
                 </button>
               ))}
             </div>
           ) : (
             <div style={{
-              fontSize: '12px',
+              fontSize: '13px',
               color: 'rgba(255, 255, 255, 0.6)',
               textAlign: 'center',
-              padding: '20px 0'
+              padding: '24px 0',
+              fontWeight: '600'
             }}>
               该模型没有自带动画
             </div>
@@ -744,37 +716,39 @@ export const ARScene = ({ selectedFile }) => {
         </div>
       )}
 
-      {/* 底部动作选择栏 */}
       <div style={{
         position: 'absolute',
         bottom: '0',
         left: '0',
         right: '0',
-        height: '100px',
-        background: 'rgba(15, 23, 42, 0.95)',
-        backdropFilter: 'blur(10px)',
+        height: '110px',
+        background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
+        backdropFilter: 'blur(20px)',
         zIndex: 1000,
         display: 'flex',
         alignItems: 'center',
-        padding: '0 20px',
-        gap: '15px',
+        padding: '0 24px',
+        gap: '16px',
         overflowX: 'auto',
-        boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.2)'
+        boxShadow: '0 -8px 32px rgba(0, 0, 0, 0.4)',
+        borderTop: '2px solid rgba(139, 92, 246, 0.3)'
       }}>
         {[
-          { action: 'idle', name: 'Ready to trailblaze', icon: '🧍' },
-          { action: 'wave', name: 'Watch this!', icon: '👋' },
-          { action: 'dance', name: 'Dance time!', icon: '💃' },
-          { action: 'jump', name: 'Jump high!', icon: '🚀' },
-          { action: 'sit', name: 'Take a seat', icon: '🧘' },
-          { action: 'run', name: 'Run fast!', icon: '🏃' },
-          { action: 'happy', name: 'So happy!', icon: '😊' },
-          { action: 'sad', name: 'Feeling sad', icon: '😢' },
-          { action: 'combo', name: 'Combo!', icon: '🎯' },
-          { action: 'random', name: 'Random', icon: '🎲' }
+          { action: 'idle', name: '待机', icon: '🧍' },
+          { action: 'wave', name: '挥手', icon: '👋' },
+          { action: 'dance', name: '舞蹈', icon: '💃' },
+          { action: 'jump', name: '跳跃', icon: '🚀' },
+          { action: 'sit', name: '坐下', icon: '🧘' },
+          { action: 'run', name: '奔跑', icon: '🏃' },
+          { action: 'happy', name: '开心', icon: '😊' },
+          { action: 'sad', name: '难过', icon: '😢' },
+          { action: 'combo', name: '连招', icon: '🎯' },
+          { action: 'random', name: '随机', icon: '🎲' }
         ].map((item, index) => (
-          <button
+          <ActionButton
             key={index}
+            item={item}
+            index={index}
             onClick={() => {
               if (window.dispatchEvent) {
                 if (item.action === 'combo') {
@@ -790,131 +764,43 @@ export const ARScene = ({ selectedFile }) => {
                 }
               }
             }}
-            style={{
-              minWidth: '100px',
-              height: '80px',
-              background: index === 0 ? 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)' : 'rgba(31, 41, 55, 0.8)',
-              border: index === 0 ? '2px solid #60a5fa' : '2px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              transition: 'all 0.3s ease',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '5px',
-              color: 'white',
-              boxShadow: index === 0 ? '0 4px 15px rgba(99, 102, 241, 0.4)' : '0 4px 15px rgba(0, 0, 0, 0.2)'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.transform = 'translateY(-3px) scale(1.05)'
-              e.target.style.boxShadow = index === 0 ? '0 6px 20px rgba(99, 102, 241, 0.5)' : '0 6px 20px rgba(0, 0, 0, 0.3)'
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.transform = 'translateY(0) scale(1)'
-              e.target.style.boxShadow = index === 0 ? '0 4px 15px rgba(99, 102, 241, 0.4)' : '0 4px 15px rgba(0, 0, 0, 0.2)'
-            }}
-          >
-            <div style={{ fontSize: '24px' }}>{item.icon}</div>
-            <div style={{ fontSize: '10px', fontWeight: '600', textAlign: 'center' }}>{item.name}</div>
-          </button>
+          />
         ))}
       </div>
 
-      {/* 底部中央拍照录像控制 */}
       <div style={{
         position: 'absolute',
-        bottom: '120px',
+        bottom: '130px',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 1000,
         display: 'flex',
-        gap: '20px',
+        gap: '24px',
         alignItems: 'center'
       }}>
-        <button
+        <TechButton 
+          size="large"
           onClick={takePhoto}
-          style={{
-            width: '60px',
-            height: '60px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '24px',
-            boxShadow: '0 4px 15px rgba(16, 185, 129, 0.4)',
-            transition: 'all 0.3s ease',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'scale(1.1)'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'scale(1)'
-          }}
         >
           📷
-        </button>
-        <button
+        </TechButton>
+        <TechButton 
+          size="large"
+          active={isRecording}
           onClick={isRecording ? stopRecording : startRecording}
-          style={{
-            width: '70px',
-            height: '70px',
-            borderRadius: '50%',
-            background: isRecording ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '28px',
-            boxShadow: isRecording ? '0 4px 15px rgba(239, 68, 68, 0.4)' : '0 4px 15px rgba(245, 158, 11, 0.4)',
-            transition: 'all 0.3s ease',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'scale(1.1)'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'scale(1)'
-          }}
         >
           {isRecording ? '⏹️' : '🎥'}
-        </button>
-        <button
+        </TechButton>
+        <TechButton 
+          size="large"
           onClick={() => {
             window.dispatchEvent(new CustomEvent('resetPosition'))
           }}
-          style={{
-            width: '60px',
-            height: '60px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-            fontSize: '24px',
-            boxShadow: '0 4px 15px rgba(99, 102, 241, 0.4)',
-            transition: 'all 0.3s ease',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'scale(1.1)'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'scale(1)'
-          }}
         >
           🔄
-        </button>
+        </TechButton>
       </div>
 
-      {/* 模型选择弹窗 */}
       {showModelSelect && (
         <div style={{
           position: 'absolute',
@@ -922,48 +808,52 @@ export const ARScene = ({ selectedFile }) => {
           left: '0',
           right: '0',
           bottom: '0',
-          background: 'rgba(0, 0, 0, 0.8)',
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(10px)',
           zIndex: 2000,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center'
         }}>
           <div style={{
-            background: 'rgba(15, 23, 42, 0.95)',
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%)',
             color: 'white',
-            padding: '30px',
-            borderRadius: '20px',
+            padding: '36px',
+            borderRadius: '24px',
             width: '90%',
-            maxWidth: '500px',
-            maxHeight: '80vh',
+            maxWidth: '520px',
+            maxHeight: '85vh',
             overflow: 'auto',
-            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)'
+            boxShadow: '0 24px 48px rgba(0, 0, 0, 0.6)',
+            border: '2px solid rgba(139, 92, 246, 0.4)'
           }}>
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: '20px'
+              marginBottom: '24px'
             }}>
-              <h3 style={{ margin: 0, color: '#60a5fa' }}>选择模型</h3>
-              <button
+              <h3 style={{ 
+                margin: 0, 
+                color: '#a78bfa', 
+                fontSize: '20px',
+                fontWeight: '800',
+                textShadow: '0 2px 8px rgba(167, 139, 250, 0.4)',
+                letterSpacing: '1px'
+              }}>
+                ✨ 选择模型 ✨
+              </h3>
+              <TechButton 
+                size="small"
                 onClick={() => setShowModelSelect(false)}
-                style={{
-                  padding: '8px 16px',
-                  background: '#ef4444',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer'
-                }}
               >
                 ✕
-              </button>
+              </TechButton>
             </div>
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(2, 1fr)',
-              gap: '12px'
+              gap: '14px'
             }}>
               {modelList.map((model, index) => (
                 <button
@@ -975,26 +865,29 @@ export const ARScene = ({ selectedFile }) => {
                     setShowModelSelect(false)
                   }}
                   style={{
-                    padding: '16px',
-                    background: 'rgba(96, 165, 250, 0.15)',
+                    padding: '18px',
+                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%)',
                     color: 'white',
-                    border: '2px solid rgba(96, 165, 250, 0.4)',
-                    borderRadius: '12px',
+                    border: '2px solid rgba(139, 92, 246, 0.4)',
+                    borderRadius: '16px',
                     cursor: 'pointer',
-                    transition: 'all 0.3s ease',
-                    textAlign: 'center'
+                    transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    textAlign: 'center',
+                    boxShadow: '0 4px 16px rgba(139, 92, 246, 0.2)'
                   }}
                   onMouseEnter={(e) => {
-                    e.target.style.background = 'rgba(96, 165, 250, 0.3)'
-                    e.target.style.transform = 'scale(1.05)'
+                    e.target.style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.35) 0%, rgba(139, 92, 246, 0.25) 100%)'
+                    e.target.style.transform = 'scale(1.05) translateY(-4px)'
+                    e.target.style.boxShadow = '0 8px 24px rgba(139, 92, 246, 0.4)'
                   }}
                   onMouseLeave={(e) => {
-                    e.target.style.background = 'rgba(96, 165, 250, 0.15)'
-                    e.target.style.transform = 'scale(1)'
+                    e.target.style.background = 'linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%)'
+                    e.target.style.transform = 'scale(1) translateY(0)'
+                    e.target.style.boxShadow = '0 4px 16px rgba(139, 92, 246, 0.2)'
                   }}
                 >
-                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>🧑</div>
-                  <div style={{ fontSize: '12px', fontWeight: '600' }}>{model.name}</div>
+                  <div style={{ fontSize: '36px', marginBottom: '10px' }}>🧑</div>
+                  <div style={{ fontSize: '14px', fontWeight: '700' }}>{model.name}</div>
                 </button>
               ))}
             </div>
@@ -1002,16 +895,7 @@ export const ARScene = ({ selectedFile }) => {
         </div>
       )}
 
-      {/* 隐藏的画布，用于拍照 */}
-      <canvas
-        ref={canvasRef}
-        style={{
-          position: 'absolute',
-          top: '-9999px',
-          left: '-9999px',
-          display: 'none'
-        }}
-      />
+      <canvas ref={canvasRef} style={{ display: 'none' }} />
     </div>
   )
 }
