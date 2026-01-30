@@ -718,7 +718,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
               setVrmModel(vrm)
               
               vrm.scene.position.set(0, 0, 0)
-              vrm.scene.rotation.set(0, 0, 0)
+              vrm.scene.rotation.set(0, Math.PI, 0) // 旋转180度，让模型面对用户
               vrm.scene.scale.set(1, 1, 1)
               
               scene.add(vrm.scene)
@@ -2094,29 +2094,30 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       }
     }
 
-    const handleSwingDetected = (event) => {
-      const { swingX, swingY, swingZ } = event.detail
-      const swingMagnitude = Math.sqrt(swingX * swingX + swingY * swingY + swingZ * swingZ)
-      
-      const animations = modelAnimations.length > 0 ? modelAnimations : presetAnimations
-      if (animations.length > 0) {
-        const randomAnim = animations[Math.floor(Math.random() * animations.length)]
-        executePresetAction(randomAnim.name || randomAnim.action)
-      }
-    }
+    // 摇晃检测功能已禁用 - 避免模型跟随陀螺仪摇晃
+    // const handleSwingDetected = (event) => {
+    //   const { swingX, swingY, swingZ } = event.detail
+    //   const swingMagnitude = Math.sqrt(swingX * swingX + swingY * swingY + swingZ * swingZ)
+    //   
+    //   const animations = modelAnimations.length > 0 ? modelAnimations : presetAnimations
+    //   if (animations.length > 0) {
+    //     const randomAnim = animations[Math.floor(Math.random() * animations.length)]
+    //     executePresetAction(randomAnim.name || randomAnim.action)
+    //   }
+    // }
 
     window.addEventListener('executeAction', handleExecuteAction)
     window.addEventListener('executeCombo', handleExecuteCombo)
     window.addEventListener('toggleRandom', handleToggleRandom)
     window.addEventListener('resetPosition', handleResetPosition)
-    window.addEventListener('swingDetected', handleSwingDetected)
+    // window.addEventListener('swingDetected', handleSwingDetected)
 
     return () => {
       window.removeEventListener('executeAction', handleExecuteAction)
       window.removeEventListener('executeCombo', handleExecuteCombo)
       window.removeEventListener('toggleRandom', handleToggleRandom)
       window.removeEventListener('resetPosition', handleResetPosition)
-      window.removeEventListener('swingDetected', handleSwingDetected)
+      // window.removeEventListener('swingDetected', handleSwingDetected)
     }
   }, [modelAnimations, optimalScale])
 
