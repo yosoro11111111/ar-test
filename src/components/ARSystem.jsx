@@ -362,8 +362,11 @@ const useDebugLog = () => {
 // ==================== 移动端骨骼编辑器组件 ====================
 const MobileBoneEditor = ({ characters, selectedCharacterIndex, onBoneChange }) => {
   const [selectedBone, setSelectedBone] = useState(null)
+  const [bones, setBones] = useState([])
+  const [hasVRM, setHasVRM] = useState(false)
+  
   const character = characters[selectedCharacterIndex]
-  const vrmModel = character?.vrm
+  const selectedFile = character?.path
   
   const mainBones = [
     { name: 'head', label: '头部', color: '#ff6b6b' },
@@ -387,24 +390,35 @@ const MobileBoneEditor = ({ characters, selectedCharacterIndex, onBoneChange }) 
     { name: 'rightFoot', label: '右脚', color: '#48dbfb' },
   ]
   
-  const [bones, setBones] = useState([])
-  
+  // 从 window.vrmModels 获取 VRM 模型
   useEffect(() => {
-    if (!vrmModel?.humanoid) return
-    
-    const boneList = []
-    mainBones.forEach(({ name, label, color }) => {
-      try {
-        const bone = vrmModel.humanoid.getNormalizedBoneNode(name)
-        if (bone) {
-          boneList.push({ name, label, color, bone })
-        }
-      } catch (e) {
-        // 忽略错误
+    const checkVRM = () => {
+      const vrmModel = window.vrmModels?.[selectedFile]
+      if (vrmModel?.humanoid) {
+        setHasVRM(true)
+        const boneList = []
+        mainBones.forEach(({ name, label, color }) => {
+          try {
+            const bone = vrmModel.humanoid.getNormalizedBoneNode(name)
+            if (bone) {
+              boneList.push({ name, label, color, bone })
+            }
+          } catch (e) {
+            // 忽略错误
+          }
+        })
+        setBones(boneList)
+      } else {
+        setHasVRM(false)
+        setBones([])
       }
-    })
-    setBones(boneList)
-  }, [vrmModel])
+    }
+    
+    checkVRM()
+    // 每秒检查一次，等待 VRM 加载完成
+    const interval = setInterval(checkVRM, 1000)
+    return () => clearInterval(interval)
+  }, [selectedFile])
   
   const handleBoneRotate = (boneName, axis, delta) => {
     const bone = bones.find(b => b.name === boneName)?.bone
@@ -412,6 +426,31 @@ const MobileBoneEditor = ({ characters, selectedCharacterIndex, onBoneChange }) 
     
     bone.rotation[axis] += delta
     onBoneChange?.(boneName, bone.rotation)
+  }
+  
+  if (!character) {
+    return (
+      <div style={{
+        position: 'fixed',
+        bottom: '0',
+        left: '0',
+        right: '0',
+        background: 'rgba(0,0,0,0.95)',
+        borderRadius: '20px 20px 0 0',
+        padding: '20px',
+        zIndex: 9999,
+        border: '2px solid rgba(0,212,255,0.5)',
+        borderBottom: 'none',
+        boxShadow: '0 -4px 30px rgba(0,0,0,0.7)',
+        textAlign: 'center',
+        color: '#888'
+      }}>
+        <div style={{ color: '#00d4ff', fontWeight: 'bold', fontSize: '16px', marginBottom: '8px' }}>
+          🦴 骨骼编辑器
+        </div>
+        <div>请先选择或加载一个角色</div>
+      </div>
+    )
   }
   
   return (
@@ -422,12 +461,12 @@ const MobileBoneEditor = ({ characters, selectedCharacterIndex, onBoneChange }) 
       right: '0',
       background: 'rgba(0,0,0,0.95)',
       borderRadius: '20px 20px 0 0',
-      padding: '16px 16px 100px 16px',
+      padding: '16px 16px 120px 16px',
       zIndex: 9999,
       border: '2px solid rgba(0,212,255,0.5)',
       borderBottom: 'none',
       boxShadow: '0 -4px 30px rgba(0,0,0,0.7)',
-      maxHeight: '70vh',
+      maxHeight: '80vh',
       overflowY: 'auto'
     }}>
       <div style={{
@@ -442,39 +481,53 @@ const MobileBoneEditor = ({ characters, selectedCharacterIndex, onBoneChange }) 
           🦴 骨骼编辑器
         </span>
         <span style={{ color: '#888', fontSize: '12px' }}>
-          选择骨骼后单指拖动
+          {!hasVRM ? '加载中...' : `${bones.length}个骨骼`}
         </span>
       </div>
       
+      {/* 加载提示 */}
+      {!hasVRM && (
+        <div style={{
+          textAlign: 'center',
+          padding: '20px',
+          color: '#888'
+        }}>
+          <div style={{ marginBottom: '10px' }}>⏳ 等待 VRM 模型加载...</div>
+          <div style={{ fontSize: '12px' }}>请稍候，模型加载完成后即可编辑骨骼</div>
+        </div>
+      )}
+      
       {/* 骨骼列表 - 网格布局 */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(4, 1fr)',
-        gap: '8px',
-        marginBottom: '12px'
-      }}>
-        {bones.map(({ name, label, color }) => (
-          <button
-            key={name}
-            onClick={() => setSelectedBone(selectedBone === name ? null : name)}
-            style={{
-              padding: '10px 4px',
-              background: selectedBone === name ? color : 'rgba(255,255,255,0.1)',
-              border: `2px solid ${selectedBone === name ? color : 'transparent'}`,
-              borderRadius: '8px',
-              color: 'white',
-              fontSize: '10px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      {hasVRM && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          gap: '8px',
+          marginBottom: '12px'
+        }}>
+          {bones.map(({ name, label, color }) => (
+            <button
+              key={name}
+              onClick={() => setSelectedBone(selectedBone === name ? null : name)}
+              style={{
+                padding: '10px 4px',
+                background: selectedBone === name ? color : 'rgba(255,255,255,0.1)',
+                border: `2px solid ${selectedBone === name ? color : 'transparent'}`,
+                borderRadius: '8px',
+                color: 'white',
+                fontSize: '10px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       
       {/* 选中骨骼的控制 - 拖动区域 */}
       {selectedBone && (
