@@ -158,8 +158,8 @@ const CharacterSlot = ({ character, index, onSelect, onRemove, isSelected, isMob
   const [isPressed, setIsPressed] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   
-  const slotSize = isMobile ? { width: '60px', height: '60px' } : { width: '90px', height: '90px' }
-  const fontSize = isMobile ? '24px' : '32px'
+  const slotSize = isMobile ? { width: '48px', height: '48px' } : { width: '90px', height: '90px' }
+  const fontSize = isMobile ? '20px' : '32px'
   
   return (
     <div
@@ -308,13 +308,13 @@ const ActionButton = ({ item, index, onClick, isActive, isMobile }) => {
   const [isHovered, setIsHovered] = useState(false)
   const [cooldown, setCooldown] = useState(0)
   
-  // 移动端尺寸调整
+  // 移动端尺寸调整 - 进一步缩小
   const buttonSize = isMobile ? {
-    minWidth: item.highlight ? '90px' : '70px',
-    height: item.highlight ? '70px' : '60px',
-    fontSize: item.highlight ? '28px' : '24px',
-    labelSize: '10px',
-    borderRadius: '16px'
+    minWidth: item.highlight ? '70px' : '55px',
+    height: item.highlight ? '55px' : '48px',
+    fontSize: item.highlight ? '22px' : '20px',
+    labelSize: '9px',
+    borderRadius: '12px'
   } : {
     minWidth: item.highlight ? '130px' : '110px',
     height: item.highlight ? '100px' : '90px',
@@ -511,9 +511,9 @@ const TechButton = ({ children, onClick, style, active = false, size = 'medium',
   const [isPressed, setIsPressed] = useState(false)
   
   const sizeStyles = isMobile ? {
-    small: { width: '36px', height: '36px', fontSize: '14px' },
-    medium: { width: '44px', height: '44px', fontSize: '18px' },
-    large: { width: '52px', height: '52px', fontSize: '22px' }
+    small: { width: '32px', height: '32px', fontSize: '12px' },
+    medium: { width: '40px', height: '40px', fontSize: '16px' },
+    large: { width: '48px', height: '48px', fontSize: '20px' }
   } : {
     small: { width: '44px', height: '44px', fontSize: '18px' },
     medium: { width: '52px', height: '52px', fontSize: '20px' },
@@ -854,9 +854,14 @@ export const ARScene = ({ selectedFile }) => {
 
   // 添加角色
   const addCharacter = useCallback((index, model) => {
+    // 为模型添加本地路径，用于从模型列表加载
+    const modelWithPath = {
+      ...model,
+      localPath: `/models/${model.filename}`
+    }
     setCharacters(prev => {
       const newCharacters = [...prev]
-      newCharacters[index] = model
+      newCharacters[index] = modelWithPath
       return newCharacters
     })
     setShowModelSelect(false)
@@ -1112,39 +1117,42 @@ export const ARScene = ({ selectedFile }) => {
         }
       `}</style>
       
-      {/* AR视频背景 */}
+      {/* AR视频背景 - 确保在底层 */}
       {isARMode && (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted
-          webkit-playsinline="true"
-          x5-playsinline="true"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100vw',
-            height: '100vh',
-            objectFit: 'cover',
-            zIndex: 0,
-            backgroundColor: '#000',
-            display: 'block'
-          }}
-        />
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 0,
+          backgroundColor: '#000'
+        }}>
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            webkit-playsinline="true"
+            x5-playsinline="true"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover'
+            }}
+          />
+        </div>
       )}
 
-      {/* 3D画布 - AR模式下pointerEvents设为none让触摸穿透到视频 */}
+      {/* 3D画布 - AR模式下背景透明 */}
       <div style={{
         position: 'absolute',
         top: 0,
         left: 0,
         width: '100%',
         height: '100%',
-        zIndex: isARMode ? 1 : 1,
-        background: isARMode ? 'transparent' : 'linear-gradient(to bottom, #0f172a 0%, #1e293b 100%)',
-        pointerEvents: isARMode ? 'none' : 'auto'
+        zIndex: 1,
+        background: isARMode ? 'transparent' : 'linear-gradient(to bottom, #0f172a 0%, #1e293b 100%)'
       }}>
         <Canvas gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }} style={{ background: 'transparent' }}>
           <PerspectiveCamera makeDefault position={[0, 0.8, 2.5]} fov={50} />
@@ -1159,21 +1167,20 @@ export const ARScene = ({ selectedFile }) => {
             actionIntensity={actionIntensity}
           />
           
-          {!isARMode && (
-            <OrbitControls
-              enablePan={true}
-              enableRotate={true}
-              enableZoom={true}
-              minDistance={1}
-              maxDistance={5}
-              target={[0, 0.6, 0]}
-              maxPolarAngle={Math.PI / 1.8}
-              touches={{
-                ONE: THREE.TOUCH.ROTATE,
-                TWO: THREE.TOUCH.DOLLY_PAN
-              }}
-            />
-          )}
+          {/* OrbitControls - 移动端始终启用，AR模式下也可以调整模型位置 */}
+          <OrbitControls
+            enablePan={true}
+            enableRotate={!isARMode}
+            enableZoom={true}
+            minDistance={1}
+            maxDistance={5}
+            target={[0, 0.6, 0]}
+            maxPolarAngle={Math.PI / 1.8}
+            touches={{
+              ONE: THREE.TOUCH.ROTATE,
+              TWO: THREE.TOUCH.DOLLY_PAN
+            }}
+          />
         </Canvas>
       </div>
       
@@ -1348,16 +1355,16 @@ export const ARScene = ({ selectedFile }) => {
       {/* 左侧角色选择区 */}
       <div style={{
         position: 'absolute',
-        left: isMobile ? '10px' : '20px',
+        left: isMobile ? '8px' : '20px',
         top: '50%',
         transform: 'translateY(-50%)',
         display: 'flex',
         flexDirection: 'column',
-        gap: isMobile ? '10px' : '16px',
+        gap: isMobile ? '8px' : '16px',
         zIndex: 100,
         background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.6) 100%)',
-        padding: isMobile ? '12px' : '20px',
-        borderRadius: isMobile ? '20px' : '28px',
+        padding: isMobile ? '10px' : '20px',
+        borderRadius: isMobile ? '16px' : '28px',
         backdropFilter: 'blur(15px)',
         border: '1px solid rgba(255,255,255,0.1)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
@@ -1373,13 +1380,13 @@ export const ARScene = ({ selectedFile }) => {
             isMobile={isMobile}
           />
         ))}
-        
+
         <button
           onClick={() => setShowModelSelect(true)}
           style={{
-            width: isMobile ? '60px' : '90px',
-            height: isMobile ? '60px' : '90px',
-            borderRadius: isMobile ? '20px' : '28px',
+            width: isMobile ? '48px' : '90px',
+            height: isMobile ? '48px' : '90px',
+            borderRadius: isMobile ? '16px' : '28px',
             background: 'linear-gradient(135deg, rgba(255, 158, 205, 0.3) 0%, rgba(255, 107, 157, 0.3) 100%)',
             border: '2px dashed rgba(255, 184, 208, 0.5)',
             cursor: 'pointer',
@@ -1479,16 +1486,16 @@ export const ARScene = ({ selectedFile }) => {
       {/* 右侧控制按钮 */}
       <div style={{
         position: 'absolute',
-        right: isMobile ? '10px' : '20px',
+        right: isMobile ? '8px' : '20px',
         top: '50%',
         transform: 'translateY(-50%)',
         display: 'flex',
         flexDirection: 'column',
-        gap: isMobile ? '10px' : '16px',
+        gap: isMobile ? '8px' : '16px',
         zIndex: 100,
         background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.6) 100%)',
-        padding: isMobile ? '12px' : '20px',
-        borderRadius: isMobile ? '20px' : '28px',
+        padding: isMobile ? '10px' : '20px',
+        borderRadius: isMobile ? '16px' : '28px',
         backdropFilter: 'blur(15px)',
         border: '1px solid rgba(255,255,255,0.1)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
@@ -1534,15 +1541,15 @@ export const ARScene = ({ selectedFile }) => {
       {/* 底部动作栏 */}
       <div style={{
         position: 'absolute',
-        bottom: isMobile ? '10px' : '20px',
+        bottom: isMobile ? '8px' : '20px',
         left: '50%',
         transform: 'translateX(-50%)',
         display: 'flex',
-        gap: isMobile ? '8px' : '12px',
+        gap: isMobile ? '6px' : '12px',
         zIndex: 100,
         background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.8) 100%)',
-        padding: isMobile ? '10px 16px' : '16px 24px',
-        borderRadius: isMobile ? '24px' : '32px',
+        padding: isMobile ? '8px 12px' : '16px 24px',
+        borderRadius: isMobile ? '20px' : '32px',
         backdropFilter: 'blur(20px)',
         border: '1px solid rgba(255,255,255,0.15)',
         boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
