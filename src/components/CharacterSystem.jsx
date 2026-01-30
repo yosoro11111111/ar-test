@@ -2391,11 +2391,12 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       }
       
       // 惯性跟随系统 - 头发衣服延迟跟随
+      // 注意：只修改rotation，不修改position，避免身体部位分离
       if (followBones.current.length > 0 && characterRef.current) {
         followBones.current.forEach((boneData, index) => {
           if (boneData.bone && boneData.target) {
             const delay = boneData.delay || 0.1
-            boneData.bone.position.lerp(boneData.target.position, delay)
+            // 只修改rotation，不修改position
             boneData.bone.rotation.x = THREE.MathUtils.lerp(boneData.bone.rotation.x, boneData.target.rotation.x, delay)
             boneData.bone.rotation.y = THREE.MathUtils.lerp(boneData.bone.rotation.y, boneData.target.rotation.y, delay)
             boneData.bone.rotation.z = THREE.MathUtils.lerp(boneData.bone.rotation.z, boneData.target.rotation.z, delay)
@@ -2404,27 +2405,29 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       }
       
       // 呼吸起伏动画 - 胸部和肩膀自然起伏（仅在idle状态时轻微呼吸，且不在骨骼动画时）
+      // 注意：只修改rotation，不修改position，避免身体部位分离
       if (vrmModel && vrmModel.humanoid && currentActionType === 'idle' && !currentBoneAnimation.current) {
         try {
           const chestBone = vrmModel.humanoid.getNormalizedBoneNode('chest')
           const leftShoulder = vrmModel.humanoid.getNormalizedBoneNode('leftShoulder')
           const rightShoulder = vrmModel.humanoid.getNormalizedBoneNode('rightShoulder')
-          
+
           const breatheTime = Date.now() * 0.001
-          const breatheIntensity = 0.008 // 减小呼吸幅度
-          
+          const breatheIntensity = 0.005 // 减小呼吸幅度
+
           if (chestBone) {
-            // 胸部前后起伏
-            chestBone.position.z = Math.sin(breatheTime * 2) * breatheIntensity
-            chestBone.rotation.x = Math.sin(breatheTime * 2) * breatheIntensity * 0.5
+            // 只修改rotation，不修改position
+            chestBone.rotation.x = Math.sin(breatheTime * 2) * breatheIntensity * 0.3
           }
-          
+
           if (leftShoulder) {
-            leftShoulder.position.y = Math.sin(breatheTime * 2 + 0.2) * breatheIntensity * 0.5
+            // 只修改rotation，不修改position
+            leftShoulder.rotation.z = Math.sin(breatheTime * 2 + 0.2) * breatheIntensity * 0.3
           }
-          
+
           if (rightShoulder) {
-            rightShoulder.position.y = Math.sin(breatheTime * 2 + 0.2) * breatheIntensity * 0.5
+            // 只修改rotation，不修改position
+            rightShoulder.rotation.z = -Math.sin(breatheTime * 2 + 0.2) * breatheIntensity * 0.3
           }
         } catch (error) {
           // 忽略呼吸动画错误
@@ -2465,23 +2468,23 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
                 }
                 break
               case 'shoulderShrug':
-                // 耸肩
+                // 耸肩 - 只修改rotation，不修改position
                 const leftShoulder = vrmModel.humanoid.getNormalizedBoneNode('leftShoulder')
                 const rightShoulder = vrmModel.humanoid.getNormalizedBoneNode('rightShoulder')
                 if (leftShoulder && rightShoulder) {
-                  leftShoulder.position.y += 0.02
-                  rightShoulder.position.y += 0.02
+                  leftShoulder.rotation.z = 0.1
+                  rightShoulder.rotation.z = -0.1
                   setTimeout(() => {
-                    if (leftShoulder) leftShoulder.position.y -= 0.02
-                    if (rightShoulder) rightShoulder.position.y -= 0.02
+                    if (leftShoulder) leftShoulder.rotation.z = 0
+                    if (rightShoulder) rightShoulder.rotation.z = 0
                   }, 500)
                 }
                 break
               case 'weightShift':
-                // 重心转移
+                // 重心转移 - 只修改rotation，不修改position
                 const hips = vrmModel.humanoid.getNormalizedBoneNode('hips')
                 if (hips) {
-                  hips.position.x = Math.sin(Date.now() * 0.001) * 0.02
+                  hips.rotation.z = Math.sin(Date.now() * 0.001) * 0.02
                 }
                 break
             }
