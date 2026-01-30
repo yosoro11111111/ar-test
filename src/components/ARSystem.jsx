@@ -303,37 +303,37 @@ export const ARScene = ({ selectedFile }) => {
       {/* AR控制界面 */}
       <div style={{
         position: 'absolute',
-        bottom: '30px',
+        bottom: '20px',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 1000,
         width: '90%',
-        maxWidth: '350px'
+        maxWidth: '300px'
       }}>
         <button 
           onClick={() => setIsARMode(!isARMode)}
           style={{
-            padding: '18px 24px',
+            padding: '12px 20px',
             background: isARMode ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
             color: 'white',
             border: 'none',
-            borderRadius: '16px',
+            borderRadius: '12px',
             cursor: 'pointer',
-            fontSize: '18px',
-            fontWeight: '700',
+            fontSize: '14px',
+            fontWeight: '600',
             width: '100%',
-            boxShadow: isARMode ? '0 8px 25px rgba(239, 68, 68, 0.4)' : '0 8px 25px rgba(99, 102, 241, 0.4)',
+            boxShadow: isARMode ? '0 6px 20px rgba(239, 68, 68, 0.4)' : '0 6px 20px rgba(99, 102, 241, 0.4)',
             transition: 'all 0.3s ease',
             textTransform: 'uppercase',
             letterSpacing: '0.5px'
           }}
           onMouseEnter={(e) => {
             e.target.style.transform = 'translateY(-2px)'
-            e.target.style.boxShadow = isARMode ? '0 12px 30px rgba(239, 68, 68, 0.5)' : '0 12px 30px rgba(99, 102, 241, 0.5)'
+            e.target.style.boxShadow = isARMode ? '0 8px 25px rgba(239, 68, 68, 0.5)' : '0 8px 25px rgba(99, 102, 241, 0.5)'
           }}
           onMouseLeave={(e) => {
             e.target.style.transform = 'translateY(0)'
-            e.target.style.boxShadow = isARMode ? '0 8px 25px rgba(239, 68, 68, 0.4)' : '0 8px 25px rgba(99, 102, 241, 0.4)'
+            e.target.style.boxShadow = isARMode ? '0 6px 20px rgba(239, 68, 68, 0.4)' : '0 6px 20px rgba(99, 102, 241, 0.4)'
           }}
         >
           {isARMode ? '关闭AR模式' : '启动AR模式'}
@@ -344,26 +344,26 @@ export const ARScene = ({ selectedFile }) => {
             <button 
               onClick={() => setCameraFacingMode(prev => prev === 'environment' ? 'user' : 'environment')}
               style={{
-                marginTop: '16px',
-                padding: '14px 20px',
+                marginTop: '12px',
+                padding: '10px 16px',
                 background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
                 color: 'white',
                 border: 'none',
-                borderRadius: '12px',
+                borderRadius: '10px',
                 cursor: 'pointer',
-                fontSize: '16px',
+                fontSize: '12px',
                 fontWeight: '600',
                 width: '100%',
-                boxShadow: '0 6px 20px rgba(59, 130, 246, 0.4)',
+                boxShadow: '0 4px 15px rgba(59, 130, 246, 0.4)',
                 transition: 'all 0.3s ease'
               }}
               onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-2px)'
-                e.target.style.boxShadow = '0 8px 25px rgba(59, 130, 246, 0.5)'
+                e.target.style.transform = 'translateY(-1px)'
+                e.target.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.5)'
               }}
               onMouseLeave={(e) => {
                 e.target.style.transform = 'translateY(0)'
-                e.target.style.boxShadow = '0 6px 20px rgba(59, 130, 246, 0.4)'
+                e.target.style.boxShadow = '0 4px 15px rgba(59, 130, 246, 0.4)'
               }}
             >
               {cameraFacingMode === 'environment' ? '切换到前置摄像头' : '切换到后置摄像头'}
@@ -371,25 +371,25 @@ export const ARScene = ({ selectedFile }) => {
 
             {/* 拍照录像控制 */}
             <div style={{
-              marginTop: '20px',
+              marginTop: '16px',
               display: 'flex',
-              gap: '16px',
+              gap: '12px',
               justifyContent: 'center'
             }}>
               <button
                 onClick={takePhoto}
                 style={{
-                  padding: '16px',
+                  padding: '12px',
                   background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '50%',
                   cursor: 'pointer',
-                  fontSize: '20px',
+                  fontSize: '16px',
                   fontWeight: '600',
-                  width: '70px',
-                  height: '70px',
-                  boxShadow: '0 8px 25px rgba(16, 185, 129, 0.4)',
+                  width: '50px',
+                  height: '50px',
+                  boxShadow: '0 6px 20px rgba(16, 185, 129, 0.4)',
                   transition: 'all 0.3s ease',
                   display: 'flex',
                   alignItems: 'center',
@@ -397,11 +397,11 @@ export const ARScene = ({ selectedFile }) => {
                 }}
                 onMouseEnter={(e) => {
                   e.target.style.transform = 'scale(1.1)'
-                  e.target.style.boxShadow = '0 12px 30px rgba(16, 185, 129, 0.5)'
+                  e.target.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.5)'
                 }}
                 onMouseLeave={(e) => {
                   e.target.style.transform = 'scale(1)'
-                  e.target.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.4)'
+                  e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.4)'
                 }}
               >
                 📷
@@ -409,17 +409,17 @@ export const ARScene = ({ selectedFile }) => {
               <button
                 onClick={isRecording ? stopRecording : startRecording}
                 style={{
-                  padding: '16px',
+                  padding: '12px',
                   background: isRecording ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '50%',
                   cursor: 'pointer',
-                  fontSize: '20px',
+                  fontSize: '16px',
                   fontWeight: '600',
-                  width: '70px',
-                  height: '70px',
-                  boxShadow: isRecording ? '0 8px 25px rgba(239, 68, 68, 0.4)' : '0 8px 25px rgba(245, 158, 11, 0.4)',
+                  width: '50px',
+                  height: '50px',
+                  boxShadow: isRecording ? '0 6px 20px rgba(239, 68, 68, 0.4)' : '0 6px 20px rgba(245, 158, 11, 0.4)',
                   transition: 'all 0.3s ease',
                   display: 'flex',
                   alignItems: 'center',
@@ -427,11 +427,11 @@ export const ARScene = ({ selectedFile }) => {
                 }}
                 onMouseEnter={(e) => {
                   e.target.style.transform = 'scale(1.1)'
-                  e.target.style.boxShadow = isRecording ? '0 12px 30px rgba(239, 68, 68, 0.5)' : '0 12px 30px rgba(245, 158, 11, 0.5)'
+                  e.target.style.boxShadow = isRecording ? '0 8px 25px rgba(239, 68, 68, 0.5)' : '0 8px 25px rgba(245, 158, 11, 0.5)'
                 }}
                 onMouseLeave={(e) => {
                   e.target.style.transform = 'scale(1)'
-                  e.target.style.boxShadow = isRecording ? '0 8px 25px rgba(239, 68, 68, 0.4)' : '0 8px 25px rgba(245, 158, 11, 0.4)'
+                  e.target.style.boxShadow = isRecording ? '0 6px 20px rgba(239, 68, 68, 0.4)' : '0 6px 20px rgba(245, 158, 11, 0.4)'
                 }}
               >
                 {isRecording ? '⏹️' : '🎥'}
@@ -441,15 +441,15 @@ export const ARScene = ({ selectedFile }) => {
             {/* 录像时间显示 */}
             {isRecording && (
               <div style={{
-                marginTop: '16px',
+                marginTop: '12px',
                 background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                 color: 'white',
-                padding: '12px 20px',
-                borderRadius: '12px',
-                fontSize: '16px',
-                fontWeight: '700',
+                padding: '8px 16px',
+                borderRadius: '10px',
+                fontSize: '12px',
+                fontWeight: '600',
                 textAlign: 'center',
-                boxShadow: '0 6px 20px rgba(239, 68, 68, 0.4)',
+                boxShadow: '0 4px 15px rgba(239, 68, 68, 0.4)',
                 animation: 'pulse 2s infinite'
               }}>
                 📹 录制中: {formatTime(recordingTime)}
@@ -459,12 +459,12 @@ export const ARScene = ({ selectedFile }) => {
         )}
         
         <div style={{
-          marginTop: '16px',
+          marginTop: '12px',
           background: 'rgba(15, 23, 42, 0.8)',
           color: 'white',
-          padding: '12px',
-          borderRadius: '12px',
-          fontSize: '14px',
+          padding: '8px',
+          borderRadius: '10px',
+          fontSize: '12px',
           textAlign: 'center',
           backdropFilter: 'blur(10px)',
           border: '1px solid rgba(255, 255, 255, 0.1)',
