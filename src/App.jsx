@@ -885,7 +885,7 @@ function App() {
           bottom: 0,
           zIndex: 100
         }}>
-          <ARScene modelFile={selectedFile} />
+          <ARScene selectedFile={selectedFile} />
         </div>
       )}
     </div>
