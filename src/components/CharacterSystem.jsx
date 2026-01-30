@@ -13,6 +13,10 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const [animationMixer, setAnimationMixer] = useState(null)
   const [vrmModel, setVrmModel] = useState(null)
   const [showFileInput, setShowFileInput] = useState(true)
+  const [animations, setAnimations] = useState([])
+  const [currentAnimation, setCurrentAnimation] = useState(null)
+  const [showAnimationSelect, setShowAnimationSelect] = useState(false)
+  const [scale, setScale] = useState(0.5) // 默认缩放比例
   const loader = useRef(null)
 
   // 初始化加载器
@@ -34,7 +38,13 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const loadVRMModel = (file) => {
     try {
       setIsLoading(true)
-      console.log('开始加载模型文件:', file.name, '大小:', (file.size / 1024 / 1024).toFixed(2), 'MB')
+      
+      // 检查是否是本地模型
+      if (file.localPath) {
+        console.log('开始加载本地模型:', file.name, '路径:', file.localPath)
+      } else {
+        console.log('开始加载模型文件:', file.name, '大小:', (file.size / 1024 / 1024).toFixed(2), 'MB')
+      }
       
       // 清理之前的模型
       if (characterModel) {
@@ -46,27 +56,40 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         }
       }
       
-      // 检查文件大小，避免加载过大的模型
-      if (file.size > 100 * 1024 * 1024) { // 100MB限制
-        console.error('模型文件过大，可能导致性能问题')
-        setIsLoading(false)
-        return
+      // 确定模型URL
+      let modelUrl
+      if (file.localPath) {
+        // 本地模型路径
+        modelUrl = file.localPath
+      } else {
+        // 检查文件大小，避免加载过大的模型
+        if (file.size > 100 * 1024 * 1024) { // 100MB限制
+          console.error('模型文件过大，可能导致性能问题')
+          setIsLoading(false)
+          return
+        }
+        
+        // 创建blob URL
+        modelUrl = URL.createObjectURL(file)
+        console.log('创建模型URL:', modelUrl)
       }
       
-      // 创建blob URL
-      const blobUrl = URL.createObjectURL(file)
-      console.log('创建模型URL:', blobUrl)
-      
-      // 直接使用URL.createObjectURL，不需要FileReader
+      // 加载模型
       loader.current.load(
-        blobUrl,
+        modelUrl,
         (gltf) => {
           try {
             console.log('GLTF加载完成:', gltf)
             
-            // 清理blob URL
-            URL.revokeObjectURL(blobUrl)
-            console.log('清理模型URL成功')
+            // 清理blob URL（如果是文件对象创建的）
+            if (!file.localPath) {
+              try {
+                URL.revokeObjectURL(modelUrl)
+                console.log('清理模型URL成功')
+              } catch (revokeError) {
+                console.error('清理模型URL失败:', revokeError)
+              }
+            }
             
             // 检查VRM实例是否存在
             const vrm = gltf.userData.vrm
@@ -76,7 +99,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
               try {
                 gltf.scene.position.set(...position)
                 gltf.scene.rotation.set(...rotation.map(r => r * Math.PI / 180))
-                gltf.scene.scale.set(0.5, 0.5, 0.5)
+                gltf.scene.scale.set(scale, scale, scale)
                 scene.add(gltf.scene)
                 characterRef.current = gltf.scene
                 setCharacterModel(gltf.scene)
@@ -84,6 +107,15 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
                 // 初始化动画混合器
                 const mixer = new THREE.AnimationMixer(gltf.scene)
                 setAnimationMixer(mixer)
+                
+                // 提取动画
+                if (gltf.animations && gltf.animations.length > 0) {
+                  console.log('发现动画:', gltf.animations.length, '个')
+                  setAnimations(gltf.animations.map((anim, index) => ({
+                    name: anim.name || `动画 ${index + 1}`,
+                    animation: anim
+                  })))
+                }
                 console.log('普通GLTF模型加载完成')
               } catch (error) {
                 console.error('加载普通GLTF模型失败:', error)
@@ -93,19 +125,28 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
               setVrmModel(vrm)
               
               // 设置角色位置和旋转
-              try {
-                vrm.scene.position.set(...position)
-                vrm.scene.rotation.set(...rotation.map(r => r * Math.PI / 180))
-                vrm.scene.scale.set(0.5, 0.5, 0.5)
-                
-                // 添加到场景
-                scene.add(vrm.scene)
-                characterRef.current = vrm.scene
-                setCharacterModel(vrm.scene)
+                try {
+                  vrm.scene.position.set(...position)
+                  vrm.scene.rotation.set(...rotation.map(r => r * Math.PI / 180))
+                  vrm.scene.scale.set(scale, scale, scale)
+                  
+                  // 添加到场景
+                  scene.add(vrm.scene)
+                  characterRef.current = vrm.scene
+                  setCharacterModel(vrm.scene)
                 
                 // 初始化动画混合器
                 const mixer = new THREE.AnimationMixer(vrm.scene)
                 setAnimationMixer(mixer)
+                
+                // 提取动画
+                if (gltf.animations && gltf.animations.length > 0) {
+                  console.log('发现动画:', gltf.animations.length, '个')
+                  setAnimations(gltf.animations.map((anim, index) => ({
+                    name: anim.name || `动画 ${index + 1}`,
+                    animation: anim
+                  })))
+                }
                 console.log('VRM模型加载完成')
               } catch (error) {
                 console.error('设置VRM模型属性失败:', error)
@@ -116,11 +157,13 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
             console.log('模型加载完成，已添加到场景')
           } catch (error) {
             console.error('处理加载完成的模型失败:', error)
-            // 清理blob URL
-            try {
-              URL.revokeObjectURL(blobUrl)
-            } catch (revokeError) {
-              console.error('清理模型URL失败:', revokeError)
+            // 清理blob URL（如果是文件对象创建的）
+            if (!file.localPath) {
+              try {
+                URL.revokeObjectURL(modelUrl)
+              } catch (revokeError) {
+                console.error('清理模型URL失败:', revokeError)
+              }
             }
             setIsLoading(false)
           }
@@ -134,12 +177,14 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         },
         (error) => {
           console.error('模型加载失败:', error)
-          // 清理blob URL
-          try {
-            URL.revokeObjectURL(blobUrl)
-            console.log('清理模型URL成功')
-          } catch (revokeError) {
-            console.error('清理模型URL失败:', revokeError)
+          // 清理blob URL（如果是文件对象创建的）
+          if (!file.localPath) {
+            try {
+              URL.revokeObjectURL(modelUrl)
+              console.log('清理模型URL成功')
+            } catch (revokeError) {
+              console.error('清理模型URL失败:', revokeError)
+            }
           }
           setIsLoading(false)
         }
@@ -170,6 +215,94 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     }
   }
 
+  // 预设动作列表
+  const presetAnimations = [
+    { name: ' idle', action: 'idle' },
+    { name: ' wave', action: 'wave' },
+    { name: ' dance', action: 'dance' },
+    { name: ' jump', action: 'jump' },
+    { name: ' sit', action: 'sit' }
+  ]
+
+  // 播放动画
+  const playAnimation = (animation) => {
+    if (!animationMixer) {
+      console.error('动画混合器未初始化')
+      return
+    }
+
+    try {
+      // 停止当前动画
+      if (currentAnimation) {
+        currentAnimation.stop()
+      }
+
+      // 播放新动画
+      const clipAction = animationMixer.clipAction(animation.animation)
+      clipAction.play()
+      setCurrentAnimation(clipAction)
+      console.log('播放动画:', animation.name)
+    } catch (error) {
+      console.error('播放动画失败:', error)
+    }
+  }
+
+  // 执行预设动作
+  const executePresetAction = (actionName) => {
+    console.log('执行预设动作:', actionName)
+    
+    // 根据动作名称执行不同的操作
+    switch (actionName) {
+      case 'idle':
+        // 恢复到 idle 状态
+        if (currentAnimation) {
+          currentAnimation.stop()
+          setCurrentAnimation(null)
+        }
+        break
+      case 'wave':
+        // 模拟挥手动作
+        if (characterRef.current) {
+          // 这里可以添加简单的挥手动画逻辑
+          console.log('执行挥手动作')
+        }
+        break
+      case 'dance':
+        // 模拟跳舞动作
+        if (characterRef.current) {
+          console.log('执行跳舞动作')
+        }
+        break
+      case 'jump':
+        // 模拟跳跃动作
+        if (characterRef.current) {
+          console.log('执行跳跃动作')
+        }
+        break
+      case 'sit':
+        // 模拟坐下动作
+        if (characterRef.current) {
+          console.log('执行坐下动作')
+        }
+        break
+      default:
+        console.log('未知动作:', actionName)
+    }
+  }
+
+  // 缩放控制
+  const handleScaleChange = (delta) => {
+    const newScale = Math.max(0.1, Math.min(2, scale + delta))
+    setScale(newScale)
+    
+    // 更新模型缩放
+    if (characterRef.current) {
+      characterRef.current.scale.set(newScale, newScale, newScale)
+    }
+    
+    console.log('模型缩放:', newScale)
+  }
+
   // 动画更新
   useFrame((state, delta) => {
     try {
@@ -198,6 +331,171 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
           <boxGeometry args={[0.5, 0.5, 0.5]} />
           <meshBasicMaterial color="#646cff" />
         </mesh>
+      )}
+
+      {/* 动作选择控制界面 */}
+      {characterModel && (
+        <div style={{
+          position: 'absolute',
+          bottom: '100px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 1000,
+          width: '90%',
+          maxWidth: '400px'
+        }}>
+          <button
+            onClick={() => setShowAnimationSelect(!showAnimationSelect)}
+            style={{
+              padding: '12px 20px',
+              background: '#646cff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              fontWeight: '600',
+              width: '100%',
+              boxShadow: '0 4px 15px rgba(100, 108, 255, 0.4)',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            {showAnimationSelect ? '关闭动作选择' : '选择动作'}
+          </button>
+
+          {showAnimationSelect && (
+            <div style={{
+              marginTop: '12px',
+              background: 'rgba(0, 0, 0, 0.8)',
+              color: 'white',
+              padding: '16px',
+              borderRadius: '12px',
+              boxShadow: '0 4px 15px rgba(0, 0, 0, 0.4)'
+            }}>
+              <h4 style={{ margin: '0 0 12px 0', color: '#646cff' }}>预设动作</h4>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
+                gap: '8px',
+                marginBottom: '16px'
+              }}>
+                {presetAnimations.map((anim, index) => (
+                  <button
+                    key={index}
+                    onClick={() => executePresetAction(anim.action)}
+                    style={{
+                      padding: '8px',
+                      background: 'rgba(100, 108, 255, 0.2)',
+                      color: 'white',
+                      border: '2px solid rgba(100, 108, 255, 0.5)',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '500',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    {anim.name}
+                  </button>
+                ))}
+              </div>
+
+              {animations.length > 0 && (
+                <>
+                  <h4 style={{ margin: '0 0 12px 0', color: '#646cff' }}>模型动画</h4>
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+                    gap: '8px',
+                    marginBottom: '16px'
+                  }}>
+                    {animations.map((anim, index) => (
+                      <button
+                        key={index}
+                        onClick={() => playAnimation(anim)}
+                        style={{
+                          padding: '8px',
+                          background: 'rgba(16, 185, 129, 0.2)',
+                          color: 'white',
+                          border: '2px solid rgba(16, 185, 129, 0.5)',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          fontSize: '14px',
+                          fontWeight: '500',
+                          transition: 'all 0.3s ease',
+                          wordBreak: 'break-word'
+                        }}
+                      >
+                        {anim.name}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* 缩放控制 */}
+              <div style={{
+                marginTop: '16px',
+                paddingTop: '16px',
+                borderTop: '1px solid rgba(255, 255, 255, 0.2)'
+              }}>
+                <h4 style={{ margin: '0 0 12px 0', color: '#646cff' }}>模型缩放</h4>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px'
+                }}>
+                  <button
+                    onClick={() => handleScaleChange(-0.1)}
+                    style={{
+                      padding: '8px 16px',
+                      background: 'rgba(239, 68, 68, 0.2)',
+                      color: 'white',
+                      border: '2px solid rgba(239, 68, 68, 0.5)',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    −
+                  </button>
+                  <div style={{
+                    flex: 1,
+                    padding: '8px 16px',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    color: 'white',
+                    border: '2px solid rgba(255, 255, 255, 0.2)',
+                    borderRadius: '8px',
+                    textAlign: 'center',
+                    fontSize: '16px',
+                    fontWeight: '600'
+                  }}>
+                    {Math.round(scale * 100)}%
+                  </div>
+                  <button
+                    onClick={() => handleScaleChange(0.1)}
+                    style={{
+                      padding: '8px 16px',
+                      background: 'rgba(16, 185, 129, 0.2)',
+                      color: 'white',
+                      border: '2px solid rgba(16, 185, 129, 0.5)',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '16px',
+                      fontWeight: '600',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </>
   )
