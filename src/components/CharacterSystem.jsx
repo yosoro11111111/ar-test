@@ -504,6 +504,8 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const [touchPosition, setTouchPosition] = useState(new THREE.Vector3())
   const loader = useRef(null)
   const dragControls = useRef(null)
+  const loadRetryCount = useRef(0)
+  const maxRetries = 3
   
   // 骨骼动画系统引用
   const boneAnimationRef = useRef(null)
@@ -597,9 +599,14 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const [touchFeedback, setTouchFeedback] = useState({ show: false, x: 0, y: 0 })
 
   useEffect(() => {
-    loader.current = new GLTFLoader()
-    loader.current.register((parser) => new VRMLoaderPlugin(parser))
-    loader.current.setCrossOrigin('anonymous')
+    try {
+      loader.current = new GLTFLoader()
+      loader.current.register((parser) => new VRMLoaderPlugin(parser))
+      loader.current.setCrossOrigin('anonymous')
+      console.log('GLTFLoader 初始化成功')
+    } catch (error) {
+      console.error('GLTFLoader 初始化失败:', error)
+    }
   }, [])
 
   useEffect(() => {
@@ -759,6 +766,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
             }
             setIsLoading(false)
             setLoadingProgress(0)
+            loadRetryCount.current = 0 // 重置重试计数器
           }
         },
         (progress) => {
@@ -778,14 +786,38 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
               console.error('清理模型URL失败:', revokeError)
             }
           }
-          setIsLoading(false)
-          setLoadingProgress(0)
+          
+          // 重试机制
+          if (loadRetryCount.current < maxRetries) {
+            loadRetryCount.current++
+            console.log(`模型加载失败，第 ${loadRetryCount.current} 次重试...`)
+            setTimeout(() => {
+              loadVRMModel(file)
+            }, 1000 * loadRetryCount.current)
+          } else {
+            console.error('模型加载失败，已达到最大重试次数')
+            setIsLoading(false)
+            setLoadingProgress(0)
+            loadRetryCount.current = 0
+          }
         }
       )
     } catch (error) {
       console.error('模型加载初始化失败:', error)
-      setIsLoading(false)
-      setLoadingProgress(0)
+      
+      // 重试机制
+      if (loadRetryCount.current < maxRetries) {
+        loadRetryCount.current++
+        console.log(`模型加载初始化失败，第 ${loadRetryCount.current} 次重试...`)
+        setTimeout(() => {
+          loadVRMModel(file)
+        }, 1000 * loadRetryCount.current)
+      } else {
+        console.error('模型加载初始化失败，已达到最大重试次数')
+        setIsLoading(false)
+        setLoadingProgress(0)
+        loadRetryCount.current = 0
+      }
     }
   }
 
