@@ -610,6 +610,14 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     try {
       setIsLoading(true)
       
+      // 调试日志
+      console.log('loadVRMModel 被调用:', file)
+      console.log('file 类型:', typeof file)
+      console.log('file.constructor:', file?.constructor?.name)
+      console.log('file.localPath:', file?.localPath)
+      console.log('file.name:', file?.name)
+      console.log('file.size:', file?.size)
+      
       if (file.localPath) {
         console.log('开始加载本地模型:', file.name, '路径:', file.localPath)
       } else {
@@ -628,10 +636,13 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       let modelUrl
       const isLocalFile = !!file.localPath
       
+      console.log('isLocalFile:', isLocalFile)
+      
       if (isLocalFile) {
         modelUrl = file.localPath
         console.log('使用本地模型路径:', modelUrl)
       } else {
+        console.log('使用 createObjectURL 创建模型 URL')
         // 检查文件大小（仅对上传的文件）
         const fileSize = file.size || 0
         
