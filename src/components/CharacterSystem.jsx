@@ -872,6 +872,10 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
               console.log('VRM.humanoid:', vrm.humanoid)
               setVrmModel(vrm)
               
+              // 将 vrm 模型暴露到 window，供移动端骨骼编辑器使用
+              window.vrmModels = window.vrmModels || {}
+              window.vrmModels[selectedFile] = vrm
+              
               vrm.scene.position.set(0, 0, 0)
               vrm.scene.rotation.set(0, Math.PI, 0) // 旋转180度，让模型面对用户
               vrm.scene.scale.set(1, 1, 1)
