@@ -681,12 +681,17 @@ const Notification = ({ message, type = 'info', onClose }) => {
 }
 
 // ==================== 9. 3D场景内容 ====================
-const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionIntensity }) => {
+const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionIntensity, isARMode }) => {
   return (
     <>
-      <ParticleField />
-      <DynamicBackground />
-      <FloatingDecorations />
+      {/* AR模式下不显示背景特效，避免挡住摄像头画面 */}
+      {!isARMode && (
+        <>
+          <ParticleField />
+          <DynamicBackground />
+          <FloatingDecorations />
+        </>
+      )}
       
       {/* 渲染所有已加载的角色 */}
       {characters.map((character, index) => {
@@ -1126,7 +1131,8 @@ export const ARScene = ({ selectedFile }) => {
           width: '100vw',
           height: '100vh',
           zIndex: 0,
-          backgroundColor: '#000'
+          backgroundColor: '#000',
+          overflow: 'hidden'
         }}>
           <video
             ref={videoRef}
@@ -1135,10 +1141,19 @@ export const ARScene = ({ selectedFile }) => {
             muted
             webkit-playsinline="true"
             x5-playsinline="true"
+            disablePictureInPicture
+            disableRemotePlayback
             style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover'
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              minWidth: '100%',
+              minHeight: '100%',
+              width: 'auto',
+              height: 'auto',
+              transform: 'translate(-50%, -50%)',
+              objectFit: 'cover',
+              display: 'block'
             }}
           />
         </div>
@@ -1165,6 +1180,7 @@ export const ARScene = ({ selectedFile }) => {
             selectedCharacterIndex={selectedCharacterIndex}
             characterScale={characterScale}
             actionIntensity={actionIntensity}
+            isARMode={isARMode}
           />
           
           {/* OrbitControls - 移动端始终启用，AR模式下也可以调整模型位置 */}
