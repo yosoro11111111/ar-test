@@ -10,7 +10,6 @@ function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
   const [modelUrl, setModelUrl] = useState(null)
-  const [renderMode, setRenderMode] = useState('ar') // 'ar' 或 'model-viewer'
   const [localModels, setLocalModels] = useState([])
   const [showLocalModels, setShowLocalModels] = useState(false)
   const fileInputRef = useRef(null)
@@ -52,12 +51,6 @@ function App() {
       }
     }
   }, [modelUrl])
-
-  // 切换渲染模式
-  const toggleRenderMode = () => {
-    setRenderMode(prevMode => prevMode === 'ar' ? 'model-viewer' : 'ar')
-    console.log('切换渲染模式到:', renderMode === 'ar' ? 'model-viewer' : 'ar')
-  }
 
   // 处理本地模型选择
   const handleLocalModelSelect = (model) => {
@@ -240,27 +233,27 @@ function App() {
           <button
             onClick={openModelSelect}
             style={{
-              padding: '16px 24px',
+              padding: '12px 20px',
               background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
               color: 'white',
               border: 'none',
-              borderRadius: '12px',
+              borderRadius: '10px',
               cursor: 'pointer',
-              fontSize: '16px',
+              fontSize: '14px',
               fontWeight: '600',
               width: '100%',
-              boxShadow: '0 8px 25px rgba(16, 185, 129, 0.4)',
+              boxShadow: '0 6px 20px rgba(16, 185, 129, 0.4)',
               transition: 'all 0.3s ease',
               textTransform: 'uppercase',
               letterSpacing: '0.5px'
             }}
             onMouseEnter={(e) => {
               e.target.style.transform = 'translateY(-2px)'
-              e.target.style.boxShadow = '0 12px 30px rgba(16, 185, 129, 0.5)'
+              e.target.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.5)'
             }}
             onMouseLeave={(e) => {
               e.target.style.transform = 'translateY(0)'
-              e.target.style.boxShadow = '0 8px 25px rgba(16, 185, 129, 0.4)'
+              e.target.style.boxShadow = '0 6px 20px rgba(16, 185, 129, 0.4)'
             }}
           >
             从本地模型库选择
@@ -307,24 +300,24 @@ function App() {
             <button
               onClick={closeModelSelect}
               style={{
-                padding: '10px 20px',
+                padding: '8px 16px',
                 background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
                 color: 'white',
                 border: 'none',
-                borderRadius: '10px',
+                borderRadius: '8px',
                 cursor: 'pointer',
-                fontSize: '14px',
+                fontSize: '12px',
                 fontWeight: '600',
-                boxShadow: '0 4px 15px rgba(239, 68, 68, 0.4)',
+                boxShadow: '0 3px 12px rgba(239, 68, 68, 0.4)',
                 transition: 'all 0.3s ease'
               }}
               onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-2px)'
-                e.target.style.boxShadow = '0 6px 20px rgba(239, 68, 68, 0.5)'
+                e.target.style.transform = 'translateY(-1px)'
+                e.target.style.boxShadow = '0 5px 16px rgba(239, 68, 68, 0.5)'
               }}
               onMouseLeave={(e) => {
                 e.target.style.transform = 'translateY(0)'
-                e.target.style.boxShadow = '0 4px 15px rgba(239, 68, 68, 0.4)'
+                e.target.style.boxShadow = '0 3px 12px rgba(239, 68, 68, 0.4)'
               }}
             >
               关闭
@@ -346,43 +339,43 @@ function App() {
                   key={index}
                   onClick={() => handleSelectLocalModel(model)}
                   style={{
-                    padding: '16px',
+                    padding: '12px',
                     background: 'rgba(96, 165, 250, 0.15)',
                     color: 'white',
                     border: '2px solid rgba(96, 165, 250, 0.4)',
-                    borderRadius: '12px',
+                    borderRadius: '10px',
                     cursor: 'pointer',
-                    fontSize: '14px',
+                    fontSize: '12px',
                     fontWeight: '600',
                     transition: 'all 0.3s ease',
                     textAlign: 'center',
-                    minHeight: '90px',
+                    minHeight: '70px',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'center',
-                    boxShadow: '0 4px 15px rgba(0, 0, 0, 0.2)',
+                    boxShadow: '0 3px 12px rgba(0, 0, 0, 0.2)',
                     position: 'relative',
                     overflow: 'hidden'
                   }}
                   onMouseEnter={(e) => {
                     e.target.style.background = 'rgba(96, 165, 250, 0.3)'
-                    e.target.style.transform = 'scale(1.08)'
-                    e.target.style.boxShadow = '0 8px 25px rgba(96, 165, 250, 0.4)'
+                    e.target.style.transform = 'scale(1.05)'
+                    e.target.style.boxShadow = '0 6px 20px rgba(96, 165, 250, 0.4)'
                   }}
                   onMouseLeave={(e) => {
                     e.target.style.background = 'rgba(96, 165, 250, 0.15)'
                     e.target.style.transform = 'scale(1)'
-                    e.target.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.2)'
+                    e.target.style.boxShadow = '0 3px 12px rgba(0, 0, 0, 0.2)'
                   }}
                 >
                   <div style={{
                     position: 'absolute',
-                    top: '-10px',
-                    right: '-10px',
-                    fontSize: '10px',
+                    top: '-8px',
+                    right: '-8px',
+                    fontSize: '8px',
                     background: 'rgba(96, 165, 250, 0.2)',
-                    padding: '4px 8px',
-                    borderRadius: '8px',
+                    padding: '3px 6px',
+                    borderRadius: '6px',
                     color: '#93c5fd'
                   }}>Model {index + 1}</div>
                   <div style={{
@@ -444,48 +437,9 @@ function App() {
         </div>
       )}
 
-      {/* 模式切换按钮 */}
-      {!showFileInput && !isLoading && (
-        <button
-          onClick={toggleRenderMode}
-          style={{
-            position: 'absolute',
-            top: '20px',
-            right: '20px',
-            padding: '14px 20px',
-            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '600',
-            zIndex: 1000,
-            boxShadow: '0 8px 25px rgba(99, 102, 241, 0.4)',
-            transition: 'all 0.3s ease',
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.transform = 'translateY(-2px)'
-            e.target.style.boxShadow = '0 12px 30px rgba(99, 102, 241, 0.5)'
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.transform = 'translateY(0)'
-            e.target.style.boxShadow = '0 8px 25px rgba(99, 102, 241, 0.4)'
-          }}
-        >
-          切换到{renderMode === 'ar' ? 'Model Viewer' : 'AR模式'}
-        </button>
-      )}
-      
       {/* 渲染内容 */}
       {!showFileInput && !isLoading && (
-        renderMode === 'ar' ? (
-          <ARScene selectedFile={selectedFile} />
-        ) : (
-          <ModelViewer modelUrl={modelUrl} />
-        )
+        <ARScene selectedFile={selectedFile} />
       )}
     </div>
   )
