@@ -6,7 +6,7 @@ import { VRM, VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { DragControls } from 'three/examples/jsm/controls/DragControls'
 
 // 角色系统组件
-const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null }) => {
+const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null }) => {
   const { scene, gl } = useThree()
   const characterRef = useRef(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -161,6 +161,13 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
                 // 初始化拖动控制
                 initDragControls()
                 
+                // 尝试设置模型初始姿态为站立
+                if (vrm.humanoid) {
+                  console.log('VRM人形骨骼存在，尝试设置初始姿态')
+                  // 这里可以设置具体的骨骼姿态
+                  // 例如：vrm.humanoid.getBoneNode('Head').rotation.set(0, 0, 0)
+                }
+                
                 console.log('VRM模型加载完成')
               } catch (error) {
                 console.error('设置VRM模型属性失败:', error)
@@ -277,30 +284,118 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       case 'wave':
         // 模拟挥手动作
         if (characterRef.current) {
-          // 这里可以添加简单的挥手动画逻辑
           console.log('执行挥手动作')
+          // 添加明显的挥手动画
+          const originalPosition = characterRef.current.position.clone()
+          let waveCount = 0
+          const waveInterval = setInterval(() => {
+            if (waveCount < 3) {
+              // 大幅度挥手
+              characterRef.current.position.y = originalPosition.y + 0.3
+              setTimeout(() => {
+                characterRef.current.position.y = originalPosition.y
+              }, 200)
+              waveCount++
+            } else {
+              clearInterval(waveInterval)
+            }
+          }, 400)
         }
         break
       case 'dance':
         // 模拟跳舞动作
         if (characterRef.current) {
           console.log('执行跳舞动作')
+          // 添加明显的跳舞动画
+          const originalPosition = characterRef.current.position.clone()
+          let danceCount = 0
+          const danceInterval = setInterval(() => {
+            if (danceCount < 10) {
+              // 大幅度跳舞动作
+              if (danceCount % 2 === 0) {
+                characterRef.current.position.y = originalPosition.y + 0.5
+                characterRef.current.position.x = originalPosition.x + 0.2
+              } else {
+                characterRef.current.position.y = originalPosition.y
+                characterRef.current.position.x = originalPosition.x - 0.2
+              }
+              danceCount++
+            } else {
+              characterRef.current.position.set(originalPosition.x, originalPosition.y, originalPosition.z)
+              clearInterval(danceInterval)
+            }
+          }, 300)
         }
         break
       case 'jump':
         // 模拟跳跃动作
         if (characterRef.current) {
           console.log('执行跳跃动作')
+          // 添加明显的跳跃动画
+          const originalPosition = characterRef.current.position.clone()
+          let jumpCount = 0
+          const jumpInterval = setInterval(() => {
+            if (jumpCount < 3) {
+              // 大幅度跳跃
+              characterRef.current.position.y = originalPosition.y + 0.8
+              setTimeout(() => {
+                characterRef.current.position.y = originalPosition.y
+              }, 400)
+              jumpCount++
+            } else {
+              clearInterval(jumpInterval)
+            }
+          }, 600)
         }
         break
       case 'sit':
         // 模拟坐下动作
         if (characterRef.current) {
           console.log('执行坐下动作')
+          // 添加明显的坐下动画
+          const originalPosition = characterRef.current.position.clone()
+          // 坐下
+          characterRef.current.position.y = originalPosition.y - 0.5
+          // 2秒后站起来
+          setTimeout(() => {
+            characterRef.current.position.y = originalPosition.y
+          }, 2000)
         }
         break
       default:
         console.log('未知动作:', actionName)
+    }
+  }
+
+  // 处理摆动动作
+  const handleSwing = (swingData) => {
+    if (!characterRef.current) return
+    
+    console.log('处理摆动动作:', swingData)
+    
+    const { swingX, swingY, swingZ } = swingData
+    const originalPosition = characterRef.current.position.clone()
+    const originalRotation = characterRef.current.rotation.clone()
+    
+    // 根据摆动幅度执行不同的动作
+    if (swingX > 1) {
+      // 左右摆动，执行挥手动作
+      characterRef.current.rotation.y = originalRotation.y + (swingX * 0.1)
+      setTimeout(() => {
+        characterRef.current.rotation.y = originalRotation.y
+      }, 300)
+    } else if (swingY > 1) {
+      // 上下摆动，执行跳跃动作
+      characterRef.current.position.y = originalPosition.y + 0.5
+      setTimeout(() => {
+        characterRef.current.position.y = originalPosition.y
+      }, 400)
+    } else if (swingZ > 1) {
+      // 旋转摆动，执行跳舞动作
+      characterRef.current.rotation.z = originalRotation.z + (swingZ * 0.1)
+      setTimeout(() => {
+        characterRef.current.rotation.z = originalRotation.z
+      }, 300)
     }
   }
 
@@ -352,6 +447,27 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     }
   }, [])
 
+  // 监听摆动事件
+  useEffect(() => {
+    const handleSwingEvent = (event) => {
+      const swingData = event.detail
+      handleSwing(swingData)
+    }
+
+    // 监听动作执行事件
+    const handleExecuteAction = (event) => {
+      const { actionName } = event.detail
+      executePresetAction(actionName)
+    }
+
+    window.addEventListener('swingDetected', handleSwingEvent)
+    window.addEventListener('executeAction', handleExecuteAction)
+    return () => {
+      window.removeEventListener('swingDetected', handleSwingEvent)
+      window.removeEventListener('executeAction', handleExecuteAction)
+    }
+  }, [])
+
   // 动画更新
   useFrame((state, delta) => {
     try {
@@ -381,6 +497,141 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
           <meshBasicMaterial color="#646cff" />
         </mesh>
       )}
+      
+      {/* 外部UI控件 */}
+      <div style={{
+        position: 'fixed',
+        bottom: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 1000,
+        width: '90%',
+        maxWidth: '400px'
+      }}>
+        {/* 动作选择界面 */}
+        <div style={{
+          background: 'rgba(15, 23, 42, 0.95)',
+          padding: '12px',
+          borderRadius: '12px',
+          boxShadow: '0 6px 20px rgba(0, 0, 0, 0.3)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          marginBottom: '12px'
+        }}>
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            justifyContent: 'center',
+            flexWrap: 'wrap'
+          }}>
+            {presetAnimations.map((anim, index) => (
+              <button
+                key={index}
+                onClick={() => executePresetAction(anim.action)}
+                style={{
+                  padding: '8px 12px',
+                  background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.4)',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = 'scale(1.05)'
+                  e.target.style.boxShadow = '0 6px 16px rgba(99, 102, 241, 0.5)'
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'scale(1)'
+                  e.target.style.boxShadow = '0 4px 12px rgba(99, 102, 241, 0.4)'
+                }}
+              >
+                {anim.name}
+              </button>
+            ))}
+          </div>
+        </div>
+        
+        {/* 缩放控制界面 */}
+        <div style={{
+          background: 'rgba(15, 23, 42, 0.95)',
+          padding: '12px',
+          borderRadius: '12px',
+          boxShadow: '0 6px 20px rgba(0, 0, 0, 0.3)',
+          backdropFilter: 'blur(10px)',
+          border: '1px solid rgba(255, 255, 255, 0.1)'
+        }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px'
+          }}>
+            <button
+              onClick={() => handleScaleChange(-0.1)}
+              style={{
+                padding: '8px 12px',
+                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '16px',
+                fontWeight: '600',
+                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'scale(1.05)'
+                e.target.style.boxShadow = '0 6px 16px rgba(239, 68, 68, 0.5)'
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'scale(1)'
+                e.target.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)'
+              }}
+            >
+              −
+            </button>
+            <div style={{
+              color: 'white',
+              fontSize: '14px',
+              fontWeight: '600',
+              minWidth: '60px',
+              textAlign: 'center'
+            }}>
+              大小: {(scale * 100).toFixed(0)}%
+            </div>
+            <button
+              onClick={() => handleScaleChange(0.1)}
+              style={{
+                padding: '8px 12px',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '16px',
+                fontWeight: '600',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.4)',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.transform = 'scale(1.05)'
+                e.target.style.boxShadow = '0 6px 16px rgba(16, 185, 129, 0.5)'
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.transform = 'scale(1)'
+                e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)'
+              }}
+            >
+              +
+            </button>
+          </div>
+        </div>
+      </div>
     </>
   )
 }
