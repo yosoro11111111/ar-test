@@ -633,11 +633,18 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         }
       }
       
+      // 检查 loader 是否已初始化
+      if (!loader.current) {
+        console.error('GLTFLoader 未初始化，等待初始化完成...')
+        setTimeout(() => loadVRMModel(file), 500)
+        return
+      }
+
       let modelUrl
       const isLocalFile = !!file.localPath
-      
+
       console.log('isLocalFile:', isLocalFile)
-      
+
       if (isLocalFile) {
         modelUrl = file.localPath
         console.log('使用本地模型路径:', modelUrl)
@@ -645,18 +652,19 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         console.log('使用 createObjectURL 创建模型 URL')
         // 检查文件大小（仅对上传的文件）
         const fileSize = file.size || 0
-        
+
         // 对于本地文件，跳过大小检查
         if (fileSize > 100 * 1024 * 1024) {
           console.error('模型文件过大，可能导致性能问题')
           setIsLoading(false)
           return
         }
-        
+
         modelUrl = URL.createObjectURL(file)
         console.log('创建模型URL:', modelUrl, '文件大小:', (fileSize / 1024 / 1024).toFixed(2), 'MB')
       }
-      
+
+      console.log('开始调用 loader.current.load...')
       loader.current.load(
         modelUrl,
         (gltf) => {
