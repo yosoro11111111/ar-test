@@ -502,6 +502,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const [currentAnimationClip, setCurrentAnimationClip] = useState(null)
   const [isTouching, setIsTouching] = useState(false)
   const [touchPosition, setTouchPosition] = useState(new THREE.Vector3())
+  const [canvasRotation, setCanvasRotation] = useState(0)
   const loader = useRef(null)
   const dragControls = useRef(null)
   const loadRetryCount = useRef(0)
@@ -517,6 +518,10 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const raycaster = useRef(new THREE.Raycaster())
   const mouse = useRef(new THREE.Vector2())
   const touchStartTime = useRef(0)
+  const longPressTimer = useRef(null)
+  const isLongPress = useRef(false)
+  const touchStartPos = useRef({ x: 0, y: 0 })
+  const [touchRipple, setTouchRipple] = useState({ show: false, x: 0, y: 0, scale: 0 })
   
   // 视线追踪系统
   const [lookAtTarget, setLookAtTarget] = useState(new THREE.Vector3(0, 1.5, 5))
@@ -1996,10 +2001,15 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const handleTouchStart = (event) => {
     event.stopPropagation()
     touchStartTime.current = Date.now()
+    isLongPress.current = false
     
     const rect = gl.domElement.getBoundingClientRect()
-    const x = ((event.clientX - rect.left) / rect.width) * 2 - 1
-    const y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+    const clientX = event.clientX || (event.touches && event.touches[0].clientX)
+    const clientY = event.clientY || (event.touches && event.touches[0].clientY)
+    const x = ((clientX - rect.left) / rect.width) * 2 - 1
+    const y = -((clientY - rect.top) / rect.height) * 2 + 1
+    
+    touchStartPos.current = { x: clientX, y: clientY }
     
     mouse.current.set(x, y)
     raycaster.current.setFromCamera(mouse.current, camera)
@@ -2011,24 +2021,56 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         setIsTouching(true)
         setTouchPosition(intersects[0].point)
         
-        setTouchFeedback({
+        // 显示触摸涟漪效果
+        setTouchRipple({
           show: true,
-          x: event.clientX,
-          y: event.clientY
+          x: clientX,
+          y: clientY,
+          scale: 0
         })
         
-        setTimeout(() => {
-          setTouchFeedback({ show: false, x: 0, y: 0 })
+        // 涟漪动画
+        let scale = 0
+        const rippleAnimation = setInterval(() => {
+          scale += 0.1
+          setTouchRipple(prev => ({ ...prev, scale }))
+          if (scale >= 1.5) {
+            clearInterval(rippleAnimation)
+            setTimeout(() => {
+              setTouchRipple({ show: false, x: 0, y: 0, scale: 0 })
+            }, 200)
+          }
+        }, 30)
+        
+        // 设置长按定时器（500ms）
+        longPressTimer.current = setTimeout(() => {
+          isLongPress.current = true
+          // 长按触发特殊动作
+          if (vrmModel && vrmModel.expressionManager) {
+            vrmModel.expressionManager.setValue('happy', 1)
+            // 触发跳跃动作
+            executePresetAction('jump')
+          }
+          // 显示长按反馈
+          setTouchFeedback({
+            show: true,
+            x: clientX,
+            y: clientY,
+            type: 'longpress'
+          })
         }, 500)
         
+        // 短按反馈 - 表情变化
         if (vrmModel && vrmModel.expressionManager) {
           const expressions = ['happy', 'surprised', 'blink']
           const randomExpression = expressions[Math.floor(Math.random() * expressions.length)]
-          vrmModel.expressionManager.setValue(randomExpression, 1)
+          vrmModel.expressionManager.setValue(randomExpression, 0.5)
           
           setTimeout(() => {
-            vrmModel.expressionManager.setValue(randomExpression, 0)
-          }, 800)
+            if (!isLongPress.current) {
+              vrmModel.expressionManager.setValue(randomExpression, 0)
+            }
+          }, 600)
         }
         
         setShowParticles(true)
@@ -2041,7 +2083,14 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     event.stopPropagation()
     const touchDuration = Date.now() - touchStartTime.current
     
-    if (isTouching && touchDuration < 300) {
+    // 清除长按定时器
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+    
+    // 如果不是长按，则触发点击动作
+    if (isTouching && !isLongPress.current && touchDuration < 500) {
       const randomAnimations = modelAnimations.length > 0 ? modelAnimations : presetAnimations
       if (randomAnimations.length > 0) {
         const randomAnim = randomAnimations[Math.floor(Math.random() * randomAnimations.length)]
@@ -2049,7 +2098,13 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       }
     }
     
+    // 长按结束时重置表情
+    if (isLongPress.current && vrmModel && vrmModel.expressionManager) {
+      vrmModel.expressionManager.setValue('happy', 0)
+    }
+    
     setIsTouching(false)
+    setTouchFeedback({ show: false, x: 0, y: 0, type: null })
   }
 
   const handleTouchMove = (event) => {
@@ -2138,10 +2193,19 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     //   }
     // }
 
+    const handleRotateCanvas = (event) => {
+      const { rotation } = event.detail
+      setCanvasRotation(rotation)
+      if (characterRef.current) {
+        characterRef.current.rotation.y = rotation * (Math.PI / 180)
+      }
+    }
+
     window.addEventListener('executeAction', handleExecuteAction)
     window.addEventListener('executeCombo', handleExecuteCombo)
     window.addEventListener('toggleRandom', handleToggleRandom)
     window.addEventListener('resetPosition', handleResetPosition)
+    window.addEventListener('rotateCanvas', handleRotateCanvas)
     // window.addEventListener('swingDetected', handleSwingDetected)
 
     return () => {
@@ -2149,6 +2213,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       window.removeEventListener('executeCombo', handleExecuteCombo)
       window.removeEventListener('toggleRandom', handleToggleRandom)
       window.removeEventListener('resetPosition', handleResetPosition)
+      window.removeEventListener('rotateCanvas', handleRotateCanvas)
       // window.removeEventListener('swingDetected', handleSwingDetected)
     }
   }, [modelAnimations, optimalScale])
