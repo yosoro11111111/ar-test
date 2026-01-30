@@ -1487,38 +1487,30 @@ export const ARScene = ({ selectedFile }) => {
       }
 
       console.log('找到3D画布:', canvas3D.width, 'x', canvas3D.height)
+      console.log('视频状态:', video?.readyState, '视频尺寸:', video?.videoWidth, 'x', video?.videoHeight)
 
-      // 创建合成画布
+      // 创建合成画布 - 使用视频的实际分辨率
       const compositeCanvas = document.createElement('canvas')
       const ctx = compositeCanvas.getContext('2d')
 
-      // 设置画布尺寸 - 使用设备分辨率
-      const width = window.innerWidth
-      const height = window.innerHeight
+      // 设置画布尺寸 - 使用视频的实际分辨率或屏幕分辨率
+      let width, height
+      if (isARMode && video && video.videoWidth > 0) {
+        width = video.videoWidth
+        height = video.videoHeight
+      } else {
+        width = window.innerWidth
+        height = window.innerHeight
+      }
       compositeCanvas.width = width
       compositeCanvas.height = height
       
-      console.log('拍照 - AR模式:', isARMode, '视频就绪:', video?.readyState)
+      console.log('拍照 - AR模式:', isARMode, '视频就绪:', video?.readyState, '画布尺寸:', width, 'x', height)
 
       // 如果在AR模式下，先绘制摄像头画面
       if (isARMode && video && video.readyState >= 2) {
-        const videoRatio = video.videoWidth / video.videoHeight
-        const screenRatio = width / height
-        let drawWidth, drawHeight, drawX, drawY
-
-        if (videoRatio > screenRatio) {
-          drawHeight = height
-          drawWidth = height * videoRatio
-          drawX = (width - drawWidth) / 2
-          drawY = 0
-        } else {
-          drawWidth = width
-          drawHeight = width / videoRatio
-          drawX = 0
-          drawY = (height - drawHeight) / 2
-        }
-
-        ctx.drawImage(video, drawX, drawY, drawWidth, drawHeight)
+        // 直接绘制视频，保持原始比例
+        ctx.drawImage(video, 0, 0, width, height)
         console.log('已绘制摄像头画面')
       } else {
         // 非AR模式下使用渐变背景
@@ -1531,7 +1523,7 @@ export const ARScene = ({ selectedFile }) => {
       }
 
       // 绘制3D场景（带透明通道）
-      // 使用 canvas3D 的实际尺寸
+      // 使用 canvas3D 的实际尺寸，按比例缩放
       ctx.drawImage(canvas3D, 0, 0, width, height)
       console.log('已绘制3D场景')
 
