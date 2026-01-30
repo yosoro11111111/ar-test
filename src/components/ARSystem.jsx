@@ -158,8 +158,9 @@ const CharacterSlot = ({ character, index, onSelect, onRemove, isSelected, isMob
   const [isPressed, setIsPressed] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
   
-  const slotSize = isMobile ? { width: '48px', height: '48px' } : { width: '90px', height: '90px' }
-  const fontSize = isMobile ? '20px' : '32px'
+  // 缩小角色按钮尺寸
+  const slotSize = isMobile ? { width: '40px', height: '40px' } : { width: '70px', height: '70px' }
+  const fontSize = isMobile ? '16px' : '24px'
   
   return (
     <div
@@ -308,13 +309,13 @@ const ActionButton = ({ item, index, onClick, isActive, isMobile }) => {
   const [isHovered, setIsHovered] = useState(false)
   const [cooldown, setCooldown] = useState(0)
   
-  // 移动端尺寸调整 - 进一步缩小
+  // 移动端尺寸调整 - 增大按钮尺寸
   const buttonSize = isMobile ? {
-    minWidth: item.highlight ? '70px' : '55px',
-    height: item.highlight ? '55px' : '48px',
-    fontSize: item.highlight ? '22px' : '20px',
-    labelSize: '9px',
-    borderRadius: '12px'
+    minWidth: item.highlight ? '85px' : '70px',
+    height: item.highlight ? '70px' : '60px',
+    fontSize: item.highlight ? '28px' : '24px',
+    labelSize: '11px',
+    borderRadius: '14px'
   } : {
     minWidth: item.highlight ? '130px' : '110px',
     height: item.highlight ? '100px' : '90px',
@@ -681,7 +682,148 @@ const Notification = ({ message, type = 'info', onClose }) => {
 }
 
 // ==================== 9. 3D场景内容 ====================
-const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionIntensity, isARMode }) => {
+// ==================== 道具显示组件 ====================
+const PropDisplay = ({ propId }) => {
+  if (!propId || propId === 'none') return null
+
+  const propConfigs = {
+    sword: { color: '#c0c0c0', geometry: 'box', size: [0.05, 0.6, 0.05], pos: [0.25, 0.6, 0.15], rot: [0, 0, -0.5] },
+    shield: { color: '#4a90d9', geometry: 'cylinder', size: [0.2, 0.2, 0.04, 16], pos: [-0.25, 0.5, 0.15], rot: [0, 0, 0] },
+    wand: { color: '#9b59b6', geometry: 'cylinder', size: [0.015, 0.015, 0.4, 8], pos: [0.2, 0.6, 0.1], rot: [0.3, 0, -0.3] },
+    book: { color: '#e67e22', geometry: 'box', size: [0.15, 0.2, 0.04], pos: [0.25, 0.55, 0.15], rot: [0, 0.3, 0.3] },
+    flower: { color: '#ff69b4', geometry: 'sphere', size: [0.06, 16, 16], pos: [0.2, 1.35, 0.08], rot: [0, 0, 0] },
+    crown: { color: '#ffd700', geometry: 'cylinder', size: [0.12, 0.1, 0.06, 16], pos: [0, 1.55, 0], rot: [0, 0, 0] },
+    glasses: { color: '#34495e', geometry: 'box', size: [0.2, 0.04, 0.015], pos: [0, 1.35, 0.1], rot: [0, 0, 0] },
+    hat: { color: '#2c3e50', geometry: 'cylinder', size: [0.15, 0.15, 0.12, 16], pos: [0, 1.58, 0], rot: [0, 0, 0] },
+    microphone: { color: '#e74c3c', geometry: 'cylinder', size: [0.025, 0.025, 0.2, 8], pos: [0.15, 0.7, 0.15], rot: [0.4, 0, -0.15] },
+    camera: { color: '#3498db', geometry: 'box', size: [0.1, 0.06, 0.08], pos: [0.2, 0.6, 0.12], rot: [0, -0.3, 0] },
+    balloon: { color: '#e91e63', geometry: 'sphere', size: [0.12, 16, 16], pos: [0.25, 1.1, 0.08], rot: [0, 0, 0] },
+    gift: { color: '#ff5722', geometry: 'box', size: [0.12, 0.12, 0.12], pos: [0.2, 0.25, 0.15], rot: [0, 0.5, 0] },
+    umbrella: { color: '#9c27b0', geometry: 'cone', size: [0.2, 0.08, 16], pos: [-0.15, 0.9, 0.08], rot: [0.3, 0, -0.15] }
+  }
+
+  const config = propConfigs[propId]
+  if (!config) return null
+
+  const renderGeometry = () => {
+    switch (config.geometry) {
+      case 'box':
+        return <boxGeometry args={config.size} />
+      case 'cylinder':
+        return <cylinderGeometry args={config.size} />
+      case 'sphere':
+        return <sphereGeometry args={config.size} />
+      case 'cone':
+        return <coneGeometry args={config.size} />
+      default:
+        return <boxGeometry args={config.size} />
+    }
+  }
+
+  return (
+    <mesh position={config.pos} rotation={config.rot}>
+      {renderGeometry()}
+      <meshStandardMaterial color={config.color} metalness={0.5} roughness={0.3} />
+    </mesh>
+  )
+}
+
+// ==================== 可拖拽角色组件 ====================
+const DraggableCharacter = ({ position, index, isSelected, character, characterScale, actionIntensity, onPositionChange, propId }) => {
+  const groupRef = useRef()
+  const [isDragging, setIsDragging] = useState(false)
+  const { camera, gl } = useThree()
+  const dragPlane = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0))
+  const raycaster = useRef(new THREE.Raycaster())
+  const mouse = useRef(new THREE.Vector2())
+  const offset = useRef(new THREE.Vector3())
+
+  const handlePointerDown = (e) => {
+    if (!isSelected) return // 只有选中的人物可以拖拽
+    e.stopPropagation()
+    setIsDragging(true)
+    gl.domElement.setPointerCapture(e.pointerId)
+
+    // 计算拖拽偏移
+    raycaster.current.setFromCamera(e.pointer, camera)
+    const intersectPoint = new THREE.Vector3()
+    raycaster.current.ray.intersectPlane(dragPlane.current, intersectPoint)
+    offset.current.subVectors(intersectPoint, new THREE.Vector3(...position))
+  }
+
+  const handlePointerMove = (e) => {
+    if (!isDragging || !isSelected) return
+    e.stopPropagation()
+
+    raycaster.current.setFromCamera(e.pointer, camera)
+    const intersectPoint = new THREE.Vector3()
+    raycaster.current.ray.intersectPlane(dragPlane.current, intersectPoint)
+
+    const newPosition = intersectPoint.sub(offset.current)
+    onPositionChange(index, [newPosition.x, position[1], newPosition.z])
+  }
+
+  const handlePointerUp = (e) => {
+    if (!isDragging) return
+    setIsDragging(false)
+    gl.domElement.releasePointerCapture(e.pointerId)
+  }
+
+  const fileToLoad = character.file || character
+
+  return (
+    <group
+      ref={groupRef}
+      position={position}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+    >
+      {/* 选中人物的蓝色边缘光效果 */}
+      {isSelected && (
+        <>
+          {/* 底部光环 */}
+          <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.6, 0.8, 32]} />
+            <meshBasicMaterial color="#00d4ff" transparent opacity={0.6} side={THREE.DoubleSide} />
+          </mesh>
+          {/* 内部光环 */}
+          <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[0.4, 0.55, 32]} />
+            <meshBasicMaterial color="#00ffff" transparent opacity={0.4} side={THREE.DoubleSide} />
+          </mesh>
+          {/* 垂直光柱 */}
+          <mesh position={[0, 0.8, 0]}>
+            <cylinderGeometry args={[0.3, 0.5, 1.6, 16, 1, true]} />
+            <meshBasicMaterial color="#00d4ff" transparent opacity={0.15} side={THREE.DoubleSide} />
+          </mesh>
+          {/* 顶部光点 */}
+          <mesh position={[0, 1.7, 0]}>
+            <sphereGeometry args={[0.1, 16, 16]} />
+            <meshBasicMaterial color="#00ffff" transparent opacity={0.8} />
+          </mesh>
+          {/* 拖拽提示 - 选中时显示 */}
+          <mesh position={[0, 2.0, 0]}>
+            <planeGeometry args={[0.8, 0.2]} />
+            <meshBasicMaterial color="#00d4ff" transparent opacity={0.3} />
+          </mesh>
+        </>
+      )}
+      <CharacterController
+        position={[0, 0, 0]}
+        rotation={[0, 0, 0]}
+        selectedFile={fileToLoad}
+        scale={characterScale * (isSelected ? 1.1 : 0.9)}
+        actionIntensity={actionIntensity}
+      />
+      {/* 道具显示在角色身上 */}
+      <PropDisplay propId={propId} />
+    </group>
+  )
+}
+
+// ==================== 9. 3D场景内容 ====================
+const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionIntensity, isARMode, characterPositions, onPositionChange, characterProps }) => {
   return (
     <>
       {/* AR模式下不显示背景特效，避免挡住摄像头画面 */}
@@ -697,26 +839,21 @@ const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionI
       {characters.map((character, index) => {
         if (!character) return null
         
-        // 根据索引设置不同位置
-        const positions = [
-          [-1.5, 0, 0],  // 左边
-          [0, 0, 0],     // 中间
-          [1.5, 0, 0]    // 右边
-        ]
-        
         const isSelected = index === selectedCharacterIndex
-        
-        // 传递 character.file（即 selectedFile）给 CharacterController
-        const fileToLoad = character.file || character
+        const position = characterPositions[index] || [-1.5 + index * 1.5, 0, 0]
+        const propId = characterProps?.[index]
         
         return (
           <group key={index}>
-            <CharacterController 
-              position={positions[index]} 
-              rotation={[0, 0, 0]} 
-              selectedFile={fileToLoad}
-              scale={characterScale * (isSelected ? 1.1 : 0.9)} // 选中的角色稍大
+            <DraggableCharacter
+              index={index}
+              position={position}
+              isSelected={isSelected}
+              character={character}
+              characterScale={characterScale}
               actionIntensity={actionIntensity}
+              onPositionChange={onPositionChange}
+              propId={propId}
             />
           </group>
         )
@@ -750,8 +887,43 @@ export const ARScene = ({ selectedFile }) => {
   const [currentAction, setCurrentAction] = useState('idle')
   const [notification, setNotification] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showHelp, setShowHelp] = useState(true) // 默认显示帮助
   const [comboCount, setComboCount] = useState(0)
   const [showCombo, setShowCombo] = useState(false)
+  
+  // 画布旋转状态
+  const [canvasRotation, setCanvasRotation] = useState(0)
+  const [isRotating, setIsRotating] = useState(false)
+  
+  // 角色位置状态 - 支持拖拽移动
+  const [characterPositions, setCharacterPositions] = useState([
+    [-1.5, 0, 0],  // 角色0初始位置
+    [0, 0, 0],     // 角色1初始位置
+    [1.5, 0, 0]    // 角色2初始位置
+  ])
+
+  // 道具列表
+  const propList = [
+    { id: 'none', name: '无道具', icon: '❌', color: '#666' },
+    { id: 'sword', name: '剑', icon: '⚔️', color: '#silver' },
+    { id: 'shield', name: '盾牌', icon: '🛡️', color: '#4a90d9' },
+    { id: 'wand', name: '魔杖', icon: '🪄', color: '#9b59b6' },
+    { id: 'book', name: '书', icon: '📖', color: '#e67e22' },
+    { id: 'flower', name: '花', icon: '🌸', color: '#ff69b4' },
+    { id: 'crown', name: '皇冠', icon: '👑', color: '#ffd700' },
+    { id: 'glasses', name: '眼镜', icon: '👓', color: '#34495e' },
+    { id: 'hat', name: '帽子', icon: '🎩', color: '#2c3e50' },
+    { id: 'microphone', name: '麦克风', icon: '🎤', color: '#e74c3c' },
+    { id: 'camera', name: '相机', icon: '📷', color: '#3498db' },
+    { id: 'balloon', name: '气球', icon: '🎈', color: '#e91e63' },
+    { id: 'gift', name: '礼物', icon: '🎁', color: '#ff5722' },
+    { id: 'umbrella', name: '伞', icon: '☂️', color: '#9c27b0' }
+  ]
+
+  // 角色道具状态 - 每个角色可以选择一个道具
+  const [characterProps, setCharacterProps] = useState([null, null, null])
+  const [showPropSelect, setShowPropSelect] = useState(false)
+  const [propTargetCharacter, setPropTargetCharacter] = useState(0)
 
   // 动作列表 - 包含基础动作和大幅度复杂动作
   const actionList = [
@@ -855,6 +1027,20 @@ export const ARScene = ({ selectedFile }) => {
       showNotification(newState ? '随机模式已开启' : '随机模式已关闭', 'info')
       return newState
     })
+  }, [showNotification])
+
+  // 旋转画布
+  const rotateCanvas = useCallback(() => {
+    setIsRotating(true)
+    setCanvasRotation(prev => {
+      const newRotation = prev + 45 // 每次旋转45度
+      if (window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent('rotateCanvas', { detail: { rotation: newRotation } }))
+      }
+      return newRotation
+    })
+    showNotification('画布已旋转', 'info')
+    setTimeout(() => setIsRotating(false), 500)
   }, [showNotification])
 
   // 添加角色
@@ -974,10 +1160,37 @@ export const ARScene = ({ selectedFile }) => {
   }, [])
 
   // 切换摄像头
-  const toggleCamera = useCallback(() => {
-    setCameraFacingMode(prev => prev === 'environment' ? 'user' : 'environment')
-    showNotification('切换摄像头', 'info')
-  }, [showNotification])
+  const toggleCamera = useCallback(async () => {
+    const newMode = cameraFacingMode === 'environment' ? 'user' : 'environment'
+    setCameraFacingMode(newMode)
+    showNotification(`切换到${newMode === 'environment' ? '后置' : '前置'}摄像头`, 'info')
+    
+    // 停止当前视频流
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+    
+    // 重新初始化摄像头
+    if (isARMode && videoRef.current) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: newMode,
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: false
+        })
+        streamRef.current = stream
+        videoRef.current.srcObject = stream
+        videoRef.current.play()
+      } catch (err) {
+        console.error('切换摄像头失败:', err)
+        showNotification('切换摄像头失败', 'error')
+      }
+    }
+  }, [cameraFacingMode, isARMode, showNotification])
 
   // 陀螺仪监听
   useEffect(() => {
@@ -1181,6 +1394,15 @@ export const ARScene = ({ selectedFile }) => {
             characterScale={characterScale}
             actionIntensity={actionIntensity}
             isARMode={isARMode}
+            characterPositions={characterPositions}
+            characterProps={characterProps}
+            onPositionChange={(index, newPos) => {
+              setCharacterPositions(prev => {
+                const updated = [...prev]
+                updated[index] = newPos
+                return updated
+              })
+            }}
           />
           
           {/* OrbitControls - 移动端始终启用，AR模式下也可以调整模型位置 */}
@@ -1400,16 +1622,16 @@ export const ARScene = ({ selectedFile }) => {
         <button
           onClick={() => setShowModelSelect(true)}
           style={{
-            width: isMobile ? '48px' : '90px',
-            height: isMobile ? '48px' : '90px',
-            borderRadius: isMobile ? '16px' : '28px',
+            width: isMobile ? '40px' : '70px',
+            height: isMobile ? '40px' : '70px',
+            borderRadius: isMobile ? '14px' : '22px',
             background: 'linear-gradient(135deg, rgba(255, 158, 205, 0.3) 0%, rgba(255, 107, 157, 0.3) 100%)',
             border: '2px dashed rgba(255, 184, 208, 0.5)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: isMobile ? '24px' : '36px',
+            fontSize: isMobile ? '20px' : '28px',
             color: 'white',
             transition: 'all 0.3s ease',
             backdropFilter: 'blur(10px)'
@@ -1466,7 +1688,7 @@ export const ARScene = ({ selectedFile }) => {
                 }}
               >×</button>
             </div>
-            
+
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
@@ -1498,7 +1720,293 @@ export const ARScene = ({ selectedFile }) => {
           </div>
         </div>
       )}
-      
+
+      {/* 道具选择弹窗 */}
+      {showPropSelect && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          backdropFilter: 'blur(10px)'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)',
+            borderRadius: '32px',
+            padding: '32px',
+            maxWidth: '600px',
+            width: '90%',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <h2 style={{ color: 'white', margin: 0, fontSize: '24px' }}>选择道具</h2>
+              <button
+                onClick={() => setShowPropSelect(false)}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '24px',
+                  cursor: 'pointer'
+                }}
+              >×</button>
+            </div>
+
+            {/* 选择目标角色 */}
+            <div style={{ marginBottom: '20px' }}>
+              <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '12px', fontSize: '14px' }}>选择要给哪个角色：</p>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                {[0, 1, 2].map(index => (
+                  <button
+                    key={index}
+                    onClick={() => setPropTargetCharacter(index)}
+                    style={{
+                      padding: '10px 20px',
+                      background: propTargetCharacter === index
+                        ? 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)'
+                        : 'rgba(255,255,255,0.1)',
+                      border: `2px solid ${propTargetCharacter === index ? '#ff6b9d' : 'rgba(255,255,255,0.2)'}`,
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      color: 'white',
+                      fontSize: '14px',
+                      fontWeight: propTargetCharacter === index ? 'bold' : 'normal'
+                    }}
+                  >
+                    角色 {index + 1}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 道具列表 */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
+              gap: '12px'
+            }}>
+              {propList.map((prop) => (
+                <button
+                  key={prop.id}
+                  onClick={() => {
+                    setCharacterProps(prev => {
+                      const updated = [...prev]
+                      updated[propTargetCharacter] = prop.id === 'none' ? null : prop.id
+                      return updated
+                    })
+                    setShowPropSelect(false)
+                    showNotification(`给角色${propTargetCharacter + 1}装备了${prop.name}`, 'success')
+                  }}
+                  style={{
+                    padding: '16px',
+                    background: characterProps[propTargetCharacter] === prop.id || (prop.id === 'none' && !characterProps[propTargetCharacter])
+                      ? `linear-gradient(135deg, ${prop.color}40 0%, ${prop.color}20 100%)`
+                      : 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+                    border: `2px solid ${characterProps[propTargetCharacter] === prop.id || (prop.id === 'none' && !characterProps[propTargetCharacter]) ? prop.color : 'rgba(255,255,255,0.1)'}`,
+                    borderRadius: '16px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.3s ease',
+                    color: 'white'
+                  }}
+                >
+                  <div style={{ fontSize: '36px' }}>{prop.icon}</div>
+                  <div style={{ fontSize: '12px', fontWeight: '600' }}>{prop.name}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 游戏帮助弹窗 */}
+      {showHelp && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.85)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 3000,
+          backdropFilter: 'blur(10px)'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%)',
+            borderRadius: '32px',
+            padding: isMobile ? '24px' : '40px',
+            maxWidth: '500px',
+            width: '90%',
+            maxHeight: '85vh',
+            overflow: 'auto',
+            border: '1px solid rgba(255,255,255,0.15)',
+            boxShadow: '0 25px 80px rgba(0,0,0,0.6)'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '24px'
+            }}>
+              <h2 style={{
+                color: 'white',
+                margin: 0,
+                fontSize: isMobile ? '20px' : '28px',
+                background: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}>🎮 游戏帮助</h2>
+              <button
+                onClick={() => setShowHelp(false)}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+              >×</button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* 操作1：双指拖拽移动 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '16px',
+                padding: '16px',
+                background: 'rgba(255,255,255,0.05)',
+                borderRadius: '16px',
+                border: '1px solid rgba(255,255,255,0.1)'
+              }}>
+                <div style={{
+                  width: '50px',
+                  height: '50px',
+                  borderRadius: '14px',
+                  background: 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '24px',
+                  flexShrink: 0
+                }}>👆</div>
+                <div>
+                  <h3 style={{ color: 'white', margin: '0 0 6px 0', fontSize: '16px' }}>双指拖拽移动角色</h3>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', margin: 0, fontSize: '13px', lineHeight: '1.5' }}>
+                    先点击选中角色（出现蓝色光环），然后用双指拖拽即可移动角色位置
+                  </p>
+                </div>
+              </div>
+
+              {/* 操作2：双指缩放 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '16px',
+                padding: '16px',
+                background: 'rgba(255,255,255,0.05)',
+                borderRadius: '16px',
+                border: '1px solid rgba(255,255,255,0.1)'
+              }}>
+                <div style={{
+                  width: '50px',
+                  height: '50px',
+                  borderRadius: '14px',
+                  background: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '24px',
+                  flexShrink: 0
+                }}>🤏</div>
+                <div>
+                  <h3 style={{ color: 'white', margin: '0 0 6px 0', fontSize: '16px' }}>双指缩放角色</h3>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', margin: 0, fontSize: '13px', lineHeight: '1.5' }}>
+                    使用双指捏合手势可以放大或缩小角色
+                  </p>
+                </div>
+              </div>
+
+              {/* 操作3：旋转画布 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '16px',
+                padding: '16px',
+                background: 'rgba(255,255,255,0.05)',
+                borderRadius: '16px',
+                border: '1px solid rgba(255,255,255,0.1)'
+              }}>
+                <div style={{
+                  width: '50px',
+                  height: '50px',
+                  borderRadius: '14px',
+                  background: 'linear-gradient(135deg, #ffd93d 0%, #ffb347 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '24px',
+                  flexShrink: 0
+                }}>🔄</div>
+                <div>
+                  <h3 style={{ color: 'white', margin: '0 0 6px 0', fontSize: '16px' }}>旋转画布</h3>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', margin: 0, fontSize: '13px', lineHeight: '1.5' }}>
+                    点击右侧 🔄 按钮可以旋转画布，双指也可以旋转视角
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowHelp(false)}
+              style={{
+                width: '100%',
+                marginTop: '24px',
+                padding: '16px',
+                background: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)',
+                border: 'none',
+                borderRadius: '16px',
+                color: 'white',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 8px 24px rgba(255, 107, 157, 0.4)'
+              }}
+            >
+              开始游戏 🎮
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 右侧控制按钮 */}
       <div style={{
         position: 'absolute',
@@ -1551,6 +2059,29 @@ export const ARScene = ({ selectedFile }) => {
           isMobile={isMobile}
         >
           🎲
+        </TechButton>
+
+        {/* 道具选择按钮 */}
+        <TechButton
+          onClick={() => {
+            setPropTargetCharacter(selectedCharacterIndex)
+            setShowPropSelect(true)
+          }}
+          active={showPropSelect}
+          size={isMobile ? 'small' : 'medium'}
+          isMobile={isMobile}
+        >
+          🎁
+        </TechButton>
+
+        {/* 旋转画布按钮 */}
+        <TechButton
+          onClick={rotateCanvas}
+          active={isRotating}
+          size={isMobile ? 'small' : 'medium'}
+          isMobile={isMobile}
+        >
+          🔄
         </TechButton>
       </div>
 
