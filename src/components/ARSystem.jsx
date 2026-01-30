@@ -684,12 +684,15 @@ const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionI
         
         const isSelected = index === selectedCharacterIndex
         
+        // 传递 character.file（即 selectedFile）给 CharacterController
+        const fileToLoad = character.file || character
+        
         return (
           <group key={index}>
             <CharacterController 
               position={positions[index]} 
               rotation={[0, 0, 0]} 
-              selectedFile={character}
+              selectedFile={fileToLoad}
               scale={characterScale * (isSelected ? 1.1 : 0.9)} // 选中的角色稍大
               actionIntensity={actionIntensity}
             />
@@ -766,6 +769,26 @@ export const ARScene = ({ selectedFile }) => {
   const showNotification = useCallback((message, type = 'info') => {
     setNotification({ message, type })
   }, [])
+
+  // 监听 selectedFile 变化，自动加载模型
+  useEffect(() => {
+    if (selectedFile) {
+      console.log('ARScene 接收到 selectedFile:', selectedFile)
+      // 将 selectedFile 转换为 model 对象
+      const model = {
+        name: selectedFile.name?.replace('.vrm', '') || 'Unknown',
+        filename: selectedFile.name,
+        file: selectedFile
+      }
+      // 添加到当前选中的角色槽位
+      setCharacters(prev => {
+        const newCharacters = [...prev]
+        newCharacters[selectedCharacterIndex] = model
+        return newCharacters
+      })
+      showNotification(`已加载角色: ${model.name}`, 'success')
+    }
+  }, [selectedFile, selectedCharacterIndex, showNotification])
 
   // 执行动作
   const executeAction = useCallback((action) => {
