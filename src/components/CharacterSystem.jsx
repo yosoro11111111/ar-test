@@ -141,65 +141,64 @@ const BoneEditor = ({ vrmModel, isEditing, onBoneChange, isMobile }) => {
         )
       })}
       
-      {/* 移动端控制面板 - 固定在屏幕底部 */}
+      {/* 移动端控制面板 - 固定在屏幕底部，全宽显示 */}
       {isMobile && (
         <Html position={[0, 0, 0]} style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
           <div style={{
             position: 'fixed',
-            bottom: '80px',
-            left: '10px',
-            right: '10px',
-            background: 'rgba(0,0,0,0.9)',
-            borderRadius: '16px',
-            padding: '12px',
-            zIndex: 2000,
+            bottom: '0',
+            left: '0',
+            right: '0',
+            background: 'rgba(0,0,0,0.95)',
+            borderRadius: '20px 20px 0 0',
+            padding: '16px 16px 100px 16px',
+            zIndex: 9999,
             pointerEvents: 'auto',
-            maxHeight: '45vh',
-            overflowY: 'auto',
             border: '2px solid rgba(0,212,255,0.5)',
-            boxShadow: '0 -4px 20px rgba(0,0,0,0.5)'
+            borderBottom: 'none',
+            boxShadow: '0 -4px 30px rgba(0,0,0,0.7)',
+            maxHeight: '70vh',
+            overflowY: 'auto'
           }}>
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: '10px',
-              borderBottom: '1px solid rgba(255,255,255,0.2)',
-              paddingBottom: '6px'
+              marginBottom: '12px',
+              borderBottom: '2px solid rgba(255,255,255,0.2)',
+              paddingBottom: '10px'
             }}>
-              <span style={{ color: '#00d4ff', fontWeight: 'bold', fontSize: '14px' }}>
+              <span style={{ color: '#00d4ff', fontWeight: 'bold', fontSize: '16px' }}>
                 🦴 骨骼编辑器
               </span>
-              <span style={{ color: '#888', fontSize: '10px' }}>
-                单指拖动旋转
+              <span style={{ color: '#888', fontSize: '12px' }}>
+                选择骨骼后单指拖动
               </span>
             </div>
             
-            {/* 骨骼列表 - 横向滚动 */}
+            {/* 骨骼列表 - 网格布局，两行 */}
             <div style={{
-              display: 'flex',
-              gap: '6px',
-              overflowX: 'auto',
-              marginBottom: '10px',
-              paddingBottom: '4px',
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none'
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '8px',
+              marginBottom: '12px'
             }}>
               {bones.map(({ name, label, color }) => (
                 <button
                   key={name}
                   onClick={() => setSelectedBone(selectedBone === name ? null : name)}
                   style={{
-                    padding: '8px 12px',
+                    padding: '10px 4px',
                     background: selectedBone === name ? color : 'rgba(255,255,255,0.1)',
                     border: `2px solid ${selectedBone === name ? color : 'transparent'}`,
-                    borderRadius: '20px',
+                    borderRadius: '8px',
                     color: 'white',
-                    fontSize: '11px',
+                    fontSize: '10px',
                     fontWeight: 'bold',
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
-                    flexShrink: 0
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
                   }}
                 >
                   {label}
@@ -213,8 +212,9 @@ const BoneEditor = ({ vrmModel, isEditing, onBoneChange, isMobile }) => {
                 style={{
                   background: 'rgba(255,255,255,0.1)',
                   borderRadius: '12px',
-                  padding: '12px',
-                  touchAction: 'none'
+                  padding: '16px',
+                  touchAction: 'none',
+                  minHeight: '120px'
                 }}
                 onTouchStart={(e) => {
                   e.preventDefault()
@@ -222,7 +222,6 @@ const BoneEditor = ({ vrmModel, isEditing, onBoneChange, isMobile }) => {
                   const bone = bones.find(b => b.name === selectedBone)?.bone
                   if (!bone) return
                   
-                  // 记录起始位置
                   bone.userData.dragStartX = touch.clientX
                   bone.userData.dragStartY = touch.clientY
                   bone.userData.startRotationX = bone.rotation.x
@@ -234,11 +233,9 @@ const BoneEditor = ({ vrmModel, isEditing, onBoneChange, isMobile }) => {
                   const bone = bones.find(b => b.name === selectedBone)?.bone
                   if (!bone || !bone.userData.dragStartX) return
                   
-                  // 计算拖动距离
                   const deltaX = touch.clientX - bone.userData.dragStartX
                   const deltaY = touch.clientY - bone.userData.dragStartY
                   
-                  // 根据拖动调整骨骼旋转
                   const sensitivity = 0.005
                   bone.rotation.y = bone.userData.startRotationY + deltaX * sensitivity
                   bone.rotation.x = bone.userData.startRotationX + deltaY * sensitivity
@@ -257,101 +254,62 @@ const BoneEditor = ({ vrmModel, isEditing, onBoneChange, isMobile }) => {
                 <div style={{
                   color: '#fff',
                   fontWeight: 'bold',
-                  marginBottom: '8px',
+                  marginBottom: '12px',
                   textAlign: 'center',
-                  fontSize: '13px'
+                  fontSize: '14px'
                 }}>
-                  {bones.find(b => b.name === selectedBone)?.label} - 在此区域单指拖动
+                  {bones.find(b => b.name === selectedBone)?.label} - 在此区域单指拖动旋转
                 </div>
                 
                 {/* 显示当前旋转值 */}
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(3, 1fr)',
-                  gap: '8px',
-                  fontSize: '11px',
+                  gap: '12px',
+                  fontSize: '12px',
                   color: '#aaa',
-                  textAlign: 'center'
+                  textAlign: 'center',
+                  marginBottom: '12px'
                 }}>
-                  <div>X: {(bones.find(b => b.name === selectedBone)?.bone.rotation.x || 0).toFixed(2)}</div>
-                  <div>Y: {(bones.find(b => b.name === selectedBone)?.bone.rotation.y || 0).toFixed(2)}</div>
-                  <div>Z: {(bones.find(b => b.name === selectedBone)?.bone.rotation.z || 0).toFixed(2)}</div>
+                  <div style={{ color: '#ff6b6b' }}>X: {(bones.find(b => b.name === selectedBone)?.bone.rotation.x || 0).toFixed(2)}</div>
+                  <div style={{ color: '#4ecdc4' }}>Y: {(bones.find(b => b.name === selectedBone)?.bone.rotation.y || 0).toFixed(2)}</div>
+                  <div style={{ color: '#45b7d1' }}>Z: {(bones.find(b => b.name === selectedBone)?.bone.rotation.z || 0).toFixed(2)}</div>
                 </div>
                 
                 {/* 微调按钮 */}
-                <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                  <button
-                    onClick={() => handleBoneRotate(selectedBone, 'x', -0.05)}
-                    style={{
-                      flex: 1,
-                      padding: '6px',
-                      background: '#ff6b6b',
-                      border: 'none',
-                      borderRadius: '4px',
-                      color: 'white',
-                      fontSize: '11px'
-                    }}
-                  >X-</button>
-                  <button
-                    onClick={() => handleBoneRotate(selectedBone, 'x', 0.05)}
-                    style={{
-                      flex: 1,
-                      padding: '6px',
-                      background: '#ff6b6b',
-                      border: 'none',
-                      borderRadius: '4px',
-                      color: 'white',
-                      fontSize: '11px'
-                    }}
-                  >X+</button>
-                  <button
-                    onClick={() => handleBoneRotate(selectedBone, 'y', -0.05)}
-                    style={{
-                      flex: 1,
-                      padding: '6px',
-                      background: '#4ecdc4',
-                      border: 'none',
-                      borderRadius: '4px',
-                      color: 'white',
-                      fontSize: '11px'
-                    }}
-                  >Y-</button>
-                  <button
-                    onClick={() => handleBoneRotate(selectedBone, 'y', 0.05)}
-                    style={{
-                      flex: 1,
-                      padding: '6px',
-                      background: '#4ecdc4',
-                      border: 'none',
-                      borderRadius: '4px',
-                      color: 'white',
-                      fontSize: '11px'
-                    }}
-                  >Y+</button>
-                  <button
-                    onClick={() => handleBoneRotate(selectedBone, 'z', -0.05)}
-                    style={{
-                      flex: 1,
-                      padding: '6px',
-                      background: '#45b7d1',
-                      border: 'none',
-                      borderRadius: '4px',
-                      color: 'white',
-                      fontSize: '11px'
-                    }}
-                  >Z-</button>
-                  <button
-                    onClick={() => handleBoneRotate(selectedBone, 'z', 0.05)}
-                    style={{
-                      flex: 1,
-                      padding: '6px',
-                      background: '#45b7d1',
-                      border: 'none',
-                      borderRadius: '4px',
-                      color: 'white',
-                      fontSize: '11px'
-                    }}
-                  >Z+</button>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '6px' }}>
+                  {['x', 'y', 'z'].map((axis, idx) => (
+                    <React.Fragment key={axis}>
+                      <button
+                        onClick={() => handleBoneRotate(selectedBone, axis, -0.05)}
+                        style={{
+                          padding: '10px 4px',
+                          background: axis === 'x' ? '#ff6b6b' : axis === 'y' ? '#4ecdc4' : '#45b7d1',
+                          border: 'none',
+                          borderRadius: '6px',
+                          color: 'white',
+                          fontSize: '12px',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        {axis.toUpperCase()}-
+                      </button>
+                      <button
+                        onClick={() => handleBoneRotate(selectedBone, axis, 0.05)}
+                        style={{
+                          padding: '10px 4px',
+                          background: axis === 'x' ? '#ff6b6b' : axis === 'y' ? '#4ecdc4' : '#45b7d1',
+                          border: 'none',
+                          borderRadius: '6px',
+                          color: 'white',
+                          fontSize: '12px',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        {axis.toUpperCase()}+
+                      </button>
+                    </React.Fragment>
+                  ))}
                 </div>
               </div>
             )}

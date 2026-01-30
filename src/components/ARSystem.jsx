@@ -343,6 +343,22 @@ const TutorialGuide = ({ isMobile, onClose }) => {
   )
 }
 
+// ==================== 移动端调试日志 Hook ====================
+const useDebugLog = () => {
+  const [logs, setLogs] = useState([])
+  
+  const addLog = useCallback((message) => {
+    const timestamp = new Date().toLocaleTimeString()
+    setLogs(prev => [...prev.slice(-19), `[${timestamp}] ${message}`])
+  }, [])
+  
+  const clearLogs = useCallback(() => {
+    setLogs([])
+  }, [])
+  
+  return { logs, addLog, clearLogs }
+}
+
 // ==================== 移动端检测 Hook ====================
 const useMobileDetect = () => {
   const [isMobile, setIsMobile] = useState(false)
@@ -1208,6 +1224,8 @@ const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionI
 // ==================== 主组件 ====================
 export const ARScene = ({ selectedFile }) => {
   const { isMobile, isTablet } = useMobileDetect()
+  const { logs, addLog, clearLogs } = useDebugLog()
+  const [showDebugPanel, setShowDebugPanel] = useState(false)
   const [isARMode, setIsARMode] = useState(false)
   const videoRef = useRef(null)
   const [cameraFacingMode, setCameraFacingMode] = useState('environment')
@@ -1482,12 +1500,20 @@ export const ARScene = ({ selectedFile }) => {
 
       if (!canvas3D) {
         showNotification('3D场景未就绪', 'error')
-        console.error('无法找到3D画布')
+        addLog('错误: 无法找到3D画布')
         return
       }
 
-      console.log('找到3D画布:', canvas3D.width, 'x', canvas3D.height)
-      console.log('视频状态:', video?.readyState, '视频尺寸:', video?.videoWidth, 'x', video?.videoHeight)
+      addLog(`3D画布: ${canvas3D.width}x${canvas3D.height}`)
+      addLog(`视频状态: ${video?.readyState}, 尺寸: ${video?.videoWidth}x${video?.videoHeight}`)
+      addLog(`AR模式: ${isARMode}, 视频暂停: ${video?.paused}`)
+
+      // 检查视频是否就绪
+      if (isARMode && (!video || video.readyState < 2)) {
+        addLog('错误: 视频未就绪')
+        showNotification('摄像头未就绪，请稍后再试', 'error')
+        return
+      }
 
       // 创建合成画布 - 使用视频的实际分辨率
       const compositeCanvas = document.createElement('canvas')
@@ -1505,13 +1531,24 @@ export const ARScene = ({ selectedFile }) => {
       compositeCanvas.width = width
       compositeCanvas.height = height
       
-      console.log('拍照 - AR模式:', isARMode, '视频就绪:', video?.readyState, '画布尺寸:', width, 'x', height)
+      addLog(`开始拍照: ${width}x${height}`)
 
       // 如果在AR模式下，先绘制摄像头画面
       if (isARMode && video && video.readyState >= 2) {
-        // 直接绘制视频，保持原始比例
-        ctx.drawImage(video, 0, 0, width, height)
-        console.log('已绘制摄像头画面')
+        try {
+          // 直接绘制视频，保持原始比例
+          ctx.drawImage(video, 0, 0, width, height)
+          addLog('摄像头画面已绘制')
+          
+          // 验证是否绘制成功 - 检查画布是否有内容
+          const imageData = ctx.getImageData(0, 0, 1, 1)
+          addLog(`像素检查: R=${imageData.data[0]}, G=${imageData.data[1]}, B=${imageData.data[2]}`)
+        } catch (drawError) {
+          addLog(`绘制视频失败: ${drawError.message}`)
+          // 如果绘制失败，使用黑色背景
+          ctx.fillStyle = '#000000'
+          ctx.fillRect(0, 0, width, height)
+        }
       } else {
         // 非AR模式下使用渐变背景
         const gradient = ctx.createLinearGradient(0, 0, width, height)
@@ -1525,7 +1562,7 @@ export const ARScene = ({ selectedFile }) => {
       // 绘制3D场景（带透明通道）
       // 使用 canvas3D 的实际尺寸，按比例缩放
       ctx.drawImage(canvas3D, 0, 0, width, height)
-      console.log('已绘制3D场景')
+      addLog('3D场景已绘制')
 
       // 添加精美水印
       ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
@@ -2589,7 +2626,92 @@ export const ARScene = ({ selectedFile }) => {
         >
           🦴
         </button>
+
+        {/* 调试按钮 - 仅在移动端显示 */}
+        {isMobile && (
+          <button
+            onClick={() => setShowDebugPanel(!showDebugPanel)}
+            style={{
+              width: isMobile ? '48px' : '56px',
+              height: isMobile ? '48px' : '56px',
+              borderRadius: '16px',
+              background: showDebugPanel
+                ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)'
+                : 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+              border: showDebugPanel
+                ? '2px solid #ff6b6b'
+                : '1px solid rgba(255,255,255,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: isMobile ? '20px' : '24px',
+              cursor: 'pointer',
+              color: 'white',
+              transition: 'all 0.3s ease',
+              boxShadow: showDebugPanel
+                ? '0 0 20px rgba(255, 107, 107, 0.5)'
+                : 'none'
+            }}
+          >
+            🐛
+          </button>
+        )}
       </div>
+
+      {/* 调试面板 - 显示日志 */}
+      {isMobile && showDebugPanel && (
+        <div style={{
+          position: 'fixed',
+          top: '100px',
+          left: '10px',
+          right: '10px',
+          maxHeight: '40vh',
+          background: 'rgba(0,0,0,0.95)',
+          borderRadius: '12px',
+          padding: '12px',
+          zIndex: 9999,
+          overflowY: 'auto',
+          border: '2px solid #ff6b6b',
+          fontFamily: 'monospace',
+          fontSize: '11px'
+        }}>
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '8px',
+            borderBottom: '1px solid rgba(255,255,255,0.2)',
+            paddingBottom: '8px'
+          }}>
+            <span style={{ color: '#ff6b6b', fontWeight: 'bold' }}>🐛 调试日志</span>
+            <button
+              onClick={clearLogs}
+              style={{
+                padding: '4px 8px',
+                background: 'rgba(255,255,255,0.1)',
+                border: 'none',
+                borderRadius: '4px',
+                color: 'white',
+                fontSize: '10px',
+                cursor: 'pointer'
+              }}
+            >
+              清除
+            </button>
+          </div>
+          {logs.length === 0 ? (
+            <div style={{ color: '#666', textAlign: 'center', padding: '20px' }}>
+              暂无日志
+            </div>
+          ) : (
+            logs.map((log, index) => (
+              <div key={index} style={{ color: '#0f0', marginBottom: '4px', wordBreak: 'break-all' }}>
+                {log}
+              </div>
+            ))
+          )}
+        </div>
+      )}
 
       {/* 骨骼编辑模式提示 */}
       {isBoneEditing && (
