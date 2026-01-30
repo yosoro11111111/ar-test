@@ -447,11 +447,23 @@ function App() {
         throw new Error(`模型文件不存在: ${modelPath}`)
       }
       
-      // 创建虚拟文件对象
-      const virtualFile = new File([''], model.filename, { type: 'model/gltf-binary' })
-      virtualFile.localPath = modelPath
+      // 获取文件大小
+      const fileSize = response.headers.get('content-length') || 0
+      console.log('模型文件大小:', (fileSize / 1024 / 1024).toFixed(2), 'MB')
       
-      setSelectedFile(virtualFile)
+      // 创建一个包含实际内容的 Blob（至少要有一些内容）
+      const dummyContent = new Uint8Array(1)
+      dummyContent[0] = 0
+      const blob = new Blob([dummyContent], { type: 'model/gltf-binary' })
+      
+      const modelFile = new File([blob], model.filename, { 
+        type: 'model/gltf-binary',
+        lastModified: Date.now()
+      })
+      // 添加自定义属性
+      modelFile.localPath = modelPath
+      
+      setSelectedFile(modelFile)
       setModelUrl(modelPath)
       
       // 延迟关闭加载界面，让ARScene有时间初始化

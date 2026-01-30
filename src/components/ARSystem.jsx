@@ -5,6 +5,26 @@ import * as THREE from 'three'
 import { CharacterController } from './CharacterSystem'
 import modelList from '../models/modelList'
 
+// ==================== 移动端检测 Hook ====================
+const useMobileDetect = () => {
+  const [isMobile, setIsMobile] = useState(false)
+  const [isTablet, setIsTablet] = useState(false)
+  
+  useEffect(() => {
+    const checkDevice = () => {
+      const width = window.innerWidth
+      setIsMobile(width < 768)
+      setIsTablet(width >= 768 && width < 1024)
+    }
+    
+    checkDevice()
+    window.addEventListener('resize', checkDevice)
+    return () => window.removeEventListener('resize', checkDevice)
+  }, [])
+  
+  return { isMobile, isTablet, isDesktop: !isMobile && !isTablet }
+}
+
 // ==================== 1. 粒子背景系统 ====================
 const ParticleField = () => {
   const particlesRef = useRef()
@@ -469,14 +489,18 @@ const ActionButton = ({ item, index, onClick, isActive }) => {
 }
 
 // ==================== 6. 科技按钮组件（优化版） ====================
-const TechButton = ({ children, onClick, style, active = false, size = 'medium', badge }) => {
+const TechButton = ({ children, onClick, style, active = false, size = 'medium', badge, isMobile }) => {
   const [isHovered, setIsHovered] = useState(false)
   const [isPressed, setIsPressed] = useState(false)
   
-  const sizeStyles = {
-    small: { width: '50px', height: '50px', fontSize: '20px' },
-    medium: { width: '60px', height: '60px', fontSize: '24px' },
-    large: { width: '70px', height: '70px', fontSize: '28px' }
+  const sizeStyles = isMobile ? {
+    small: { width: '36px', height: '36px', fontSize: '14px' },
+    medium: { width: '44px', height: '44px', fontSize: '18px' },
+    large: { width: '52px', height: '52px', fontSize: '22px' }
+  } : {
+    small: { width: '44px', height: '44px', fontSize: '18px' },
+    medium: { width: '52px', height: '52px', fontSize: '20px' },
+    large: { width: '60px', height: '60px', fontSize: '24px' }
   }
 
   return (
@@ -678,6 +702,7 @@ const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionI
 
 // ==================== 主组件 ====================
 export const ARScene = ({ selectedFile }) => {
+  const { isMobile, isTablet } = useMobileDetect()
   const [isARMode, setIsARMode] = useState(false)
   const videoRef = useRef(null)
   const [cameraFacingMode, setCameraFacingMode] = useState('environment')
