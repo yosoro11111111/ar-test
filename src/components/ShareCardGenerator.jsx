@@ -43,8 +43,8 @@ const Notification = ({ message, type = 'info', onClose }) => {
 // 分享卡片生成器
 const ShareCardGenerator = ({ isOpen, onClose, canvasRef, characters, currentAction, isMobile }) => {
   const [cardStyle, setCardStyle] = useState('default')
-  const [cardTitle, setCardTitle] = useState('我的AR角色')
-  const [cardSubtitle, setCardSubtitle] = useState('Created with AR Character')
+  const [cardTitle, setCardTitle] = useState('我的AR拍照')
+  const [cardSubtitle, setCardSubtitle] = useState('Created with AR Camera')
   const [showQRCode, setShowQRCode] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
   const [previewUrl, setPreviewUrl] = useState(null)

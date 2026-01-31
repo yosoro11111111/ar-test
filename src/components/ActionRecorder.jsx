@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react'
 import './ActionRecorder.css'
 
 // 动作录制器组件
-const ActionRecorder = ({ isOpen, onClose, onPlayRecording, actions, isMobile }) => {
+const ActionRecorder = ({ isOpen, onClose, onPlayRecording, onPlayAction, actions, isMobile }) => {
   const [isRecording, setIsRecording] = useState(false)
   const [recordedActions, setRecordedActions] = useState([])
   const [isPlaying, setIsPlaying] = useState(false)

@@ -188,16 +188,29 @@ function App() {
   const [selectedModelIndex, setSelectedModelIndex] = useState(null)
   const [loadError, setLoadError] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedTags, setSelectedTags] = useState([])
   const [currentAction, setCurrentAction] = useState(null)
   const [showUpdateConfirm, setShowUpdateConfirm] = useState(false)
-  
+
   const fileInputRef = useRef(null)
 
-  // 过滤模型列表
-  const filteredModelList = modelList.filter(model => 
-    model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    model.filename.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const allTags = ['#原神', '#星穹铁道', '#崩坏3', '#正太', '#萝莉', '#御姐', '#少年', '#成男', '#成女', '#男性', '#女性', '#可爱', '#帅气', '#冷酷', '#活泼', '#温柔', '#成熟']
+
+  const toggleTag = (tag) => {
+    setSelectedTags(prev =>
+      prev.includes(tag)
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    )
+  }
+
+  const filteredModelList = modelList.filter(model => {
+    const matchesSearch = model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          model.filename.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesTags = selectedTags.length === 0 ||
+                        selectedTags.every(tag => model.tags.includes(tag))
+    return matchesSearch && matchesTags
+  })
 
   // 处理文件选择
   const handleFileChange = (e) => {
@@ -405,7 +418,7 @@ function App() {
             fontWeight: '800',
             letterSpacing: '1px'
           }}>
-            AR角色
+            AR拍照
           </h3>
           
           <p style={{
@@ -415,7 +428,7 @@ function App() {
             color: 'rgba(255, 255, 255, 0.6)',
             letterSpacing: '2px'
           }}>
-            VIRTUAL CHARACTER SYSTEM
+            AR CAMERA SYSTEM
           </p>
           
           {/* 文件上传区域 */}
@@ -623,7 +636,7 @@ function App() {
 
           {/* 搜索栏 */}
           <div style={{
-            marginBottom: isMobile ? '16px' : '20px'
+            marginBottom: isMobile ? '12px' : '16px'
           }}>
             <input
               type="text"
@@ -643,7 +656,70 @@ function App() {
               }}
             />
           </div>
-          
+
+          {/* 标签筛选 */}
+          <div style={{
+            marginBottom: isMobile ? '16px' : '20px'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '8px'
+            }}>
+              <span style={{
+                fontSize: '12px',
+                color: 'rgba(255,255,255,0.5)',
+                fontWeight: '600'
+              }}>
+                标签筛选
+              </span>
+              {selectedTags.length > 0 && (
+                <button
+                  onClick={() => setSelectedTags([])}
+                  style={{
+                    padding: '4px 10px',
+                    background: 'rgba(239, 68, 68, 0.2)',
+                    color: '#ef4444',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '11px',
+                    fontWeight: '600'
+                  }}
+                >
+                  清除
+                </button>
+              )}
+            </div>
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '6px'
+            }}>
+              {allTags.map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => toggleTag(tag)}
+                  style={{
+                    padding: isMobile ? '4px 8px' : '5px 10px',
+                    borderRadius: isMobile ? '6px' : '8px',
+                    border: 'none',
+                    background: selectedTags.includes(tag)
+                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                      : 'rgba(255,255,255,0.05)',
+                    color: selectedTags.includes(tag) ? 'white' : 'rgba(255,255,255,0.6)',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    fontWeight: selectedTags.includes(tag) ? '600' : '400'
+                  }}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </div>
           {/* 角色卡片网格 */}
           <div style={{
             maxHeight: 'calc(90vh - 200px)',

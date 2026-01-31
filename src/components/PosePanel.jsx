@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { actions as actionList200, actionCategories } from '../data/actions200'
+import { actions as actionList250, actionCategories } from '../data/actions250'
+import { poseBoneData } from '../data/poseBoneData'
 import './PosePanel.css'
 
 const PosePanel = ({ isOpen, onClose, onSelectPose, currentPose }) => {
-  const [activeCategory, setActiveCategory] = useState('all')
+  const [activeCategory, setActiveCategory] = useState('basic')
   const [searchQuery, setSearchQuery] = useState('')
   const [favorites, setFavorites] = useState(() => {
     const saved = localStorage.getItem('poseFavorites')
@@ -16,16 +17,56 @@ const PosePanel = ({ isOpen, onClose, onSelectPose, currentPose }) => {
   const [isPlaying, setIsPlaying] = useState(true)
   const [previewPose, setPreviewPose] = useState(null)
 
+  // 姿势分类定义
+  const poseCategories = [
+    { id: 'basic', name: '基础', icon: '🧍', description: '站立、坐下、蹲下等基础姿势' },
+    { id: 'gesture', name: '手势', icon: '✌️', description: '剪刀手、比心等手势姿势' },
+    { id: 'action', name: '动作', icon: '🏃', description: '跳跃、弯腰等动作姿势' },
+    { id: 'expression', name: '表情', icon: '😊', description: '开心、悲伤等表情姿势' },
+    { id: 'combat', name: '战斗', icon: '⚔️', description: '攻击、防御等战斗姿势' },
+    { id: 'dance', name: '舞蹈', icon: '💃', description: '舞蹈动作姿势' }
+  ]
+
+  // 获取姿势图标 - 移到 useMemo 之前
+  const getPoseIcon = useCallback((name) => {
+    const iconMap = {
+      '自然站立': '🧍', '立正站立': '🧍‍♀️', '标准坐姿': '🪑', '平躺休息': '🛏️', '蹲下': '🏋️',
+      '剪刀手': '✌️', '比心': '💕', 'OK手势': '👌', '点赞': '👍', '指方向': '👆', '抱胸': '🤜',
+      '挥手(右)': '👋', '挥手(左)': '👋', '鞠躬': '🙇', '敬礼': '🫡',
+      '开心': '😊', '大笑': '😂', '微笑': '😊', '害羞': '😳', '伤心': '😢', '生气': '😠', '惊讶': '😲',
+      '攻击': '⚔️', '防御': '🛡️', '闪避': '💨', '瞄准': '🎯',
+      '街舞': '🕺', '芭蕾': '🩰'
+    }
+    return iconMap[name] || '🧘'
+  }, [])
+
+  // 将poseBoneData转换为数组并添加分类
+  const allPoses = React.useMemo(() => {
+    const poses = []
+    const categoryMap = {
+      idle: 'basic', stand: 'basic', sit: 'basic', lie: 'basic', crouch: 'basic',
+      pose_peace: 'gesture', pose_heart: 'gesture', pose_ok: 'gesture', pose_thumb: 'gesture', pose_point: 'gesture', pose_cross_arm: 'gesture',
+      wave_right: 'action', wave_left: 'action', bow: 'action', salute: 'action',
+      happy: 'expression', laugh: 'expression', smile: 'expression', shy: 'expression', sad: 'expression', angry: 'expression', surprised: 'expression',
+      attack: 'combat', defend: 'combat', dodge: 'combat', aim: 'combat',
+      dance: 'dance', hiphop: 'dance', ballet: 'dance'
+    }
+
+    Object.entries(poseBoneData).forEach(([id, pose]) => {
+      poses.push({
+        id,
+        ...pose,
+        category: categoryMap[id] || 'basic',
+        icon: getPoseIcon(pose.name)
+      })
+    })
+
+    return poses
+  }, [getPoseIcon])
+
   // 筛选姿势
   const filteredPoses = React.useMemo(() => {
-    let poses = actionList200
-
-    // 只显示适合作为姿势的动作（静态或慢速动作）
-    poses = poses.filter(action => 
-      action.type === 'static' || 
-      action.category === 'pose' ||
-      action.category === 'expression'
-    )
+    let poses = allPoses
 
     // 按分类筛选
     if (activeCategory !== 'all' && activeCategory !== 'favorites' && activeCategory !== 'recent') {
@@ -53,7 +94,7 @@ const PosePanel = ({ isOpen, onClose, onSelectPose, currentPose }) => {
     }
 
     return poses
-  }, [activeCategory, searchQuery, favorites, recentPoses])
+  }, [activeCategory, searchQuery, favorites, recentPoses, allPoses])
 
   // 切换收藏
   const toggleFavorite = useCallback((poseId, e) => {
@@ -98,7 +139,7 @@ const PosePanel = ({ isOpen, onClose, onSelectPose, currentPose }) => {
     { id: 'all', name: '全部', icon: '📋' },
     { id: 'favorites', name: '收藏', icon: '⭐' },
     { id: 'recent', name: '最近', icon: '🕐' },
-    ...actionCategories.filter(c => c.id !== 'all')
+    ...poseCategories
   ]
 
   if (!isOpen) return null
