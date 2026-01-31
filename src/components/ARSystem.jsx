@@ -3142,9 +3142,9 @@ export const ARScene = ({ selectedFile }) => {
               </button>
 
               {/* 家具选项 */}
-              {(furnitureSearchQuery.trim() 
+              {(furnitureSearchQuery.trim()
                 ? searchFurniture(furnitureSearchQuery)
-                : activeFurnitureCategory === 'all' 
+                : activeFurnitureCategory === 'all'
                   ? furnitureList.filter(f => f.id !== 'none')
                   : getFurnitureByCategory(activeFurnitureCategory)
               ).map((furniture) => (
@@ -3158,7 +3158,18 @@ export const ARScene = ({ selectedFile }) => {
                     })
                     setShowPropSelect(false)
                     showNotification(`给角色${propTargetCharacter + 1}装备了${furniture.name}`, 'success')
-                    
+
+                    // 如果是座椅或床铺类，调整角色位置到家具上
+                    if (furniture.category === 'seat' || furniture.category === 'bed') {
+                      setCharacterPositions(prev => {
+                        const updated = [...prev]
+                        // 保持当前x,z位置，只调整y高度
+                        const currentPos = updated[propTargetCharacter] || [0, 0, 0]
+                        updated[propTargetCharacter] = [currentPos[0], 0, currentPos[2]]
+                        return updated
+                      })
+                    }
+
                     // 如果家具有自动姿势，触发该姿势
                     if (furniture.autoPose) {
                       setTimeout(() => {
@@ -3677,6 +3688,44 @@ export const ARScene = ({ selectedFile }) => {
             }} />
           )}
         </button>
+
+        {/* 坐下按钮 - 仅当装备了座椅类家具时显示 */}
+        {(() => {
+          const currentFurniture = furnitureList.find(f => f.id === characterProps[selectedCharacterIndex])
+          const isSeat = currentFurniture?.category === 'seat'
+          const isBed = currentFurniture?.category === 'bed'
+          if (!isSeat && !isBed) return null
+          return (
+            <button
+              onClick={() => {
+                // 执行坐下/躺下动作
+                if (currentFurniture?.autoPose) {
+                  executeAction(currentFurniture.autoPose)
+                  showNotification(`${currentFurniture.name}：${currentFurniture.autoPose === 'sit' ? '坐下' : '躺下'}`, 'success')
+                }
+              }}
+              style={{
+                width: isMobile ? '48px' : '56px',
+                height: isMobile ? '48px' : '56px',
+                borderRadius: '16px',
+                background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)',
+                border: '2px solid #4CAF50',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: isMobile ? '20px' : '24px',
+                cursor: 'pointer',
+                color: 'white',
+                transition: 'all 0.3s ease',
+                boxShadow: '0 0 15px rgba(76, 175, 80, 0.4)',
+                animation: 'pulse 2s infinite'
+              }}
+              title={isSeat ? '点击坐下' : '点击躺下'}
+            >
+              {isSeat ? '🪑' : '🛏️'}
+            </button>
+          )
+        })()}
 
         {/* 旋转按钮 */}
         <button
