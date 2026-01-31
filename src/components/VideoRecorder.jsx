@@ -2,25 +2,41 @@ import React, { useRef, useState, useCallback, useEffect } from 'react'
 import './VideoRecorder.css'
 
 // 视频录制组件 - 支持录制3D模型和摄像头画面
+// 重构版本：添加倒计时功能，录制时UI自动隐藏
 export const VideoRecorder = ({ 
   isOpen, 
   onClose, 
   canvasRef, 
   videoRef,
-  isMobile 
+  isMobile,
+  onRecordingStart,
+  onRecordingStop
 }) => {
   const [isRecording, setIsRecording] = useState(false)
   const [recordingTime, setRecordingTime] = useState(0)
-  const [recordedVideos, setRecordedVideos] = useState([])
+  const [recordedVideos, setRecordedVideos] = useState(() => {
+    const saved = localStorage.getItem('ar-recorded-videos')
+    return saved ? JSON.parse(saved) : []
+  })
   const [quality, setQuality] = useState('1080p')
   const [includeAudio, setIncludeAudio] = useState(true)
   const [showPreview, setShowPreview] = useState(false)
   const [previewUrl, setPreviewUrl] = useState(null)
+  const [countdown, setCountdown] = useState(0)
+  const [showUI, setShowUI] = useState(true)
+  const [isPaused, setIsPaused] = useState(false)
   
   const mediaRecorderRef = useRef(null)
   const recordedChunksRef = useRef([])
   const timerRef = useRef(null)
+  const countdownRef = useRef(null)
   const streamRef = useRef(null)
+  const pauseTimeRef = useRef(0)
+
+  // 保存录制历史到本地存储
+  useEffect(() => {
+    localStorage.setItem('ar-recorded-videos', JSON.stringify(recordedVideos))
+  }, [recordedVideos])
 
   // 获取分辨率设置
   const getResolution = () => {
@@ -86,7 +102,7 @@ export const VideoRecorder = ({
       ctx.fillText('AR Character', 20, height - 20)
       
       // 添加录制时间
-      if (isRecording) {
+      if (isRecording && !isPaused) {
         const timeStr = formatTime(recordingTime)
         ctx.fillStyle = 'rgba(255, 0, 0, 0.8)'
         ctx.beginPath()
@@ -118,6 +134,24 @@ export const VideoRecorder = ({
     
     return canvasStream
   }
+
+  // 开始倒计时
+  const startCountdown = useCallback(() => {
+    setCountdown(3)
+    setShowUI(false) // 隐藏UI
+    
+    let count = 3
+    countdownRef.current = setInterval(() => {
+      count -= 1
+      setCountdown(count)
+      
+      if (count <= 0) {
+        clearInterval(countdownRef.current)
+        setCountdown(0)
+        startRecording()
+      }
+    }, 1000)
+  }, [])
 
   // 开始录制
   const startRecording = async () => {
@@ -174,14 +208,21 @@ export const VideoRecorder = ({
         setRecordedVideos(prev => [newVideo, ...prev])
         setPreviewUrl(url)
         setShowPreview(true)
+        setShowUI(true) // 显示UI
         
         // 停止所有流
         stream.getTracks().forEach(track => track.stop())
+        
+        // 回调
+        onRecordingStop?.(newVideo)
       }
       
       mediaRecorder.start(1000) // 每秒收集一次数据
       setIsRecording(true)
       setRecordingTime(0)
+      
+      // 回调
+      onRecordingStart?.()
       
       // 计时器
       timerRef.current = setInterval(() => {
@@ -191,21 +232,45 @@ export const VideoRecorder = ({
     } catch (error) {
       console.error('录制失败:', error)
       alert('录制失败: ' + error.message)
+      setShowUI(true) // 出错时显示UI
     }
   }
 
   // 停止录制
-  const stopRecording = () => {
+  const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop()
       setIsRecording(false)
+      setIsPaused(false)
       
       if (timerRef.current) {
         clearInterval(timerRef.current)
         timerRef.current = null
       }
     }
-  }
+  }, [isRecording])
+
+  // 暂停/继续录制
+  const togglePause = useCallback(() => {
+    if (!mediaRecorderRef.current) return
+    
+    if (isPaused) {
+      mediaRecorderRef.current.resume()
+      setIsPaused(false)
+      // 恢复计时
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1)
+      }, 1000)
+    } else {
+      mediaRecorderRef.current.pause()
+      setIsPaused(true)
+      // 暂停计时
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+    }
+  }, [isPaused])
 
   // 格式化时间
   const formatTime = (seconds) => {
@@ -239,124 +304,184 @@ export const VideoRecorder = ({
       if (timerRef.current) {
         clearInterval(timerRef.current)
       }
-      recordedVideos.forEach(video => {
-        URL.revokeObjectURL(video.url)
-      })
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current)
+      }
     }
   }, [])
+
+  // 录制中的悬浮控制按钮
+  const RecordingControls = () => {
+    if (!isRecording || showUI) return null
+    
+    return (
+      <div className="recording-floating-controls">
+        <div className="recording-status">
+          <span className="recording-dot"></span>
+          <span className="recording-time">{formatTime(recordingTime)}</span>
+        </div>
+        <div className="recording-buttons">
+          <button 
+            className="control-btn pause"
+            onClick={togglePause}
+            title={isPaused ? '继续' : '暂停'}
+          >
+            {isPaused ? '▶️' : '⏸️'}
+          </button>
+          <button 
+            className="control-btn stop"
+            onClick={stopRecording}
+            title="停止录制"
+          >
+            ⏹️
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // 倒计时覆盖层
+  const CountdownOverlay = () => {
+    if (countdown === 0) return null
+    
+    return (
+      <div className="countdown-overlay">
+        <div className="countdown-number">{countdown}</div>
+        <div className="countdown-text">准备录制...</div>
+      </div>
+    )
+  }
 
   if (!isOpen) return null
 
   return (
-    <div className="recorder-overlay" onClick={onClose}>
-      <div className={`recorder-panel ${isMobile ? 'mobile' : ''}`} onClick={e => e.stopPropagation()}>
-        {/* 头部 */}
-        <div className="recorder-header">
-          <h2>🎬 视频录制</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
-        </div>
-
-        {/* 设置区域 */}
-        <div className="recorder-settings">
-          <div className="setting-group">
-            <label>分辨率:</label>
-            <select value={quality} onChange={(e) => setQuality(e.target.value)}>
-              <option value="720p">720p (HD)</option>
-              <option value="1080p">1080p (Full HD)</option>
-              <option value="4K">4K (Ultra HD)</option>
-            </select>
-          </div>
-          
-          <div className="setting-group">
-            <label>
-              <input 
-                type="checkbox" 
-                checked={includeAudio}
-                onChange={(e) => setIncludeAudio(e.target.checked)}
-              />
-              包含音频
-            </label>
-          </div>
-        </div>
-
-        {/* 录制控制 */}
-        <div className="recorder-controls">
-          {!isRecording ? (
-            <button className="record-btn start" onClick={startRecording}>
-              <span className="record-icon">🔴</span>
-              <span>开始录制</span>
-            </button>
-          ) : (
-            <button className="record-btn stop" onClick={stopRecording}>
-              <span className="record-icon">⏹️</span>
-              <span>停止录制 ({formatTime(recordingTime)})</span>
-            </button>
-          )}
-        </div>
-
-        {/* 录制提示 */}
-        {isRecording && (
-          <div className="recording-indicator">
-            <span className="recording-dot"></span>
-            <span>正在录制... {formatTime(recordingTime)}</span>
-          </div>
-        )}
-
-        {/* 预览区域 */}
-        {showPreview && previewUrl && (
-          <div className="preview-section">
-            <h3>最新录制</h3>
-            <video 
-              src={previewUrl} 
-              controls 
-              className="preview-video"
-            />
-            <div className="preview-actions">
-              <button onClick={() => downloadVideo(recordedVideos[0])}>
-                💾 下载
-              </button>
-              <button onClick={() => setShowPreview(false)}>
-                关闭预览
-              </button>
+    <>
+      {/* 倒计时覆盖层 */}
+      <CountdownOverlay />
+      
+      {/* 录制中悬浮控制 */}
+      <RecordingControls />
+      
+      {/* 主面板 - 录制时隐藏 */}
+      {showUI && (
+        <div className="recorder-overlay" onClick={onClose}>
+          <div className={`recorder-panel ${isMobile ? 'mobile' : ''}`} onClick={e => e.stopPropagation()}>
+            {/* 头部 */}
+            <div className="recorder-header">
+              <h2>🎬 视频录制</h2>
+              <button className="close-btn" onClick={onClose}>×</button>
             </div>
-          </div>
-        )}
 
-        {/* 录制历史 */}
-        {recordedVideos.length > 0 && (
-          <div className="video-history">
-            <h3>录制历史 ({recordedVideos.length})</h3>
-            <div className="video-list">
-              {recordedVideos.map((video, index) => (
-                <div key={video.id} className="video-item">
-                  <div className="video-info">
-                    <span className="video-number">#{recordedVideos.length - index}</span>
-                    <span className="video-time">{formatTime(video.duration)}</span>
-                    <span className="video-quality">{video.quality}</span>
-                    <span className="video-size">{video.size}</span>
-                  </div>
-                  <div className="video-actions">
-                    <button onClick={() => downloadVideo(video)}>下载</button>
-                    <button onClick={() => deleteVideo(video.id)}>删除</button>
-                  </div>
+            {/* 设置区域 */}
+            <div className="recorder-settings">
+              <div className="setting-group">
+                <label>分辨率:</label>
+                <select value={quality} onChange={(e) => setQuality(e.target.value)}>
+                  <option value="720p">720p (HD)</option>
+                  <option value="1080p">1080p (Full HD)</option>
+                  <option value="4K">4K (Ultra HD)</option>
+                </select>
+              </div>
+              
+              <div className="setting-group">
+                <label>
+                  <input 
+                    type="checkbox" 
+                    checked={includeAudio}
+                    onChange={(e) => setIncludeAudio(e.target.checked)}
+                  />
+                  包含音频
+                </label>
+              </div>
+            </div>
+
+            {/* 录制控制 */}
+            <div className="recorder-controls">
+              {!isRecording ? (
+                <button className="record-btn start" onClick={startCountdown}>
+                  <span className="record-icon">🔴</span>
+                  <span>开始录制 (3秒倒计时)</span>
+                </button>
+              ) : (
+                <div className="recording-active-controls">
+                  <button className="record-btn pause" onClick={togglePause}>
+                    <span>{isPaused ? '▶️ 继续' : '⏸️ 暂停'}</span>
+                  </button>
+                  <button className="record-btn stop" onClick={stopRecording}>
+                    <span className="record-icon">⏹️</span>
+                    <span>停止录制 ({formatTime(recordingTime)})</span>
+                  </button>
                 </div>
-              ))}
+              )}
+            </div>
+
+            {/* 录制提示 */}
+            {isRecording && (
+              <div className="recording-indicator">
+                <span className={`recording-dot ${isPaused ? 'paused' : ''}`}></span>
+                <span>{isPaused ? '已暂停' : '正在录制...'} {formatTime(recordingTime)}</span>
+              </div>
+            )}
+
+            {/* 预览区域 */}
+            {showPreview && previewUrl && (
+              <div className="preview-section">
+                <h3>最新录制</h3>
+                <video 
+                  src={previewUrl} 
+                  controls 
+                  className="preview-video"
+                />
+                <div className="preview-actions">
+                  <button onClick={() => downloadVideo(recordedVideos[0])}>
+                    💾 下载
+                  </button>
+                  <button onClick={() => setShowPreview(false)}>
+                    关闭预览
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 录制历史 */}
+            {recordedVideos.length > 0 && (
+              <div className="video-history">
+                <h3>录制历史 ({recordedVideos.length})</h3>
+                <div className="video-list">
+                  {recordedVideos.map((video, index) => (
+                    <div key={video.id} className="video-item">
+                      <div className="video-info">
+                        <span className="video-number">#{recordedVideos.length - index}</span>
+                        <span className="video-time">{formatTime(video.duration)}</span>
+                        <span className="video-quality">{video.quality}</span>
+                        <span className="video-size">{video.size}</span>
+                      </div>
+                      <div className="video-actions">
+                        <button onClick={() => downloadVideo(video)}>下载</button>
+                        <button onClick={() => deleteVideo(video.id)}>删除</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 使用说明 */}
+            <div className="recorder-help">
+              <h4>📖 使用说明</h4>
+              <ul>
+                <li>点击"开始录制"后会有3秒倒计时</li>
+                <li>倒计时结束后UI自动隐藏，开始录制</li>
+                <li>录制过程中可点击悬浮按钮暂停/停止</li>
+                <li>支持720p/1080p/4K三种分辨率</li>
+                <li>可选择是否录制音频</li>
+                <li>录制文件为WebM格式，可在浏览器中播放</li>
+              </ul>
             </div>
           </div>
-        )}
-
-        {/* 使用说明 */}
-        <div className="recorder-help">
-          <h4>📖 使用说明</h4>
-          <ul>
-            <li>录制会同时捕获摄像头画面和3D模型</li>
-            <li>支持720p/1080p/4K三种分辨率</li>
-            <li>可选择是否录制音频</li>
-            <li>录制文件为WebM格式，可在浏览器中播放</li>
-          </ul>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   )
 }
 

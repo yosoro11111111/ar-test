@@ -404,6 +404,178 @@
   }
 }
 
+/* 倒计时覆盖层 */
+.countdown-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 5000;
+  backdrop-filter: blur(20px);
+}
+
+.countdown-number {
+  font-size: 180px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 50%, #ff6b6b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: countdown-pulse 1s ease-in-out infinite;
+  text-shadow: 0 0 60px rgba(255, 107, 107, 0.5);
+}
+
+.countdown-text {
+  font-size: 24px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 20px;
+  letter-spacing: 4px;
+  animation: fade-in-out 1s ease-in-out infinite;
+}
+
+@keyframes countdown-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+@keyframes fade-in-out {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 录制中悬浮控制 */
+.recording-floating-controls {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 50px;
+  z-index: 4000;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  animation: slide-up 0.3s ease-out;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateX(-50%) translateY(100px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+.recording-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 16px;
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.recording-status .recording-dot {
+  width: 14px;
+  height: 14px;
+  background: #ff6b6b;
+  border-radius: 50%;
+  animation: pulse-record 1s ease-in-out infinite;
+}
+
+.recording-status .recording-dot.paused {
+  animation: none;
+  background: #fbbf24;
+}
+
+.recording-time {
+  color: white;
+  font-size: 18px;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 2px;
+}
+
+.recording-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.control-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.control-btn.pause {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+}
+
+.control-btn.stop {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+}
+
+.control-btn:hover {
+  transform: scale(1.15);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+}
+
+.control-btn:active {
+  transform: scale(0.95);
+}
+
+/* 录制中控制按钮组 */
+.recording-active-controls {
+  display: flex;
+  gap: 16px;
+}
+
+.record-btn.pause {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+  color: white;
+}
+
+.record-btn.pause:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 24px rgba(251, 191, 36, 0.4);
+}
+
+/* 暂停状态的录制指示器 */
+.recording-dot.paused {
+  animation: none;
+  background: #fbbf24;
+}
+
 /* 滚动条样式 */
 .recorder-panel::-webkit-scrollbar {
   width: 8px;
@@ -421,4 +593,40 @@
 
 .recorder-panel::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.3);
+}
+
+/* 移动端悬浮控制适配 */
+@media (max-width: 768px) {
+  .recording-floating-controls {
+    bottom: 20px;
+    padding: 12px 20px;
+  }
+  
+  .countdown-number {
+    font-size: 120px;
+  }
+  
+  .countdown-text {
+    font-size: 18px;
+  }
+  
+  .control-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 18px;
+  }
+  
+  .recording-time {
+    font-size: 16px;
+  }
+  
+  .recording-active-controls {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .recording-active-controls .record-btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
