@@ -1776,7 +1776,7 @@ const FloatingAnimation = () => {
 }
 
 // ==================== 可拖拽角色组件 ====================
-const DraggableCharacter = ({ position, index, isSelected, character, characterScale, actionIntensity, onPositionChange, propId, isBoneEditing, onBoneChange, onPropInteract }) => {
+const DraggableCharacter = ({ position, index, isSelected, character, characterScale, actionIntensity, onPositionChange, propId, isBoneEditing, onBoneChange, onPropInteract, onSelect }) => {
   const groupRef = useRef()
   const [isDragging, setIsDragging] = useState(false)
   const { camera, gl } = useThree()
@@ -1784,10 +1784,21 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
   const raycaster = useRef(new THREE.Raycaster())
   const mouse = useRef(new THREE.Vector2())
   const offset = useRef(new THREE.Vector3())
+  const clickStartTime = useRef(0)
+  const clickStartPos = useRef({ x: 0, y: 0 })
 
   const handlePointerDown = (e) => {
-    if (!isSelected) return // 只有选中的人物可以拖拽
     e.stopPropagation()
+    clickStartTime.current = Date.now()
+    clickStartPos.current = { x: e.pointer.x, y: e.pointer.y }
+    
+    // 如果未选中，先选中角色
+    if (!isSelected) {
+      onSelect?.(index)
+      return
+    }
+    
+    // 已选中，开始拖拽
     setIsDragging(true)
     gl.domElement.setPointerCapture(e.pointerId)
 
@@ -1811,9 +1822,22 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
   }
 
   const handlePointerUp = (e) => {
-    if (!isDragging) return
-    setIsDragging(false)
-    gl.domElement.releasePointerCapture(e.pointerId)
+    // 判断是点击还是拖拽
+    const clickDuration = Date.now() - clickStartTime.current
+    const moveDistance = Math.sqrt(
+      Math.pow(e.pointer.x - clickStartPos.current.x, 2) +
+      Math.pow(e.pointer.y - clickStartPos.current.y, 2)
+    )
+    
+    // 如果是短点击且没有移动，切换选中状态
+    if (clickDuration < 200 && moveDistance < 0.01 && !isSelected) {
+      onSelect?.(index)
+    }
+    
+    if (isDragging) {
+      setIsDragging(false)
+      gl.domElement.releasePointerCapture(e.pointerId)
+    }
   }
 
   const fileToLoad = character.file || character
@@ -1875,7 +1899,7 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
 }
 
 // ==================== 9. 3D场景内容 ====================
-const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionIntensity, isARMode, characterPositions, onPositionChange, characterProps, isBoneEditing, onBoneChange, onPropInteract }) => {
+const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionIntensity, isARMode, characterPositions, onPositionChange, characterProps, isBoneEditing, onBoneChange, onPropInteract, onSelectCharacter }) => {
   return (
     <>
       {/* AR模式下不显示背景特效，避免挡住摄像头画面 */}
@@ -1909,6 +1933,7 @@ const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionI
               isBoneEditing={isBoneEditing}
               onBoneChange={onBoneChange}
               onPropInteract={onPropInteract}
+              onSelect={onSelectCharacter}
             />
           </group>
         )
@@ -2654,6 +2679,9 @@ export const ARScene = ({ selectedFile }) => {
               // 显示通知
               showNotification(`${furniture.name}: ${action}`, 'success')
             }}
+            onSelectCharacter={(index) => {
+              setSelectedCharacterIndex(index)
+            }}
           />
           
           {/* OrbitControls - 移动端始终启用，AR模式下也可以调整模型位置 */}
@@ -2963,6 +2991,95 @@ export const ARScene = ({ selectedFile }) => {
               label="动作强度"
               icon="💪"
             />
+            
+            {/* 位置预设按钮 */}
+            <div style={{
+              marginTop: '8px',
+              padding: '12px',
+              background: 'rgba(255,255,255,0.05)',
+              borderRadius: '12px',
+              border: '1px solid rgba(255,255,255,0.1)'
+            }}>
+              <div style={{
+                fontSize: '13px',
+                fontWeight: '600',
+                color: 'white',
+                marginBottom: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <span>📍</span>
+                <span>位置预设</span>
+              </div>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '8px'
+              }}>
+                {[
+                  { name: '站立', pos: [0, 0, 0], icon: '🧍' },
+                  { name: '左侧', pos: [-1.5, 0, 0], icon: '⬅️' },
+                  { name: '右侧', pos: [1.5, 0, 0], icon: '➡️' },
+                  { name: '前方', pos: [0, 0, 1], icon: '⬆️' },
+                  { name: '后方', pos: [0, 0, -1], icon: '⬇️' },
+                  { name: '左上', pos: [-1, 0, 1], icon: '↖️' },
+                  { name: '右上', pos: [1, 0, 1], icon: '↗️' },
+                  { name: '左下', pos: [-1, 0, -1], icon: '↙️' },
+                  { name: '右下', pos: [1, 0, -1], icon: '↘️' },
+                  { name: '远左', pos: [-2, 0, 0], icon: '⏪' },
+                  { name: '远右', pos: [2, 0, 0], icon: '⏩' },
+                  { name: '远前', pos: [0, 0, 2], icon: '⏫' },
+                  { name: '远后', pos: [0, 0, -2], icon: '⏬' },
+                  { name: '中心', pos: [0, 0, 0], icon: '🎯' },
+                  { name: '躺平', pos: [0, 0, 0], icon: '🛏️' },
+                  { name: '高处', pos: [0, 1, 0], icon: '⬆️' },
+                  { name: '低处', pos: [0, -0.5, 0], icon: '⬇️' },
+                  { name: '角落1', pos: [-1.5, 0, 1.5], icon: '📐' },
+                  { name: '角落2', pos: [1.5, 0, 1.5], icon: '📏' },
+                  { name: '环绕', pos: [0, 0, 0], icon: '🔄' }
+                ].map((preset, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      if (selectedCharacterIndex !== null) {
+                        setCharacterPositions(prev => {
+                          const updated = [...prev]
+                          updated[selectedCharacterIndex] = preset.pos
+                          return updated
+                        })
+                        showNotification(`已设置位置: ${preset.name}`, 'success')
+                      }
+                    }}
+                    style={{
+                      padding: '8px 4px',
+                      background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '2px',
+                      fontSize: '11px',
+                      color: 'white',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = 'linear-gradient(135deg, rgba(0,212,255,0.3) 0%, rgba(0,212,255,0.1) 100%)'
+                      e.target.style.borderColor = 'rgba(0,212,255,0.5)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
+                      e.target.style.borderColor = 'rgba(255,255,255,0.15)'
+                    }}
+                  >
+                    <span style={{ fontSize: '14px' }}>{preset.icon}</span>
+                    <span>{preset.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -4294,7 +4411,10 @@ export const ARScene = ({ selectedFile }) => {
         onClose={() => setShowPosePanel(false)}
         onSelectPose={(pose, options) => {
           console.log('选择姿势:', pose)
-          setCurrentAction(pose.id)
+          // 使用姿势的 action 或 id 执行动作
+          const actionName = pose.action || pose.id
+          executeAction(actionName)
+          setCurrentAction(actionName)
         }}
         currentPose={currentAction}
       />

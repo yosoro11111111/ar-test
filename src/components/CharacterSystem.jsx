@@ -3405,9 +3405,9 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   )
 }
 
-const CharacterController = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null, isBoneEditing = false, onBoneChange = null }) => {
+const CharacterController = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null, isBoneEditing = false, onBoneChange = null, scale = 1.0 }) => {
   return (
-    <group>
+    <group scale={[scale, scale, scale]}>
       <CharacterSystem 
         position={position} 
         rotation={rotation} 
