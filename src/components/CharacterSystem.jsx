@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { VRM, VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { DragControls } from 'three/examples/jsm/controls/DragControls'
+import { actionAnimations200, getActionAnimation } from '../data/actionAnimations200'
 
 // ==================== 移动端检测 Hook ====================
 const useMobileDetect = () => {
@@ -2290,7 +2291,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     }
   }
   
-  // 执行骨骼动画（优化版）
+  // 执行骨骼动画（优化版 - 支持200种精细动作）
   const executeBoneAnimation = (actionName) => {
     if (!vrmModel || !vrmModel.humanoid) {
       console.log('VRM模型未加载，无法执行骨骼动画')
@@ -2307,30 +2308,43 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       saveInitialBoneRotations()
     }
     
-    let action = dramaticActions[actionName]
+    // 优先使用新的200种动作系统
+    let action = getActionAnimation(actionName)
     
-    // 如果找不到预定义动作，使用通用动作生成
+    // 如果新系统没有，尝试使用旧系统
+    if (!action && dramaticActions[actionName]) {
+      action = dramaticActions[actionName]
+    }
+    
+    // 如果都找不到，使用通用动作生成
     if (!action) {
       console.log('使用通用动作处理:', actionName)
       action = generateGenericAction(actionName)
     }
     
-    console.log('开始执行优化版大幅度动作:', actionName)
+    console.log('开始执行精细动作:', actionName, '持续时间:', action.duration, 'ms')
     animationStartTime.current = Date.now()
     
     // 初始化骨骼速度
     boneVelocities.current.clear()
     
+    // 动画循环计数，用于loop类型动作
+    let loopCount = 0
+    const maxLoops = action.loop ? 3 : 1 // 循环动作最多播放3次
+    
     const animate = () => {
       const elapsed = Date.now() - animationStartTime.current
-      const progress = Math.min(elapsed / action.duration, 1)
+      const loopDuration = action.duration
+      const totalDuration = loopDuration * maxLoops
+      const currentLoopProgress = (elapsed % loopDuration) / loopDuration
+      const totalProgress = Math.min(elapsed / totalDuration, 1)
       
       // 找到当前和下一个关键帧
       let currentKeyframe = action.keyframes[0]
       let nextKeyframe = action.keyframes[action.keyframes.length - 1]
       
       for (let i = 0; i < action.keyframes.length - 1; i++) {
-        if (progress >= action.keyframes[i].time && progress <= action.keyframes[i + 1].time) {
+        if (currentLoopProgress >= action.keyframes[i].time && currentLoopProgress <= action.keyframes[i + 1].time) {
           currentKeyframe = action.keyframes[i]
           nextKeyframe = action.keyframes[i + 1]
           break
@@ -2339,18 +2353,22 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       
       // 计算关键帧之间的插值
       const frameDuration = nextKeyframe.time - currentKeyframe.time
-      const frameProgress = frameDuration > 0 ? (progress - currentKeyframe.time) / frameDuration : 0
+      const frameProgress = frameDuration > 0 ? (currentLoopProgress - currentKeyframe.time) / frameDuration : 0
       
       // 根据动作类型选择缓动函数
       let easeProgress
-      if (actionName === 'somersault' || actionName === 'superJump') {
-        // 翻跟头和大跳用弹性缓动
+      const actionType = actionName.toLowerCase()
+      if (actionType.includes('jump') || actionType.includes('flip') || actionType.includes('somersault')) {
+        // 跳跃类用弹性缓动
         easeProgress = easingFunctions.elastic(frameProgress)
-      } else if (actionName === 'celebrate') {
-        // 庆祝用回弹缓动
+      } else if (actionType.includes('dance') || actionType.includes('celebrate') || actionType.includes('happy')) {
+        // 舞蹈庆祝类用回弹缓动
         easeProgress = easingFunctions.bounce(frameProgress)
-      } else if (actionName === 'spinDance') {
-        // 旋转舞用平滑缓动
+      } else if (actionType.includes('attack') || actionType.includes('combat') || actionType.includes('fight')) {
+        // 战斗类用快速缓动
+        easeProgress = easingFunctions.quint(frameProgress)
+      } else if (actionType.includes('meditation') || actionType.includes('sleep') || actionType.includes('rest')) {
+        // 冥想休息类用超平滑缓动
         easeProgress = easingFunctions.smooth(frameProgress)
       } else {
         // 其他用五次方缓动
@@ -2401,7 +2419,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       })
       
       // 继续动画或结束
-      if (progress < 1) {
+      if (totalProgress < 1) {
         currentBoneAnimation.current = requestAnimationFrame(animate)
       } else {
         console.log('动作完成:', actionName)
