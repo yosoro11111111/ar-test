@@ -389,8 +389,8 @@ const useDebugLog = () => {
   return { logs, addLog, clearLogs }
 }
 
-// ==================== 移动端骨骼编辑器组件 ====================
-const MobileBoneEditor = ({ characters, selectedCharacterIndex, onBoneChange }) => {
+// ==================== 骨骼编辑器组件 (支持桌面端和移动端) ====================
+const BoneEditor = ({ characters, selectedCharacterIndex, onBoneChange, isMobile }) => {
   const [selectedBone, setSelectedBone] = useState(null)
   const [bones, setBones] = useState([])
   const [hasVRM, setHasVRM] = useState(false)
@@ -487,17 +487,19 @@ const MobileBoneEditor = ({ characters, selectedCharacterIndex, onBoneChange }) 
   return (
     <div style={{
       position: 'fixed',
-      bottom: '0',
-      left: '0',
-      right: '0',
+      bottom: isMobile ? '0' : 'auto',
+      top: isMobile ? 'auto' : '80px',
+      left: isMobile ? '0' : '20px',
+      right: isMobile ? '0' : 'auto',
+      width: isMobile ? 'auto' : '320px',
+      maxHeight: isMobile ? '80vh' : 'calc(100vh - 100px)',
       background: 'rgba(0,0,0,0.95)',
-      borderRadius: '20px 20px 0 0',
-      padding: '16px 16px 120px 16px',
+      borderRadius: isMobile ? '20px 20px 0 0' : '16px',
+      padding: isMobile ? '16px 16px 120px 16px' : '20px',
       zIndex: 9999,
       border: '2px solid rgba(0,212,255,0.5)',
-      borderBottom: 'none',
+      borderBottom: isMobile ? 'none' : '2px solid rgba(0,212,255,0.5)',
       boxShadow: '0 -4px 30px rgba(0,0,0,0.7)',
-      maxHeight: '80vh',
       overflowY: 'auto'
     }}>
       <div style={{
@@ -2010,6 +2012,8 @@ export const ARScene = ({ selectedFile }) => {
 
   // 舞台效果面板状态
   const [showStageEffects, setShowStageEffects] = useState(false)
+  const [showParticles, setShowParticles] = useState(false)
+  const [particleType, setParticleType] = useState('snow')
 
   // 场景管理面板状态
   const [showSceneManager, setShowSceneManager] = useState(false)
@@ -3178,31 +3182,152 @@ export const ARScene = ({ selectedFile }) => {
               >×</button>
             </div>
 
+            {/* 标签快捷筛选 */}
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '8px',
+              marginBottom: '16px'
+            }}>
+              {['#原神', '#星穹铁道', '#崩坏3', '#V家', '#正太', '#萝莉', '#御姐', '#少年', '#成男', '#成女', '#男性', '#女性'].map(tag => (
+                <button
+                  key={tag}
+                  onClick={() => {
+                    if (characterSearchQuery.includes(tag)) {
+                      setCharacterSearchQuery(characterSearchQuery.replace(tag, '').trim())
+                    } else {
+                      setCharacterSearchQuery((characterSearchQuery + ' ' + tag).trim())
+                    }
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    background: characterSearchQuery.includes(tag)
+                      ? 'linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%)'
+                      : 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '16px',
+                    cursor: 'pointer',
+                    fontSize: '12px',
+                    color: 'white',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
               gap: '16px'
             }}>
-              {modelList.map((model, index) => (
+              {modelList
+                .filter(model => {
+                  if (!characterSearchQuery.trim()) return true
+                  const query = characterSearchQuery.toLowerCase()
+                  // 支持标签搜索 (#开头的)
+                  if (query.startsWith('#')) {
+                    return model.tags?.some(tag => tag.toLowerCase().includes(query))
+                  }
+                  // 支持名称和标签搜索
+                  return model.name.toLowerCase().includes(query) ||
+                         model.game?.toLowerCase().includes(query) ||
+                         model.tags?.some(tag => tag.toLowerCase().includes(query))
+                })
+                .map((model, index) => (
                 <button
                   key={index}
                   onClick={() => addCharacter(selectedCharacterIndex, model)}
                   style={{
-                    padding: '20px',
+                    padding: '16px',
                     background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
                     border: '2px solid rgba(255,255,255,0.1)',
-                    borderRadius: '20px',
+                    borderRadius: '16px',
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '12px',
+                    gap: '10px',
                     transition: 'all 0.3s ease',
-                    color: 'white'
+                    color: 'white',
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(0,212,255,0.5)'
+                    e.currentTarget.style.transform = 'translateY(-2px)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'
+                    e.currentTarget.style.transform = 'translateY(0)'
                   }}
                 >
-                  <div style={{ fontSize: '48px' }}>🌸</div>
-                  <div style={{ fontSize: '14px', fontWeight: '600' }}>{model.name}</div>
+                  {/* 游戏来源标识 */}
+                  <div style={{
+                    position: 'absolute',
+                    top: '8px',
+                    right: '8px',
+                    fontSize: '16px'
+                  }}>
+                    {model.avatar || '🌸'}
+                  </div>
+                  
+                  {/* 角色预览图/图标 */}
+                  <div style={{
+                    width: '80px',
+                    height: '80px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, rgba(0,212,255,0.2) 0%, rgba(157,0,255,0.2) 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '36px',
+                    border: '2px solid rgba(255,255,255,0.2)'
+                  }}>
+                    {model.avatar || '👤'}
+                  </div>
+                  
+                  {/* 角色名称 */}
+                  <div style={{ 
+                    fontSize: '14px', 
+                    fontWeight: '600',
+                    textAlign: 'center'
+                  }}>
+                    {model.name}
+                  </div>
+                  
+                  {/* 游戏来源 */}
+                  <div style={{
+                    fontSize: '11px',
+                    color: 'rgba(255,255,255,0.6)',
+                    background: 'rgba(255,255,255,0.1)',
+                    padding: '2px 8px',
+                    borderRadius: '10px'
+                  }}>
+                    {model.game || '未知'}
+                  </div>
+                  
+                  {/* 标签展示 */}
+                  <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '4px',
+                    justifyContent: 'center',
+                    marginTop: '4px'
+                  }}>
+                    {model.tags?.slice(0, 3).map((tag, i) => (
+                      <span key={i} style={{
+                        fontSize: '10px',
+                        color: 'rgba(255,255,255,0.5)',
+                        background: 'rgba(255,255,255,0.08)',
+                        padding: '2px 6px',
+                        borderRadius: '8px'
+                      }}>
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
                 </button>
               ))}
             </div>
@@ -3434,15 +3559,38 @@ export const ARScene = ({ selectedFile }) => {
                     setShowPropSelect(false)
                     showNotification(`给角色${propTargetCharacter + 1}装备了${furniture.name}`, 'success')
 
-                    // 如果是座椅或床铺类，调整角色位置到家具上
-                    if (furniture.category === 'seat' || furniture.category === 'bed') {
+                    // 家具与人物无缝对接 - 根据家具类型调整角色位置和姿势
+                    if (furniture.category === 'seat') {
+                      // 座椅类 - 角色坐下，调整高度到座椅表面
                       setCharacterPositions(prev => {
                         const updated = [...prev]
-                        // 保持当前x,z位置，只调整y高度
                         const currentPos = updated[propTargetCharacter] || [0, 0, 0]
-                        updated[propTargetCharacter] = [currentPos[0], 0, currentPos[2]]
+                        // 座椅高度约0.5米
+                        updated[propTargetCharacter] = [currentPos[0], 0.25, currentPos[2]]
                         return updated
                       })
+                      // 自动触发坐姿
+                      setTimeout(() => {
+                        executeAction('sit')
+                      }, 200)
+                    } else if (furniture.category === 'bed') {
+                      // 床铺类 - 角色躺下
+                      setCharacterPositions(prev => {
+                        const updated = [...prev]
+                        const currentPos = updated[propTargetCharacter] || [0, 0, 0]
+                        // 床高度约0.3米
+                        updated[propTargetCharacter] = [currentPos[0], 0.15, currentPos[2]]
+                        return updated
+                      })
+                      // 自动触发躺姿
+                      setTimeout(() => {
+                        executeAction('lie')
+                      }, 200)
+                    } else if (furniture.position === 'hand') {
+                      // 手持物品 - 调整手部位置
+                      setTimeout(() => {
+                        executeAction('hold')
+                      }, 200)
                     }
 
                     // 如果家具有自动姿势，触发该姿势
@@ -4198,14 +4346,15 @@ export const ARScene = ({ selectedFile }) => {
         </div>
       )}
 
-      {/* 移动端骨骼编辑器面板 */}
-      {isMobile && isBoneEditing && (
-        <MobileBoneEditor 
+      {/* 骨骼编辑器面板 - 支持桌面端和移动端 */}
+      {isBoneEditing && (
+        <BoneEditor 
           characters={characters}
           selectedCharacterIndex={selectedCharacterIndex}
           onBoneChange={(boneName, rotation) => {
             console.log('骨骼变化:', boneName, rotation)
           }}
+          isMobile={isMobile}
         />
       )}
 
@@ -4218,7 +4367,7 @@ export const ARScene = ({ selectedFile }) => {
         zIndex: 100,
         padding: isMobile ? '8px 12px 16px 12px' : '16px 24px 24px 24px',
         background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 60%, transparent 100%)'
-      }}
+      }}>
         {/* 动作搜索框 */}
         <div style={{
           display: 'flex',
@@ -4396,6 +4545,19 @@ export const ARScene = ({ selectedFile }) => {
         isOpen={showStageEffects}
         onClose={() => setShowStageEffects(false)}
         isMobile={isMobile}
+        onEffectChange={(effects) => {
+          console.log('舞台效果更新:', effects)
+          // 应用特效到场景
+          if (effects.particles?.enabled) {
+            setShowParticles(true)
+            setParticleType(effects.particles.type)
+          } else {
+            setShowParticles(false)
+          }
+          // 保存效果设置到本地存储
+          localStorage.setItem('stageEffects', JSON.stringify(effects))
+        }}
+        currentEffects={JSON.parse(localStorage.getItem('stageEffects') || '{}')}
       />
 
       {/* 场景管理面板 */}
