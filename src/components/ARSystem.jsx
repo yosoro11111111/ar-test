@@ -5,7 +5,9 @@ import * as THREE from 'three'
 import { CharacterController } from './CharacterSystem'
 import modelList from '../models/modelList'
 import VideoRecorder from './VideoRecorder'
-import { actions as actionList100 } from '../data/actions'
+import { actions as actionList200, actionCategories, searchActions } from '../data/actions200'
+import { furnitureList, furnitureCategories, getFurnitureByCategory, searchFurniture } from '../data/furniture'
+import useGyroscope from '../hooks/useGyroscope'
 
 // ==================== 分步引导组件 ====================
 const TutorialGuide = ({ isMobile, onClose }) => {
@@ -1556,23 +1558,9 @@ export const ARScene = ({ selectedFile }) => {
     [1.5, 0, 0]    // 角色2初始位置
   ])
 
-  // 道具列表
-  const propList = [
-    { id: 'none', name: '无道具', icon: '❌', color: '#666' },
-    { id: 'sword', name: '剑', icon: '⚔️', color: '#silver' },
-    { id: 'shield', name: '盾牌', icon: '🛡️', color: '#4a90d9' },
-    { id: 'wand', name: '魔杖', icon: '🪄', color: '#9b59b6' },
-    { id: 'book', name: '书', icon: '📖', color: '#e67e22' },
-    { id: 'flower', name: '花', icon: '🌸', color: '#ff69b4' },
-    { id: 'crown', name: '皇冠', icon: '👑', color: '#ffd700' },
-    { id: 'glasses', name: '眼镜', icon: '👓', color: '#34495e' },
-    { id: 'hat', name: '帽子', icon: '🎩', color: '#2c3e50' },
-    { id: 'microphone', name: '麦克风', icon: '🎤', color: '#e74c3c' },
-    { id: 'camera', name: '相机', icon: '📷', color: '#3498db' },
-    { id: 'balloon', name: '气球', icon: '🎈', color: '#e91e63' },
-    { id: 'gift', name: '礼物', icon: '🎁', color: '#ff5722' },
-    { id: 'umbrella', name: '伞', icon: '☂️', color: '#9c27b0' }
-  ]
+  // 家具搜索状态
+  const [furnitureSearchQuery, setFurnitureSearchQuery] = useState('')
+  const [activeFurnitureCategory, setActiveFurnitureCategory] = useState('all')
 
   // 角色道具状态 - 每个角色可以选择一个道具
   const [characterProps, setCharacterProps] = useState([null, null, null])
@@ -1582,24 +1570,71 @@ export const ARScene = ({ selectedFile }) => {
   // 视频录制面板状态
   const [showVideoRecorder, setShowVideoRecorder] = useState(false)
 
-  // 使用100种动作数据
+  // 人物管理面板状态
+  const [showCharacterManager, setShowCharacterManager] = useState(false)
+  const [characterSearchQuery, setCharacterSearchQuery] = useState('')
+
+  // 陀螺仪控制
+  const { 
+    isSupported: gyroSupported, 
+    isEnabled: gyroEnabled, 
+    toggleGyroscope,
+    getCharacterTransform,
+    detectAction
+  } = useGyroscope(false)
+  
+  // 监听陀螺仪动作
+  useEffect(() => {
+    if (!gyroEnabled) return
+    
+    const checkAction = setInterval(() => {
+      const action = detectAction()
+      if (action) {
+        console.log('陀螺仪检测到动作:', action)
+        // 可以根据检测到的动作触发相应动画
+        // executeAction(action)
+      }
+    }, 500)
+    
+    return () => clearInterval(checkAction)
+  }, [gyroEnabled, detectAction])
+
+  // 使用200种动作数据
   const actionList = useMemo(() => {
-    // 转换 actions.js 的数据格式
-    return actionList100.map(action => ({
+    // 转换 actions200.js 的数据格式
+    return actionList200.map(action => ({
       name: action.name,
       action: action.id,
       icon: action.icon,
       category: action.category,
       type: action.type,
-      highlight: action.category === 'combat' || action.category === 'dance'
+      highlight: action.category === 'combat' || action.category === 'dance' || action.category === 'special'
     }))
   }, [])
 
-  // 根据分类筛选动作
+  // 动作搜索状态
+  const [actionSearchQuery, setActionSearchQuery] = useState('')
+
+  // 根据分类和搜索筛选动作
   const filteredActions = useMemo(() => {
-    if (activeCategory === 'all') return actionList
-    return actionList.filter(action => action.category === activeCategory)
-  }, [activeCategory, actionList])
+    let filtered = actionList
+    
+    // 先按分类筛选
+    if (activeCategory !== 'all') {
+      filtered = filtered.filter(action => action.category === activeCategory)
+    }
+    
+    // 再按搜索词筛选
+    if (actionSearchQuery.trim()) {
+      const query = actionSearchQuery.toLowerCase()
+      filtered = filtered.filter(action => 
+        action.name.toLowerCase().includes(query) ||
+        action.action.toLowerCase().includes(query)
+      )
+    }
+    
+    return filtered
+  }, [activeCategory, actionList, actionSearchQuery])
 
   // 显示通知
   const showNotification = useCallback((message, type = 'info') => {
@@ -2476,54 +2511,49 @@ export const ARScene = ({ selectedFile }) => {
         </div>
       )}
       
-      {/* 左侧角色选择区 */}
+      {/* 左侧人物管理按钮 */}
       <div style={{
         position: 'absolute',
         left: isMobile ? '8px' : '20px',
         top: '50%',
         transform: 'translateY(-50%)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: isMobile ? '8px' : '16px',
-        zIndex: 100,
-        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.6) 100%)',
-        padding: isMobile ? '10px' : '20px',
-        borderRadius: isMobile ? '16px' : '28px',
-        backdropFilter: 'blur(15px)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+        zIndex: 100
       }}>
-        {[0, 1, 2].map((index) => (
-          <CharacterSlot
-            key={index}
-            index={index}
-            character={characters[index]}
-            isSelected={selectedCharacterIndex === index}
-            onSelect={setSelectedCharacterIndex}
-            onRemove={removeCharacter}
-            isMobile={isMobile}
-          />
-        ))}
-
         <button
-          onClick={() => setShowModelSelect(true)}
+          onClick={() => setShowCharacterManager(true)}
           style={{
-            width: isMobile ? '40px' : '70px',
-            height: isMobile ? '40px' : '70px',
-            borderRadius: isMobile ? '14px' : '22px',
-            background: 'linear-gradient(135deg, rgba(255, 158, 205, 0.3) 0%, rgba(255, 107, 157, 0.3) 100%)',
-            border: '2px dashed rgba(255, 184, 208, 0.5)',
+            width: isMobile ? '50px' : '70px',
+            height: isMobile ? '50px' : '70px',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)',
+            border: '3px solid rgba(255,255,255,0.3)',
             cursor: 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: isMobile ? '20px' : '28px',
+            fontSize: isMobile ? '24px' : '32px',
             color: 'white',
             transition: 'all 0.3s ease',
-            backdropFilter: 'blur(10px)'
+            boxShadow: '0 4px 20px rgba(196, 69, 105, 0.5)',
+            position: 'relative'
           }}
         >
-          +
+          👥
+          {/* 角色数量徽章 */}
+          <span style={{
+            position: 'absolute',
+            top: '-5px',
+            right: '-5px',
+            background: '#00d4ff',
+            color: 'white',
+            fontSize: isMobile ? '10px' : '12px',
+            fontWeight: 'bold',
+            padding: '2px 6px',
+            borderRadius: '10px',
+            minWidth: '18px'
+          }}>
+            {characters.filter(c => c !== null).length}/3
+          </span>
         </button>
       </div>
 
@@ -2607,7 +2637,7 @@ export const ARScene = ({ selectedFile }) => {
         </div>
       )}
 
-      {/* 道具选择弹窗 */}
+      {/* 家具选择弹窗 */}
       {showPropSelect && (
         <div style={{
           position: 'fixed',
@@ -2615,7 +2645,7 @@ export const ARScene = ({ selectedFile }) => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0,0,0,0.8)',
+          background: 'rgba(0,0,0,0.85)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -2623,23 +2653,42 @@ export const ARScene = ({ selectedFile }) => {
           backdropFilter: 'blur(10px)'
         }}>
           <div style={{
-            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)',
-            borderRadius: '32px',
-            padding: '32px',
-            maxWidth: '600px',
-            width: '90%',
-            maxHeight: '80vh',
+            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%)',
+            borderRadius: '24px',
+            padding: isMobile ? '20px' : '32px',
+            maxWidth: '700px',
+            width: '92%',
+            maxHeight: '85vh',
             overflow: 'auto',
-            border: '1px solid rgba(255,255,255,0.1)',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+            border: '1px solid rgba(255,255,255,0.15)',
+            boxShadow: '0 25px 80px rgba(0,0,0,0.6)'
           }}>
+            {/* 标题栏 */}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: '16px'
+              marginBottom: '20px'
             }}>
-              <h2 style={{ color: 'white', margin: 0, fontSize: '24px' }}>选择道具</h2>
+              <div>
+                <h2 style={{ 
+                  color: 'white', 
+                  margin: 0, 
+                  fontSize: isMobile ? '20px' : '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}>
+                  🏠 选择家具/道具
+                  <span style={{
+                    fontSize: isMobile ? '12px' : '14px',
+                    color: 'rgba(255,255,255,0.6)',
+                    fontWeight: 'normal'
+                  }}>
+                    角色{propTargetCharacter + 1}
+                  </span>
+                </h2>
+              </div>
               <button
                 onClick={() => setShowPropSelect(false)}
                 style={{
@@ -2655,71 +2704,548 @@ export const ARScene = ({ selectedFile }) => {
               >×</button>
             </div>
 
-            {/* 选择目标角色 */}
-            <div style={{ marginBottom: '20px' }}>
-              <p style={{ color: 'rgba(255,255,255,0.7)', marginBottom: '12px', fontSize: '14px' }}>选择要给哪个角色：</p>
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                {[0, 1, 2].map(index => (
+            {/* 搜索框 */}
+            <div style={{
+              display: 'flex',
+              gap: '10px',
+              marginBottom: '16px'
+            }}>
+              <div style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                background: 'rgba(255,255,255,0.08)',
+                borderRadius: '14px',
+                padding: isMobile ? '10px 14px' : '12px 16px',
+                border: '1px solid rgba(255,255,255,0.15)'
+              }}>
+                <span style={{ fontSize: '16px', marginRight: '8px' }}>🔍</span>
+                <input
+                  type="text"
+                  placeholder="搜索家具..."
+                  value={furnitureSearchQuery}
+                  onChange={(e) => setFurnitureSearchQuery(e.target.value)}
+                  style={{
+                    flex: 1,
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'white',
+                    fontSize: isMobile ? '13px' : '14px',
+                    outline: 'none'
+                  }}
+                />
+                {furnitureSearchQuery && (
                   <button
-                    key={index}
-                    onClick={() => setPropTargetCharacter(index)}
+                    onClick={() => setFurnitureSearchQuery('')}
                     style={{
-                      padding: '10px 20px',
-                      background: propTargetCharacter === index
-                        ? 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)'
-                        : 'rgba(255,255,255,0.1)',
-                      border: `2px solid ${propTargetCharacter === index ? '#ff6b9d' : 'rgba(255,255,255,0.2)'}`,
-                      borderRadius: '12px',
-                      cursor: 'pointer',
-                      color: 'white',
-                      fontSize: '14px',
-                      fontWeight: propTargetCharacter === index ? 'bold' : 'normal'
+                      background: 'none',
+                      border: 'none',
+                      color: 'rgba(255,255,255,0.5)',
+                      fontSize: '16px',
+                      cursor: 'pointer'
                     }}
-                  >
-                    角色 {index + 1}
-                  </button>
-                ))}
+                  >✕</button>
+                )}
               </div>
             </div>
 
-            {/* 道具列表 */}
+            {/* 分类标签 */}
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              marginBottom: '16px',
+              overflowX: 'auto',
+              padding: '4px 0'
+            }}>
+              <button
+                onClick={() => setActiveFurnitureCategory('all')}
+                style={{
+                  padding: isMobile ? '6px 12px' : '8px 14px',
+                  background: activeFurnitureCategory === 'all'
+                    ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)'
+                    : 'rgba(255,255,255,0.08)',
+                  border: `1px solid ${activeFurnitureCategory === 'all' ? '#00d4ff' : 'rgba(255,255,255,0.15)'}`,
+                  borderRadius: '14px',
+                  color: 'white',
+                  fontSize: isMobile ? '11px' : '12px',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                全部
+              </button>
+              {furnitureCategories.filter(c => c.id !== 'none').map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => setActiveFurnitureCategory(cat.id)}
+                  style={{
+                    padding: isMobile ? '6px 12px' : '8px 14px',
+                    background: activeFurnitureCategory === cat.id
+                      ? `linear-gradient(135deg, ${cat.color} 0%, ${cat.color}dd 100%)`
+                      : 'rgba(255,255,255,0.08)',
+                    border: `1px solid ${activeFurnitureCategory === cat.id ? cat.color : 'rgba(255,255,255,0.15)'}`,
+                    borderRadius: '14px',
+                    color: 'white',
+                    fontSize: isMobile ? '11px' : '12px',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <span>{cat.icon}</span>
+                  <span>{cat.name}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* 家具列表 */}
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
-              gap: '12px'
+              gridTemplateColumns: 'repeat(auto-fill, minmax(90px, 1fr))',
+              gap: isMobile ? '8px' : '12px',
+              maxHeight: '50vh',
+              overflowY: 'auto',
+              padding: '4px'
             }}>
-              {propList.map((prop) => (
+              {/* 无家具选项 */}
+              <button
+                onClick={() => {
+                  setCharacterProps(prev => {
+                    const updated = [...prev]
+                    updated[propTargetCharacter] = null
+                    return updated
+                  })
+                  setShowPropSelect(false)
+                  showNotification(`已清除角色${propTargetCharacter + 1}的家具`, 'info')
+                }}
+                style={{
+                  padding: isMobile ? '12px 8px' : '16px 12px',
+                  background: !characterProps[propTargetCharacter]
+                    ? 'linear-gradient(135deg, #ff6b6b40 0%, #ff6b6b20 100%)'
+                    : 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%)',
+                  border: `2px solid ${!characterProps[propTargetCharacter] ? '#ff6b6b' : 'rgba(255,255,255,0.1)'}`,
+                  borderRadius: '14px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <div style={{ fontSize: isMobile ? '28px' : '32px' }}>❌</div>
+                <div style={{ 
+                  fontSize: isMobile ? '10px' : '11px', 
+                  fontWeight: '600',
+                  color: 'white'
+                }}>无家具</div>
+              </button>
+
+              {/* 家具选项 */}
+              {(furnitureSearchQuery.trim() 
+                ? searchFurniture(furnitureSearchQuery)
+                : activeFurnitureCategory === 'all' 
+                  ? furnitureList.filter(f => f.id !== 'none')
+                  : getFurnitureByCategory(activeFurnitureCategory)
+              ).map((furniture) => (
                 <button
-                  key={prop.id}
+                  key={furniture.id}
                   onClick={() => {
                     setCharacterProps(prev => {
                       const updated = [...prev]
-                      updated[propTargetCharacter] = prop.id === 'none' ? null : prop.id
+                      updated[propTargetCharacter] = furniture.id
                       return updated
                     })
                     setShowPropSelect(false)
-                    showNotification(`给角色${propTargetCharacter + 1}装备了${prop.name}`, 'success')
+                    showNotification(`给角色${propTargetCharacter + 1}装备了${furniture.name}`, 'success')
+                    
+                    // 如果家具有自动姿势，触发该姿势
+                    if (furniture.autoPose) {
+                      setTimeout(() => {
+                        executeAction(furniture.autoPose)
+                      }, 300)
+                    }
                   }}
                   style={{
-                    padding: '16px',
-                    background: characterProps[propTargetCharacter] === prop.id || (prop.id === 'none' && !characterProps[propTargetCharacter])
-                      ? `linear-gradient(135deg, ${prop.color}40 0%, ${prop.color}20 100%)`
-                      : 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-                    border: `2px solid ${characterProps[propTargetCharacter] === prop.id || (prop.id === 'none' && !characterProps[propTargetCharacter]) ? prop.color : 'rgba(255,255,255,0.1)'}`,
-                    borderRadius: '16px',
+                    padding: isMobile ? '12px 8px' : '16px 12px',
+                    background: characterProps[propTargetCharacter] === furniture.id
+                      ? `linear-gradient(135deg, ${furniture.color}50 0%, ${furniture.color}30 100%)`
+                      : 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.04) 100%)',
+                    border: `2px solid ${characterProps[propTargetCharacter] === furniture.id ? furniture.color : 'rgba(255,255,255,0.1)'}`,
+                    borderRadius: '14px',
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '8px',
-                    transition: 'all 0.3s ease',
-                    color: 'white'
+                    gap: '6px',
+                    transition: 'all 0.3s ease'
                   }}
                 >
-                  <div style={{ fontSize: '36px' }}>{prop.icon}</div>
-                  <div style={{ fontSize: '12px', fontWeight: '600' }}>{prop.name}</div>
+                  <div style={{ fontSize: isMobile ? '28px' : '32px' }}>{furniture.icon}</div>
+                  <div style={{ 
+                    fontSize: isMobile ? '10px' : '11px', 
+                    fontWeight: '600',
+                    color: 'white',
+                    textAlign: 'center'
+                  }}>{furniture.name}</div>
+                  {furniture.autoPose && (
+                    <div style={{
+                      fontSize: '9px',
+                      color: furniture.color,
+                      background: `${furniture.color}30`,
+                      padding: '2px 6px',
+                      borderRadius: '8px'
+                    }}>
+                      自动姿势
+                    </div>
+                  )}
                 </button>
               ))}
+            </div>
+
+            {/* 底部提示 */}
+            <div style={{
+              marginTop: '16px',
+              padding: '12px',
+              background: 'rgba(0,212,255,0.1)',
+              borderRadius: '10px',
+              border: '1px solid rgba(0,212,255,0.2)',
+              color: 'rgba(255,255,255,0.7)',
+              fontSize: isMobile ? '11px' : '12px',
+              textAlign: 'center'
+            }}>
+              💡 部分家具会自动调整角色姿势（如椅子会自动坐下）
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 人物管理面板 */}
+      {showCharacterManager && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.85)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 3000,
+          backdropFilter: 'blur(10px)'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%)',
+            borderRadius: '24px',
+            padding: isMobile ? '20px' : '32px',
+            maxWidth: '700px',
+            width: '92%',
+            maxHeight: '85vh',
+            overflow: 'auto',
+            border: '1px solid rgba(255,255,255,0.15)',
+            boxShadow: '0 25px 80px rgba(0,0,0,0.6)'
+          }}>
+            {/* 标题栏 */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '24px'
+            }}>
+              <div>
+                <h2 style={{ 
+                  color: 'white', 
+                  margin: 0, 
+                  fontSize: isMobile ? '20px' : '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}>
+                  👥 人物管理
+                  <span style={{
+                    fontSize: isMobile ? '12px' : '14px',
+                    color: 'rgba(255,255,255,0.6)',
+                    fontWeight: 'normal'
+                  }}>
+                    ({characters.filter(c => c !== null).length}/3)
+                  </span>
+                </h2>
+              </div>
+              <button
+                onClick={() => setShowCharacterManager(false)}
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  color: 'white',
+                  fontSize: '24px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease'
+                }}
+              >×</button>
+            </div>
+
+            {/* 搜索框 */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              marginBottom: '24px'
+            }}>
+              <div style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                background: 'rgba(255,255,255,0.08)',
+                borderRadius: '16px',
+                padding: isMobile ? '10px 14px' : '12px 18px',
+                border: '1px solid rgba(255,255,255,0.15)'
+              }}>
+                <span style={{ fontSize: '18px', marginRight: '10px' }}>🔍</span>
+                <input
+                  type="text"
+                  placeholder="搜索角色..."
+                  value={characterSearchQuery}
+                  onChange={(e) => setCharacterSearchQuery(e.target.value)}
+                  style={{
+                    flex: 1,
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'white',
+                    fontSize: isMobile ? '14px' : '15px',
+                    outline: 'none'
+                  }}
+                />
+                {characterSearchQuery && (
+                  <button
+                    onClick={() => setCharacterSearchQuery('')}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'rgba(255,255,255,0.5)',
+                      fontSize: '18px',
+                      cursor: 'pointer'
+                    }}
+                  >✕</button>
+                )}
+              </div>
+              <button
+                onClick={() => {
+                  setShowCharacterManager(false)
+                  setShowModelSelect(true)
+                }}
+                disabled={characters.filter(c => c !== null).length >= 3}
+                style={{
+                  padding: isMobile ? '10px 16px' : '12px 24px',
+                  background: characters.filter(c => c !== null).length >= 3 
+                    ? 'rgba(255,255,255,0.1)' 
+                    : 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)',
+                  border: 'none',
+                  borderRadius: '16px',
+                  color: 'white',
+                  fontSize: isMobile ? '13px' : '15px',
+                  fontWeight: '600',
+                  cursor: characters.filter(c => c !== null).length >= 3 ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                  opacity: characters.filter(c => c !== null).length >= 3 ? 0.5 : 1
+                }}
+              >
+                + 添加角色
+              </button>
+            </div>
+
+            {/* 角色列表 */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              {[0, 1, 2].map((index) => {
+                const character = characters[index]
+                const isSelected = selectedCharacterIndex === index
+                
+                return (
+                  <div
+                    key={index}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '16px',
+                      padding: isMobile ? '14px' : '18px',
+                      background: isSelected 
+                        ? 'linear-gradient(135deg, rgba(255, 107, 157, 0.25) 0%, rgba(196, 69, 105, 0.15) 100%)'
+                        : 'rgba(255,255,255,0.05)',
+                      borderRadius: '16px',
+                      border: isSelected 
+                        ? '2px solid #ff6b9d' 
+                        : '2px solid rgba(255,255,255,0.1)',
+                      transition: 'all 0.3s ease'
+                    }}
+                  >
+                    {/* 角色序号 */}
+                    <div style={{
+                      width: isMobile ? '36px' : '44px',
+                      height: isMobile ? '36px' : '44px',
+                      borderRadius: '50%',
+                      background: character 
+                        ? 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)' 
+                        : 'rgba(255,255,255,0.1)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: isMobile ? '16px' : '20px',
+                      color: 'white',
+                      fontWeight: 'bold'
+                    }}>
+                      {character ? '🌸' : (index + 1)}
+                    </div>
+
+                    {/* 角色信息 */}
+                    <div style={{ flex: 1 }}>
+                      {character ? (
+                        <>
+                          <div style={{
+                            color: 'white',
+                            fontSize: isMobile ? '15px' : '17px',
+                            fontWeight: '600',
+                            marginBottom: '4px'
+                          }}>
+                            {character.name || character.filename?.replace('.vrm', '') || `角色${index + 1}`}
+                            {isSelected && (
+                              <span style={{
+                                marginLeft: '8px',
+                                fontSize: '12px',
+                                color: '#ff6b9d',
+                                background: 'rgba(255,107,157,0.2)',
+                                padding: '2px 8px',
+                                borderRadius: '10px'
+                              }}>当前选中</span>
+                            )}
+                          </div>
+                          <div style={{
+                            color: 'rgba(255,255,255,0.5)',
+                            fontSize: isMobile ? '12px' : '13px'
+                          }}>
+                            {characterProps[index] 
+                              ? `装备: ${furnitureList.find(f => f.id === characterProps[index])?.name || '未知'}` 
+                              : '无装备'}
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{
+                          color: 'rgba(255,255,255,0.4)',
+                          fontSize: isMobile ? '14px' : '16px'
+                        }}>
+                          空槽位 - 点击添加角色
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 操作按钮 */}
+                    <div style={{
+                      display: 'flex',
+                      gap: '8px'
+                    }}>
+                      {character ? (
+                        <>
+                          <button
+                            onClick={() => {
+                              setSelectedCharacterIndex(index)
+                              setShowCharacterManager(false)
+                            }}
+                            style={{
+                              padding: isMobile ? '8px 12px' : '10px 16px',
+                              background: isSelected 
+                                ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)' 
+                                : 'rgba(255,255,255,0.1)',
+                              border: 'none',
+                              borderRadius: '10px',
+                              color: 'white',
+                              fontSize: isMobile ? '12px' : '13px',
+                              cursor: 'pointer',
+                              fontWeight: '500'
+                            }}
+                          >
+                            {isSelected ? '已选中' : '选择'}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setPropTargetCharacter(index)
+                              setShowPropSelect(true)
+                            }}
+                            style={{
+                              padding: isMobile ? '8px 12px' : '10px 16px',
+                              background: 'rgba(255,255,255,0.1)',
+                              border: 'none',
+                              borderRadius: '10px',
+                              color: 'white',
+                              fontSize: isMobile ? '12px' : '13px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            🎁 道具
+                          </button>
+                          <button
+                            onClick={() => {
+                              removeCharacter(index)
+                              showNotification(`已删除角色${index + 1}`, 'info')
+                            }}
+                            style={{
+                              padding: isMobile ? '8px 12px' : '10px 16px',
+                              background: 'rgba(255,107,107,0.2)',
+                              border: 'none',
+                              borderRadius: '10px',
+                              color: '#ff6b6b',
+                              fontSize: isMobile ? '12px' : '13px',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            🗑️
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setSelectedCharacterIndex(index)
+                            setShowCharacterManager(false)
+                            setShowModelSelect(true)
+                          }}
+                          style={{
+                            padding: isMobile ? '8px 16px' : '10px 20px',
+                            background: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)',
+                            border: 'none',
+                            borderRadius: '10px',
+                            color: 'white',
+                            fontSize: isMobile ? '12px' : '14px',
+                            cursor: 'pointer',
+                            fontWeight: '600'
+                          }}
+                        >
+                          + 添加
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* 底部提示 */}
+            <div style={{
+              marginTop: '20px',
+              padding: '14px',
+              background: 'rgba(0,212,255,0.1)',
+              borderRadius: '12px',
+              border: '1px solid rgba(0,212,255,0.2)',
+              color: 'rgba(255,255,255,0.7)',
+              fontSize: isMobile ? '12px' : '13px',
+              textAlign: 'center'
+            }}>
+              💡 提示：点击"选择"切换到该角色，点击"道具"给角色装备物品，点击"🗑️"删除角色
             </div>
           </div>
         </div>
@@ -2814,7 +3340,7 @@ export const ARScene = ({ selectedFile }) => {
           🎲
         </button>
 
-        {/* 道具按钮 */}
+        {/* 家具按钮 */}
         <button
           onClick={() => {
             setPropTargetCharacter(selectedCharacterIndex)
@@ -2825,7 +3351,7 @@ export const ARScene = ({ selectedFile }) => {
             height: isMobile ? '48px' : '56px',
             borderRadius: '16px',
             background: showPropSelect
-              ? 'linear-gradient(135deg, #ffd93d 0%, #ffb347 100%)'
+              ? 'linear-gradient(135deg, #8B4513 0%, #D2691E 100%)'
               : 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
             border: '1px solid rgba(255,255,255,0.2)',
             display: 'flex',
@@ -2834,10 +3360,24 @@ export const ARScene = ({ selectedFile }) => {
             fontSize: isMobile ? '20px' : '24px',
             cursor: 'pointer',
             color: 'white',
-            transition: 'all 0.3s ease'
+            transition: 'all 0.3s ease',
+            position: 'relative'
           }}
         >
-          🎁
+          🏠
+          {/* 已装备家具提示 */}
+          {characterProps[selectedCharacterIndex] && (
+            <span style={{
+              position: 'absolute',
+              top: '-4px',
+              right: '-4px',
+              width: '14px',
+              height: '14px',
+              background: '#00d4ff',
+              borderRadius: '50%',
+              border: '2px solid rgba(30, 41, 59, 0.9)'
+            }} />
+          )}
         </button>
 
         {/* 旋转按钮 */}
@@ -2860,6 +3400,35 @@ export const ARScene = ({ selectedFile }) => {
         >
           🔄
         </button>
+
+        {/* 陀螺仪控制按钮 */}
+        {gyroSupported && (
+          <button
+            onClick={toggleGyroscope}
+            style={{
+              width: isMobile ? '48px' : '56px',
+              height: isMobile ? '48px' : '56px',
+              borderRadius: '16px',
+              background: gyroEnabled
+                ? 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)'
+                : 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+              border: gyroEnabled
+                ? '2px solid #9b59b6'
+                : '1px solid rgba(255,255,255,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: isMobile ? '20px' : '24px',
+              cursor: 'pointer',
+              color: 'white',
+              transition: 'all 0.3s ease',
+              boxShadow: gyroEnabled ? '0 0 20px rgba(155, 89, 182, 0.5)' : 'none'
+            }}
+            title={gyroEnabled ? '关闭陀螺仪' : '开启陀螺仪'}
+          >
+            📱
+          </button>
+        )}
 
         {/* 骨骼编辑按钮 */}
         <button
@@ -3015,41 +3584,98 @@ export const ARScene = ({ selectedFile }) => {
         right: isMobile ? '70px' : '90px',
         zIndex: 100
       }}>
-        {/* 动作分类标签 */}
+        {/* 动作搜索框 */}
         <div style={{
           display: 'flex',
           gap: '8px',
           marginBottom: '8px',
+          alignItems: 'center'
+        }}>
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            background: 'rgba(255,255,255,0.1)',
+            borderRadius: '20px',
+            padding: isMobile ? '6px 12px' : '8px 16px',
+            border: '1px solid rgba(255,255,255,0.2)'
+          }}>
+            <span style={{ fontSize: '16px', marginRight: '8px' }}>🔍</span>
+            <input
+              type="text"
+              placeholder="搜索动作..."
+              value={actionSearchQuery}
+              onChange={(e) => setActionSearchQuery(e.target.value)}
+              style={{
+                flex: 1,
+                background: 'transparent',
+                border: 'none',
+                color: 'white',
+                fontSize: isMobile ? '13px' : '14px',
+                outline: 'none',
+                width: '100%'
+              }}
+            />
+            {actionSearchQuery && (
+              <button
+                onClick={() => setActionSearchQuery('')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'rgba(255,255,255,0.6)',
+                  fontSize: '16px',
+                  cursor: 'pointer',
+                  padding: '0 4px'
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          <span style={{
+            color: 'rgba(255,255,255,0.6)',
+            fontSize: isMobile ? '11px' : '12px',
+            whiteSpace: 'nowrap'
+          }}>
+            {filteredActions.length}个动作
+          </span>
+        </div>
+
+        {/* 动作分类标签 - 10个分类 */}
+        <div style={{
+          display: 'flex',
+          gap: '6px',
+          marginBottom: '8px',
           overflowX: 'auto',
           padding: '4px'
         }}>
-          {['all', 'basic', 'emotion', 'combat', 'dance', 'daily'].map((category) => (
+          {actionCategories.filter(cat => cat.id !== 'all').map((category) => (
             <button
-              key={category}
-              onClick={() => setActiveCategory(category)}
+              key={category.id}
+              onClick={() => setActiveCategory(activeCategory === category.id ? 'all' : category.id)}
               style={{
-                padding: isMobile ? '6px 12px' : '8px 16px',
-                background: activeCategory === category
-                  ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)'
-                  : 'rgba(255,255,255,0.1)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                borderRadius: '20px',
+                padding: isMobile ? '5px 10px' : '6px 12px',
+                background: activeCategory === category.id
+                  ? `linear-gradient(135deg, ${category.color} 0%, ${category.color}dd 100%)`
+                  : 'rgba(255,255,255,0.08)',
+                border: `1px solid ${activeCategory === category.id ? category.color : 'rgba(255,255,255,0.15)'}`,
+                borderRadius: '16px',
                 color: 'white',
-                fontSize: isMobile ? '11px' : '12px',
+                fontSize: isMobile ? '10px' : '11px',
                 fontWeight: '600',
                 cursor: 'pointer',
                 transition: 'all 0.3s ease',
                 whiteSpace: 'nowrap',
-                boxShadow: activeCategory === category
-                  ? '0 0 15px rgba(0, 212, 255, 0.4)'
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                boxShadow: activeCategory === category.id
+                  ? `0 0 10px ${category.color}66`
                   : 'none'
               }}
             >
-              {category === 'all' ? '全部' : 
-               category === 'basic' ? '基础' :
-               category === 'emotion' ? '表情' :
-               category === 'combat' ? '战斗' :
-               category === 'dance' ? '舞蹈' : '日常'}
+              <span>{category.icon}</span>
+              <span>{category.name}</span>
             </button>
           ))}
         </div>

@@ -1096,12 +1096,12 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
 
   const setInitialPose = (vrm) => {
     if (vrm.humanoid) {
-      console.log('VRM人形骨骼存在，设置初始姿态 - 站立并看向用户')
+      console.log('VRM人形骨骼存在，设置初始姿态 - 自然站立并看向镜头')
       
-      // 头部 - 稍微向下看，营造可爱的感觉
+      // 头部 - 看向镜头（相机在z轴正方向）
       const headBone = vrm.humanoid.getBoneNode('head')
       if (headBone) {
-        headBone.rotation.set(0.1, 0, 0) // 稍微低头
+        headBone.rotation.set(0, 0, 0) // 正视前方
       }
       
       // 脖子 - 自然状态
@@ -1110,7 +1110,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         neckBone.rotation.set(0, 0, 0)
       }
       
-      // 手臂 - 自然下垂，稍微向外张开，不要张开双手
+      // 手臂 - 自然下垂，紧贴身体，不要张开
       const leftArm = vrm.humanoid.getBoneNode('leftUpperArm')
       const rightArm = vrm.humanoid.getBoneNode('rightUpperArm')
       const leftLowerArm = vrm.humanoid.getBoneNode('leftLowerArm')
@@ -1119,16 +1119,16 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       const rightHand = vrm.humanoid.getBoneNode('rightHand')
       
       if (leftArm) {
-        leftArm.rotation.set(0, 0, 0.15) // 稍微向外
+        leftArm.rotation.set(0, 0, 0.05) // 几乎不向外，紧贴身体
       }
       if (rightArm) {
-        rightArm.rotation.set(0, 0, -0.15) // 稍微向外
+        rightArm.rotation.set(0, 0, -0.05) // 几乎不向外，紧贴身体
       }
       if (leftLowerArm) {
-        leftLowerArm.rotation.set(0.1, 0, 0) // 轻微弯曲
+        leftLowerArm.rotation.set(0.05, 0, 0) // 几乎伸直
       }
       if (rightLowerArm) {
-        rightLowerArm.rotation.set(0.1, 0, 0) // 轻微弯曲
+        rightLowerArm.rotation.set(0.05, 0, 0) // 几乎伸直
       }
       if (leftHand) {
         leftHand.rotation.set(0, 0, 0)
