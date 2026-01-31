@@ -3023,7 +3023,7 @@ export const ARScene = ({ selectedFile }) => {
           overflowX: 'auto',
           padding: '4px'
         }}>
-          {['all', 'basic', 'emotion', 'combat', 'dance'].map((category) => (
+          {['all', 'basic', 'emotion', 'combat', 'dance', 'daily'].map((category) => (
             <button
               key={category}
               onClick={() => setActiveCategory(category)}
@@ -3048,7 +3048,8 @@ export const ARScene = ({ selectedFile }) => {
               {category === 'all' ? '全部' : 
                category === 'basic' ? '基础' :
                category === 'emotion' ? '表情' :
-               category === 'combat' ? '战斗' : '舞蹈'}
+               category === 'combat' ? '战斗' :
+               category === 'dance' ? '舞蹈' : '日常'}
             </button>
           ))}
         </div>
