@@ -5,6 +5,10 @@ import LoadingScreen from './components/LoadingScreen'
 import CharacterManager from './components/CharacterManager'
 import ActionPanel from './components/ActionPanel'
 import BoneEditor from './components/BoneEditor'
+import PlaylistPanel from './components/PlaylistPanel'
+import StageEffectsPanel from './components/StageEffectsPanel'
+import SceneManager from './components/SceneManager'
+import PosePanel from './components/PosePanel'
 import { useAppSettings, useCharacterData, useCacheManager } from './hooks/useLocalStorage'
 import modelList from './models/modelList'
 import './App.css'
@@ -173,6 +177,10 @@ function App() {
   const [showCharacterManager, setShowCharacterManager] = useState(false)
   const [showActionPanel, setShowActionPanel] = useState(false)
   const [showBoneEditor, setShowBoneEditor] = useState(false)
+  const [showPlaylist, setShowPlaylist] = useState(false)
+  const [showStageEffects, setShowStageEffects] = useState(false)
+  const [showSceneManager, setShowSceneManager] = useState(false)
+  const [showPosePanel, setShowPosePanel] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
   const [selectedFile, setSelectedFile] = useState(null)
@@ -722,6 +730,36 @@ function App() {
         onClose={() => setShowBoneEditor(false)}
         onBoneChange={handleBoneChange}
         isMobile={isMobile}
+      />
+
+      {/* 播放列表面板 */}
+      <PlaylistPanel
+        isOpen={showPlaylist}
+        onClose={() => setShowPlaylist(false)}
+        onPlayAction={handleSelectAction}
+        isMobile={isMobile}
+      />
+
+      {/* 舞台效果面板 */}
+      <StageEffectsPanel
+        isOpen={showStageEffects}
+        onClose={() => setShowStageEffects(false)}
+        isMobile={isMobile}
+      />
+
+      {/* 场景管理面板 */}
+      <SceneManager
+        isOpen={showSceneManager}
+        onClose={() => setShowSceneManager(false)}
+        isMobile={isMobile}
+      />
+
+      {/* 姿势面板 */}
+      <PosePanel
+        isOpen={showPosePanel}
+        onClose={() => setShowPosePanel(false)}
+        onSelectPose={handleSelectAction}
+        currentPose={currentAction?.id}
       />
 
       {/* 加载中界面 - 带进度条 */}
