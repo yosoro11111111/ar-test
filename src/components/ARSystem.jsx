@@ -1794,13 +1794,10 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
     clickStartTime.current = Date.now()
     clickStartPos.current = { x: e.pointer.x, y: e.pointer.y }
     
-    // 如果未选中，先选中角色
-    if (!isSelected) {
-      onSelect?.(index)
-      return
-    }
+    // 选中角色（无论是新选中还是已选中）
+    onSelect?.(index)
     
-    // 已选中，开始拖拽
+    // 开始拖拽
     setIsDragging(true)
     gl.domElement.setPointerCapture(e.pointerId)
 
@@ -1812,7 +1809,7 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
   }
 
   const handlePointerMove = (e) => {
-    if (!isDragging || !isSelected) return
+    if (!isDragging) return
     e.stopPropagation()
 
     raycaster.current.setFromCamera(e.pointer, camera)
@@ -1824,18 +1821,6 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
   }
 
   const handlePointerUp = (e) => {
-    // 判断是点击还是拖拽
-    const clickDuration = Date.now() - clickStartTime.current
-    const moveDistance = Math.sqrt(
-      Math.pow(e.pointer.x - clickStartPos.current.x, 2) +
-      Math.pow(e.pointer.y - clickStartPos.current.y, 2)
-    )
-    
-    // 如果是短点击且没有移动，切换选中状态
-    if (clickDuration < 200 && moveDistance < 0.01 && !isSelected) {
-      onSelect?.(index)
-    }
-    
     if (isDragging) {
       setIsDragging(false)
       gl.domElement.releasePointerCapture(e.pointerId)
@@ -2024,6 +2009,14 @@ export const ARScene = ({ selectedFile }) => {
   // 人物管理面板状态
   const [showCharacterManager, setShowCharacterManager] = useState(false)
   const [characterSearchQuery, setCharacterSearchQuery] = useState('')
+  
+  // 玩家自定义标签系统 - 存储在localStorage
+  const [playerCustomTags, setPlayerCustomTags] = useState(() => {
+    const saved = localStorage.getItem('playerCustomTags')
+    return saved ? JSON.parse(saved) : {}
+  })
+  const [editingCharacterTags, setEditingCharacterTags] = useState(null)
+  const [newTagInput, setNewTagInput] = useState('')
 
   // 陀螺仪控制
   const { 
@@ -2955,7 +2948,7 @@ export const ARScene = ({ selectedFile }) => {
           position: 'absolute',
           top: '85px',
           right: '20px',
-          width: '280px',
+          width: '320px',
           background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)',
           borderRadius: '24px',
           padding: '20px',
@@ -2966,15 +2959,37 @@ export const ARScene = ({ selectedFile }) => {
           animation: 'slideDown 0.3s ease'
         }}>
           <div style={{
-            fontSize: '16px',
-            fontWeight: 'bold',
-            color: 'white',
-            marginBottom: '16px',
             display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'center',
-            gap: '8px'
+            marginBottom: '16px'
           }}>
-            <span>⚙️</span> 设置
+            <div style={{
+              fontSize: '16px',
+              fontWeight: 'bold',
+              color: 'white',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <span>⚙️</span> 设置
+            </div>
+            <button
+              onClick={() => setShowSettings(false)}
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                background: 'rgba(255,255,255,0.1)',
+                border: 'none',
+                color: 'white',
+                fontSize: '18px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >×</button>
           </div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -3193,15 +3208,18 @@ export const ARScene = ({ selectedFile }) => {
                 <button
                   key={tag}
                   onClick={() => {
-                    if (characterSearchQuery.includes(tag)) {
-                      setCharacterSearchQuery(characterSearchQuery.replace(tag, '').trim())
+                    const cleanTag = tag.replace('#', '')
+                    if (characterSearchQuery.includes(cleanTag)) {
+                      setCharacterSearchQuery(characterSearchQuery.replace(cleanTag, '').replace('#', '').trim())
                     } else {
-                      setCharacterSearchQuery((characterSearchQuery + ' ' + tag).trim())
+                      setCharacterSearchQuery(cleanTag)
                     }
                   }}
                   style={{
                     padding: '6px 12px',
-                    background: characterSearchQuery.includes(tag)
+                    background: characterSearchQuery && 
+                      (modelList.some(m => m.tags?.some(t => t.toLowerCase().includes(characterSearchQuery.toLowerCase()))) ||
+                       characterSearchQuery.toLowerCase() === tag.replace('#', '').toLowerCase())
                       ? 'linear-gradient(135deg, #ff6b6b 0%, #ff8e8e 100%)'
                       : 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
                     border: '1px solid rgba(255,255,255,0.2)',
@@ -3796,7 +3814,25 @@ export const ARScene = ({ selectedFile }) => {
               flexDirection: 'column',
               gap: '12px'
             }}>
-              {[0, 1, 2].map((index) => {
+              {[0, 1, 2].filter((index) => {
+                // 搜索过滤
+                if (!characterSearchQuery.trim()) return true
+                const character = characters[index]
+                if (!character) return false
+                
+                const query = characterSearchQuery.toLowerCase()
+                const characterKey = character.filename || character.name || `character_${index}`
+                const customTags = playerCustomTags[characterKey] || []
+                
+                // 搜索角色名称
+                const nameMatch = (character.name || character.filename || '').toLowerCase().includes(query)
+                // 搜索预设标签
+                const presetTagsMatch = character.tags?.some(tag => tag.toLowerCase().includes(query))
+                // 搜索玩家自定义标签
+                const customTagsMatch = customTags.some(tag => tag.toLowerCase().includes(query))
+                
+                return nameMatch || presetTagsMatch || customTagsMatch
+              }).map((index) => {
                 const character = characters[index]
                 const isSelected = selectedCharacterIndex === index
                 
@@ -3860,11 +3896,54 @@ export const ARScene = ({ selectedFile }) => {
                           </div>
                           <div style={{
                             color: 'rgba(255,255,255,0.5)',
-                            fontSize: isMobile ? '12px' : '13px'
+                            fontSize: isMobile ? '12px' : '13px',
+                            marginBottom: '6px'
                           }}>
                             {characterProps[index] 
                               ? `装备: ${furnitureList.find(f => f.id === characterProps[index])?.name || '未知'}` 
                               : '无装备'}
+                          </div>
+                          {/* 玩家自定义标签显示 */}
+                          <div style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: '4px',
+                            alignItems: 'center'
+                          }}>
+                            {(() => {
+                              const characterKey = character.filename || character.name || `character_${index}`
+                              const tags = playerCustomTags[characterKey] || []
+                              return (
+                                <>
+                                  {tags.map((tag, tagIndex) => (
+                                    <span key={tagIndex} style={{
+                                      fontSize: '10px',
+                                      color: 'rgba(255,255,255,0.7)',
+                                      background: 'rgba(0,212,255,0.2)',
+                                      padding: '2px 6px',
+                                      borderRadius: '8px',
+                                      border: '1px solid rgba(0,212,255,0.3)'
+                                    }}>
+                                      #{tag}
+                                    </span>
+                                  ))}
+                                  <button
+                                    onClick={() => setEditingCharacterTags(index)}
+                                    style={{
+                                      fontSize: '10px',
+                                      color: 'rgba(255,255,255,0.5)',
+                                      background: 'rgba(255,255,255,0.1)',
+                                      padding: '2px 8px',
+                                      borderRadius: '8px',
+                                      border: 'none',
+                                      cursor: 'pointer'
+                                    }}
+                                  >
+                                    {tags.length > 0 ? '✏️ 编辑' : '+ 添加标签'}
+                                  </button>
+                                </>
+                              )
+                            })()}
                           </div>
                         </>
                       ) : (
@@ -3965,6 +4044,227 @@ export const ARScene = ({ selectedFile }) => {
                 )
               })}
             </div>
+
+            {/* 标签编辑弹窗 */}
+            {editingCharacterTags !== null && (
+              <div style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0,0,0,0.8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 4000,
+                backdropFilter: 'blur(5px)'
+              }}>
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%)',
+                  borderRadius: '20px',
+                  padding: isMobile ? '20px' : '28px',
+                  maxWidth: '400px',
+                  width: '85%',
+                  border: '1px solid rgba(255,255,255,0.15)'
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '20px'
+                  }}>
+                    <h3 style={{
+                      color: 'white',
+                      margin: 0,
+                      fontSize: isMobile ? '18px' : '20px'
+                    }}>
+                      🏷️ 编辑标签
+                    </h3>
+                    <button
+                      onClick={() => {
+                        setEditingCharacterTags(null)
+                        setNewTagInput('')
+                      }}
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '50%',
+                        background: 'rgba(255,255,255,0.1)',
+                        border: 'none',
+                        color: 'white',
+                        fontSize: '20px',
+                        cursor: 'pointer'
+                      }}
+                    >×</button>
+                  </div>
+                  
+                  {(() => {
+                    const character = characters[editingCharacterTags]
+                    const characterKey = character?.filename || character?.name || `character_${editingCharacterTags}`
+                    const currentTags = playerCustomTags[characterKey] || []
+                    
+                    return (
+                      <>
+                        <div style={{
+                          color: 'rgba(255,255,255,0.7)',
+                          fontSize: '14px',
+                          marginBottom: '16px'
+                        }}>
+                          为 <strong style={{ color: '#00d4ff' }}>{character?.name || `角色${editingCharacterTags + 1}`}</strong> 添加标签
+                        </div>
+                        
+                        {/* 当前标签 */}
+                        <div style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: '8px',
+                          marginBottom: '16px',
+                          minHeight: '40px'
+                        }}>
+                          {currentTags.length === 0 ? (
+                            <span style={{
+                              color: 'rgba(255,255,255,0.4)',
+                              fontSize: '13px'
+                            }}>暂无标签</span>
+                          ) : (
+                            currentTags.map((tag, idx) => (
+                              <span key={idx} style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontSize: '12px',
+                                color: 'white',
+                                background: 'rgba(0,212,255,0.3)',
+                                padding: '4px 10px',
+                                borderRadius: '12px'
+                              }}>
+                                #{tag}
+                                <button
+                                  onClick={() => {
+                                    const newTags = currentTags.filter((_, i) => i !== idx)
+                                    const newCustomTags = { ...playerCustomTags, [characterKey]: newTags }
+                                    setPlayerCustomTags(newCustomTags)
+                                    localStorage.setItem('playerCustomTags', JSON.stringify(newCustomTags))
+                                  }}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: 'rgba(255,255,255,0.7)',
+                                    cursor: 'pointer',
+                                    fontSize: '14px',
+                                    padding: '0 2px'
+                                  }}
+                                >×</button>
+                              </span>
+                            ))
+                          )}
+                        </div>
+                        
+                        {/* 添加新标签 */}
+                        <div style={{
+                          display: 'flex',
+                          gap: '8px',
+                          marginBottom: '16px'
+                        }}>
+                          <input
+                            type="text"
+                            placeholder="输入标签名称..."
+                            value={newTagInput}
+                            onChange={(e) => setNewTagInput(e.target.value)}
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter' && newTagInput.trim()) {
+                                const tag = newTagInput.trim().replace(/^#/, '')
+                                if (!currentTags.includes(tag)) {
+                                  const newTags = [...currentTags, tag]
+                                  const newCustomTags = { ...playerCustomTags, [characterKey]: newTags }
+                                  setPlayerCustomTags(newCustomTags)
+                                  localStorage.setItem('playerCustomTags', JSON.stringify(newCustomTags))
+                                  setNewTagInput('')
+                                }
+                              }
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: '10px 14px',
+                              background: 'rgba(255,255,255,0.1)',
+                              border: '1px solid rgba(255,255,255,0.2)',
+                              borderRadius: '10px',
+                              color: 'white',
+                              fontSize: '14px',
+                              outline: 'none'
+                            }}
+                          />
+                          <button
+                            onClick={() => {
+                              if (newTagInput.trim()) {
+                                const tag = newTagInput.trim().replace(/^#/, '')
+                                if (!currentTags.includes(tag)) {
+                                  const newTags = [...currentTags, tag]
+                                  const newCustomTags = { ...playerCustomTags, [characterKey]: newTags }
+                                  setPlayerCustomTags(newCustomTags)
+                                  localStorage.setItem('playerCustomTags', JSON.stringify(newCustomTags))
+                                  setNewTagInput('')
+                                }
+                              }
+                            }}
+                            disabled={!newTagInput.trim()}
+                            style={{
+                              padding: '10px 16px',
+                              background: newTagInput.trim() 
+                                ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)' 
+                                : 'rgba(255,255,255,0.1)',
+                              border: 'none',
+                              borderRadius: '10px',
+                              color: 'white',
+                              fontSize: '14px',
+                              cursor: newTagInput.trim() ? 'pointer' : 'not-allowed'
+                            }}
+                          >
+                            添加
+                          </button>
+                        </div>
+                        
+                        {/* 快捷标签建议 */}
+                        <div style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: '6px'
+                        }}>
+                          {['主角', '辅助', '输出', '治疗', '坦克', '法师', '战士', '射手'].map(suggestion => (
+                            <button
+                              key={suggestion}
+                              onClick={() => {
+                                if (!currentTags.includes(suggestion)) {
+                                  const newTags = [...currentTags, suggestion]
+                                  const newCustomTags = { ...playerCustomTags, [characterKey]: newTags }
+                                  setPlayerCustomTags(newCustomTags)
+                                  localStorage.setItem('playerCustomTags', JSON.stringify(newCustomTags))
+                                }
+                              }}
+                              disabled={currentTags.includes(suggestion)}
+                              style={{
+                                padding: '4px 10px',
+                                background: currentTags.includes(suggestion) 
+                                  ? 'rgba(255,255,255,0.05)' 
+                                  : 'rgba(255,255,255,0.1)',
+                                border: '1px solid rgba(255,255,255,0.2)',
+                                borderRadius: '12px',
+                                color: currentTags.includes(suggestion) ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.7)',
+                                fontSize: '12px',
+                                cursor: currentTags.includes(suggestion) ? 'not-allowed' : 'pointer'
+                              }}
+                            >
+                              + {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )
+                  })()}
+                </div>
+              </div>
+            )}
 
             {/* 底部提示 */}
             <div style={{
