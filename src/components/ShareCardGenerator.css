@@ -150,6 +150,64 @@
   color: rgba(255, 255, 255, 0.4);
 }
 
+/* 多行文字输入 */
+.multi-line-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.multi-line-section h5 {
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.line-input {
+  margin-bottom: 8px;
+  font-size: 13px;
+  padding: 10px 14px;
+}
+
+.line-controls {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.add-line-btn,
+.remove-line-btn {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.add-line-btn {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  color: white;
+}
+
+.add-line-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(67, 233, 123, 0.4);
+}
+
+.remove-line-btn {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+  color: white;
+}
+
+.remove-line-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+}
+
 /* 选项 */
 .options-section {
   padding: 16px 24px;

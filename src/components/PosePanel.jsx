@@ -236,7 +236,7 @@ const PosePanel = ({ isOpen, onClose, onSelectPose, currentPose }) => {
           <div className="current-pose-info">
             <div className="info-label">当前姿势</div>
             <div className="info-name">
-              {actionList200.find(a => a.id === currentPose)?.name || '未知'}
+              {actionList250.find(a => a.id === currentPose)?.name || '未知'}
             </div>
           </div>
         )}

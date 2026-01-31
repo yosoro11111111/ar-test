@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, PerspectiveCamera, Stars, Cloud, useTexture } from '@react-three/drei'
+import { OrbitControls, PerspectiveCamera, Stars, Cloud, useTexture, Html } from '@react-three/drei'
 import * as THREE from 'three'
 import { CharacterController } from './CharacterSystem'
 import modelList from '../models/modelList'
@@ -25,6 +25,13 @@ const TutorialGuide = ({ isMobile, onClose }) => {
   
   const steps = [
     {
+      icon: '🎮',
+      title: '三种操作方式',
+      desc: '我们提供三种操作方式：1.直接拖拽 - 在场景中拖动角色；2.虚拟摇杆 - 使用摇杆控制移动；3.精确数值 - 通过滑块精确调整位置。',
+      color: 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)',
+      demo: 'pulse'
+    },
+    {
       icon: '👆',
       title: '点击选中',
       desc: '点击角色可以选中/取消选中，选中后角色会有蓝色光环显示。长按角色可打开动作菜单。',
@@ -46,6 +53,13 @@ const TutorialGuide = ({ isMobile, onClose }) => {
       demo: 'pinch-zoom'
     },
     {
+      icon: '📍',
+      title: '位置控制',
+      desc: '点击"位置"按钮打开位置控制面板，选择三种方式之一来调整角色位置。',
+      color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      demo: 'slideUp'
+    },
+    {
       icon: '🎬',
       title: '动作面板',
       desc: '底部动作栏可触发各种动作。点击立即播放，再次点击立即切换到新动作。',
@@ -62,14 +76,35 @@ const TutorialGuide = ({ isMobile, onClose }) => {
     {
       icon: '🏠',
       title: '家具交互',
-      desc: '点击家具按钮选择家具，角色可以自动与家具进行交互。',
+      desc: '点击家具按钮选择家具，角色可以自动与家具进行交互。点击家具可触发动作。',
       color: 'linear-gradient(135deg, #8B4513 0%, #D2691E 100%)',
       demo: 'furniture'
     },
     {
+      icon: '🎭',
+      title: '姿势系统',
+      desc: '点击面具按钮打开姿势面板，选择各种预设姿势让角色摆出不同造型。',
+      color: 'linear-gradient(135deg, #f39c12 0%, #e67e22 100%)',
+      demo: 'pulse'
+    },
+    {
+      icon: '🦴',
+      title: '骨骼编辑',
+      desc: '点击骨骼按钮进入骨骼编辑模式，可以精细调整角色身体各部位的角度。',
+      color: 'linear-gradient(135deg, #1abc9c 0%, #16a085 100%)',
+      demo: 'pulse'
+    },
+    {
+      icon: '✨',
+      title: '舞台特效',
+      desc: '点击特效按钮添加粒子效果、滤镜和贴纸，打造独特的视觉效果。',
+      color: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
+      demo: 'pulse'
+    },
+    {
       icon: '📸',
       title: '拍照录像',
-      desc: '右侧工具栏可以拍照、录像。录像支持倒计时和暂停功能。',
+      desc: '右侧工具栏可以拍照、录像、生成分享卡片。录像支持倒计时和暂停功能。',
       color: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)',
       demo: 'tools'
     }
@@ -395,6 +430,596 @@ const useDebugLog = () => {
   return { logs, addLog, clearLogs }
 }
 
+// ==================== 位置控制面板组件 ====================
+const PositionControlPanel = ({ 
+  isOpen, 
+  onClose, 
+  characterPositions, 
+  onPositionChange, 
+  selectedCharacterIndex,
+  isMobile 
+}) => {
+  const [controlMode, setControlMode] = useState('drag') // drag, joystick, precise
+  const [joystickActive, setJoystickActive] = useState(false)
+  const [joystickPos, setJoystickPos] = useState({ x: 0, y: 0 })
+  const joystickRef = useRef(null)
+  
+  if (!isOpen) return null
+
+  const currentPos = characterPositions[selectedCharacterIndex] || [0, 0, 0]
+
+  // 方式1: 直接拖拽（在3D场景中）
+  const renderDragMode = () => (
+    <div style={{
+      padding: '20px',
+      background: 'rgba(0,212,255,0.1)',
+      borderRadius: '16px',
+      border: '2px solid rgba(0,212,255,0.3)',
+      textAlign: 'center'
+    }}>
+      <div style={{ fontSize: '48px', marginBottom: '12px' }}>👆</div>
+      <div style={{ color: 'white', fontWeight: 'bold', marginBottom: '8px' }}>
+        直接拖拽模式
+      </div>
+      <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '14px' }}>
+        在3D场景中直接点击并拖动角色<br/>
+        角色会跟随手指/鼠标移动
+      </div>
+    </div>
+  )
+
+  // 方式2: 虚拟摇杆
+  const handleJoystickStart = (e) => {
+    e.preventDefault()
+    setJoystickActive(true)
+    updateJoystickPosition(e)
+  }
+
+  const handleJoystickMove = (e) => {
+    if (!joystickActive) return
+    e.preventDefault()
+    updateJoystickPosition(e)
+  }
+
+  const handleJoystickEnd = () => {
+    setJoystickActive(false)
+    setJoystickPos({ x: 0, y: 0 })
+  }
+
+  const updateJoystickPosition = (e) => {
+    const touch = e.touches ? e.touches[0] : e
+    const rect = joystickRef.current.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const centerY = rect.top + rect.height / 2
+    
+    let x = touch.clientX - centerX
+    let y = touch.clientY - centerY
+    
+    // 限制在圆形范围内
+    const maxRadius = 60
+    const distance = Math.sqrt(x * x + y * y)
+    if (distance > maxRadius) {
+      x = (x / distance) * maxRadius
+      y = (y / distance) * maxRadius
+    }
+    
+    setJoystickPos({ x, y })
+    
+    // 更新角色位置
+    const sensitivity = 0.02
+    onPositionChange(selectedCharacterIndex, [
+      currentPos[0] + x * sensitivity,
+      currentPos[1],
+      currentPos[2] + y * sensitivity
+    ])
+  }
+
+  const renderJoystickMode = () => (
+    <div style={{
+      padding: '20px',
+      background: 'rgba(102,126,234,0.1)',
+      borderRadius: '16px',
+      border: '2px solid rgba(102,126,234,0.3)',
+      textAlign: 'center'
+    }}>
+      <div style={{ color: 'white', fontWeight: 'bold', marginBottom: '16px' }}>
+        虚拟摇杆控制
+      </div>
+      <div
+        ref={joystickRef}
+        style={{
+          width: '150px',
+          height: '150px',
+          margin: '0 auto',
+          background: 'rgba(255,255,255,0.1)',
+          borderRadius: '50%',
+          position: 'relative',
+          border: '3px solid rgba(102,126,234,0.5)',
+          touchAction: 'none'
+        }}
+        onTouchStart={handleJoystickStart}
+        onTouchMove={handleJoystickMove}
+        onTouchEnd={handleJoystickEnd}
+        onMouseDown={handleJoystickStart}
+        onMouseMove={handleJoystickMove}
+        onMouseUp={handleJoystickEnd}
+        onMouseLeave={handleJoystickEnd}
+      >
+        <div style={{
+          width: '50px',
+          height: '50px',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          borderRadius: '50%',
+          position: 'absolute',
+          left: '50%',
+          top: '50%',
+          transform: `translate(calc(-50% + ${joystickPos.x}px), calc(-50% + ${joystickPos.y}px))`,
+          boxShadow: '0 4px 15px rgba(102,126,234,0.5)',
+          transition: joystickActive ? 'none' : 'transform 0.2s ease'
+        }} />
+      </div>
+      <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', marginTop: '12px' }}>
+        拖动摇杆移动角色
+      </div>
+    </div>
+  )
+
+  // 方式3: 精确数值输入
+  const renderPreciseMode = () => (
+    <div style={{
+      padding: '20px',
+      background: 'rgba(255,107,107,0.1)',
+      borderRadius: '16px',
+      border: '2px solid rgba(255,107,107,0.3)'
+    }}>
+      <div style={{ color: 'white', fontWeight: 'bold', marginBottom: '16px', textAlign: 'center' }}>
+        精确数值控制
+      </div>
+      {['X', 'Y', 'Z'].map((axis, idx) => (
+        <div key={axis} style={{ marginBottom: '16px' }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            marginBottom: '8px'
+          }}>
+            <span style={{ 
+              color: axis === 'X' ? '#ff6b6b' : axis === 'Y' ? '#4ecdc4' : '#45b7d1',
+              fontWeight: 'bold',
+              fontSize: '14px'
+            }}>
+              {axis} 轴
+            </span>
+            <span style={{ color: 'white', fontSize: '14px' }}>
+              {currentPos[idx].toFixed(2)}
+            </span>
+          </div>
+          <input
+            type="range"
+            min={-5}
+            max={5}
+            step={0.1}
+            value={currentPos[idx]}
+            onChange={(e) => {
+              const newPos = [...currentPos]
+              newPos[idx] = parseFloat(e.target.value)
+              onPositionChange(selectedCharacterIndex, newPos)
+            }}
+            style={{
+              width: '100%',
+              height: '8px',
+              borderRadius: '4px',
+              background: 'rgba(255,255,255,0.1)',
+              outline: 'none',
+              WebkitAppearance: 'none'
+            }}
+          />
+          <div style={{ 
+            display: 'flex', 
+            gap: '8px', 
+            marginTop: '8px',
+            justifyContent: 'center'
+          }}>
+            <button
+              onClick={() => {
+                const newPos = [...currentPos]
+                newPos[idx] = Math.max(-5, newPos[idx] - 0.5)
+                onPositionChange(selectedCharacterIndex, newPos)
+              }}
+              style={{
+                padding: '6px 12px',
+                background: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '6px',
+                color: 'white',
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+            >
+              -0.5
+            </button>
+            <button
+              onClick={() => {
+                const newPos = [...currentPos]
+                newPos[idx] = 0
+                onPositionChange(selectedCharacterIndex, newPos)
+              }}
+              style={{
+                padding: '6px 12px',
+                background: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '6px',
+                color: 'white',
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+            >
+              重置
+            </button>
+            <button
+              onClick={() => {
+                const newPos = [...currentPos]
+                newPos[idx] = Math.min(5, newPos[idx] + 0.5)
+                onPositionChange(selectedCharacterIndex, newPos)
+              }}
+              style={{
+                padding: '6px 12px',
+                background: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '6px',
+                color: 'white',
+                fontSize: '12px',
+                cursor: 'pointer'
+              }}
+            >
+              +0.5
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+
+  const modes = [
+    { id: 'drag', name: '拖拽', icon: '👆', color: '#00d4ff' },
+    { id: 'joystick', name: '摇杆', icon: '🎮', color: '#667eea' },
+    { id: 'precise', name: '精确', icon: '📐', color: '#ff6b6b' }
+  ]
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0,0,0,0.85)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 2000,
+      backdropFilter: 'blur(10px)'
+    }}>
+      <div style={{
+        background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.98) 0%, rgba(15, 23, 42, 0.98) 100%)',
+        borderRadius: '24px',
+        padding: isMobile ? '20px' : '32px',
+        maxWidth: '500px',
+        width: '92%',
+        maxHeight: '85vh',
+        overflow: 'auto',
+        border: '1px solid rgba(255,255,255,0.15)',
+        boxShadow: '0 25px 80px rgba(0,0,0,0.6)'
+      }}>
+        {/* 标题栏 */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '24px'
+        }}>
+          <div>
+            <h2 style={{ 
+              color: 'white', 
+              margin: 0, 
+              fontSize: isMobile ? '20px' : '24px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              📍 位置控制
+              <span style={{
+                fontSize: isMobile ? '12px' : '14px',
+                color: 'rgba(255,255,255,0.6)',
+                fontWeight: 'normal'
+              }}>
+                角色{selectedCharacterIndex + 1}
+              </span>
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.1)',
+              border: 'none',
+              color: 'white',
+              fontSize: '24px',
+              cursor: 'pointer',
+              transition: 'all 0.3s ease'
+            }}
+          >×</button>
+        </div>
+
+        {/* 模式选择 */}
+        <div style={{
+          display: 'flex',
+          gap: '10px',
+          marginBottom: '24px',
+          justifyContent: 'center'
+        }}>
+          {modes.map(mode => (
+            <button
+              key={mode.id}
+              onClick={() => setControlMode(mode.id)}
+              style={{
+                flex: 1,
+                padding: '12px 16px',
+                background: controlMode === mode.id 
+                  ? `linear-gradient(135deg, ${mode.color} 0%, ${mode.color}dd 100%)`
+                  : 'rgba(255,255,255,0.1)',
+                border: `2px solid ${controlMode === mode.id ? mode.color : 'transparent'}`,
+                borderRadius: '12px',
+                color: 'white',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '4px',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              <span style={{ fontSize: '24px' }}>{mode.icon}</span>
+              <span>{mode.name}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* 控制区域 */}
+        {controlMode === 'drag' && renderDragMode()}
+        {controlMode === 'joystick' && renderJoystickMode()}
+        {controlMode === 'precise' && renderPreciseMode()}
+
+        {/* 当前位置显示 */}
+        <div style={{
+          marginTop: '20px',
+          padding: '16px',
+          background: 'rgba(255,255,255,0.05)',
+          borderRadius: '12px',
+          display: 'flex',
+          justifyContent: 'space-around'
+        }}>
+          {['X', 'Y', 'Z'].map((axis, idx) => (
+            <div key={axis} style={{ textAlign: 'center' }}>
+              <div style={{ 
+                color: axis === 'X' ? '#ff6b6b' : axis === 'Y' ? '#4ecdc4' : '#45b7d1',
+                fontSize: '12px',
+                marginBottom: '4px'
+              }}>
+                {axis}
+              </div>
+              <div style={{ color: 'white', fontWeight: 'bold', fontSize: '16px' }}>
+                {currentPos[idx].toFixed(2)}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* 快捷操作 */}
+        <div style={{
+          marginTop: '20px',
+          display: 'flex',
+          gap: '10px'
+        }}>
+          <button
+            onClick={() => onPositionChange(selectedCharacterIndex, [0, 0, 0])}
+            style={{
+              flex: 1,
+              padding: '12px',
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '10px',
+              color: 'white',
+              fontSize: '14px',
+              cursor: 'pointer'
+            }}
+          >
+            🎯 回到中心
+          </button>
+          <button
+            onClick={() => {
+              const positions = [[-1.5, 0, 0], [0, 0, 0], [1.5, 0, 0]]
+              onPositionChange(selectedCharacterIndex, positions[selectedCharacterIndex])
+            }}
+            style={{
+              flex: 1,
+              padding: '12px',
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '10px',
+              color: 'white',
+              fontSize: '14px',
+              cursor: 'pointer'
+            }}
+          >
+            🔄 默认位置
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ==================== 移动端骨骼拖动组件 ====================
+const MobileBoneDragger = ({ bone, onBoneChange, onClose }) => {
+  const [isDragging, setIsDragging] = useState(false)
+  const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [panelPos, setPanelPos] = useState({ x: window.innerWidth / 2 - 140, y: window.innerHeight / 2 - 100 })
+  
+  if (!bone?.bone) return null
+
+  const handleTouchStart = (e) => {
+    const touch = e.touches[0]
+    setIsDragging(true)
+    setDragStart({ x: touch.clientX - panelPos.x, y: touch.clientY - panelPos.y })
+  }
+
+  const handleTouchMove = (e) => {
+    if (!isDragging) return
+    e.preventDefault()
+    const touch = e.touches[0]
+    setPanelPos({
+      x: touch.clientX - dragStart.x,
+      y: touch.clientY - dragStart.y
+    })
+  }
+
+  const handleTouchEnd = () => {
+    setIsDragging(false)
+  }
+
+  // 在弹框内拖动控制骨骼旋转
+  const handleRotateStart = (e) => {
+    const touch = e.touches[0]
+    bone.bone.userData.rotateStartX = touch.clientX
+    bone.bone.userData.rotateStartY = touch.clientY
+    bone.bone.userData.startRotX = bone.bone.rotation.x
+    bone.bone.userData.startRotY = bone.bone.rotation.y
+  }
+
+  const handleRotateMove = (e) => {
+    e.preventDefault()
+    const touch = e.touches[0]
+    if (!bone.bone.userData.rotateStartX) return
+    
+    const deltaX = touch.clientX - bone.bone.userData.rotateStartX
+    const deltaY = touch.clientY - bone.bone.userData.rotateStartY
+    
+    bone.bone.rotation.y = bone.bone.userData.startRotY + deltaX * 0.01
+    bone.bone.rotation.x = bone.bone.userData.startRotX + deltaY * 0.01
+    
+    onBoneChange?.(bone.name, bone.bone.rotation)
+    // 强制刷新
+    setPosition({ x: deltaX, y: deltaY })
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: panelPos.x,
+        top: panelPos.y,
+        width: '280px',
+        background: 'linear-gradient(135deg, rgba(0,0,0,0.95) 0%, rgba(30,30,50,0.95) 100%)',
+        borderRadius: '20px',
+        padding: '16px',
+        zIndex: 10000,
+        border: `3px solid ${bone.color}`,
+        boxShadow: `0 8px 32px ${bone.color}50`,
+        touchAction: 'none'
+      }}
+    >
+      {/* 拖动标题栏 */}
+      <div
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '8px 0',
+          borderBottom: `2px solid ${bone.color}50`,
+          marginBottom: '12px',
+          cursor: 'move'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '20px' }}>✋</span>
+          <span style={{ color: bone.color, fontWeight: 'bold', fontSize: '16px' }}>
+            {bone.label}
+          </span>
+        </div>
+        <button
+          onClick={onClose}
+          style={{
+            background: 'rgba(255,255,255,0.1)',
+            border: 'none',
+            borderRadius: '50%',
+            width: '32px',
+            height: '32px',
+            color: 'white',
+            fontSize: '18px',
+            cursor: 'pointer'
+          }}
+        >
+          ×
+        </button>
+      </div>
+
+      {/* 拖动旋转区域 */}
+      <div
+        onTouchStart={handleRotateStart}
+        onTouchMove={handleRotateMove}
+        onTouchEnd={() => { bone.bone.userData.rotateStartX = null }}
+        style={{
+          background: `radial-gradient(circle, ${bone.color}30 0%, transparent 70%)`,
+          borderRadius: '16px',
+          padding: '40px 20px',
+          textAlign: 'center',
+          touchAction: 'none',
+          border: `2px dashed ${bone.color}60`
+        }}
+      >
+        <div style={{ fontSize: '40px', marginBottom: '8px' }}>🔄</div>
+        <div style={{ color: 'white', fontSize: '14px', fontWeight: 'bold' }}>
+          在此区域拖动旋转
+        </div>
+        <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', marginTop: '8px' }}>
+          左右拖动 = 水平旋转<br/>
+          上下拖动 = 垂直旋转
+        </div>
+      </div>
+
+      {/* 重置按钮 */}
+      <button
+        onClick={() => {
+          bone.bone.rotation.set(0, 0, 0)
+          onBoneChange?.(bone.name, bone.bone.rotation)
+        }}
+        style={{
+          width: '100%',
+          marginTop: '12px',
+          padding: '12px',
+          background: 'rgba(255,255,255,0.1)',
+          border: '1px solid rgba(255,255,255,0.3)',
+          borderRadius: '10px',
+          color: 'white',
+          fontSize: '14px',
+          cursor: 'pointer'
+        }}
+      >
+        🔄 重置旋转
+      </button>
+    </div>
+  )
+}
+
 // ==================== 骨骼编辑器组件 (支持桌面端和移动端) ====================
 const BoneEditor = ({ characters, selectedCharacterIndex, onBoneChange, isMobile }) => {
   const [selectedBone, setSelectedBone] = useState(null)
@@ -589,112 +1214,13 @@ const BoneEditor = ({ characters, selectedCharacterIndex, onBoneChange, isMobile
         </div>
       )}
       
-      {/* 选中骨骼的控制 - 拖动区域 */}
+      {/* 选中骨骼的控制 - 移动端简化版拖动弹框 */}
       {selectedBone && (
-        <div 
-          style={{
-            background: 'rgba(255,255,255,0.1)',
-            borderRadius: '12px',
-            padding: '16px',
-            touchAction: 'none',
-            minHeight: '120px'
-          }}
-          onTouchStart={(e) => {
-            e.preventDefault()
-            const touch = e.touches[0]
-            const bone = bones.find(b => b.name === selectedBone)?.bone
-            if (!bone) return
-            
-            bone.userData.dragStartX = touch.clientX
-            bone.userData.dragStartY = touch.clientY
-            bone.userData.startRotationX = bone.rotation.x
-            bone.userData.startRotationY = bone.rotation.y
-          }}
-          onTouchMove={(e) => {
-            e.preventDefault()
-            const touch = e.touches[0]
-            const bone = bones.find(b => b.name === selectedBone)?.bone
-            if (!bone || !bone.userData.dragStartX) return
-            
-            const deltaX = touch.clientX - bone.userData.dragStartX
-            const deltaY = touch.clientY - bone.userData.dragStartY
-            
-            const sensitivity = 0.005
-            bone.rotation.y = bone.userData.startRotationY + deltaX * sensitivity
-            bone.rotation.x = bone.userData.startRotationX + deltaY * sensitivity
-            
-            onBoneChange?.(selectedBone, bone.rotation)
-          }}
-          onTouchEnd={(e) => {
-            e.preventDefault()
-            const bone = bones.find(b => b.name === selectedBone)?.bone
-            if (bone) {
-              bone.userData.dragStartX = null
-              bone.userData.dragStartY = null
-            }
-          }}
-        >
-          <div style={{
-            color: '#fff',
-            fontWeight: 'bold',
-            marginBottom: '12px',
-            textAlign: 'center',
-            fontSize: '14px'
-          }}>
-            {bones.find(b => b.name === selectedBone)?.label} - 在此区域单指拖动旋转
-          </div>
-          
-          {/* 显示当前旋转值 */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gap: '12px',
-            fontSize: '12px',
-            color: '#aaa',
-            textAlign: 'center',
-            marginBottom: '12px'
-          }}>
-            <div style={{ color: '#ff6b6b' }}>X: {(bones.find(b => b.name === selectedBone)?.bone.rotation.x || 0).toFixed(2)}</div>
-            <div style={{ color: '#4ecdc4' }}>Y: {(bones.find(b => b.name === selectedBone)?.bone.rotation.y || 0).toFixed(2)}</div>
-            <div style={{ color: '#45b7d1' }}>Z: {(bones.find(b => b.name === selectedBone)?.bone.rotation.z || 0).toFixed(2)}</div>
-          </div>
-          
-          {/* 微调按钮 */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '6px' }}>
-            {['x', 'y', 'z'].map((axis) => (
-              <React.Fragment key={axis}>
-                <button
-                  onClick={() => handleBoneRotate(selectedBone, axis, -0.05)}
-                  style={{
-                    padding: '10px 4px',
-                    background: axis === 'x' ? '#ff6b6b' : axis === 'y' ? '#4ecdc4' : '#45b7d1',
-                    border: 'none',
-                    borderRadius: '6px',
-                    color: 'white',
-                    fontSize: '12px',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  {axis.toUpperCase()}-
-                </button>
-                <button
-                  onClick={() => handleBoneRotate(selectedBone, axis, 0.05)}
-                  style={{
-                    padding: '10px 4px',
-                    background: axis === 'x' ? '#ff6b6b' : axis === 'y' ? '#4ecdc4' : '#45b7d1',
-                    border: 'none',
-                    borderRadius: '6px',
-                    color: 'white',
-                    fontSize: '12px',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  {axis.toUpperCase()}+
-                </button>
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
+        <MobileBoneDragger
+          bone={bones.find(b => b.name === selectedBone)}
+          onBoneChange={onBoneChange}
+          onClose={() => setSelectedBone(null)}
+        />
       )}
     </div>
   )
@@ -704,20 +1230,46 @@ const BoneEditor = ({ characters, selectedCharacterIndex, onBoneChange, isMobile
 const useMobileDetect = () => {
   const [isMobile, setIsMobile] = useState(false)
   const [isTablet, setIsTablet] = useState(false)
-  
+
   useEffect(() => {
     const checkDevice = () => {
       const width = window.innerWidth
       setIsMobile(width < 768)
       setIsTablet(width >= 768 && width < 1024)
     }
-    
+
     checkDevice()
     window.addEventListener('resize', checkDevice)
     return () => window.removeEventListener('resize', checkDevice)
   }, [])
-  
+
   return { isMobile, isTablet, isDesktop: !isMobile && !isTablet }
+}
+
+// ==================== 滤镜CSS生成函数 ====================
+const getFilterCSS = (filter) => {
+  if (!filter?.enabled) return 'none'
+
+  const intensity = (filter.intensity || 50) / 100
+
+  switch (filter.type) {
+    case 'warm':
+      return `sepia(${intensity * 0.5}) saturate(${1 + intensity * 0.3}) hue-rotate(-10deg) brightness(${1 + intensity * 0.1})`
+    case 'cool':
+      return `saturate(${1 + intensity * 0.2}) hue-rotate(${intensity * 20}deg) brightness(${1 + intensity * 0.05})`
+    case 'vintage':
+      return `sepia(${intensity * 0.8}) contrast(${1 + intensity * 0.2}) brightness(${1 - intensity * 0.1}) saturate(${1 - intensity * 0.3})`
+    case 'noir':
+      return `grayscale(${intensity}) contrast(${1 + intensity * 0.5}) brightness(${1 - intensity * 0.1})`
+    case 'dreamy':
+      return `saturate(${1 + intensity * 0.4}) brightness(${1 + intensity * 0.15}) contrast(${1 - intensity * 0.1}) blur(${intensity * 2}px)`
+    case 'sunset':
+      return `sepia(${intensity * 0.4}) saturate(${1 + intensity * 0.5}) hue-rotate(-${intensity * 30}deg) brightness(${1 + intensity * 0.1})`
+    case 'cyber':
+      return `saturate(${1 + intensity * 0.8}) hue-rotate(${intensity * 40}deg) contrast(${1 + intensity * 0.3}) brightness(${1 + intensity * 0.1})`
+    default:
+      return 'none'
+  }
 }
 
 // ==================== 1. 粒子背景系统 ====================
@@ -1404,7 +1956,26 @@ const TechButton = ({ children, onClick, style, active = false, size = 'medium',
 
 // ==================== 7. 滑块组件 ====================
 const Slider = ({ value, onChange, min, max, label, icon }) => {
+  const [localValue, setLocalValue] = useState(value)
   const [isDragging, setIsDragging] = useState(false)
+  const sliderRef = useRef(null)
+  
+  // 同步外部值到本地
+  useEffect(() => {
+    if (!isDragging) {
+      setLocalValue(value)
+    }
+  }, [value, isDragging])
+  
+  // 实时更新
+  const handleChange = useCallback((e) => {
+    const newValue = parseFloat(e.target.value)
+    setLocalValue(newValue)
+    onChange(newValue)
+  }, [onChange])
+  
+  // 计算进度百分比
+  const progress = ((localValue - min) / (max - min)) * 100
   
   return (
     <div style={{
@@ -1415,7 +1986,9 @@ const Slider = ({ value, onChange, min, max, label, icon }) => {
       background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
       borderRadius: '20px',
       border: '1px solid rgba(255,255,255,0.2)',
-      backdropFilter: 'blur(10px)'
+      backdropFilter: 'blur(10px)',
+      transition: isDragging ? 'transform 0.1s ease' : 'none',
+      transform: isDragging ? 'scale(1.02)' : 'scale(1)'
     }}>
       <div style={{
         display: 'flex',
@@ -1427,32 +2000,67 @@ const Slider = ({ value, onChange, min, max, label, icon }) => {
       }}>
         <span>{icon}</span>
         <span>{label}</span>
-        <span style={{ marginLeft: 'auto', opacity: 0.8 }}>{value.toFixed(1)}</span>
+        <span style={{ 
+          marginLeft: 'auto', 
+          opacity: isDragging ? 1 : 0.8,
+          color: isDragging ? '#00d4ff' : 'white',
+          transition: 'all 0.2s ease',
+          fontWeight: isDragging ? '700' : '600'
+        }}>{localValue.toFixed(2)}</span>
       </div>
       
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={0.1}
-        value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
-        onMouseDown={() => setIsDragging(true)}
-        onMouseUp={() => setIsDragging(false)}
-        onMouseLeave={() => setIsDragging(false)}
-        onTouchStart={() => setIsDragging(true)}
-        onTouchEnd={() => setIsDragging(false)}
-        style={{
-          width: '100%',
-          height: '8px',
+      <div style={{ position: 'relative', width: '100%', height: '8px' }}>
+        {/* 进度条背景 */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '100%',
           borderRadius: '4px',
           background: 'rgba(255,255,255,0.2)',
-          outline: 'none',
-          cursor: 'pointer',
-          WebkitAppearance: 'none',
-          appearance: 'none'
-        }}
-      />
+          overflow: 'hidden'
+        }}>
+          {/* 进度条填充 */}
+          <div style={{
+            width: `${progress}%`,
+            height: '100%',
+            background: isDragging 
+              ? 'linear-gradient(90deg, #00d4ff 0%, #0099cc 100%)' 
+              : 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)',
+            transition: isDragging ? 'none' : 'width 0.1s ease',
+            borderRadius: '4px'
+          }} />
+        </div>
+        
+        {/* 实际input */}
+        <input
+          ref={sliderRef}
+          type="range"
+          min={min}
+          max={max}
+          step={0.01}
+          value={localValue}
+          onChange={handleChange}
+          onMouseDown={() => setIsDragging(true)}
+          onMouseUp={() => setIsDragging(false)}
+          onMouseLeave={() => isDragging && setIsDragging(false)}
+          onTouchStart={() => setIsDragging(true)}
+          onTouchEnd={() => setIsDragging(false)}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            opacity: 0,
+            cursor: 'pointer',
+            WebkitAppearance: 'none',
+            appearance: 'none',
+            margin: 0
+          }}
+        />
+      </div>
     </div>
   )
 }
@@ -1497,8 +2105,13 @@ const Notification = ({ message, type = 'info', onClose }) => {
 }
 
 // ==================== 9. 3D场景内容 ====================
-// ==================== 道具显示组件 ====================
-const PropDisplay = ({ propId, onInteract }) => {
+// ==================== 增强版家具显示组件 ====================
+const PropDisplay = ({ propId, onInteract, characterIndex }) => {
+  const [isHovered, setIsHovered] = useState(false)
+  const [isAnimating, setIsAnimating] = useState(false)
+  const meshRef = useRef()
+  const floatRef = useRef(0)
+  
   console.log('PropDisplay 渲染, propId:', propId)
   if (!propId || propId === 'none') return null
 
@@ -1525,294 +2138,132 @@ const PropDisplay = ({ propId, onInteract }) => {
   // 获取交互按钮位置和颜色
   const getInteractButtonConfig = () => {
     const configs = {
-      seat: { pos: [0, 0.5, 0.4], color: '#4CAF50', label: '坐' },
-      bed: { pos: [0, 0.3, 0.8], color: '#9C27B0', label: '躺' },
-      instrument: { pos: [0.6, 0.5, 0.3], color: '#FF5722', label: '演奏' },
-      tool: { pos: [0.4, 0.6, 0.2], color: '#2196F3', label: '使用' },
-      accessory: { pos: [0, 1.7, 0.2], color: '#FFD700', label: '装备' },
-      decoration: { pos: [0.3, 0.7, 0.2], color: '#E91E63', label: '拿' }
+      seat: { pos: [0, 0.6, 0.5], color: '#4CAF50', label: '坐', icon: '🪑' },
+      bed: { pos: [0, 0.4, 1.0], color: '#9C27B0', label: '躺', icon: '🛏️' },
+      instrument: { pos: [0.8, 0.6, 0.4], color: '#FF5722', label: '演奏', icon: '🎵' },
+      tool: { pos: [0.5, 0.7, 0.3], color: '#2196F3', label: '使用', icon: '🔧' },
+      accessory: { pos: [0, 1.9, 0.3], color: '#FFD700', label: '装备', icon: '✨' },
+      decoration: { pos: [0.4, 0.8, 0.3], color: '#E91E63', label: '拿', icon: '🎀' }
     }
-    return configs[furniture.category] || { pos: [0, 0.5, 0.3], color: '#757575', label: '用' }
+    return configs[furniture.category] || { pos: [0, 0.6, 0.4], color: '#757575', label: '用', icon: '👆' }
   }
 
-  // 根据家具类别和ID生成3D模型配置
+  // 增强的3D家具模型配置
   const getFurnitureConfig = (furniture) => {
     const { id, category, position, color } = furniture
     
-    // 基础配置模板
     const configs = {
-      // 座椅类 - 放在角色下方
+      // 座椅类 - 更精细的模型
       chair: { 
-        geometry: 'box', size: [0.5, 0.5, 0.5], 
-        pos: [0, -0.25, 0], rot: [0, 0, 0],
-        color: color || '#8B4513'
+        type: 'chair', color: color || '#8B4513',
+        seatHeight: 0.25, backHeight: 0.5, width: 0.45
       },
       sofa: { 
-        geometry: 'box', size: [0.8, 0.4, 0.5], 
-        pos: [0, -0.2, 0], rot: [0, 0, 0],
-        color: color || '#2C3E50'
+        type: 'sofa', color: color || '#2C3E50',
+        width: 0.8, height: 0.35, depth: 0.5
       },
       stool: { 
-        geometry: 'cylinder', size: [0.15, 0.15, 0.5, 16], 
-        pos: [0, -0.25, 0], rot: [0, 0, 0],
-        color: color || '#D2691E'
+        type: 'stool', color: color || '#D2691E',
+        height: 0.5, radius: 0.15
       },
       throne: { 
-        geometry: 'box', size: [0.6, 0.6, 0.6], 
-        pos: [0, -0.3, 0], rot: [0, 0, 0],
-        color: color || '#FFD700'
+        type: 'throne', color: color || '#FFD700',
+        width: 0.6, height: 0.7
       },
       swing: { 
-        geometry: 'box', size: [0.4, 0.05, 0.4], 
-        pos: [0, 0.2, 0], rot: [0, 0, 0],
-        color: color || '#E91E63'
+        type: 'swing', color: color || '#E91E63',
+        width: 0.5, height: 0.4
       },
       
       // 床铺类
       bed_single: { 
-        geometry: 'box', size: [0.8, 0.3, 1.5], 
-        pos: [0, -0.15, 0], rot: [0, 0, 0],
-        color: color || '#4A90E2'
+        type: 'bed', color: color || '#4A90E2',
+        width: 0.8, length: 1.5, height: 0.25
       },
       bed_double: { 
-        geometry: 'box', size: [1.2, 0.3, 1.5], 
-        pos: [0, -0.15, 0], rot: [0, 0, 0],
-        color: color || '#9B59B6'
+        type: 'bed', color: color || '#9B59B6',
+        width: 1.2, length: 1.5, height: 0.25
       },
       hammock: { 
-        geometry: 'box', size: [0.6, 0.05, 1.2], 
-        pos: [0, 0.3, 0], rot: [0, 0, 0],
-        color: color || '#27AE60'
+        type: 'hammock', color: color || '#27AE60',
+        width: 0.6, length: 1.2
       },
       futon: { 
-        geometry: 'box', size: [0.8, 0.1, 0.8], 
-        pos: [0, -0.05, 0], rot: [0, 0, 0],
-        color: color || '#E67E22'
+        type: 'futon', color: color || '#E67E22',
+        width: 0.8, length: 0.8, height: 0.08
       },
       
       // 乐器类
       guitar: { 
-        geometry: 'box', size: [0.15, 0.5, 0.05], 
-        pos: [0.2, 0.5, 0.15], rot: [0, 0, -0.3],
-        color: color || '#E74C3C'
+        type: 'guitar', color: color || '#E74C3C',
+        scale: 1
       },
       piano: { 
-        geometry: 'box', size: [1.0, 0.4, 0.5], 
-        pos: [0, -0.2, 0.6], rot: [0, 0, 0],
-        color: color || '#2C3E50'
+        type: 'piano', color: color || '#2C3E50',
+        width: 1.0, height: 0.4, depth: 0.5
       },
       violin: { 
-        geometry: 'box', size: [0.08, 0.35, 0.04], 
-        pos: [0.18, 0.55, 0.12], rot: [0, 0, -0.4],
-        color: color || '#8E44AD'
+        type: 'violin', color: color || '#8E44AD',
+        scale: 1
       },
       drum: { 
-        geometry: 'cylinder', size: [0.25, 0.25, 0.4, 16], 
-        pos: [0, -0.2, 0.5], rot: [0, 0, 0],
-        color: color || '#C0392B'
+        type: 'drum', color: color || '#C0392B',
+        radius: 0.25, height: 0.4
       },
       microphone: { 
-        geometry: 'cylinder', size: [0.02, 0.02, 0.25, 8], 
-        pos: [0.15, 0.65, 0.15], rot: [0.4, 0, -0.15],
-        color: color || '#E91E63'
+        type: 'microphone', color: color || '#E91E63',
+        scale: 1
       },
       flute: { 
-        geometry: 'cylinder', size: [0.01, 0.01, 0.35, 8], 
-        pos: [0.2, 0.55, 0.1], rot: [0.2, 0, -0.2],
-        color: color || '#F39C12'
+        type: 'flute', color: color || '#F39C12',
+        scale: 1
       },
       
-      // 配饰类 - 头部
-      crown: { 
-        geometry: 'cylinder', size: [0.12, 0.1, 0.06, 16], 
-        pos: [0, 1.55, 0], rot: [0, 0, 0],
-        color: color || '#FFD700'
-      },
-      glasses: { 
-        geometry: 'box', size: [0.2, 0.04, 0.015], 
-        pos: [0, 1.35, 0.1], rot: [0, 0, 0],
-        color: color || '#34495E'
-      },
-      sunglasses: { 
-        geometry: 'box', size: [0.22, 0.05, 0.02], 
-        pos: [0, 1.35, 0.1], rot: [0, 0, 0],
-        color: color || '#2C3E50'
-      },
-      hat_cowboy: { 
-        geometry: 'cylinder', size: [0.16, 0.16, 0.1, 16], 
-        pos: [0, 1.58, 0], rot: [0, 0, 0],
-        color: color || '#8B4513'
-      },
-      hat_witch: { 
-        geometry: 'cone', size: [0.12, 0.15, 16], 
-        pos: [0, 1.65, 0], rot: [0, 0, 0],
-        color: color || '#9B59B6'
-      },
-      earrings: { 
-        geometry: 'sphere', size: [0.02, 8, 8], 
-        pos: [0.12, 1.38, 0], rot: [0, 0, 0],
-        color: color || '#1ABC9C'
-      },
-      necklace: { 
-        geometry: 'torus', size: [0.08, 0.01, 8, 16], 
-        pos: [0, 1.25, 0.05], rot: [Math.PI/2, 0, 0],
-        color: color || '#F1C40F'
-      },
-      scarf: { 
-        geometry: 'cylinder', size: [0.1, 0.1, 0.2, 16], 
-        pos: [0, 1.2, 0], rot: [0, 0, 0],
-        color: color || '#E74C3C'
-      },
-      backpack: { 
-        geometry: 'box', size: [0.25, 0.35, 0.15], 
-        pos: [0, 0.9, -0.15], rot: [0, 0, 0],
-        color: color || '#3498DB'
-      },
-      wings: { 
-        geometry: 'box', size: [0.6, 0.4, 0.05], 
-        pos: [0, 1.1, -0.12], rot: [0, 0, 0],
-        color: color || '#9B59B6'
-      },
-      tail: { 
-        geometry: 'cylinder', size: [0.03, 0.02, 0.4, 8], 
-        pos: [0, 0.4, -0.15], rot: [-0.3, 0, 0],
-        color: color || '#E67E22'
-      },
-      halo: { 
-        geometry: 'torus', size: [0.12, 0.01, 8, 16], 
-        pos: [0, 1.7, 0], rot: [Math.PI/2, 0, 0],
-        color: color || '#FFD700'
-      },
+      // 配饰类
+      crown: { type: 'crown', color: color || '#FFD700', scale: 1 },
+      glasses: { type: 'glasses', color: color || '#34495E', scale: 1 },
+      sunglasses: { type: 'sunglasses', color: color || '#2C3E50', scale: 1 },
+      hat_cowboy: { type: 'hat', color: color || '#8B4513', scale: 1 },
+      hat_witch: { type: 'witch_hat', color: color || '#9B59B6', scale: 1 },
+      earrings: { type: 'earrings', color: color || '#1ABC9C', scale: 1 },
+      necklace: { type: 'necklace', color: color || '#F1C40F', scale: 1 },
+      scarf: { type: 'scarf', color: color || '#E74C3C', scale: 1 },
+      backpack: { type: 'backpack', color: color || '#3498DB', scale: 1 },
+      wings: { type: 'wings', color: color || '#9B59B6', scale: 1 },
+      tail: { type: 'tail', color: color || '#E67E22', scale: 1 },
+      halo: { type: 'halo', color: color || '#FFD700', scale: 1 },
       
-      // 工具类 - 手部
-      sword: { 
-        geometry: 'box', size: [0.04, 0.6, 0.04], 
-        pos: [0.25, 0.6, 0.15], rot: [0, 0, -0.5],
-        color: color || '#95A5A6'
-      },
-      shield: { 
-        geometry: 'cylinder', size: [0.18, 0.18, 0.03, 16], 
-        pos: [-0.25, 0.5, 0.15], rot: [0, 0, 0],
-        color: color || '#3498DB'
-      },
-      wand: { 
-        geometry: 'cylinder', size: [0.015, 0.015, 0.4, 8], 
-        pos: [0.2, 0.6, 0.1], rot: [0.3, 0, -0.3],
-        color: color || '#9B59B6'
-      },
-      bow: { 
-        geometry: 'torus', size: [0.15, 0.01, 8, 16], 
-        pos: [0.22, 0.55, 0.1], rot: [0, 0, -0.2],
-        color: color || '#8B4513'
-      },
-      umbrella: { 
-        geometry: 'cone', size: [0.18, 0.06, 16], 
-        pos: [-0.15, 0.9, 0.08], rot: [0.3, 0, -0.15],
-        color: color || '#E91E63'
-      },
-      book: { 
-        geometry: 'box', size: [0.14, 0.18, 0.03], 
-        pos: [0.25, 0.55, 0.15], rot: [0, 0.3, 0.3],
-        color: color || '#E67E22'
-      },
-      camera: { 
-        geometry: 'box', size: [0.1, 0.06, 0.08], 
-        pos: [0.2, 0.6, 0.12], rot: [0, -0.3, 0],
-        color: color || '#2C3E50'
-      },
-      phone: { 
-        geometry: 'box', size: [0.06, 0.1, 0.01], 
-        pos: [0.18, 0.55, 0.12], rot: [0, 0, -0.2],
-        color: color || '#3498DB'
-      },
-      laptop: { 
-        geometry: 'box', size: [0.25, 0.02, 0.18], 
-        pos: [0.3, 0.45, 0.15], rot: [0.3, 0, -0.1],
-        color: color || '#34495E'
-      },
-      broom: { 
-        geometry: 'cylinder', size: [0.02, 0.02, 0.8, 8], 
-        pos: [-0.1, 0.4, -0.1], rot: [0.2, 0, -0.1],
-        color: color || '#8B4513'
-      },
-      fishing_rod: { 
-        geometry: 'cylinder', size: [0.01, 0.01, 1.0, 8], 
-        pos: [0.25, 0.8, 0.2], rot: [0.5, 0, -0.2],
-        color: color || '#27AE60'
-      },
-      paintbrush: { 
-        geometry: 'cylinder', size: [0.008, 0.008, 0.25, 8], 
-        pos: [0.2, 0.55, 0.1], rot: [0.2, 0, -0.3],
-        color: color || '#E74C3C'
-      },
+      // 工具类
+      sword: { type: 'sword', color: color || '#95A5A6', scale: 1 },
+      shield: { type: 'shield', color: color || '#3498DB', scale: 1 },
+      wand: { type: 'wand', color: color || '#9B59B6', scale: 1 },
+      bow: { type: 'bow', color: color || '#8B4513', scale: 1 },
+      umbrella: { type: 'umbrella', color: color || '#E91E63', scale: 1 },
+      book: { type: 'book', color: color || '#E67E22', scale: 1 },
+      camera: { type: 'camera', color: color || '#2C3E50', scale: 1 },
+      phone: { type: 'phone', color: color || '#3498DB', scale: 1 },
+      laptop: { type: 'laptop', color: color || '#34495E', scale: 1 },
+      broom: { type: 'broom', color: color || '#8B4513', scale: 1 },
+      fishing_rod: { type: 'fishing_rod', color: color || '#27AE60', scale: 1 },
+      paintbrush: { type: 'paintbrush', color: color || '#E74C3C', scale: 1 },
       
-      // 装饰类 - 手部
-      flower: { 
-        geometry: 'sphere', size: [0.05, 8, 8], 
-        pos: [0.2, 0.6, 0.1], rot: [0, 0, 0],
-        color: color || '#FF69B4'
-      },
-      bouquet: { 
-        geometry: 'sphere', size: [0.1, 8, 8], 
-        pos: [0.2, 0.55, 0.12], rot: [0, 0, 0],
-        color: color || '#E91E63'
-      },
-      rose: { 
-        geometry: 'sphere', size: [0.06, 8, 8], 
-        pos: [0.2, 0.6, 0.1], rot: [0, 0, 0],
-        color: color || '#C0392B'
-      },
-      balloon: { 
-        geometry: 'sphere', size: [0.12, 16, 16], 
-        pos: [0.25, 1.0, 0.08], rot: [0, 0, 0],
-        color: color || '#E74C3C'
-      },
-      gift: { 
-        geometry: 'box', size: [0.12, 0.12, 0.12], 
-        pos: [0.2, 0.3, 0.15], rot: [0, 0.5, 0],
-        color: color || '#E91E63'
-      },
-      candle: { 
-        geometry: 'cylinder', size: [0.02, 0.02, 0.1, 8], 
-        pos: [0.2, 0.35, 0.12], rot: [0, 0, 0],
-        color: color || '#F39C12'
-      },
-      lollipop: { 
-        geometry: 'sphere', size: [0.04, 8, 8], 
-        pos: [0.18, 0.5, 0.1], rot: [0, 0, 0],
-        color: color || '#9B59B6'
-      },
-      ice_cream: { 
-        geometry: 'cone', size: [0.03, 0.08, 8], 
-        pos: [0.18, 0.5, 0.1], rot: [0, 0, 0],
-        color: color || '#F1C40F'
-      },
-      drink: { 
-        geometry: 'cylinder', size: [0.03, 0.03, 0.12, 8], 
-        pos: [0.18, 0.4, 0.12], rot: [0, 0, 0],
-        color: color || '#E67E22'
-      },
-      fan: { 
-        geometry: 'box', size: [0.15, 0.02, 0.08], 
-        pos: [0.2, 0.55, 0.12], rot: [0, 0, -0.2],
-        color: color || '#E74C3C'
-      },
-      flag: { 
-        geometry: 'box', size: [0.02, 0.25, 0.15], 
-        pos: [0.2, 0.6, 0.1], rot: [0, 0, -0.1],
-        color: color || '#E74C3C'
-      },
-      star_wand: { 
-        geometry: 'cylinder', size: [0.01, 0.01, 0.3, 8], 
-        pos: [0.2, 0.55, 0.1], rot: [0.2, 0, -0.2],
-        color: color || '#FFD700'
-      }
+      // 装饰类
+      flower: { type: 'flower', color: color || '#FF69B4', scale: 1 },
+      bouquet: { type: 'bouquet', color: color || '#E91E63', scale: 1 },
+      rose: { type: 'rose', color: color || '#C0392B', scale: 1 },
+      balloon: { type: 'balloon', color: color || '#E74C3C', scale: 1 },
+      gift: { type: 'gift', color: color || '#E91E63', scale: 1 },
+      candle: { type: 'candle', color: color || '#F39C12', scale: 1 },
+      lollipop: { type: 'lollipop', color: color || '#9B59B6', scale: 1 },
+      ice_cream: { type: 'ice_cream', color: color || '#F1C40F', scale: 1 },
+      drink: { type: 'drink', color: color || '#E67E22', scale: 1 },
+      fan: { type: 'fan', color: color || '#E74C3C', scale: 1 },
+      flag: { type: 'flag', color: color || '#E74C3C', scale: 1 },
+      star_wand: { type: 'star_wand', color: color || '#FFD700', scale: 1 }
     }
     
     return configs[id] || { 
-      geometry: 'box', size: [0.1, 0.1, 0.1], 
-      pos: [0.2, 0.5, 0.1], rot: [0, 0, 0],
-      color: color || '#cccccc'
+      type: 'default', color: color || '#cccccc', scale: 1
     }
   }
 
@@ -1820,112 +2271,329 @@ const PropDisplay = ({ propId, onInteract }) => {
   const interactConfig = getInteractButtonConfig()
   const interactAction = getInteractAction()
 
-  const renderGeometry = () => {
-    switch (config.geometry) {
-      case 'box':
-        return <boxGeometry args={config.size} />
-      case 'cylinder':
-        return <cylinderGeometry args={config.size} />
-      case 'sphere':
-        return <sphereGeometry args={config.size} />
-      case 'cone':
-        return <coneGeometry args={config.size} />
-      case 'torus':
-        return <torusGeometry args={config.size} />
-      default:
-        return <boxGeometry args={config.size} />
-    }
-  }
-
   // 处理交互点击
   const handleInteractClick = (e) => {
     e.stopPropagation()
+    setIsAnimating(true)
     console.log('家具交互:', furniture.name, '动作:', interactAction)
     if (onInteract) {
-      onInteract(interactAction, furniture)
+      onInteract(interactAction, furniture, characterIndex)
+    }
+    setTimeout(() => setIsAnimating(false), 500)
+  }
+
+  // 渲染家具模型
+  const renderFurniture = () => {
+    const baseMaterial = (
+      <meshStandardMaterial 
+        color={config.color} 
+        metalness={0.4} 
+        roughness={0.3}
+        emissive={config.color}
+        emissiveIntensity={isHovered ? 0.3 : 0.1}
+      />
+    )
+
+    switch (config.type) {
+      case 'chair':
+        return (
+          <group>
+            {/* 座椅面 */}
+            <mesh position={[0, 0, 0]}>
+              <boxGeometry args={[config.width, 0.08, config.width]} />
+              {baseMaterial}
+            </mesh>
+            {/* 靠背 */}
+            <mesh position={[0, config.backHeight/2 - 0.04, -config.width/2 + 0.04]}>
+              <boxGeometry args={[config.width, config.backHeight, 0.08]} />
+              {baseMaterial}
+            </mesh>
+            {/* 四条腿 */}
+            {[[-1,-1], [1,-1], [-1,1], [1,1]].map(([x, z], i) => (
+              <mesh key={i} position={[x * config.width/3, -config.seatHeight/2, z * config.width/3]}>
+                <cylinderGeometry args={[0.03, 0.02, config.seatHeight, 8]} />
+                <meshStandardMaterial color={config.color} metalness={0.5} roughness={0.4} />
+              </mesh>
+            ))}
+          </group>
+        )
+      
+      case 'sofa':
+        return (
+          <group>
+            {/* 座椅 */}
+            <mesh position={[0, 0, 0]}>
+              <boxGeometry args={[config.width, config.height, config.depth]} />
+              {baseMaterial}
+            </mesh>
+            {/* 靠背 */}
+            <mesh position={[0, config.height/2 + 0.15, -config.depth/2 + 0.05]}>
+              <boxGeometry args={[config.width, 0.3, 0.1]} />
+              {baseMaterial}
+            </mesh>
+            {/* 扶手 */}
+            <mesh position={[-config.width/2 + 0.08, config.height/2 + 0.05, 0]}>
+              <boxGeometry args={[0.16, 0.2, config.depth]} />
+              {baseMaterial}
+            </mesh>
+            <mesh position={[config.width/2 - 0.08, config.height/2 + 0.05, 0]}>
+              <boxGeometry args={[0.16, 0.2, config.depth]} />
+              {baseMaterial}
+            </mesh>
+          </group>
+        )
+      
+      case 'stool':
+        return (
+          <group>
+            <mesh position={[0, 0, 0]}>
+              <cylinderGeometry args={[config.radius, config.radius, config.height, 16]} />
+              {baseMaterial}
+            </mesh>
+            {/* 凳腿 */}
+            {[[-1,-1], [1,-1], [-1,1], [1,1]].map(([x, z], i) => (
+              <mesh key={i} position={[x * 0.1, -config.height/2, z * 0.1]}>
+                <cylinderGeometry args={[0.02, 0.015, config.height, 8]} />
+                <meshStandardMaterial color={config.color} metalness={0.5} roughness={0.4} />
+              </mesh>
+            ))}
+          </group>
+        )
+      
+      case 'throne':
+        return (
+          <group>
+            {/* 座椅 */}
+            <mesh position={[0, 0, 0]}>
+              <boxGeometry args={[config.width, 0.15, config.width]} />
+              {baseMaterial}
+            </mesh>
+            {/* 高靠背 */}
+            <mesh position={[0, config.height/2, -config.width/2 + 0.05]}>
+              <boxGeometry args={[config.width, config.height, 0.1]} />
+              {baseMaterial}
+            </mesh>
+            {/* 扶手 */}
+            <mesh position={[-config.width/2 + 0.08, config.height/4, 0]}>
+              <boxGeometry args={[0.16, config.height/2, config.width]} />
+              {baseMaterial}
+            </mesh>
+            <mesh position={[config.width/2 - 0.08, config.height/4, 0]}>
+              <boxGeometry args={[0.16, config.height/2, config.width]} />
+              {baseMaterial}
+            </mesh>
+            {/* 装饰 */}
+            <mesh position={[0, config.height - 0.05, -config.width/2 + 0.15]}>
+              <sphereGeometry args={[0.08, 16, 16]} />
+              <meshStandardMaterial color="#FFD700" metalness={0.8} roughness={0.2} />
+            </mesh>
+          </group>
+        )
+      
+      case 'bed':
+        return (
+          <group>
+            {/* 床垫 */}
+            <mesh position={[0, 0, 0]}>
+              <boxGeometry args={[config.width, config.height, config.length]} />
+              {baseMaterial}
+            </mesh>
+            {/* 枕头 */}
+            <mesh position={[0, config.height/2 + 0.06, -config.length/2 + 0.25]}>
+              <boxGeometry args={[config.width * 0.6, 0.12, 0.25]} />
+              <meshStandardMaterial color="#ffffff" roughness={0.8} />
+            </mesh>
+            {/* 被子 */}
+            <mesh position={[0, config.height/2 + 0.04, config.length/4]}>
+              <boxGeometry args={[config.width + 0.02, 0.08, config.length/2]} />
+              <meshStandardMaterial color={config.color} roughness={0.9} />
+            </mesh>
+          </group>
+        )
+      
+      case 'guitar':
+        return (
+          <group position={[0.2, 0.5, 0.15]} rotation={[0, 0, -0.3]}>
+            {/* 琴身 */}
+            <mesh position={[0, -0.1, 0]}>
+              <boxGeometry args={[0.18, 0.22, 0.05]} />
+              {baseMaterial}
+            </mesh>
+            {/* 琴颈 */}
+            <mesh position={[0, 0.15, 0]}>
+              <boxGeometry args={[0.04, 0.3, 0.03]} />
+              <meshStandardMaterial color="#5D4037" />
+            </mesh>
+            {/* 琴弦 */}
+            <mesh position={[0, 0.1, 0.03]}>
+              <boxGeometry args={[0.12, 0.001, 0.001]} />
+              <meshStandardMaterial color="#silver" metalness={0.9} />
+            </mesh>
+          </group>
+        )
+      
+      case 'crown':
+        return (
+          <group position={[0, 1.58, 0]}>
+            {/* 皇冠底座 */}
+            <mesh>
+              <cylinderGeometry args={[0.11, 0.1, 0.06, 16]} />
+              {baseMaterial}
+            </mesh>
+            {/* 皇冠尖 */}
+            {[0, 1, 2, 3, 4].map((i) => (
+              <mesh key={i} position={[Math.sin(i * Math.PI * 2 / 5) * 0.08, 0.08, Math.cos(i * Math.PI * 2 / 5) * 0.08]}>
+                <coneGeometry args={[0.015, 0.06, 8]} />
+                <meshStandardMaterial color="#FFD700" metalness={0.9} roughness={0.1} />
+              </mesh>
+            ))}
+            {/* 宝石 */}
+            <mesh position={[0, 0.02, 0.1]}>
+              <sphereGeometry args={[0.02, 8, 8]} />
+              <meshStandardMaterial color="#E74C3C" metalness={0.8} roughness={0.1} />
+            </mesh>
+          </group>
+        )
+      
+      case 'wings':
+        return (
+          <group position={[0, 1.1, -0.12]}>
+            {/* 左翼 */}
+            <mesh position={[-0.25, 0, 0]} rotation={[0, 0, 0.3]}>
+              <boxGeometry args={[0.4, 0.35, 0.03]} />
+              {baseMaterial}
+            </mesh>
+            {/* 右翼 */}
+            <mesh position={[0.25, 0, 0]} rotation={[0, 0, -0.3]}>
+              <boxGeometry args={[0.4, 0.35, 0.03]} />
+              {baseMaterial}
+            </mesh>
+            {/* 羽毛装饰 */}
+            {[-0.35, -0.25, -0.15, 0.15, 0.25, 0.35].map((x, i) => (
+              <mesh key={i} position={[x, -0.2, 0.02]}>
+                <boxGeometry args={[0.08, 0.15, 0.01]} />
+                <meshStandardMaterial color={config.color} transparent opacity={0.8} />
+              </mesh>
+            ))}
+          </group>
+        )
+      
+      case 'sword':
+        return (
+          <group position={[0.25, 0.6, 0.15]} rotation={[0, 0, -0.5]}>
+            {/* 剑刃 */}
+            <mesh position={[0, 0.2, 0]}>
+              <boxGeometry args={[0.03, 0.4, 0.01]} />
+              <meshStandardMaterial color="#C0C0C0" metalness={0.9} roughness={0.1} />
+            </mesh>
+            {/* 剑柄 */}
+            <mesh position={[0, -0.05, 0]}>
+              <cylinderGeometry args={[0.015, 0.015, 0.15, 8]} />
+              <meshStandardMaterial color="#8B4513" />
+            </mesh>
+            {/* 护手 */}
+            <mesh position={[0, 0.02, 0]}>
+              <boxGeometry args={[0.1, 0.02, 0.03]} />
+              <meshStandardMaterial color="#FFD700" metalness={0.8} />
+            </mesh>
+          </group>
+        )
+      
+      case 'flower':
+        return (
+          <group position={[0.2, 0.6, 0.1]}>
+            {/* 花茎 */}
+            <mesh position={[0, -0.1, 0]}>
+              <cylinderGeometry args={[0.005, 0.005, 0.2, 8]} />
+              <meshStandardMaterial color="#27AE60" />
+            </mesh>
+            {/* 花瓣 */}
+            {[0, 1, 2, 3, 4].map((i) => (
+              <mesh key={i} position={[Math.sin(i * Math.PI * 2 / 5) * 0.03, 0.05, Math.cos(i * Math.PI * 2 / 5) * 0.03]}>
+                <sphereGeometry args={[0.025, 8, 8]} />
+                <meshStandardMaterial color={config.color} />
+              </mesh>
+            ))}
+            {/* 花心 */}
+            <mesh position={[0, 0.05, 0]}>
+              <sphereGeometry args={[0.02, 8, 8]} />
+              <meshStandardMaterial color="#FFD700" />
+            </mesh>
+          </group>
+        )
+      
+      default:
+        return (
+          <mesh position={[0.2, 0.5, 0.1]}>
+            <boxGeometry args={[0.1, 0.1, 0.1]} />
+            {baseMaterial}
+          </mesh>
+        )
     }
   }
 
   return (
-    <group>
+    <group 
+      ref={meshRef}
+      onPointerOver={(e) => {
+        e.stopPropagation()
+        setIsHovered(true)
+        document.body.style.cursor = 'pointer'
+      }}
+      onPointerOut={(e) => {
+        e.stopPropagation()
+        setIsHovered(false)
+        document.body.style.cursor = 'auto'
+      }}
+      onClick={handleInteractClick}
+    >
       {/* 家具主体 */}
-      <mesh position={config.pos} rotation={config.rot}>
-        {renderGeometry()}
-        <meshStandardMaterial 
-          color={config.color} 
-          metalness={0.3} 
-          roughness={0.4}
-          emissive={config.color}
-          emissiveIntensity={0.1}
-        />
-      </mesh>
+      {renderFurniture()}
       
-      {/* 座椅类添加靠背提示 */}
-      {furniture.category === 'seat' && (
-        <mesh position={[0, 0.1, -0.2]}>
-          <boxGeometry args={[0.4, 0.4, 0.05]} />
-          <meshStandardMaterial color={config.color} metalness={0.3} roughness={0.4} />
-        </mesh>
+      {/* 悬浮提示 - 仅在悬停时显示 */}
+      {isHovered && (
+        <group position={interactConfig.pos}>
+          {/* 发光圆环 */}
+          <mesh rotation={[Math.PI/2, 0, 0]}>
+            <ringGeometry args={[0.15, 0.18, 32]} />
+            <meshBasicMaterial color={interactConfig.color} transparent opacity={0.6} />
+          </mesh>
+          {/* 交互图标 */}
+          <Html center>
+            <div style={{
+              background: `linear-gradient(135deg, ${interactConfig.color} 0%, ${interactConfig.color}dd 100%)`,
+              padding: '6px 12px',
+              borderRadius: '12px',
+              color: 'white',
+              fontSize: '12px',
+              fontWeight: 'bold',
+              whiteSpace: 'nowrap',
+              boxShadow: `0 4px 15px ${interactConfig.color}50`,
+              animation: 'pulse 1s infinite',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <span>{interactConfig.icon}</span>
+              <span>{interactConfig.label}</span>
+            </div>
+          </Html>
+        </group>
       )}
       
-      {/* 床铺类添加枕头 */}
-      {furniture.category === 'bed' && (
-        <mesh position={[0, 0.05, -0.5]}>
-          <boxGeometry args={[0.3, 0.1, 0.15]} />
-          <meshStandardMaterial color="#ffffff" />
+      {/* 点击动画效果 */}
+      {isAnimating && (
+        <mesh position={[0, 0.5, 0]}>
+          <sphereGeometry args={[0.3, 16, 16]} />
+          <meshBasicMaterial color={interactConfig.color} transparent opacity={0.3} />
         </mesh>
       )}
-
-      {/* 交互按钮 - 所有家具都有 */}
-      <group position={interactConfig.pos}>
-        {/* 按钮背景 */}
-        <mesh
-          onClick={handleInteractClick}
-          onPointerOver={(e) => {
-            e.stopPropagation()
-            document.body.style.cursor = 'pointer'
-          }}
-          onPointerOut={(e) => {
-            e.stopPropagation()
-            document.body.style.cursor = 'auto'
-          }}
-        >
-          <sphereGeometry args={[0.12, 16, 16]} />
-          <meshStandardMaterial 
-            color={interactConfig.color}
-            emissive={interactConfig.color}
-            emissiveIntensity={0.3}
-            metalness={0.5}
-            roughness={0.2}
-          />
-        </mesh>
-        {/* 按钮光环 */}
-        <mesh rotation={[Math.PI/2, 0, 0]}>
-          <ringGeometry args={[0.14, 0.16, 32]} />
-          <meshBasicMaterial color={interactConfig.color} transparent opacity={0.6} />
-        </mesh>
-        {/* 悬浮动画 */}
-        <FloatingAnimation />
-      </group>
     </group>
   )
 }
 
-// 悬浮动画组件
-const FloatingAnimation = () => {
-  const meshRef = useRef()
-  
-  useFrame(({ clock }) => {
-    if (meshRef.current) {
-      meshRef.current.position.y = Math.sin(clock.getElapsedTime() * 2) * 0.02
-    }
-  })
-  
-  return <group ref={meshRef} />
-}
-
 // ==================== 可拖拽角色组件 ====================
-const DraggableCharacter = ({ position, index, isSelected, character, characterScale, actionIntensity, onPositionChange, propId, isBoneEditing, onBoneChange, onPropInteract, onSelect }) => {
+const DraggableCharacter = ({ position, index, isSelected, character, characterScale, actionIntensity, onPositionChange, propId, isBoneEditing, onBoneChange, onPropInteract, onSelect, opacity = 1.0 }) => {
   const groupRef = useRef()
   const [isDragging, setIsDragging] = useState(false)
   const { camera, gl } = useThree()
@@ -1990,45 +2658,49 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
           {/* 底部光环 */}
           <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[0.6, 0.8, 32]} />
-            <meshBasicMaterial color="#00d4ff" transparent opacity={0.6} side={THREE.DoubleSide} />
+            <meshBasicMaterial color="#00d4ff" transparent opacity={0.6 * opacity} side={THREE.DoubleSide} />
           </mesh>
           {/* 内部光环 */}
           <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[0.4, 0.55, 32]} />
-            <meshBasicMaterial color="#00ffff" transparent opacity={0.4} side={THREE.DoubleSide} />
+            <meshBasicMaterial color="#00ffff" transparent opacity={0.4 * opacity} side={THREE.DoubleSide} />
           </mesh>
           {/* 顶部光点 */}
           <mesh position={[0, 1.7, 0]}>
             <sphereGeometry args={[0.1, 16, 16]} />
-            <meshBasicMaterial color="#00ffff" transparent opacity={0.8} />
+            <meshBasicMaterial color="#00ffff" transparent opacity={0.8 * opacity} />
           </mesh>
           {/* 拖拽提示 - 选中时显示 */}
           <mesh position={[0, 2.0, 0]}>
             <planeGeometry args={[0.8, 0.2]} />
-            <meshBasicMaterial color="#00d4ff" transparent opacity={0.3} />
+            <meshBasicMaterial color="#00d4ff" transparent opacity={0.3 * opacity} />
           </mesh>
         </>
       )}
-      <CharacterController
-        position={[0, 0, 0]}
-        rotation={[0, 0, 0]}
-        selectedFile={fileToLoad}
-        scale={characterScale * (isSelected ? 1.1 : 0.9)}
-        actionIntensity={actionIntensity}
-        isBoneEditing={isBoneEditing && isSelected}
-        onBoneChange={onBoneChange}
-      />
+      <group visible={opacity > 0.01}>
+        <CharacterController
+          position={[0, 0, 0]}
+          rotation={[0, 0, 0]}
+          selectedFile={fileToLoad}
+          scale={characterScale * (isSelected ? 1.1 : 0.9)}
+          actionIntensity={actionIntensity}
+          isBoneEditing={isBoneEditing && isSelected}
+          onBoneChange={onBoneChange}
+          opacity={opacity}
+        />
+      </group>
       {/* 道具显示在角色身上 */}
       <PropDisplay 
         propId={propId} 
         onInteract={onPropInteract}
+        characterIndex={index}
       />
     </group>
   )
 }
 
 // ==================== 9. 3D场景内容 ====================
-const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionIntensity, isARMode, characterPositions, onPositionChange, characterProps, isBoneEditing, onBoneChange, onPropInteract, onSelectCharacter, showParticles, particleType }) => {
+const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionIntensity, isARMode, characterPositions, onPositionChange, characterProps, isBoneEditing, onBoneChange, onPropInteract, onSelectCharacter, showParticles, particleType, modelVisibility, modelOpacity }) => {
   return (
     <>
       {/* AR模式下不显示背景特效，避免挡住摄像头画面 */}
@@ -2039,10 +2711,12 @@ const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionI
           <FloatingDecorations />
         </>
       )}
-      
+
       {/* 渲染所有已加载的角色 */}
       {characters.map((character, index) => {
         if (!character) return null
+        // 如果模型被隐藏，不渲染
+        if (!modelVisibility?.[index]) return null
 
         const isSelected = index === selectedCharacterIndex
         const position = characterPositions[index] || [-1.5 + index * 1.5, 0, 0]
@@ -2063,6 +2737,7 @@ const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionI
               onBoneChange={onBoneChange}
               onPropInteract={onPropInteract}
               onSelect={onSelectCharacter}
+              opacity={modelOpacity?.[index] ?? 1.0}
             />
           </group>
         )
@@ -2102,6 +2777,20 @@ export const ARScene = ({ selectedFile }) => {
   const [characterScale, setCharacterScale] = useState([1.2, 1.2, 1.2])
   const [actionIntensity, setActionIntensity] = useState([1.0, 1.0, 1.0])
   const [settingsTargetIndex, setSettingsTargetIndex] = useState(0)
+
+  // 模型精度和显示设置（按角色）
+  const [modelQuality, setModelQuality] = useState(() => {
+    const saved = localStorage.getItem('modelQuality')
+    return saved ? JSON.parse(saved) : [1.0, 1.0, 1.0] // 1.0 = 高质量
+  })
+  const [modelVisibility, setModelVisibility] = useState(() => {
+    const saved = localStorage.getItem('modelVisibility')
+    return saved ? JSON.parse(saved) : [true, true, true]
+  })
+  const [modelOpacity, setModelOpacity] = useState(() => {
+    const saved = localStorage.getItem('modelOpacity')
+    return saved ? JSON.parse(saved) : [1.0, 1.0, 1.0]
+  })
   const [isRandomMode, setIsRandomMode] = useState(false)
   const [currentAction, setCurrentAction] = useState('idle')
   const [activeCategory, setActiveCategory] = useState('all')
@@ -2153,12 +2842,33 @@ export const ARScene = ({ selectedFile }) => {
   const [showStageEffects, setShowStageEffects] = useState(false)
   const [showParticles, setShowParticles] = useState(false)
   const [particleType, setParticleType] = useState('snow')
+  const [stageEffects, setStageEffects] = useState(() => {
+    const saved = localStorage.getItem('stageEffects')
+    return saved ? JSON.parse(saved) : {
+      particles: { enabled: false, type: 'snow', intensity: 50 },
+      filter: { enabled: false, type: 'none', intensity: 50 },
+      quality: 'high',
+      renderEffects: {
+        outline: false,
+        outlineColor: '#00d4ff',
+        outlineIntensity: 50,
+        bloom: false,
+        bloomIntensity: 50,
+        shadows: true,
+        shadowQuality: 'high'
+      },
+      stickers: []
+    }
+  })
 
   // 场景管理面板状态
   const [showSceneManager, setShowSceneManager] = useState(false)
 
   // 姿势面板状态
   const [showPosePanel, setShowPosePanel] = useState(false)
+
+  // 位置控制面板状态
+  const [showPositionControl, setShowPositionControl] = useState(false)
 
   // 语音控制状态
   const [showVoiceControl, setShowVoiceControl] = useState(false)
@@ -2252,7 +2962,7 @@ export const ARScene = ({ selectedFile }) => {
     setNotification({ message, type })
   }, [])
 
-  // 工具栏滑动事件处理
+  // 工具栏滑动事件处理 - 改进版：滑到底部固定在底部，滑到顶部固定在顶部
   const handleToolbarTouchStart = useCallback((e) => {
     const touch = e.touches[0]
     toolbarDragStartY.current = touch.clientY
@@ -2265,18 +2975,39 @@ export const ARScene = ({ selectedFile }) => {
     e.preventDefault()
     const touch = e.touches[0]
     const deltaY = touch.clientY - toolbarDragStartY.current
-    const newOffsetY = Math.min(0, Math.max(-280, toolbarDragStartOffsetY.current + deltaY))
+    const buttonHeight = isMobile ? 64 : 72 // 按钮高度 + gap
+    const totalButtons = 14 // 总按钮数
+    const visibleButtons = 7 // 可见按钮数
+    const maxOffset = -(totalButtons - visibleButtons) * buttonHeight // 最大向上偏移
+    
+    const newOffsetY = Math.min(0, Math.max(maxOffset, toolbarDragStartOffsetY.current + deltaY))
     setToolbarOffsetY(newOffsetY)
-  }, [isToolbarDragging])
+  }, [isToolbarDragging, isMobile])
 
   const handleToolbarTouchEnd = useCallback(() => {
     setIsToolbarDragging(false)
-    // 吸附到最近的位置
-    const buttonHeight = isMobile ? 56 : 64
+    const buttonHeight = isMobile ? 64 : 72
+    const totalButtons = 14
     const visibleButtons = 7
-    const maxOffset = -(buttonHeight * visibleButtons - buttonHeight * 7)
-    const snapOffset = Math.round(toolbarOffsetY / buttonHeight) * buttonHeight
-    setToolbarOffsetY(Math.max(maxOffset, Math.min(0, snapOffset)))
+    const maxOffset = -(totalButtons - visibleButtons) * buttonHeight
+    
+    // 判断滑动方向和位置
+    const currentOffset = toolbarOffsetY
+    const threshold = buttonHeight / 2 // 吸附阈值
+    
+    // 如果接近底部（偏移量接近0），固定在顶部
+    if (currentOffset > -threshold) {
+      setToolbarOffsetY(0)
+    } 
+    // 如果接近顶部（偏移量接近maxOffset），固定在底部
+    else if (currentOffset < maxOffset + threshold) {
+      setToolbarOffsetY(maxOffset)
+    }
+    // 否则吸附到最近的按钮位置
+    else {
+      const snapOffset = Math.round(currentOffset / buttonHeight) * buttonHeight
+      setToolbarOffsetY(Math.max(maxOffset, Math.min(0, snapOffset)))
+    }
   }, [toolbarOffsetY, isMobile])
 
   // 鼠标事件处理（桌面端）
@@ -2290,19 +3021,34 @@ export const ARScene = ({ selectedFile }) => {
     if (!isToolbarDragging) return
     e.preventDefault()
     const deltaY = e.clientY - toolbarDragStartY.current
-    const newOffsetY = Math.min(0, Math.max(-280, toolbarDragStartOffsetY.current + deltaY))
+    const buttonHeight = isMobile ? 64 : 72
+    const totalButtons = 14
+    const visibleButtons = 7
+    const maxOffset = -(totalButtons - visibleButtons) * buttonHeight
+    
+    const newOffsetY = Math.min(0, Math.max(maxOffset, toolbarDragStartOffsetY.current + deltaY))
     setToolbarOffsetY(newOffsetY)
-  }, [isToolbarDragging])
+  }, [isToolbarDragging, isMobile])
 
   const handleToolbarMouseUp = useCallback(() => {
     if (!isToolbarDragging) return
     setIsToolbarDragging(false)
-    // 吸附到最近的位置
-    const buttonHeight = isMobile ? 56 : 64
+    const buttonHeight = isMobile ? 64 : 72
+    const totalButtons = 14
     const visibleButtons = 7
-    const maxOffset = -(buttonHeight * visibleButtons - buttonHeight * 7)
-    const snapOffset = Math.round(toolbarOffsetY / buttonHeight) * buttonHeight
-    setToolbarOffsetY(Math.max(maxOffset, Math.min(0, snapOffset)))
+    const maxOffset = -(totalButtons - visibleButtons) * buttonHeight
+    
+    const currentOffset = toolbarOffsetY
+    const threshold = buttonHeight / 2
+    
+    if (currentOffset > -threshold) {
+      setToolbarOffsetY(0)
+    } else if (currentOffset < maxOffset + threshold) {
+      setToolbarOffsetY(maxOffset)
+    } else {
+      const snapOffset = Math.round(currentOffset / buttonHeight) * buttonHeight
+      setToolbarOffsetY(Math.max(maxOffset, Math.min(0, snapOffset)))
+    }
   }, [toolbarOffsetY, isMobile, isToolbarDragging])
 
   // 监听 selectedFile 变化，自动加载模型
@@ -2591,9 +3337,28 @@ export const ARScene = ({ selectedFile }) => {
       }
 
       // 绘制3D场景（带透明通道）
-      // 使用 canvas3D 的实际尺寸，按比例缩放
-      ctx.drawImage(canvas3D, 0, 0, width, height)
-      addLog('3D场景已绘制')
+      // 保持原始比例，避免模型变形
+      const canvas3DAspect = canvas3D.width / canvas3D.height
+      const outputAspect = width / height
+      
+      let drawWidth, drawHeight, offsetX, offsetY
+      
+      if (canvas3DAspect > outputAspect) {
+        // 3D画布更宽，以宽度为基准
+        drawWidth = width
+        drawHeight = width / canvas3DAspect
+        offsetX = 0
+        offsetY = (height - drawHeight) / 2
+      } else {
+        // 3D画布更高，以高度为基准
+        drawHeight = height
+        drawWidth = height * canvas3DAspect
+        offsetX = (width - drawWidth) / 2
+        offsetY = 0
+      }
+      
+      ctx.drawImage(canvas3D, offsetX, offsetY, drawWidth, drawHeight)
+      addLog(`3D场景已绘制: ${drawWidth}x${drawHeight} at (${offsetX}, ${offsetY})`)
 
       // 添加精美水印
       ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
@@ -2930,7 +3695,10 @@ export const ARScene = ({ selectedFile }) => {
         width: '100vw',
         height: '100vh',
         zIndex: 1,
-        background: isARMode ? 'transparent' : 'linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 50%, #16213e 100%)'
+        background: isARMode ? 'transparent' : 'linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 50%, #16213e 100%)',
+        // 应用滤镜效果
+        filter: stageEffects?.filter?.enabled ? getFilterCSS(stageEffects.filter) : 'none',
+        transition: 'filter 0.3s ease'
       }}>
         <Canvas 
           gl={{ 
@@ -2966,6 +3734,8 @@ export const ARScene = ({ selectedFile }) => {
             isBoneEditing={isBoneEditing}
             showParticles={showParticles}
             particleType={particleType}
+            modelVisibility={modelVisibility}
+            modelOpacity={modelOpacity}
             onBoneChange={(boneName, rotation) => {
               console.log('骨骼变化:', boneName, rotation)
             }}
@@ -3329,177 +4099,190 @@ export const ARScene = ({ selectedFile }) => {
               icon="💪"
             />
 
-            {/* 位置预设按钮 */}
+            {/* 模型精度设置 */}
             <div style={{
-              marginTop: '8px',
               padding: '12px',
               background: 'rgba(255,255,255,0.05)',
-              borderRadius: '12px',
-              border: '1px solid rgba(255,255,255,0.1)'
+              borderRadius: '12px'
             }}>
               <div style={{
-                fontSize: '13px',
-                fontWeight: '600',
-                color: 'white',
-                marginBottom: '10px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px'
+                gap: '8px',
+                marginBottom: '8px',
+                fontSize: '13px',
+                color: 'rgba(255,255,255,0.9)'
               }}>
-                <span>📍</span>
-                <span>位置预设</span>
+                <span>🎯</span>
+                <span>模型精度</span>
               </div>
               <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
-                gap: '8px'
+                display: 'flex',
+                gap: '6px'
               }}>
                 {[
-                  { name: '站立', pos: [0, 0, 0], icon: '🧍' },
-                  { name: '左侧', pos: [-1.5, 0, 0], icon: '⬅️' },
-                  { name: '右侧', pos: [1.5, 0, 0], icon: '➡️' },
-                  { name: '前方', pos: [0, 0, 1], icon: '⬆️' },
-                  { name: '后方', pos: [0, 0, -1], icon: '⬇️' },
-                  { name: '左上', pos: [-1, 0, 1], icon: '↖️' },
-                  { name: '右上', pos: [1, 0, 1], icon: '↗️' },
-                  { name: '左下', pos: [-1, 0, -1], icon: '↙️' },
-                  { name: '右下', pos: [1, 0, -1], icon: '↘️' },
-                  { name: '远左', pos: [-2, 0, 0], icon: '⏪' },
-                  { name: '远右', pos: [2, 0, 0], icon: '⏩' },
-                  { name: '远前', pos: [0, 0, 2], icon: '⏫' },
-                  { name: '远后', pos: [0, 0, -2], icon: '⏬' },
-                  { name: '中心', pos: [0, 0, 0], icon: '🎯' },
-                  { name: '躺平', pos: [0, 0, 0], icon: '🛏️' },
-                  { name: '高处', pos: [0, 1, 0], icon: '⬆️' },
-                  { name: '低处', pos: [0, -0.5, 0], icon: '⬇️' },
-                  { name: '角落1', pos: [-1.5, 0, 1.5], icon: '📐' },
-                  { name: '角落2', pos: [1.5, 0, 1.5], icon: '📏' },
-                  { name: '环绕', pos: [0, 0, 0], icon: '🔄' }
-                ].map((preset, idx) => (
+                  { id: 0.5, name: '低', desc: '性能优先' },
+                  { id: 0.75, name: '中', desc: '平衡' },
+                  { id: 1.0, name: '高', desc: '画质优先' }
+                ].map(quality => (
                   <button
-                    key={idx}
+                    key={quality.id}
                     onClick={() => {
-                      if (selectedCharacterIndex !== null) {
-                        setCharacterPositions(prev => {
-                          const updated = [...prev]
-                          updated[settingsTargetIndex] = preset.pos
-                          return updated
-                        })
-                        showNotification(`角色${settingsTargetIndex + 1}已设置位置: ${preset.name}`, 'success')
-                      }
+                      setModelQuality(prev => {
+                        const updated = [...prev]
+                        updated[settingsTargetIndex] = quality.id
+                        localStorage.setItem('modelQuality', JSON.stringify(updated))
+                        return updated
+                      })
+                      showNotification(`模型精度已设置为: ${quality.name}`, 'success')
                     }}
                     style={{
+                      flex: 1,
                       padding: '8px 4px',
-                      background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-                      border: '1px solid rgba(255,255,255,0.15)',
                       borderRadius: '8px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '2px',
-                      fontSize: '11px',
+                      border: 'none',
+                      background: modelQuality[settingsTargetIndex] === quality.id
+                        ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)'
+                        : 'rgba(255,255,255,0.1)',
                       color: 'white',
+                      fontSize: '12px',
+                      cursor: 'pointer',
                       transition: 'all 0.2s ease'
                     }}
-                    onMouseEnter={(e) => {
-                      e.target.style.background = 'linear-gradient(135deg, rgba(0,212,255,0.3) 0%, rgba(0,212,255,0.1) 100%)'
-                      e.target.style.borderColor = 'rgba(0,212,255,0.5)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.target.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
-                      e.target.style.borderColor = 'rgba(255,255,255,0.15)'
-                    }}
                   >
-                    <span style={{ fontSize: '14px' }}>{preset.icon}</span>
-                    <span>{preset.name}</span>
+                    <div>{quality.name}</div>
+                    <div style={{ fontSize: '10px', opacity: 0.7 }}>{quality.desc}</div>
                   </button>
                 ))}
               </div>
+            </div>
 
-              {/* 姿势预设按钮 */}
+            {/* 模型显示设置 */}
+            <div style={{
+              padding: '12px',
+              background: 'rgba(255,255,255,0.05)',
+              borderRadius: '12px'
+            }}>
               <div style={{
-                marginTop: '12px',
-                padding: '12px',
-                background: 'rgba(255,255,255,0.05)',
-                borderRadius: '12px'
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '12px',
+                fontSize: '13px',
+                color: 'rgba(255,255,255,0.9)'
               }}>
+                <span>👁️</span>
+                <span>模型显示</span>
+              </div>
+
+              {/* 显示/隐藏切换 */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: '12px'
+              }}>
+                <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>显示模型</span>
+                <button
+                  onClick={() => {
+                    setModelVisibility(prev => {
+                      const updated = [...prev]
+                      updated[settingsTargetIndex] = !updated[settingsTargetIndex]
+                      localStorage.setItem('modelVisibility', JSON.stringify(updated))
+                      return updated
+                    })
+                  }}
+                  style={{
+                    width: '44px',
+                    height: '24px',
+                    borderRadius: '12px',
+                    border: 'none',
+                    background: modelVisibility[settingsTargetIndex]
+                      ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)'
+                      : 'rgba(255,255,255,0.2)',
+                    position: 'relative',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  <span style={{
+                    position: 'absolute',
+                    top: '2px',
+                    left: modelVisibility[settingsTargetIndex] ? '22px' : '2px',
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    background: 'white',
+                    transition: 'all 0.2s ease'
+                  }}/>
+                </button>
+              </div>
+
+              {/* 透明度滑块 */}
+              <div style={{ opacity: modelVisibility[settingsTargetIndex] ? 1 : 0.5 }}>
                 <div style={{
-                  fontSize: '12px',
-                  color: 'rgba(255,255,255,0.6)',
-                  marginBottom: '8px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px'
+                  justifyContent: 'space-between',
+                  marginBottom: '6px'
                 }}>
-                  <span>🎭</span>
-                  <span>姿势预设</span>
+                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)' }}>透明度</span>
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)' }}>
+                    {Math.round(modelOpacity[settingsTargetIndex] * 100)}%
+                  </span>
                 </div>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(4, 1fr)',
-                  gap: '8px'
-                }}>
-                  {[
-                    { name: '站立', action: 'idle', icon: '🧍' },
-                    { name: '坐下', action: 'sit', icon: '🪑' },
-                    { name: '睡觉', action: 'sleep', icon: '😴' },
-                    { name: '躺下', action: 'lie', icon: '🛌' },
-                    { name: '行走', action: 'walk', icon: '🚶' },
-                    { name: '奔跑', action: 'run', icon: '🏃' },
-                    { name: '跳跃', action: 'jump', icon: '⬆️' },
-                    { name: '飞行', action: 'fly', icon: '🦅' },
-                    { name: '游泳', action: 'swim', icon: '🏊' },
-                    { name: '跳舞', action: 'dance', icon: '💃' },
-                    { name: '攻击', action: 'attack', icon: '⚔️' },
-                    { name: '防御', action: 'defend', icon: '🛡️' }
-                  ].map((pose, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => {
-                        if (selectedCharacterIndex !== null) {
-                          // 发送姿势动作事件
-                          const event = new CustomEvent('execute-character-action', {
-                            detail: {
-                              characterIndex: settingsTargetIndex,
-                              action: pose.action,
-                              actionName: pose.name
-                            }
-                          })
-                          window.dispatchEvent(event)
-                          showNotification(`角色${settingsTargetIndex + 1}执行姿势: ${pose.name}`, 'success')
-                        }
-                      }}
-                      style={{
-                        padding: '8px 4px',
-                        background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-                        border: '1px solid rgba(255,255,255,0.15)',
-                        borderRadius: '8px',
-                        color: 'white',
-                        fontSize: '11px',
-                        cursor: selectedCharacterIndex !== null ? 'pointer' : 'not-allowed',
-                        opacity: selectedCharacterIndex !== null ? 1 : 0.5,
-                        transition: 'all 0.2s ease',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (selectedCharacterIndex !== null) {
-                          e.target.style.background = 'linear-gradient(135deg, rgba(102, 126, 234, 0.3) 0%, rgba(118, 75, 162, 0.3) 100%)'
-                          e.target.style.borderColor = 'rgba(102, 126, 234, 0.5)'
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.background = 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)'
-                        e.target.style.borderColor = 'rgba(255,255,255,0.15)'
-                      }}
-                    >
-                      <span style={{ fontSize: '14px' }}>{pose.icon}</span>
-                      <span>{pose.name}</span>
-                    </button>
-                  ))}
+                <input
+                  type="range"
+                  min="0.1"
+                  max="1"
+                  step="0.05"
+                  value={modelOpacity[settingsTargetIndex]}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value)
+                    setModelOpacity(prev => {
+                      const updated = [...prev]
+                      updated[settingsTargetIndex] = val
+                      localStorage.setItem('modelOpacity', JSON.stringify(updated))
+                      return updated
+                    })
+                  }}
+                  disabled={!modelVisibility[settingsTargetIndex]}
+                  style={{
+                    width: '100%',
+                    height: '4px',
+                    borderRadius: '2px',
+                    background: 'rgba(255,255,255,0.2)',
+                    outline: 'none',
+                    WebkitAppearance: 'none',
+                    cursor: modelVisibility[settingsTargetIndex] ? 'pointer' : 'not-allowed'
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* 快速操作提示 */}
+            <div style={{
+              marginTop: '16px',
+              padding: '12px',
+              background: 'rgba(0, 212, 255, 0.1)',
+              borderRadius: '12px',
+              border: '1px solid rgba(0, 212, 255, 0.2)'
+            }}>
+              <div style={{
+                fontSize: '12px',
+                color: 'rgba(255,255,255,0.8)',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '8px'
+              }}>
+                <span>💡</span>
+                <div>
+                  <div style={{ fontWeight: '600', marginBottom: '4px' }}>操作提示</div>
+                  <div style={{ opacity: 0.7, lineHeight: '1.5' }}>
+                    • 拖拽角色可移动位置<br/>
+                    • 使用姿势面板切换动作<br/>
+                    • 双指捏合可缩放角色
+                  </div>
                 </div>
               </div>
             </div>
@@ -4062,15 +4845,20 @@ export const ARScene = ({ selectedFile }) => {
             {/* 底部提示 */}
             <div style={{
               marginTop: '16px',
-              padding: '12px',
-              background: 'rgba(0,212,255,0.1)',
-              borderRadius: '10px',
-              border: '1px solid rgba(0,212,255,0.2)',
-              color: 'rgba(255,255,255,0.7)',
+              padding: '16px',
+              background: 'linear-gradient(135deg, rgba(0,212,255,0.15) 0%, rgba(102,126,234,0.15) 100%)',
+              borderRadius: '14px',
+              border: '1px solid rgba(0,212,255,0.3)',
+              color: 'rgba(255,255,255,0.9)',
               fontSize: isMobile ? '11px' : '12px',
-              textAlign: 'center'
+              textAlign: 'center',
+              lineHeight: '1.6'
             }}>
-              💡 部分家具会自动调整角色姿势（如椅子会自动坐下）
+              <div style={{ fontWeight: '600', marginBottom: '6px', color: '#00d4ff' }}>💡 家具使用指南</div>
+              <div>• 点击家具可直接触发交互动作</div>
+              <div>• 座椅类会自动调整角色为坐姿</div>
+              <div>• 床铺类会自动调整角色为躺姿</div>
+              <div>• 乐器类可触发演奏动作</div>
             </div>
           </div>
         </div>
@@ -4745,6 +5533,7 @@ export const ARScene = ({ selectedFile }) => {
               { icon: '📸', label: 'AR乐园', onClick: takePhoto, disabled: isCountingDown, altIcon: '⏳', gradient: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)', shadowColor: 'rgba(255, 107, 157, 0.5)' },
               { icon: '🎥', label: '录像', onClick: () => setShowVideoRecorder(true), isActive: showVideoRecorder, gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', shadowColor: 'rgba(102, 126, 234, 0.5)' },
               { icon: '🎨', label: '分享', onClick: () => setShowShareCard(true), isActive: showShareCard, gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', shadowColor: 'rgba(240, 147, 251, 0.5)' },
+              { icon: '📍', label: '位置', onClick: () => setShowPositionControl(true), isActive: showPositionControl, gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', shadowColor: 'rgba(102, 126, 234, 0.5)' },
               { icon: '🏠', label: '家具', onClick: () => { setPropTargetCharacter(selectedCharacterIndex); setShowPropSelect(true); }, isActive: showPropSelect, gradient: 'linear-gradient(135deg, #8B4513 0%, #D2691E 100%)', shadowColor: 'rgba(139, 69, 19, 0.5)', badge: characterProps[selectedCharacterIndex] },
               { icon: '🎭', label: '姿势', onClick: () => setShowPosePanel(true), isActive: showPosePanel, gradient: 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)', shadowColor: 'rgba(0, 212, 255, 0.5)' },
               { icon: '📋', label: '列表', onClick: () => setShowPlaylist(true), isActive: showPlaylist, gradient: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)', shadowColor: 'rgba(155, 89, 182, 0.5)' },
@@ -5120,16 +5909,34 @@ export const ARScene = ({ selectedFile }) => {
           } else {
             setShowParticles(false)
           }
+          // 保存完整效果状态
+          setStageEffects(effects)
           // 保存效果设置到本地存储
           localStorage.setItem('stageEffects', JSON.stringify(effects))
         }}
-        currentEffects={JSON.parse(localStorage.getItem('stageEffects') || '{}')}
+        currentEffects={stageEffects}
       />
 
       {/* 场景管理面板 */}
       <SceneManager
         isOpen={showSceneManager}
         onClose={() => setShowSceneManager(false)}
+        isMobile={isMobile}
+      />
+
+      {/* 位置控制面板 */}
+      <PositionControlPanel
+        isOpen={showPositionControl}
+        onClose={() => setShowPositionControl(false)}
+        characterPositions={characterPositions}
+        onPositionChange={(index, newPos) => {
+          setCharacterPositions(prev => {
+            const updated = [...prev]
+            updated[index] = newPos
+            return updated
+          })
+        }}
+        selectedCharacterIndex={selectedCharacterIndex}
         isMobile={isMobile}
       />
 
