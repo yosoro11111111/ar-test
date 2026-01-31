@@ -1,0 +1,292 @@
+/* 场景模板面板样式 */
+.scene-template-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(10px);
+}
+
+.scene-template-panel {
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.98) 0%, rgba(22, 33, 62, 0.98) 100%);
+  border-radius: 24px;
+  width: 90%;
+  max-width: 800px;
+  max-height: 85vh;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
+}
+
+.scene-template-panel.mobile {
+  width: 95%;
+  max-height: 90vh;
+  border-radius: 20px;
+}
+
+/* 头部 */
+.scene-template-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.scene-template-header h3 {
+  margin: 0;
+  color: white;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* 分类标签 */
+.category-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  overflow-x: auto;
+}
+
+.category-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.category-tab:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.category-tab.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: transparent;
+}
+
+.category-icon {
+  font-size: 16px;
+}
+
+.category-name {
+  color: white;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* 模板网格 */
+.templates-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+  padding: 24px;
+}
+
+.template-card {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.template-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+
+.template-card.active {
+  border-color: #00d4ff;
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.4);
+}
+
+.selected-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  background: #00d4ff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.template-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 1;
+}
+
+.template-icon {
+  font-size: 40px;
+}
+
+.template-name {
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* 模板详情 */
+.template-details {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 12px;
+  backdrop-filter: blur(10px);
+}
+
+.template-description {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 12px;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+}
+
+.template-features {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.feature-tag {
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  font-size: 10px;
+  color: white;
+}
+
+/* 当前场景信息 */
+.current-scene-info {
+  padding: 20px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.current-scene-info h4 {
+  color: white;
+  margin: 0 0 12px 0;
+  font-size: 16px;
+}
+
+.current-scene-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.scene-icon {
+  font-size: 32px;
+}
+
+.scene-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scene-name {
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.scene-desc {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+}
+
+/* 使用说明 */
+.template-help {
+  padding: 20px 24px;
+}
+
+.template-help h4 {
+  color: white;
+  margin: 0 0 12px 0;
+  font-size: 16px;
+}
+
+.template-help ul {
+  margin: 0;
+  padding-left: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.template-help li {
+  margin-bottom: 4px;
+}
+
+/* 滚动条样式 */
+.scene-template-panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scene-template-panel::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.scene-template-panel::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.scene-template-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}

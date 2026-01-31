@@ -9,9 +9,14 @@ import PlaylistPanel from './PlaylistPanel'
 import StageEffectsPanel from './StageEffectsPanel'
 import SceneManager from './SceneManager'
 import PosePanel from './PosePanel'
+import ActionRecorder from './ActionRecorder'
+import SceneTemplatePanel from './SceneTemplatePanel'
+import ShareCardGenerator from './ShareCardGenerator'
 import { actions as actionList200, actionCategories, searchActions } from '../data/actions200'
+import { sceneTemplates, getSceneTemplate } from '../data/sceneTemplates'
 import { furnitureList, furnitureCategories, getFurnitureByCategory, searchFurniture } from '../data/furniture'
 import useGyroscope from '../hooks/useGyroscope'
+import useVoiceControl from '../hooks/useVoiceControl'
 
 // ==================== 分步引导组件 ====================
 const TutorialGuide = ({ isMobile, onClose }) => {
@@ -513,9 +518,30 @@ const BoneEditor = ({ characters, selectedCharacterIndex, onBoneChange, isMobile
         <span style={{ color: '#00d4ff', fontWeight: 'bold', fontSize: '16px' }}>
           🦴 骨骼编辑器
         </span>
-        <span style={{ color: '#888', fontSize: '12px' }}>
-          {!hasVRM ? '加载中...' : `${bones.length}个骨骼`}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ color: '#888', fontSize: '12px' }}>
+            {!hasVRM ? '加载中...' : `${bones.length}个骨骼`}
+          </span>
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('closeBoneEditor'))}
+            style={{
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '8px',
+              color: 'white',
+              fontSize: '18px',
+              width: '32px',
+              height: '32px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+            title="关闭骨骼编辑器"
+          >
+            ×
+          </button>
+        </div>
       </div>
       
       {/* 加载提示 */}
@@ -1295,6 +1321,8 @@ const Slider = ({ value, onChange, min, max, label, icon }) => {
         onMouseDown={() => setIsDragging(true)}
         onMouseUp={() => setIsDragging(false)}
         onMouseLeave={() => setIsDragging(false)}
+        onTouchStart={() => setIsDragging(true)}
+        onTouchEnd={() => setIsDragging(false)}
         style={{
           width: '100%',
           height: '8px',
@@ -2010,6 +2038,19 @@ export const ARScene = ({ selectedFile }) => {
   // 姿势面板状态
   const [showPosePanel, setShowPosePanel] = useState(false)
 
+  // 语音控制状态
+  const [showVoiceControl, setShowVoiceControl] = useState(false)
+
+  // 动作录制器状态
+  const [showActionRecorder, setShowActionRecorder] = useState(false)
+
+  // 场景模板状态
+  const [showSceneTemplate, setShowSceneTemplate] = useState(false)
+  const [currentSceneTemplate, setCurrentSceneTemplate] = useState('default')
+
+  // 分享卡片生成器状态
+  const [showShareCard, setShowShareCard] = useState(false)
+
   // 人物管理面板状态
   const [showCharacterManager, setShowCharacterManager] = useState(false)
   const [characterSearchQuery, setCharacterSearchQuery] = useState('')
@@ -2205,6 +2246,22 @@ export const ARScene = ({ selectedFile }) => {
     }
     loadAutoSaved()
   }, [])
+
+  // 语音控制
+  const {
+    isListening,
+    transcript,
+    error: voiceError,
+    isSupported: isVoiceSupported,
+    toggleListening
+  } = useVoiceControl({
+    onCommand: (action, text) => {
+      console.log('语音指令:', action, '原文:', text)
+      executeAction(action)
+      showNotification(`语音指令: ${text}`, 'success')
+    },
+    enabled: showVoiceControl
+  })
 
   // 旋转画布
   const rotateCanvas = useCallback(() => {
@@ -2578,6 +2635,15 @@ export const ARScene = ({ selectedFile }) => {
     }
   }, [selectedFile])
 
+  // 监听关闭骨骼编辑器事件
+  useEffect(() => {
+    const handleCloseBoneEditor = () => {
+      setIsBoneEditing(false)
+    }
+    window.addEventListener('closeBoneEditor', handleCloseBoneEditor)
+    return () => window.removeEventListener('closeBoneEditor', handleCloseBoneEditor)
+  }, [])
+
   return (
     <div style={{ width: '100%', height: '100vh', position: 'relative', overflow: 'hidden' }}>
       {/* 全局CSS动画 */}
@@ -2849,7 +2915,7 @@ export const ARScene = ({ selectedFile }) => {
             fontSize: isMobile ? '20px' : '24px',
             boxShadow: '0 4px 20px rgba(0, 212, 255, 0.4)',
             animation: 'glow 2s ease-in-out infinite alternate'
-          }}>�</div>
+          }}>🎭</div>
           <div>
             <div style={{
               fontSize: isMobile ? '16px' : '18px',
@@ -2866,44 +2932,7 @@ export const ARScene = ({ selectedFile }) => {
           </div>
         </div>
         
-        {/* 中间：角色选择指示器 */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: isMobile ? '6px' : '10px',
-          background: 'rgba(255,255,255,0.05)',
-          padding: isMobile ? '4px' : '6px',
-          borderRadius: '12px'
-        }}>
-          {[0, 1, 2].map(index => (
-            <button
-              key={index}
-              onClick={() => setSelectedCharacterIndex(index)}
-              style={{
-                width: isMobile ? '32px' : '40px',
-                height: isMobile ? '32px' : '40px',
-                borderRadius: '10px',
-                background: selectedCharacterIndex === index
-                  ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)'
-                  : 'rgba(255,255,255,0.1)',
-                border: selectedCharacterIndex === index
-                  ? '2px solid #00d4ff'
-                  : '2px solid transparent',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: isMobile ? '14px' : '16px',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: selectedCharacterIndex === index
-                  ? '0 0 20px rgba(0, 212, 255, 0.5)'
-                  : 'none'
-              }}
-            >
-              {characters[index] ? '👤' : '+'}
-            </button>
-          ))}
-        </div>
+        {/* 中间：版本号显示 */}
 
         {/* 版本号显示 */}
         <div style={{
@@ -4403,8 +4432,33 @@ export const ARScene = ({ selectedFile }) => {
             color: 'white',
             transition: 'all 0.3s ease'
           }}
+          title="视频录制"
         >
           🎥
+        </button>
+
+        {/* 分享卡片按钮 */}
+        <button
+          onClick={() => setShowShareCard(true)}
+          style={{
+            width: isMobile ? '48px' : '56px',
+            height: isMobile ? '48px' : '56px',
+            borderRadius: '16px',
+            background: showShareCard
+              ? 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)'
+              : 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isMobile ? '20px' : '24px',
+            cursor: 'pointer',
+            color: 'white',
+            transition: 'all 0.3s ease'
+          }}
+          title="生成分享卡片"
+        >
+          🎨
         </button>
 
         {/* 播放列表按钮 */}
@@ -4470,6 +4524,30 @@ export const ARScene = ({ selectedFile }) => {
           )}
         </button>
 
+        {/* 场景模板按钮 */}
+        <button
+          onClick={() => setShowSceneTemplate(true)}
+          style={{
+            width: isMobile ? '48px' : '56px',
+            height: isMobile ? '48px' : '56px',
+            borderRadius: '16px',
+            background: showSceneTemplate
+              ? 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)'
+              : 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isMobile ? '20px' : '24px',
+            cursor: 'pointer',
+            color: 'white',
+            transition: 'all 0.3s ease'
+          }}
+          title="场景模板"
+        >
+          🎨
+        </button>
+
         {/* 舞台效果按钮 */}
         <button
           onClick={() => setShowStageEffects(true)}
@@ -4489,6 +4567,7 @@ export const ARScene = ({ selectedFile }) => {
             color: 'white',
             transition: 'all 0.3s ease'
           }}
+          title="舞台效果"
         >
           ✨
         </button>
@@ -4540,6 +4619,63 @@ export const ARScene = ({ selectedFile }) => {
         >
           🎭
         </button>
+
+        {/* 动作录制按钮 */}
+        <button
+          onClick={() => setShowActionRecorder(true)}
+          style={{
+            width: isMobile ? '48px' : '56px',
+            height: isMobile ? '48px' : '56px',
+            borderRadius: '16px',
+            background: showActionRecorder
+              ? 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)'
+              : 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isMobile ? '20px' : '24px',
+            cursor: 'pointer',
+            color: 'white',
+            transition: 'all 0.3s ease'
+          }}
+          title="动作录制"
+        >
+          🎬
+        </button>
+
+        {/* 语音控制按钮 */}
+        {isVoiceSupported && (
+          <button
+            onClick={() => {
+              setShowVoiceControl(!showVoiceControl)
+              toggleListening()
+            }}
+            style={{
+              width: isMobile ? '48px' : '56px',
+              height: isMobile ? '48px' : '56px',
+              borderRadius: '16px',
+              background: isListening
+                ? 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)'
+                : 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+              border: isListening
+                ? '2px solid #e74c3c'
+                : '1px solid rgba(255,255,255,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: isMobile ? '20px' : '24px',
+              cursor: 'pointer',
+              color: 'white',
+              transition: 'all 0.3s ease',
+              boxShadow: isListening ? '0 0 20px rgba(231, 76, 60, 0.5)' : 'none',
+              animation: isListening ? 'pulse 1.5s infinite' : 'none'
+            }}
+            title={isListening ? '停止语音识别' : '开始语音识别'}
+          >
+            {isListening ? '🎙️' : '🎤'}
+          </button>
+        )}
 
         {/* 陀螺仪控制按钮 */}
         {gyroSupported && (
@@ -4876,6 +5012,40 @@ export const ARScene = ({ selectedFile }) => {
         </div>
       </div>
       
+      {/* 语音识别状态显示 */}
+      {isListening && (
+        <div style={{
+          position: 'absolute',
+          top: '100px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'linear-gradient(135deg, rgba(231, 76, 60, 0.9) 0%, rgba(192, 57, 43, 0.9) 100%)',
+          padding: isMobile ? '10px 20px' : '15px 30px',
+          borderRadius: '30px',
+          color: 'white',
+          fontSize: isMobile ? '14px' : '16px',
+          fontWeight: '600',
+          zIndex: 1000,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          boxShadow: '0 4px 20px rgba(231, 76, 60, 0.4)',
+          animation: 'fadeInDown 0.3s ease'
+        }}>
+          <span style={{ fontSize: '20px' }}>🎙️</span>
+          <span>正在聆听...</span>
+          {transcript && (
+            <span style={{
+              marginLeft: '10px',
+              padding: '4px 12px',
+              background: 'rgba(255,255,255,0.2)',
+              borderRadius: '15px',
+              fontSize: '14px'
+            }}>{transcript}</span>
+          )}
+        </div>
+      )}
+
       {/* 视频录制面板 */}
       <VideoRecorder
         isOpen={showVideoRecorder}
@@ -4939,6 +5109,43 @@ export const ARScene = ({ selectedFile }) => {
           setCurrentAction(actionName)
         }}
         currentPose={currentAction}
+      />
+
+      {/* 动作录制器面板 */}
+      <ActionRecorder
+        isOpen={showActionRecorder}
+        onClose={() => setShowActionRecorder(false)}
+        actions={actionList200}
+        onPlayAction={(action) => {
+          console.log('播放录制动作:', action)
+          executeAction(action.id)
+          setCurrentAction(action.id)
+        }}
+        isMobile={isMobile}
+      />
+
+      {/* 场景模板面板 */}
+      <SceneTemplatePanel
+        isOpen={showSceneTemplate}
+        onClose={() => setShowSceneTemplate(false)}
+        onSelectTemplate={(template) => {
+          console.log('选择场景模板:', template)
+          setCurrentSceneTemplate(template.id)
+          // 应用场景设置
+          showNotification(`已切换到场景: ${template.name}`, 'success')
+        }}
+        currentTemplate={currentSceneTemplate}
+        isMobile={isMobile}
+      />
+
+      {/* 分享卡片生成器 */}
+      <ShareCardGenerator
+        isOpen={showShareCard}
+        onClose={() => setShowShareCard(false)}
+        canvasRef={glRef}
+        characters={characters}
+        currentAction={currentAction}
+        isMobile={isMobile}
       />
     </div>
   )

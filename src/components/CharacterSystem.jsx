@@ -2305,38 +2305,44 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     }
   }
   
-  // 执行骨骼动画（优化版 - 支持200种精细动作）
+  // 执行骨骼动画（优化版 - 支持200种精细动作，立即响应）
   const executeBoneAnimation = (actionName) => {
     if (!vrmModel || !vrmModel.humanoid) {
       console.log('VRM模型未加载，无法执行骨骼动画')
       return
     }
-    
-    // 停止当前动画
+
+    // 立即停止当前动画并清除状态
     if (currentBoneAnimation.current) {
       cancelAnimationFrame(currentBoneAnimation.current)
+      currentBoneAnimation.current = null
     }
-    
-    // 保存初始姿势
+
+    // 清除所有正在进行的动画状态
+    boneVelocities.current.clear()
+
+    // 保存初始姿势（如果还没保存）
     if (initialBoneRotations.current.size === 0) {
       saveInitialBoneRotations()
     }
-    
+
     // 优先使用新的200种动作系统
     let action = getActionAnimation(actionName)
-    
+
     // 如果新系统没有，尝试使用旧系统
     if (!action && dramaticActions[actionName]) {
       action = dramaticActions[actionName]
     }
-    
+
     // 如果都找不到，使用通用动作生成
     if (!action) {
       console.log('使用通用动作处理:', actionName)
       action = generateGenericAction(actionName)
     }
-    
-    console.log('开始执行精细动作:', actionName, '持续时间:', action.duration, 'ms')
+
+    console.log('立即执行动作:', actionName, '持续时间:', action.duration, 'ms')
+
+    // 重置动画开始时间，确保立即开始
     animationStartTime.current = Date.now()
     
     // 初始化骨骼速度
@@ -2620,11 +2626,23 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     const clientY = event.clientY || (event.touches && event.touches[0].clientY)
     const x = ((clientX - rect.left) / rect.width) * 2 - 1
     const y = -((clientY - rect.top) / rect.height) * 2 + 1
-    
+
     touchStartPos.current = { x: clientX, y: clientY }
-    
+
     mouse.current.set(x, y)
     raycaster.current.setFromCamera(mouse.current, camera)
+
+    // 更新视线目标 - 让角色看向鼠标/手指位置
+    if (characterRef.current && isLookingAtCamera) {
+      // 将屏幕坐标转换为3D世界坐标
+      const vector = new THREE.Vector3(x, y, 0.5)
+      vector.unproject(camera)
+      const dir = vector.sub(camera.position).normalize()
+      const distance = -camera.position.z / dir.z
+      const pos = camera.position.clone().add(dir.multiplyScalar(distance))
+      // 设置视线目标，稍微抬高一点（眼睛高度）
+      setLookAtTarget(new THREE.Vector3(pos.x, pos.y + 1.5, pos.z + 5))
+    }
     
     if (characterRef.current) {
       const intersects = raycaster.current.intersectObject(characterRef.current, true)
@@ -2747,24 +2765,15 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     }
   }
 
+  // 移除全局事件监听，改为在组件级别处理点击
+  // 这样可以避免阻止父组件的点击事件
   useEffect(() => {
-    const canvas = gl.domElement
-    canvas.addEventListener('mousedown', handleTouchStart)
-    canvas.addEventListener('mouseup', handleTouchEnd)
-    canvas.addEventListener('mousemove', handleTouchMove)
-    canvas.addEventListener('touchstart', handleTouchStart)
-    canvas.addEventListener('touchend', handleTouchEnd)
-    canvas.addEventListener('touchmove', handleTouchMove)
-
+    // 不再在canvas上添加全局事件监听
+    // 点击事件通过React Three Fiber的onPointerDown等属性处理
     return () => {
-      canvas.removeEventListener('mousedown', handleTouchStart)
-      canvas.removeEventListener('mouseup', handleTouchEnd)
-      canvas.removeEventListener('mousemove', handleTouchMove)
-      canvas.removeEventListener('touchstart', handleTouchStart)
-      canvas.removeEventListener('touchend', handleTouchEnd)
-      canvas.removeEventListener('touchmove', handleTouchMove)
+      // 清理函数
     }
-  }, [characterRef.current, vrmModel])
+  }, [])
 
   useEffect(() => {
     const handleExecuteAction = (event) => {
