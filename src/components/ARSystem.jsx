@@ -5,14 +5,9 @@ import * as THREE from 'three'
 import { CharacterController } from './CharacterSystem'
 import modelList from '../models/modelList'
 import VideoRecorder from './VideoRecorder'
-import ErrorBoundary from './ErrorBoundary'
 import { actions as actionList200, actionCategories, searchActions } from '../data/actions200'
 import { furnitureList, furnitureCategories, getFurnitureByCategory, searchFurniture } from '../data/furniture'
-import { expressions, expressionCategories, getExpressionBlendShapes } from '../data/expressions'
-import { scenes, sceneCategories, getSceneConfig } from '../data/scenes'
 import useGyroscope from '../hooks/useGyroscope'
-import useLocalStorage from '../hooks/useLocalStorage'
-import useVoiceControl from '../hooks/useVoiceControl'
 
 // ==================== 分步引导组件 ====================
 const TutorialGuide = ({ isMobile, onClose }) => {
@@ -1332,24 +1327,295 @@ const PropDisplay = ({ propId }) => {
   console.log('PropDisplay 渲染, propId:', propId)
   if (!propId || propId === 'none') return null
 
-  const propConfigs = {
-    sword: { color: '#c0c0c0', geometry: 'box', size: [0.05, 0.6, 0.05], pos: [0.25, 0.6, 0.15], rot: [0, 0, -0.5] },
-    shield: { color: '#4a90d9', geometry: 'cylinder', size: [0.2, 0.2, 0.04, 16], pos: [-0.25, 0.5, 0.15], rot: [0, 0, 0] },
-    wand: { color: '#9b59b6', geometry: 'cylinder', size: [0.015, 0.015, 0.4, 8], pos: [0.2, 0.6, 0.1], rot: [0.3, 0, -0.3] },
-    book: { color: '#e67e22', geometry: 'box', size: [0.15, 0.2, 0.04], pos: [0.25, 0.55, 0.15], rot: [0, 0.3, 0.3] },
-    flower: { color: '#ff69b4', geometry: 'sphere', size: [0.06, 16, 16], pos: [0.2, 1.35, 0.08], rot: [0, 0, 0] },
-    crown: { color: '#ffd700', geometry: 'cylinder', size: [0.12, 0.1, 0.06, 16], pos: [0, 1.55, 0], rot: [0, 0, 0] },
-    glasses: { color: '#34495e', geometry: 'box', size: [0.2, 0.04, 0.015], pos: [0, 1.35, 0.1], rot: [0, 0, 0] },
-    hat: { color: '#2c3e50', geometry: 'cylinder', size: [0.15, 0.15, 0.12, 16], pos: [0, 1.58, 0], rot: [0, 0, 0] },
-    microphone: { color: '#e74c3c', geometry: 'cylinder', size: [0.025, 0.025, 0.2, 8], pos: [0.15, 0.7, 0.15], rot: [0.4, 0, -0.15] },
-    camera: { color: '#3498db', geometry: 'box', size: [0.1, 0.06, 0.08], pos: [0.2, 0.6, 0.12], rot: [0, -0.3, 0] },
-    balloon: { color: '#e91e63', geometry: 'sphere', size: [0.12, 16, 16], pos: [0.25, 1.1, 0.08], rot: [0, 0, 0] },
-    gift: { color: '#ff5722', geometry: 'box', size: [0.12, 0.12, 0.12], pos: [0.2, 0.25, 0.15], rot: [0, 0.5, 0] },
-    umbrella: { color: '#9c27b0', geometry: 'cone', size: [0.2, 0.08, 16], pos: [-0.15, 0.9, 0.08], rot: [0.3, 0, -0.15] }
+  // 导入家具数据
+  const furniture = furnitureList.find(f => f.id === propId)
+  if (!furniture) {
+    console.warn('未找到家具:', propId)
+    return null
   }
 
-  const config = propConfigs[propId]
-  if (!config) return null
+  // 根据家具类别和ID生成3D模型配置
+  const getFurnitureConfig = (furniture) => {
+    const { id, category, position, color } = furniture
+    
+    // 基础配置模板
+    const configs = {
+      // 座椅类 - 放在角色下方
+      chair: { 
+        geometry: 'box', size: [0.5, 0.5, 0.5], 
+        pos: [0, -0.25, 0], rot: [0, 0, 0],
+        color: color || '#8B4513'
+      },
+      sofa: { 
+        geometry: 'box', size: [0.8, 0.4, 0.5], 
+        pos: [0, -0.2, 0], rot: [0, 0, 0],
+        color: color || '#2C3E50'
+      },
+      stool: { 
+        geometry: 'cylinder', size: [0.15, 0.15, 0.5, 16], 
+        pos: [0, -0.25, 0], rot: [0, 0, 0],
+        color: color || '#D2691E'
+      },
+      throne: { 
+        geometry: 'box', size: [0.6, 0.6, 0.6], 
+        pos: [0, -0.3, 0], rot: [0, 0, 0],
+        color: color || '#FFD700'
+      },
+      swing: { 
+        geometry: 'box', size: [0.4, 0.05, 0.4], 
+        pos: [0, 0.2, 0], rot: [0, 0, 0],
+        color: color || '#E91E63'
+      },
+      
+      // 床铺类
+      bed_single: { 
+        geometry: 'box', size: [0.8, 0.3, 1.5], 
+        pos: [0, -0.15, 0], rot: [0, 0, 0],
+        color: color || '#4A90E2'
+      },
+      bed_double: { 
+        geometry: 'box', size: [1.2, 0.3, 1.5], 
+        pos: [0, -0.15, 0], rot: [0, 0, 0],
+        color: color || '#9B59B6'
+      },
+      hammock: { 
+        geometry: 'box', size: [0.6, 0.05, 1.2], 
+        pos: [0, 0.3, 0], rot: [0, 0, 0],
+        color: color || '#27AE60'
+      },
+      futon: { 
+        geometry: 'box', size: [0.8, 0.1, 0.8], 
+        pos: [0, -0.05, 0], rot: [0, 0, 0],
+        color: color || '#E67E22'
+      },
+      
+      // 乐器类
+      guitar: { 
+        geometry: 'box', size: [0.15, 0.5, 0.05], 
+        pos: [0.2, 0.5, 0.15], rot: [0, 0, -0.3],
+        color: color || '#E74C3C'
+      },
+      piano: { 
+        geometry: 'box', size: [1.0, 0.4, 0.5], 
+        pos: [0, -0.2, 0.6], rot: [0, 0, 0],
+        color: color || '#2C3E50'
+      },
+      violin: { 
+        geometry: 'box', size: [0.08, 0.35, 0.04], 
+        pos: [0.18, 0.55, 0.12], rot: [0, 0, -0.4],
+        color: color || '#8E44AD'
+      },
+      drum: { 
+        geometry: 'cylinder', size: [0.25, 0.25, 0.4, 16], 
+        pos: [0, -0.2, 0.5], rot: [0, 0, 0],
+        color: color || '#C0392B'
+      },
+      microphone: { 
+        geometry: 'cylinder', size: [0.02, 0.02, 0.25, 8], 
+        pos: [0.15, 0.65, 0.15], rot: [0.4, 0, -0.15],
+        color: color || '#E91E63'
+      },
+      flute: { 
+        geometry: 'cylinder', size: [0.01, 0.01, 0.35, 8], 
+        pos: [0.2, 0.55, 0.1], rot: [0.2, 0, -0.2],
+        color: color || '#F39C12'
+      },
+      
+      // 配饰类 - 头部
+      crown: { 
+        geometry: 'cylinder', size: [0.12, 0.1, 0.06, 16], 
+        pos: [0, 1.55, 0], rot: [0, 0, 0],
+        color: color || '#FFD700'
+      },
+      glasses: { 
+        geometry: 'box', size: [0.2, 0.04, 0.015], 
+        pos: [0, 1.35, 0.1], rot: [0, 0, 0],
+        color: color || '#34495E'
+      },
+      sunglasses: { 
+        geometry: 'box', size: [0.22, 0.05, 0.02], 
+        pos: [0, 1.35, 0.1], rot: [0, 0, 0],
+        color: color || '#2C3E50'
+      },
+      hat_cowboy: { 
+        geometry: 'cylinder', size: [0.16, 0.16, 0.1, 16], 
+        pos: [0, 1.58, 0], rot: [0, 0, 0],
+        color: color || '#8B4513'
+      },
+      hat_witch: { 
+        geometry: 'cone', size: [0.12, 0.15, 16], 
+        pos: [0, 1.65, 0], rot: [0, 0, 0],
+        color: color || '#9B59B6'
+      },
+      earrings: { 
+        geometry: 'sphere', size: [0.02, 8, 8], 
+        pos: [0.12, 1.38, 0], rot: [0, 0, 0],
+        color: color || '#1ABC9C'
+      },
+      necklace: { 
+        geometry: 'torus', size: [0.08, 0.01, 8, 16], 
+        pos: [0, 1.25, 0.05], rot: [Math.PI/2, 0, 0],
+        color: color || '#F1C40F'
+      },
+      scarf: { 
+        geometry: 'cylinder', size: [0.1, 0.1, 0.2, 16], 
+        pos: [0, 1.2, 0], rot: [0, 0, 0],
+        color: color || '#E74C3C'
+      },
+      backpack: { 
+        geometry: 'box', size: [0.25, 0.35, 0.15], 
+        pos: [0, 0.9, -0.15], rot: [0, 0, 0],
+        color: color || '#3498DB'
+      },
+      wings: { 
+        geometry: 'box', size: [0.6, 0.4, 0.05], 
+        pos: [0, 1.1, -0.12], rot: [0, 0, 0],
+        color: color || '#9B59B6'
+      },
+      tail: { 
+        geometry: 'cylinder', size: [0.03, 0.02, 0.4, 8], 
+        pos: [0, 0.4, -0.15], rot: [-0.3, 0, 0],
+        color: color || '#E67E22'
+      },
+      halo: { 
+        geometry: 'torus', size: [0.12, 0.01, 8, 16], 
+        pos: [0, 1.7, 0], rot: [Math.PI/2, 0, 0],
+        color: color || '#FFD700'
+      },
+      
+      // 工具类 - 手部
+      sword: { 
+        geometry: 'box', size: [0.04, 0.6, 0.04], 
+        pos: [0.25, 0.6, 0.15], rot: [0, 0, -0.5],
+        color: color || '#95A5A6'
+      },
+      shield: { 
+        geometry: 'cylinder', size: [0.18, 0.18, 0.03, 16], 
+        pos: [-0.25, 0.5, 0.15], rot: [0, 0, 0],
+        color: color || '#3498DB'
+      },
+      wand: { 
+        geometry: 'cylinder', size: [0.015, 0.015, 0.4, 8], 
+        pos: [0.2, 0.6, 0.1], rot: [0.3, 0, -0.3],
+        color: color || '#9B59B6'
+      },
+      bow: { 
+        geometry: 'torus', size: [0.15, 0.01, 8, 16], 
+        pos: [0.22, 0.55, 0.1], rot: [0, 0, -0.2],
+        color: color || '#8B4513'
+      },
+      umbrella: { 
+        geometry: 'cone', size: [0.18, 0.06, 16], 
+        pos: [-0.15, 0.9, 0.08], rot: [0.3, 0, -0.15],
+        color: color || '#E91E63'
+      },
+      book: { 
+        geometry: 'box', size: [0.14, 0.18, 0.03], 
+        pos: [0.25, 0.55, 0.15], rot: [0, 0.3, 0.3],
+        color: color || '#E67E22'
+      },
+      camera: { 
+        geometry: 'box', size: [0.1, 0.06, 0.08], 
+        pos: [0.2, 0.6, 0.12], rot: [0, -0.3, 0],
+        color: color || '#2C3E50'
+      },
+      phone: { 
+        geometry: 'box', size: [0.06, 0.1, 0.01], 
+        pos: [0.18, 0.55, 0.12], rot: [0, 0, -0.2],
+        color: color || '#3498DB'
+      },
+      laptop: { 
+        geometry: 'box', size: [0.25, 0.02, 0.18], 
+        pos: [0.3, 0.45, 0.15], rot: [0.3, 0, -0.1],
+        color: color || '#34495E'
+      },
+      broom: { 
+        geometry: 'cylinder', size: [0.02, 0.02, 0.8, 8], 
+        pos: [-0.1, 0.4, -0.1], rot: [0.2, 0, -0.1],
+        color: color || '#8B4513'
+      },
+      fishing_rod: { 
+        geometry: 'cylinder', size: [0.01, 0.01, 1.0, 8], 
+        pos: [0.25, 0.8, 0.2], rot: [0.5, 0, -0.2],
+        color: color || '#27AE60'
+      },
+      paintbrush: { 
+        geometry: 'cylinder', size: [0.008, 0.008, 0.25, 8], 
+        pos: [0.2, 0.55, 0.1], rot: [0.2, 0, -0.3],
+        color: color || '#E74C3C'
+      },
+      
+      // 装饰类 - 手部
+      flower: { 
+        geometry: 'sphere', size: [0.05, 8, 8], 
+        pos: [0.2, 0.6, 0.1], rot: [0, 0, 0],
+        color: color || '#FF69B4'
+      },
+      bouquet: { 
+        geometry: 'sphere', size: [0.1, 8, 8], 
+        pos: [0.2, 0.55, 0.12], rot: [0, 0, 0],
+        color: color || '#E91E63'
+      },
+      rose: { 
+        geometry: 'sphere', size: [0.06, 8, 8], 
+        pos: [0.2, 0.6, 0.1], rot: [0, 0, 0],
+        color: color || '#C0392B'
+      },
+      balloon: { 
+        geometry: 'sphere', size: [0.12, 16, 16], 
+        pos: [0.25, 1.0, 0.08], rot: [0, 0, 0],
+        color: color || '#E74C3C'
+      },
+      gift: { 
+        geometry: 'box', size: [0.12, 0.12, 0.12], 
+        pos: [0.2, 0.3, 0.15], rot: [0, 0.5, 0],
+        color: color || '#E91E63'
+      },
+      candle: { 
+        geometry: 'cylinder', size: [0.02, 0.02, 0.1, 8], 
+        pos: [0.2, 0.35, 0.12], rot: [0, 0, 0],
+        color: color || '#F39C12'
+      },
+      lollipop: { 
+        geometry: 'sphere', size: [0.04, 8, 8], 
+        pos: [0.18, 0.5, 0.1], rot: [0, 0, 0],
+        color: color || '#9B59B6'
+      },
+      ice_cream: { 
+        geometry: 'cone', size: [0.03, 0.08, 8], 
+        pos: [0.18, 0.5, 0.1], rot: [0, 0, 0],
+        color: color || '#F1C40F'
+      },
+      drink: { 
+        geometry: 'cylinder', size: [0.03, 0.03, 0.12, 8], 
+        pos: [0.18, 0.4, 0.12], rot: [0, 0, 0],
+        color: color || '#E67E22'
+      },
+      fan: { 
+        geometry: 'box', size: [0.15, 0.02, 0.08], 
+        pos: [0.2, 0.55, 0.12], rot: [0, 0, -0.2],
+        color: color || '#E74C3C'
+      },
+      flag: { 
+        geometry: 'box', size: [0.02, 0.25, 0.15], 
+        pos: [0.2, 0.6, 0.1], rot: [0, 0, -0.1],
+        color: color || '#E74C3C'
+      },
+      star_wand: { 
+        geometry: 'cylinder', size: [0.01, 0.01, 0.3, 8], 
+        pos: [0.2, 0.55, 0.1], rot: [0.2, 0, -0.2],
+        color: color || '#FFD700'
+      }
+    }
+    
+    return configs[id] || { 
+      geometry: 'box', size: [0.1, 0.1, 0.1], 
+      pos: [0.2, 0.5, 0.1], rot: [0, 0, 0],
+      color: color || '#cccccc'
+    }
+  }
+
+  const config = getFurnitureConfig(furniture)
 
   const renderGeometry = () => {
     switch (config.geometry) {
@@ -1361,16 +1627,43 @@ const PropDisplay = ({ propId }) => {
         return <sphereGeometry args={config.size} />
       case 'cone':
         return <coneGeometry args={config.size} />
+      case 'torus':
+        return <torusGeometry args={config.size} />
       default:
         return <boxGeometry args={config.size} />
     }
   }
 
   return (
-    <mesh position={config.pos} rotation={config.rot}>
-      {renderGeometry()}
-      <meshStandardMaterial color={config.color} metalness={0.5} roughness={0.3} />
-    </mesh>
+    <group>
+      {/* 家具主体 */}
+      <mesh position={config.pos} rotation={config.rot}>
+        {renderGeometry()}
+        <meshStandardMaterial 
+          color={config.color} 
+          metalness={0.3} 
+          roughness={0.4}
+          emissive={config.color}
+          emissiveIntensity={0.1}
+        />
+      </mesh>
+      
+      {/* 座椅类添加靠背提示 */}
+      {furniture.category === 'seat' && (
+        <mesh position={[0, 0.1, -0.2]}>
+          <boxGeometry args={[0.4, 0.4, 0.05]} />
+          <meshStandardMaterial color={config.color} metalness={0.3} roughness={0.4} />
+        </mesh>
+      )}
+      
+      {/* 床铺类添加枕头 */}
+      {furniture.category === 'bed' && (
+        <mesh position={[0, 0.05, -0.5]}>
+          <boxGeometry args={[0.3, 0.1, 0.15]} />
+          <meshStandardMaterial color="#ffffff" />
+        </mesh>
+      )}
+    </group>
   )
 }
 
@@ -1596,24 +1889,13 @@ export const ARScene = ({ selectedFile }) => {
       const action = detectAction()
       if (action) {
         console.log('陀螺仪检测到动作:', action)
-        // 将陀螺仪动作映射到实际动作
-        const actionMap = {
-          'shake': 'shake_head',
-          'leanForward': 'bow',
-          'leanBack': 'surprised',
-          'leanLeft': 'wave',
-          'leanRight': 'wave'
-        }
-        const mappedAction = actionMap[action]
-        if (mappedAction) {
-          executeAction(mappedAction)
-          showNotification(`陀螺仪触发: ${action}`, 'info')
-        }
+        // 可以根据检测到的动作触发相应动画
+        // executeAction(action)
       }
-    }, 800) // 增加间隔避免频繁触发
+    }, 500)
     
     return () => clearInterval(checkAction)
-  }, [gyroEnabled, detectAction, executeAction])
+  }, [gyroEnabled, detectAction])
 
   // 使用200种动作数据
   const actionList = useMemo(() => {
@@ -1627,35 +1909,6 @@ export const ARScene = ({ selectedFile }) => {
       highlight: action.category === 'combat' || action.category === 'dance' || action.category === 'special'
     }))
   }, [])
-
-  // 动作收藏和最近使用
-  const [favoriteActions, setFavoriteActions] = useLocalStorage('favoriteActions', [])
-  const [recentActions, setRecentActions] = useLocalStorage('recentActions', [])
-  const [showFavorites, setShowFavorites] = useState(false)
-
-  // 切换收藏
-  const toggleFavorite = useCallback((actionId) => {
-    setFavoriteActions(prev => {
-      if (prev.includes(actionId)) {
-        return prev.filter(id => id !== actionId)
-      }
-      return [...prev, actionId]
-    })
-  }, [setFavoriteActions])
-
-  // 添加到最近使用
-  const addToRecent = useCallback((actionId) => {
-    setRecentActions(prev => {
-      const filtered = prev.filter(id => id !== actionId)
-      return [actionId, ...filtered].slice(0, 10)
-    })
-  }, [setRecentActions])
-
-  // 增强的执行动作函数
-  const executeActionWithTracking = useCallback((action) => {
-    executeAction(action)
-    addToRecent(action)
-  }, [executeAction, addToRecent])
 
   // 动作搜索状态
   const [actionSearchQuery, setActionSearchQuery] = useState('')
