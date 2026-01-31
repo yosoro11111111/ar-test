@@ -613,7 +613,7 @@ const ExpressionSystem = ({ vrmModel, actionType, intensity = 1.0, isPlaying = t
   return null
 }
 
-const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null, isBoneEditing = false, onBoneChange = null }) => {
+const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null, isBoneEditing = false, onBoneChange = null, scale: externalScale = 1.0, actionIntensity: externalActionIntensity = 1.0 }) => {
   const { isMobile } = useMobileDetect()
   const { scene, gl, camera } = useThree()
   const characterRef = useRef(null)
@@ -626,12 +626,12 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const [animations, setAnimations] = useState([])
   const [currentAnimation, setCurrentAnimation] = useState(null)
   const [showAnimationSelect, setShowAnimationSelect] = useState(false)
-  const [scale, setScale] = useState(1.0)
+  const [scale, setScale] = useState(externalScale)
   const [isDragging, setIsDragging] = useState(false)
   const [initialPosition, setInitialPosition] = useState([0, 0, 0])
   const [currentActionType, setCurrentActionType] = useState('idle')
   const [showParticles, setShowParticles] = useState(false)
-  const [actionIntensity, setActionIntensity] = useState(1.0)
+  const [actionIntensity, setActionIntensity] = useState(externalActionIntensity)
   const [isComboMode, setIsComboMode] = useState(false)
   const [comboSequence, setComboSequence] = useState([])
   const [isRandomMode, setIsRandomMode] = useState(false)
@@ -755,6 +755,20 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       console.error('GLTFLoader 初始化失败:', error)
     }
   }, [])
+
+  // 监听外部 scale 变化
+  useEffect(() => {
+    setScale(externalScale)
+    if (characterRef.current && optimalScale) {
+      const finalScale = optimalScale * externalScale
+      characterRef.current.scale.set(finalScale, finalScale, finalScale)
+    }
+  }, [externalScale, optimalScale])
+
+  // 监听外部 actionIntensity 变化
+  useEffect(() => {
+    setActionIntensity(externalActionIntensity)
+  }, [externalActionIntensity])
 
   useEffect(() => {
     if (selectedFile) {
