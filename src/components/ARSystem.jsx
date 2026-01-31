@@ -1957,7 +1957,11 @@ export const ARScene = ({ selectedFile }) => {
   const [activeCategory, setActiveCategory] = useState('all')
   const [notification, setNotification] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
-  const [showHelp, setShowHelp] = useState(true) // 默认显示帮助
+  // 检查是否首次访问
+  const [showHelp, setShowHelp] = useState(() => {
+    const hasSeenTutorial = localStorage.getItem('hasSeenTutorial')
+    return !hasSeenTutorial // 如果未看过教程，默认显示
+  })
   const [comboCount, setComboCount] = useState(0)
   const [showCombo, setShowCombo] = useState(false)
   
@@ -2149,6 +2153,58 @@ export const ARScene = ({ selectedFile }) => {
       return newState
     })
   }, [showNotification])
+
+  // 自动保存场景状态
+  useEffect(() => {
+    const autoSave = () => {
+      const sceneState = {
+        characters: characters.map((char, idx) => char ? {
+          ...char,
+          position: characterPositions[idx],
+          scale: characterScale,
+          prop: characterProps?.[idx]
+        } : null),
+        characterScale,
+        actionIntensity,
+        currentAction,
+        isARMode,
+        timestamp: Date.now()
+      }
+      localStorage.setItem('autoSavedScene', JSON.stringify(sceneState))
+      console.log('场景已自动保存')
+    }
+
+    // 每30秒自动保存一次
+    const interval = setInterval(autoSave, 30000)
+
+    // 页面卸载前保存
+    window.addEventListener('beforeunload', autoSave)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('beforeunload', autoSave)
+    }
+  }, [characters, characterPositions, characterScale, actionIntensity, currentAction, isARMode, characterProps])
+
+  // 加载自动保存的场景
+  useEffect(() => {
+    const loadAutoSaved = () => {
+      const saved = localStorage.getItem('autoSavedScene')
+      if (saved) {
+        try {
+          const sceneState = JSON.parse(saved)
+          // 检查保存时间是否在24小时内
+          if (Date.now() - sceneState.timestamp < 24 * 60 * 60 * 1000) {
+            console.log('发现自动保存的场景:', sceneState)
+            // 可以在这里添加恢复逻辑
+          }
+        } catch (e) {
+          console.error('加载自动保存场景失败:', e)
+        }
+      }
+    }
+    loadAutoSaved()
+  }, [])
 
   // 旋转画布
   const rotateCanvas = useCallback(() => {
@@ -4285,9 +4341,12 @@ export const ARScene = ({ selectedFile }) => {
 
       {/* 分步引导式游戏帮助 */}
       {showHelp && (
-        <TutorialGuide 
+        <TutorialGuide
           isMobile={isMobile}
-          onClose={() => setShowHelp(false)}
+          onClose={() => {
+            setShowHelp(false)
+            localStorage.setItem('hasSeenTutorial', 'true')
+          }}
         />
       )}
 
@@ -4830,6 +4889,7 @@ export const ARScene = ({ selectedFile }) => {
       <PlaylistPanel
         isOpen={showPlaylist}
         onClose={() => setShowPlaylist(false)}
+        actions={actionList200}
         onPlayAction={(action) => {
           console.log('播放动作:', action)
           // 触发角色动作
