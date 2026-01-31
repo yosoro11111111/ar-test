@@ -57,13 +57,33 @@ export const VideoRecorder = ({
     canvas.width = width
     canvas.height = height
     
-    // 获取Three.js画布
-    const threeCanvas = canvasRef?.current
+    // 获取Three.js画布 - 从 glRef 获取实际渲染的画布
+    let threeCanvas = canvasRef?.current
+    
+    // 如果 canvasRef 没有，尝试从 glRef 获取
+    if (!threeCanvas && canvasRef?.current?.domElement) {
+      threeCanvas = canvasRef.current.domElement
+    }
+    
+    // 如果还是没有，尝试从 DOM 查找 Three.js canvas
+    if (!threeCanvas) {
+      threeCanvas = document.querySelector('canvas[data-engine]') || 
+                   document.querySelector('.r3f-canvas') ||
+                   document.querySelector('canvas[style*="display: block"]')
+    }
+    
     const video = videoRef?.current
     
     if (!threeCanvas) {
-      throw new Error('3D画布未找到')
+      console.error('可用的canvas:', {
+        canvasRef: canvasRef?.current,
+        queryCanvas: document.querySelector('canvas[data-engine]'),
+        allCanvas: document.querySelectorAll('canvas')
+      })
+      throw new Error('3D画布未找到，请确保模型已加载')
     }
+    
+    console.log('找到Three.js画布:', threeCanvas)
 
     // 绘制循环
     const drawFrame = () => {

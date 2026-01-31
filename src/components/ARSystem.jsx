@@ -4092,14 +4092,16 @@ export const ARScene = ({ selectedFile }) => {
         />
       )}
 
-      {/* 全新底部动作栏 - 分类标签式 */}
+      {/* 全新底部动作栏 - 分类标签式 - 占满屏幕宽度 */}
       <div style={{
         position: 'fixed',
-        bottom: isMobile ? '8px' : '16px',
-        left: isMobile ? '8px' : '16px',
-        right: isMobile ? '70px' : '90px',
-        zIndex: 100
-      }}>
+        bottom: '0',
+        left: '0',
+        right: '0',
+        zIndex: 100,
+        padding: isMobile ? '8px 12px 16px 12px' : '16px 24px 24px 24px',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.6) 60%, transparent 100%)'
+      }}
         {/* 动作搜索框 */}
         <div style={{
           display: 'flex',
@@ -4249,14 +4251,11 @@ export const ARScene = ({ selectedFile }) => {
         </div>
       </div>
       
-      {/* 隐藏的画布 */}
-      <canvas ref={canvasRef} style={{ display: 'none' }} />
-      
       {/* 视频录制面板 */}
       <VideoRecorder
         isOpen={showVideoRecorder}
         onClose={() => setShowVideoRecorder(false)}
-        canvasRef={canvasRef}
+        canvasRef={glRef}
         videoRef={videoRef}
         isMobile={isMobile}
       />
