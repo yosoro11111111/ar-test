@@ -1368,12 +1368,23 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       ]
     },
     sit: {
-      duration: 1500,
+      duration: 2000,
+      loop: true, // 保持坐姿循环
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.2, pose: 'crouchDeep' },
+        { time: 0.5, pose: 'sitPose' },
+        { time: 1, pose: 'sitPose' }
+      ]
+    },
+    lie: {
+      duration: 2000,
+      loop: true,
       keyframes: [
         { time: 0, pose: 'idle' },
         { time: 0.3, pose: 'crouchDeep' },
-        { time: 0.6, pose: 'sitPose' },
-        { time: 1, pose: 'sitPose' }
+        { time: 0.6, pose: 'liePose' },
+        { time: 1, pose: 'liePose' }
       ]
     },
     // 表情动作
@@ -1823,12 +1834,34 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     },
     // 日常姿势
     sitPose: {
-      hips: { x: 0, y: -0.8, z: 0 },
-      leftUpperLeg: { x: -1.2, y: 0, z: 0 },
-      rightUpperLeg: { x: -1.2, y: 0, z: 0 },
+      hips: { x: -0.5, y: -0.6, z: 0 }, // 降低臀部位置，向后倾斜
+      leftUpperLeg: { x: -1.4, y: 0, z: 0.1 }, // 大腿抬起更多
+      rightUpperLeg: { x: -1.4, y: 0, z: -0.1 },
+      leftLowerLeg: { x: 2.0, y: 0, z: 0 }, // 小腿垂直向下
+      rightLowerLeg: { x: 2.0, y: 0, z: 0 },
+      leftFoot: { x: 0.3, y: 0, z: 0 }, // 脚自然放置
+      rightFoot: { x: 0.3, y: 0, z: 0 },
+      spine: { x: 0.2, y: 0, z: 0 }, // 脊柱稍微前倾
+      chest: { x: 0.1, y: 0, z: 0 },
+      leftUpperArm: { x: 0.2, y: 0, z: 0.3 }, // 手臂自然放在腿上
+      rightUpperArm: { x: 0.2, y: 0, z: -0.3 },
+      leftLowerArm: { x: 0.5, y: 0, z: 0 },
+      rightLowerArm: { x: 0.5, y: 0, z: 0 }
+    },
+    // 躺姿
+    liePose: {
+      hips: { x: 0, y: -0.9, z: 0 },
+      spine: { x: 0.3, y: 0, z: 0 },
+      chest: { x: 0.2, y: 0, z: 0 },
+      head: { x: 0.5, y: 0, z: 0 },
+      leftUpperLeg: { x: -1.0, y: 0, z: 0 },
+      rightUpperLeg: { x: -1.0, y: 0, z: 0 },
       leftLowerLeg: { x: 1.8, y: 0, z: 0 },
       rightLowerLeg: { x: 1.8, y: 0, z: 0 },
-      spine: { x: 0.1, y: 0, z: 0 }
+      leftUpperArm: { x: 0, y: 0, z: 0.8 },
+      rightUpperArm: { x: 0, y: 0, z: -0.8 },
+      leftLowerArm: { x: 0.3, y: 0, z: 0 },
+      rightLowerArm: { x: 0.3, y: 0, z: 0 }
     },
     eatStart: {
       rightUpperArm: { x: -1.5, y: 0, z: -0.5 },
@@ -2408,11 +2441,19 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         currentBoneAnimation.current = requestAnimationFrame(animate)
       } else {
         console.log('动作完成:', actionName)
-        currentBoneAnimation.current = null
-        // 自动返回idle，延迟更短
-        setTimeout(() => {
-          returnToIdleSmooth()
-        }, 300)
+        
+        // 如果是循环动作（如坐姿、躺姿），保持在最后姿势
+        if (action.loop) {
+          console.log('保持姿势:', actionName)
+          currentBoneAnimation.current = null
+          // 不返回idle，保持当前姿势
+        } else {
+          currentBoneAnimation.current = null
+          // 自动返回idle，延迟更短
+          setTimeout(() => {
+            returnToIdleSmooth()
+          }, 300)
+        }
       }
     }
     
