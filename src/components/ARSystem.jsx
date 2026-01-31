@@ -17,35 +17,49 @@ const TutorialGuide = ({ isMobile, onClose }) => {
     {
       icon: '👆',
       title: '点击选中',
-      desc: '点击角色可以选中/取消选中，选中后角色会有蓝色光环显示',
+      desc: '点击角色可以选中/取消选中，选中后角色会有蓝色光环显示。长按角色可打开动作菜单。',
       color: 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)',
       demo: 'single-tap'
     },
     {
-      icon: '👆👆',
-      title: '双指移动',
-      desc: '选中角色后，使用双指滑动可以移动角色位置',
+      icon: '✋',
+      title: '长按操作',
+      desc: '长按角色打开动作菜单快速切换动作。长按空白处可添加新角色。',
       color: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)',
-      demo: 'two-finger-move'
+      demo: 'long-press'
     },
     {
       icon: '🤏',
-      title: '双指缩放',
-      desc: '双指捏合可以放大或缩小角色尺寸',
+      title: '手势控制',
+      desc: '单指滑动旋转视角，双指滑动移动角色，双指捏合缩放角色大小。',
       color: 'linear-gradient(135deg, #ffd93d 0%, #ffb347 100%)',
       demo: 'pinch-zoom'
     },
     {
       icon: '🎬',
       title: '动作面板',
-      desc: '底部动作栏可以触发各种动作，分类标签方便查找',
+      desc: '底部动作栏可触发各种动作。点击立即播放，再次点击立即切换到新动作。',
       color: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)',
       demo: 'action-panel'
     },
     {
+      icon: '📋',
+      title: '播放列表',
+      desc: '使用播放列表可以设置动作序列，自动按顺序播放多个动作。',
+      color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      demo: 'playlist'
+    },
+    {
+      icon: '🏠',
+      title: '家具交互',
+      desc: '点击家具按钮选择家具，角色可以自动与家具进行交互。',
+      color: 'linear-gradient(135deg, #8B4513 0%, #D2691E 100%)',
+      demo: 'furniture'
+    },
+    {
       icon: '📸',
       title: '拍照录像',
-      desc: '右侧工具栏可以拍照、录像、随机动作和选择道具',
+      desc: '右侧工具栏可以拍照、录像。录像支持倒计时和暂停功能。',
       color: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)',
       demo: 'tools'
     }
@@ -341,6 +355,14 @@ const TutorialGuide = ({ isMobile, onClose }) => {
         @keyframes fingerMove {
           0%, 100% { transform: translateX(0); }
           50% { transform: translateX(40px); }
+        }
+        @keyframes longPress {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(0.95); opacity: 0.8; }
+        }
+        @keyframes playlistSlide {
+          0%, 100% { transform: translateX(0); }
+          50% { transform: translateX(20px); }
         }
       `}</style>
     </div>
@@ -1954,6 +1976,12 @@ export const ARScene = ({ selectedFile }) => {
   // 视频录制面板状态
   const [showVideoRecorder, setShowVideoRecorder] = useState(false)
 
+  // 播放列表面板状态
+  const [showPlaylist, setShowPlaylist] = useState(false)
+
+  // 舞台效果面板状态
+  const [showStageEffects, setShowStageEffects] = useState(false)
+
   // 人物管理面板状态
   const [showCharacterManager, setShowCharacterManager] = useState(false)
   const [characterSearchQuery, setCharacterSearchQuery] = useState('')
@@ -2785,7 +2813,34 @@ export const ARScene = ({ selectedFile }) => {
             </button>
           ))}
         </div>
-        
+
+        {/* 版本号显示 */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '2px',
+          padding: isMobile ? '4px 8px' : '6px 12px',
+          background: 'rgba(0,0,0,0.3)',
+          borderRadius: '8px',
+          border: '1px solid rgba(255,255,255,0.1)'
+        }}>
+          <div style={{
+            fontSize: isMobile ? '9px' : '11px',
+            color: 'rgba(255,255,255,0.6)',
+            fontWeight: '600',
+            letterSpacing: '1px'
+          }}>
+            v1.0.0
+          </div>
+          <div style={{
+            fontSize: isMobile ? '8px' : '10px',
+            color: 'rgba(255,255,255,0.4)',
+          }}>
+            by yosoro
+          </div>
+        </div>
+
         {/* 右侧：快捷操作 */}
         <div style={{
           display: 'flex',
@@ -3718,15 +3773,15 @@ export const ARScene = ({ selectedFile }) => {
           🎥
         </button>
 
-        {/* 随机动作按钮 */}
+        {/* 播放列表按钮 */}
         <button
-          onClick={toggleRandomMode}
+          onClick={() => setShowPlaylist(true)}
           style={{
             width: isMobile ? '48px' : '56px',
             height: isMobile ? '48px' : '56px',
             borderRadius: '16px',
-            background: isRandomMode
-              ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)'
+            background: showPlaylist
+              ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
               : 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
             border: '1px solid rgba(255,255,255,0.2)',
             display: 'flex',
@@ -3735,11 +3790,10 @@ export const ARScene = ({ selectedFile }) => {
             fontSize: isMobile ? '20px' : '24px',
             cursor: 'pointer',
             color: 'white',
-            transition: 'all 0.3s ease',
-            boxShadow: isRandomMode ? '0 0 20px rgba(0, 212, 255, 0.5)' : 'none'
+            transition: 'all 0.3s ease'
           }}
         >
-          🎲
+          📋
         </button>
 
         {/* 家具按钮 */}
@@ -3782,14 +3836,16 @@ export const ARScene = ({ selectedFile }) => {
           )}
         </button>
 
-        {/* 旋转按钮 */}
+        {/* 舞台效果按钮 */}
         <button
-          onClick={rotateCanvas}
+          onClick={() => setShowStageEffects(true)}
           style={{
             width: isMobile ? '48px' : '56px',
             height: isMobile ? '48px' : '56px',
             borderRadius: '16px',
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+            background: showStageEffects
+              ? 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+              : 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
             border: '1px solid rgba(255,255,255,0.2)',
             display: 'flex',
             alignItems: 'center',
@@ -3800,7 +3856,7 @@ export const ARScene = ({ selectedFile }) => {
             transition: 'all 0.3s ease'
           }}
         >
-          🔄
+          ✨
         </button>
 
         {/* 陀螺仪控制按钮 */}
