@@ -1323,7 +1323,7 @@ const Notification = ({ message, type = 'info', onClose }) => {
 
 // ==================== 9. 3D场景内容 ====================
 // ==================== 道具显示组件 ====================
-const PropDisplay = ({ propId }) => {
+const PropDisplay = ({ propId, onInteract }) => {
   console.log('PropDisplay 渲染, propId:', propId)
   if (!propId || propId === 'none') return null
 
@@ -1332,6 +1332,32 @@ const PropDisplay = ({ propId }) => {
   if (!furniture) {
     console.warn('未找到家具:', propId)
     return null
+  }
+
+  // 获取交互动作名称
+  const getInteractAction = () => {
+    const categoryActions = {
+      seat: 'sit',
+      bed: 'lie',
+      instrument: 'play',
+      tool: 'use',
+      accessory: 'equip',
+      decoration: 'hold'
+    }
+    return furniture.autoPose || categoryActions[furniture.category] || 'use'
+  }
+
+  // 获取交互按钮位置和颜色
+  const getInteractButtonConfig = () => {
+    const configs = {
+      seat: { pos: [0, 0.5, 0.4], color: '#4CAF50', label: '坐' },
+      bed: { pos: [0, 0.3, 0.8], color: '#9C27B0', label: '躺' },
+      instrument: { pos: [0.6, 0.5, 0.3], color: '#FF5722', label: '演奏' },
+      tool: { pos: [0.4, 0.6, 0.2], color: '#2196F3', label: '使用' },
+      accessory: { pos: [0, 1.7, 0.2], color: '#FFD700', label: '装备' },
+      decoration: { pos: [0.3, 0.7, 0.2], color: '#E91E63', label: '拿' }
+    }
+    return configs[furniture.category] || { pos: [0, 0.5, 0.3], color: '#757575', label: '用' }
   }
 
   // 根据家具类别和ID生成3D模型配置
@@ -1616,6 +1642,8 @@ const PropDisplay = ({ propId }) => {
   }
 
   const config = getFurnitureConfig(furniture)
+  const interactConfig = getInteractButtonConfig()
+  const interactAction = getInteractAction()
 
   const renderGeometry = () => {
     switch (config.geometry) {
@@ -1631,6 +1659,15 @@ const PropDisplay = ({ propId }) => {
         return <torusGeometry args={config.size} />
       default:
         return <boxGeometry args={config.size} />
+    }
+  }
+
+  // 处理交互点击
+  const handleInteractClick = (e) => {
+    e.stopPropagation()
+    console.log('家具交互:', furniture.name, '动作:', interactAction)
+    if (onInteract) {
+      onInteract(interactAction, furniture)
     }
   }
 
@@ -1663,12 +1700,57 @@ const PropDisplay = ({ propId }) => {
           <meshStandardMaterial color="#ffffff" />
         </mesh>
       )}
+
+      {/* 交互按钮 - 所有家具都有 */}
+      <group position={interactConfig.pos}>
+        {/* 按钮背景 */}
+        <mesh
+          onClick={handleInteractClick}
+          onPointerOver={(e) => {
+            e.stopPropagation()
+            document.body.style.cursor = 'pointer'
+          }}
+          onPointerOut={(e) => {
+            e.stopPropagation()
+            document.body.style.cursor = 'auto'
+          }}
+        >
+          <sphereGeometry args={[0.12, 16, 16]} />
+          <meshStandardMaterial 
+            color={interactConfig.color}
+            emissive={interactConfig.color}
+            emissiveIntensity={0.3}
+            metalness={0.5}
+            roughness={0.2}
+          />
+        </mesh>
+        {/* 按钮光环 */}
+        <mesh rotation={[Math.PI/2, 0, 0]}>
+          <ringGeometry args={[0.14, 0.16, 32]} />
+          <meshBasicMaterial color={interactConfig.color} transparent opacity={0.6} />
+        </mesh>
+        {/* 悬浮动画 */}
+        <FloatingAnimation />
+      </group>
     </group>
   )
 }
 
+// 悬浮动画组件
+const FloatingAnimation = () => {
+  const meshRef = useRef()
+  
+  useFrame(({ clock }) => {
+    if (meshRef.current) {
+      meshRef.current.position.y = Math.sin(clock.getElapsedTime() * 2) * 0.02
+    }
+  })
+  
+  return <group ref={meshRef} />
+}
+
 // ==================== 可拖拽角色组件 ====================
-const DraggableCharacter = ({ position, index, isSelected, character, characterScale, actionIntensity, onPositionChange, propId, isBoneEditing, onBoneChange }) => {
+const DraggableCharacter = ({ position, index, isSelected, character, characterScale, actionIntensity, onPositionChange, propId, isBoneEditing, onBoneChange, onPropInteract }) => {
   const groupRef = useRef()
   const [isDragging, setIsDragging] = useState(false)
   const { camera, gl } = useThree()
@@ -1758,13 +1840,16 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
         onBoneChange={onBoneChange}
       />
       {/* 道具显示在角色身上 */}
-      <PropDisplay propId={propId} />
+      <PropDisplay 
+        propId={propId} 
+        onInteract={onPropInteract}
+      />
     </group>
   )
 }
 
 // ==================== 9. 3D场景内容 ====================
-const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionIntensity, isARMode, characterPositions, onPositionChange, characterProps, isBoneEditing, onBoneChange }) => {
+const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionIntensity, isARMode, characterPositions, onPositionChange, characterProps, isBoneEditing, onBoneChange, onPropInteract }) => {
   return (
     <>
       {/* AR模式下不显示背景特效，避免挡住摄像头画面 */}
@@ -1797,6 +1882,7 @@ const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionI
               propId={propId}
               isBoneEditing={isBoneEditing}
               onBoneChange={onBoneChange}
+              onPropInteract={onPropInteract}
             />
           </group>
         )
@@ -2522,6 +2608,13 @@ export const ARScene = ({ selectedFile }) => {
                 updated[index] = newPos
                 return updated
               })
+            }}
+            onPropInteract={(action, furniture) => {
+              console.log('家具交互:', action, furniture)
+              // 触发动作
+              executeAction(action)
+              // 显示通知
+              showNotification(`${furniture.name}: ${action}`, 'success')
             }}
           />
           
@@ -3688,44 +3781,6 @@ export const ARScene = ({ selectedFile }) => {
             }} />
           )}
         </button>
-
-        {/* 坐下按钮 - 仅当装备了座椅类家具时显示 */}
-        {(() => {
-          const currentFurniture = furnitureList.find(f => f.id === characterProps[selectedCharacterIndex])
-          const isSeat = currentFurniture?.category === 'seat'
-          const isBed = currentFurniture?.category === 'bed'
-          if (!isSeat && !isBed) return null
-          return (
-            <button
-              onClick={() => {
-                // 执行坐下/躺下动作
-                if (currentFurniture?.autoPose) {
-                  executeAction(currentFurniture.autoPose)
-                  showNotification(`${currentFurniture.name}：${currentFurniture.autoPose === 'sit' ? '坐下' : '躺下'}`, 'success')
-                }
-              }}
-              style={{
-                width: isMobile ? '48px' : '56px',
-                height: isMobile ? '48px' : '56px',
-                borderRadius: '16px',
-                background: 'linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%)',
-                border: '2px solid #4CAF50',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: isMobile ? '20px' : '24px',
-                cursor: 'pointer',
-                color: 'white',
-                transition: 'all 0.3s ease',
-                boxShadow: '0 0 15px rgba(76, 175, 80, 0.4)',
-                animation: 'pulse 2s infinite'
-              }}
-              title={isSeat ? '点击坐下' : '点击躺下'}
-            >
-              {isSeat ? '🪑' : '🛏️'}
-            </button>
-          )
-        })()}
 
         {/* 旋转按钮 */}
         <button
