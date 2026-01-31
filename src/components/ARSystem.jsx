@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import { CharacterController } from './CharacterSystem'
 import modelList from '../models/modelList'
 import VideoRecorder from './VideoRecorder'
+import { actions as actionList100 } from '../data/actions'
 
 // ==================== 分步引导组件 ====================
 const TutorialGuide = ({ isMobile, onClose }) => {
@@ -1581,42 +1582,24 @@ export const ARScene = ({ selectedFile }) => {
   // 视频录制面板状态
   const [showVideoRecorder, setShowVideoRecorder] = useState(false)
 
-  // 动作列表 - 包含基础动作和大幅度复杂动作
-  const actionList = [
-    // 基础动作
-    { name: '待机', action: 'idle', icon: '😌', category: 'basic' },
-    { name: '挥手', action: 'wave', icon: '👋', category: 'basic' },
-    { name: '跳舞', action: 'dance', icon: '💃', category: 'basic' },
-    { name: '跳跃', action: 'jump', icon: '⬆️', category: 'basic' },
-    { name: '坐下', action: 'sit', icon: '🪑', category: 'basic' },
-    { name: '奔跑', action: 'run', icon: '🏃', category: 'basic' },
-    // 表情动作
-    { name: '开心', action: 'happy', icon: '😄', category: 'emotion' },
-    { name: '伤心', action: 'sad', icon: '😢', category: 'emotion' },
-    { name: '生气', action: 'angry', icon: '😠', category: 'emotion' },
-    { name: '惊讶', action: 'surprise', icon: '😲', category: 'emotion' },
-    { name: '爱心', action: 'love', icon: '😍', category: 'emotion' },
-    { name: '睡觉', action: 'sleep', icon: '😴', category: 'emotion' },
-    // 日常动作
-    { name: '吃东西', action: 'eat', icon: '🍰', category: 'daily' },
-    { name: '看书', action: 'read', icon: '📖', category: 'daily' },
-    { name: '唱歌', action: 'sing', icon: '🎤', category: 'daily' },
-    { name: '拍照', action: 'photo', icon: '📸', category: 'daily' },
-    // 大幅度特殊动作 ⭐
-    { name: '拿书', action: 'takeBook', icon: '📚', category: 'dramatic', highlight: true },
-    { name: '翻跟头', action: 'somersault', icon: '🤸', category: 'dramatic', highlight: true },
-    { name: '大跳跃', action: 'superJump', icon: '🚀', category: 'dramatic', highlight: true },
-    { name: '旋转舞', action: 'spinDance', icon: '🌪️', category: 'dance', highlight: true },
-    { name: '大挥手', action: 'bigWave', icon: '👋✨', category: 'basic', highlight: true },
-    { name: '鞠躬', action: 'bow', icon: '🙇', category: 'emotion', highlight: true },
-    { name: '庆祝', action: 'celebrate', icon: '🎉', category: 'emotion', highlight: true }
-  ]
+  // 使用100种动作数据
+  const actionList = useMemo(() => {
+    // 转换 actions.js 的数据格式
+    return actionList100.map(action => ({
+      name: action.name,
+      action: action.id,
+      icon: action.icon,
+      category: action.category,
+      type: action.type,
+      highlight: action.category === 'combat' || action.category === 'dance'
+    }))
+  }, [])
 
   // 根据分类筛选动作
   const filteredActions = useMemo(() => {
     if (activeCategory === 'all') return actionList
     return actionList.filter(action => action.category === activeCategory)
-  }, [activeCategory])
+  }, [activeCategory, actionList])
 
   // 显示通知
   const showNotification = useCallback((message, type = 'info') => {
