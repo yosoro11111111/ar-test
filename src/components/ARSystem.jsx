@@ -4,6 +4,7 @@ import { OrbitControls, PerspectiveCamera, Stars, Cloud, useTexture } from '@rea
 import * as THREE from 'three'
 import { CharacterController } from './CharacterSystem'
 import modelList from '../models/modelList'
+import VideoRecorder from './VideoRecorder'
 
 // ==================== 分步引导组件 ====================
 const TutorialGuide = ({ isMobile, onClose }) => {
@@ -1524,7 +1525,7 @@ export const ARScene = ({ selectedFile }) => {
   const [characters, setCharacters] = useState([null, null, null])
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState(0)
   const [showModelSelect, setShowModelSelect] = useState(false)
-  const [characterScale, setCharacterScale] = useState(1.5)
+  const [characterScale, setCharacterScale] = useState(1.2)  // 默认80%高度
   const [actionIntensity, setActionIntensity] = useState(1.0)
   const [isRandomMode, setIsRandomMode] = useState(false)
   const [currentAction, setCurrentAction] = useState('idle')
@@ -1576,6 +1577,9 @@ export const ARScene = ({ selectedFile }) => {
   const [characterProps, setCharacterProps] = useState([null, null, null])
   const [showPropSelect, setShowPropSelect] = useState(false)
   const [propTargetCharacter, setPropTargetCharacter] = useState(0)
+  
+  // 视频录制面板状态
+  const [showVideoRecorder, setShowVideoRecorder] = useState(false)
 
   // 动作列表 - 包含基础动作和大幅度复杂动作
   const actionList = [
@@ -2782,16 +2786,14 @@ export const ARScene = ({ selectedFile }) => {
           {isCountingDown ? '⏳' : '📸'}
         </button>
 
-        {/* 录像按钮 */}
+        {/* 录像按钮 - 打开视频录制面板 */}
         <button
-          onClick={isRecording ? stopRecording : startRecording}
+          onClick={() => setShowVideoRecorder(true)}
           style={{
             width: isMobile ? '48px' : '56px',
             height: isMobile ? '48px' : '56px',
             borderRadius: '16px',
-            background: isRecording
-              ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)'
-              : 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
             border: '1px solid rgba(255,255,255,0.2)',
             display: 'flex',
             alignItems: 'center',
@@ -2799,12 +2801,10 @@ export const ARScene = ({ selectedFile }) => {
             fontSize: isMobile ? '20px' : '24px',
             cursor: 'pointer',
             color: 'white',
-            transition: 'all 0.3s ease',
-            boxShadow: isRecording ? '0 0 20px rgba(255, 107, 107, 0.6)' : 'none',
-            animation: isRecording ? 'pulse 1s ease-in-out infinite' : 'none'
+            transition: 'all 0.3s ease'
           }}
         >
-          {isRecording ? '⏹️' : '🎥'}
+          🎥
         </button>
 
         {/* 随机动作按钮 */}
@@ -3125,6 +3125,15 @@ export const ARScene = ({ selectedFile }) => {
       
       {/* 隐藏的画布 */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
+      
+      {/* 视频录制面板 */}
+      <VideoRecorder
+        isOpen={showVideoRecorder}
+        onClose={() => setShowVideoRecorder(false)}
+        canvasRef={canvasRef}
+        videoRef={videoRef}
+        isMobile={isMobile}
+      />
     </div>
   )
 }
