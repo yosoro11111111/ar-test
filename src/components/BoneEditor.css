@@ -1,0 +1,474 @@
+/* 骨骼编辑器样式 */
+.bone-editor-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  backdrop-filter: blur(5px);
+}
+
+.bone-editor {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 20px;
+  width: 90%;
+  max-width: 900px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.bone-editor.mobile {
+  width: 95%;
+  max-height: 90vh;
+}
+
+/* 头部 */
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.editor-header h2 {
+  margin: 0;
+  color: white;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.action-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.close-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(90deg);
+}
+
+/* 编辑器主体 */
+.editor-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* 骨骼列表 */
+.bone-list {
+  width: 200px;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.bone-list h3 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.bone-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bone-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: left;
+}
+
+.bone-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateX(4px);
+}
+
+.bone-item.active {
+  background: rgba(102, 126, 234, 0.2);
+  box-shadow: 0 0 0 2px #667eea;
+}
+
+.bone-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.bone-label {
+  flex: 1;
+}
+
+/* 控制面板 */
+.control-panel {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* 选中骨骼信息 */
+.selected-bone-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.selected-bone-info h4 {
+  margin: 0;
+  font-size: 18px;
+  color: white;
+}
+
+.reset-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255, 107, 107, 0.2);
+  color: #ff6b6b;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.reset-btn:hover {
+  background: rgba(255, 107, 107, 0.3);
+}
+
+/* 控制标签页 */
+.control-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.control-tabs button {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.control-tabs button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+.control-tabs button.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+/* 滑块容器 */
+.sliders-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slider-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.slider-label span:first-child {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.axis-x {
+  background: rgba(255, 107, 107, 0.2);
+  color: #ff6b6b;
+}
+
+.axis-y {
+  background: rgba(78, 205, 196, 0.2);
+  color: #4ecdc4;
+}
+
+.axis-z {
+  background: rgba(84, 160, 255, 0.2);
+  color: #54a0ff;
+}
+
+.slider-label .value {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  font-family: monospace;
+}
+
+.slider {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);
+  transition: transform 0.2s ease;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 4px 10px rgba(102, 126, 234, 0.4);
+}
+
+.slider-marks {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* 快捷操作 */
+.quick-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.quick-actions button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.quick-actions button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+}
+
+/* 未选择状态 */
+.no-selection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.placeholder-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.no-selection p {
+  margin: 0;
+  font-size: 16px;
+}
+
+/* 已保存的姿势 */
+.saved-poses {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 20px;
+}
+
+.saved-poses h4 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.pose-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pose-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.pose-name {
+  font-size: 14px;
+  color: white;
+}
+
+.pose-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.pose-actions button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.pose-actions button:first-child {
+  background: rgba(102, 126, 234, 0.2);
+  color: #667eea;
+}
+
+.pose-actions button:first-child:hover {
+  background: rgba(102, 126, 234, 0.3);
+}
+
+.pose-actions button:last-child {
+  background: rgba(255, 107, 107, 0.2);
+  color: #ff6b6b;
+}
+
+.pose-actions button:last-child:hover {
+  background: rgba(255, 107, 107, 0.3);
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .bone-editor {
+    width: 95%;
+  }
+
+  .editor-header {
+    padding: 16px 20px;
+  }
+
+  .editor-body {
+    flex-direction: column;
+  }
+
+  .bone-list {
+    width: 100%;
+    max-height: 150px;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 12px;
+  }
+
+  .bone-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .bone-item {
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  .control-panel {
+    padding: 16px;
+  }
+
+  .sliders-container {
+    gap: 16px;
+  }
+
+  .slider-group {
+    gap: 6px;
+  }
+
+  .control-tabs button {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}
