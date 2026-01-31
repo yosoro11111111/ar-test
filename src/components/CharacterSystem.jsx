@@ -1867,6 +1867,74 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       rightLowerArm: { x: -1.0, y: 0, z: 0 },
       head: { x: -0.1, y: -0.2, z: 0 },
       spine: { x: -0.05, y: 0.1, z: 0 }
+    },
+    // 攻击姿势
+    attackPose: {
+      leftUpperArm: { x: -1.5, y: 0.5, z: 0.5 },
+      rightUpperArm: { x: -1.5, y: -0.5, z: -0.5 },
+      leftLowerArm: { x: -1.5, y: 0, z: 0 },
+      rightLowerArm: { x: -1.5, y: 0, z: 0 },
+      spine: { x: -0.2, y: 0, z: 0 },
+      hips: { x: 0, y: 0.2, z: 0 }
+    },
+    // 防御姿势
+    defendPose: {
+      leftUpperArm: { x: -0.5, y: 0.5, z: 1.5 },
+      rightUpperArm: { x: -0.5, y: -0.5, z: -1.5 },
+      leftLowerArm: { x: -1.5, y: 0, z: 0 },
+      rightLowerArm: { x: -1.5, y: 0, z: 0 },
+      spine: { x: -0.1, y: 0, z: 0 }
+    },
+    // 魔法姿势
+    magicPose: {
+      leftUpperArm: { x: -2.0, y: 0.5, z: 0.3 },
+      rightUpperArm: { x: -2.0, y: -0.5, z: -0.3 },
+      leftLowerArm: { x: -0.5, y: 0, z: 0 },
+      rightLowerArm: { x: -0.5, y: 0, z: 0 },
+      spine: { x: -0.1, y: 0, z: 0 },
+      head: { x: -0.2, y: 0, z: 0 }
+    },
+    magicCast: {
+      leftUpperArm: { x: -2.5, y: 0.3, z: 0.5 },
+      rightUpperArm: { x: -2.5, y: -0.3, z: -0.5 },
+      leftLowerArm: { x: -0.3, y: 0, z: 0 },
+      rightLowerArm: { x: -0.3, y: 0, z: 0 },
+      spine: { x: -0.2, y: 0, z: 0 },
+      head: { x: -0.3, y: 0, z: 0 }
+    },
+    // 思考姿势
+    thinkPose: {
+      rightUpperArm: { x: -1.5, y: 0, z: -0.5 },
+      rightLowerArm: { x: -1.5, y: 0, z: 0 },
+      head: { x: 0.2, y: 0.3, z: 0 },
+      spine: { x: 0.1, y: 0, z: 0 }
+    },
+    // 行走姿势
+    walk1: {
+      leftUpperLeg: { x: -0.3, y: 0, z: 0 },
+      rightUpperLeg: { x: 0.3, y: 0, z: 0 },
+      leftLowerLeg: { x: 0.5, y: 0, z: 0 },
+      rightLowerLeg: { x: 0.1, y: 0, z: 0 },
+      leftUpperArm: { x: 0.3, y: 0, z: 0.2 },
+      rightUpperArm: { x: -0.3, y: 0, z: -0.2 },
+      spine: { x: 0.05, y: 0, z: 0 }
+    },
+    walk2: {
+      leftUpperLeg: { x: 0.3, y: 0, z: 0 },
+      rightUpperLeg: { x: -0.3, y: 0, z: 0 },
+      leftLowerLeg: { x: 0.1, y: 0, z: 0 },
+      rightLowerLeg: { x: 0.5, y: 0, z: 0 },
+      leftUpperArm: { x: -0.3, y: 0, z: 0.2 },
+      rightUpperArm: { x: 0.3, y: 0, z: -0.2 },
+      spine: { x: 0.05, y: 0, z: 0 }
+    },
+    // 通用动作姿势
+    genericAction: {
+      leftUpperArm: { x: -1.0, y: 0, z: 0.5 },
+      rightUpperArm: { x: -1.0, y: 0, z: -0.5 },
+      leftLowerArm: { x: -0.5, y: 0, z: 0 },
+      rightLowerArm: { x: -0.5, y: 0, z: 0 },
+      spine: { x: -0.1, y: 0, z: 0 }
     }
   }
   
@@ -1906,6 +1974,325 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   // 骨骼速度追踪（用于惯性效果）
   const boneVelocities = useRef(new Map())
   
+  // 生成通用动作 - 为未定义的动作创建默认动画
+  const generateGenericAction = (actionName) => {
+    // 根据动作名称关键词判断类型
+    const name = actionName.toLowerCase()
+    
+    // 坐姿类动作
+    if (name.includes('sit') || name.includes('seat')) {
+      return {
+        duration: 1500,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.3, pose: 'crouchDeep' },
+          { time: 0.6, pose: 'sitPose' },
+          { time: 1, pose: 'sitPose' }
+        ]
+      }
+    }
+    
+    // 躺卧类动作
+    if (name.includes('lie') || name.includes('sleep') || name.includes('bed')) {
+      return {
+        duration: 2000,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.3, pose: 'crouchDeep' },
+          { time: 0.6, pose: 'sleepPose' },
+          { time: 1, pose: 'sleepPose' }
+        ]
+      }
+    }
+    
+    // 挥手类动作
+    if (name.includes('wave') || name.includes('hello') || name.includes('greet')) {
+      return {
+        duration: 2000,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.1, pose: 'armUp' },
+          { time: 0.3, pose: 'waveLeft' },
+          { time: 0.5, pose: 'waveRight' },
+          { time: 0.7, pose: 'waveLeft' },
+          { time: 0.9, pose: 'armUp' },
+          { time: 1, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 跳跃类动作
+    if (name.includes('jump') || name.includes('hop') || name.includes('leap')) {
+      return {
+        duration: 1500,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.1, pose: 'crouch' },
+          { time: 0.3, pose: 'jumpUp' },
+          { time: 0.6, pose: 'fallDown' },
+          { time: 0.8, pose: 'land' },
+          { time: 1, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 舞蹈类动作
+    if (name.includes('dance') || name.includes('spin') || name.includes('twirl')) {
+      return {
+        duration: 3000,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.1, pose: 'armsOut' },
+          { time: 0.25, pose: 'spin1' },
+          { time: 0.5, pose: 'spin2' },
+          { time: 0.75, pose: 'spin3' },
+          { time: 0.9, pose: 'armsOut' },
+          { time: 1, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 攻击/战斗类动作
+    if (name.includes('attack') || name.includes('punch') || name.includes('kick') || name.includes('fight')) {
+      return {
+        duration: 1200,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.2, pose: 'angryPose' },
+          { time: 0.4, pose: 'attackPose' },
+          { time: 0.7, pose: 'attackPose' },
+          { time: 1, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 防御类动作
+    if (name.includes('defend') || name.includes('block') || name.includes('shield') || name.includes('guard')) {
+      return {
+        duration: 1500,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.3, pose: 'defendPose' },
+          { time: 0.7, pose: 'defendPose' },
+          { time: 1, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 情绪类 - 开心
+    if (name.includes('happy') || name.includes('joy') || name.includes('smile') || name.includes('laugh')) {
+      return {
+        duration: 1500,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.2, pose: 'armsUp' },
+          { time: 0.8, pose: 'armsUp' },
+          { time: 1, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 情绪类 - 悲伤
+    if (name.includes('sad') || name.includes('cry') || name.includes('tear')) {
+      return {
+        duration: 2000,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.3, pose: 'sadPose' },
+          { time: 0.7, pose: 'sadPose' },
+          { time: 1, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 情绪类 - 生气
+    if (name.includes('angry') || name.includes('mad') || name.includes('rage')) {
+      return {
+        duration: 1500,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.2, pose: 'angryPose' },
+          { time: 0.8, pose: 'angryPose' },
+          { time: 1, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 情绪类 - 惊讶
+    if (name.includes('surprise') || name.includes('shock') || name.includes('amaze')) {
+      return {
+        duration: 1500,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.1, pose: 'surprisePose' },
+          { time: 0.8, pose: 'surprisePose' },
+          { time: 1, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 情绪类 - 爱心/喜欢
+    if (name.includes('love') || name.includes('like') || name.includes('heart')) {
+      return {
+        duration: 2000,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.2, pose: 'lovePose' },
+          { time: 0.8, pose: 'lovePose' },
+          { time: 1, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 演奏/音乐类动作
+    if (name.includes('play') || name.includes('music') || name.includes('sing') || name.includes('piano') || name.includes('guitar') || name.includes('instrument')) {
+      return {
+        duration: 2000,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.2, pose: 'singPose' },
+          { time: 0.8, pose: 'singPose' },
+          { time: 1, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 阅读/学习类动作
+    if (name.includes('read') || name.includes('study') || name.includes('book')) {
+      return {
+        duration: 2000,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.3, pose: 'holdBook' },
+          { time: 0.7, pose: 'readPose' },
+          { time: 1, pose: 'holdBook' }
+        ]
+      }
+    }
+    
+    // 拍照类动作
+    if (name.includes('photo') || name.includes('camera') || name.includes('pose')) {
+      return {
+        duration: 2000,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.2, pose: 'photoPose' },
+          { time: 0.8, pose: 'photoPose' },
+          { time: 1, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 鞠躬/礼貌类动作
+    if (name.includes('bow') || name.includes('thanks') || name.includes('respect')) {
+      return {
+        duration: 2000,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.2, pose: 'bowStart' },
+          { time: 0.5, pose: 'bowDeep' },
+          { time: 0.8, pose: 'bowStart' },
+          { time: 1.0, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 飞行/漂浮类动作
+    if (name.includes('fly') || name.includes('float') || name.includes('air') || name.includes('hover')) {
+      return {
+        duration: 2000,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.3, pose: 'airPose' },
+          { time: 0.7, pose: 'airPose' },
+          { time: 1, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 行走/移动类动作
+    if (name.includes('walk') || name.includes('run') || name.includes('move') || name.includes('go')) {
+      return {
+        duration: 1500,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.25, pose: 'walk1' },
+          { time: 0.5, pose: 'walk2' },
+          { time: 0.75, pose: 'walk1' },
+          { time: 1, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 吃喝类动作
+    if (name.includes('eat') || name.includes('drink') || name.includes('food')) {
+      return {
+        duration: 2000,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.2, pose: 'eatStart' },
+          { time: 0.5, pose: 'eatBite' },
+          { time: 0.8, pose: 'eatChew' },
+          { time: 1, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 庆祝/欢呼类动作
+    if (name.includes('celebrate') || name.includes('cheer') || name.includes('victory') || name.includes('win')) {
+      return {
+        duration: 3000,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.1, pose: 'armsUp' },
+          { time: 0.3, pose: 'jump1' },
+          { time: 0.5, pose: 'jump2' },
+          { time: 0.7, pose: 'jump3' },
+          { time: 0.9, pose: 'armsUp' },
+          { time: 1.0, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 思考/疑惑类动作
+    if (name.includes('think') || name.includes('wonder') || name.includes('confuse')) {
+      return {
+        duration: 2000,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.3, pose: 'thinkPose' },
+          { time: 0.7, pose: 'thinkPose' },
+          { time: 1, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 特殊/魔法类动作
+    if (name.includes('magic') || name.includes('cast') || name.includes('spell') || name.includes('special') || name.includes('transform') || name.includes('teleport')) {
+      return {
+        duration: 2500,
+        keyframes: [
+          { time: 0, pose: 'idle' },
+          { time: 0.2, pose: 'magicPose' },
+          { time: 0.5, pose: 'magicCast' },
+          { time: 0.8, pose: 'magicPose' },
+          { time: 1, pose: 'idle' }
+        ]
+      }
+    }
+    
+    // 默认通用动作 - 简单的举手动作
+    return {
+      duration: 1500,
+      keyframes: [
+        { time: 0, pose: 'idle' },
+        { time: 0.3, pose: 'genericAction' },
+        { time: 0.7, pose: 'genericAction' },
+        { time: 1, pose: 'idle' }
+      ]
+    }
+  }
+  
   // 执行骨骼动画（优化版）
   const executeBoneAnimation = (actionName) => {
     if (!vrmModel || !vrmModel.humanoid) {
@@ -1923,10 +2310,12 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       saveInitialBoneRotations()
     }
     
-    const action = dramaticActions[actionName]
+    let action = dramaticActions[actionName]
+    
+    // 如果找不到预定义动作，使用通用动作生成
     if (!action) {
-      console.log('未找到动作:', actionName)
-      return
+      console.log('使用通用动作处理:', actionName)
+      action = generateGenericAction(actionName)
     }
     
     console.log('开始执行优化版大幅度动作:', actionName)
