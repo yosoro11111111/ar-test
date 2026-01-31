@@ -59,7 +59,7 @@ export const actions = [
   { id: 'dodge', name: '闪避', icon: '💨', category: 'combat', type: 'once' },
   { id: 'block', name: '格挡', icon: '🛡️', category: 'combat', type: 'pose' },
   { id: 'hit', name: '受击', icon: '💥', category: 'combat', type: 'once' },
-  { id: 'draw', name: '拔剑', icon: '🗡️', category: 'combat', type: 'once' },
+  { id: 'draw_sword', name: '拔剑', icon: '🗡️', category: 'combat', type: 'once' },
   { id: 'sheath', name: '收剑', icon: '⚔️', category: 'combat', type: 'once' },
   { id: 'aim', name: '瞄准', icon: '🎯', category: 'combat', type: 'pose' },
   { id: 'shoot', name: '射击', icon: '🔫', category: 'combat', type: 'once' },

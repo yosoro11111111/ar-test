@@ -2132,7 +2132,7 @@ export default actionAnimations200
 
 // 获取动作配置
 export const getActionAnimation = (actionId) => {
-  return actionAnimations200[actionId] || actionAnimations200.idle
+  return actionAnimations200[actionId] || null
 }
 
 // 检查动作是否存在

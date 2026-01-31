@@ -5,7 +5,8 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { VRM, VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { DragControls } from 'three/examples/jsm/controls/DragControls'
-import { actionAnimations200, getActionAnimation } from '../data/actionAnimations200'
+import { actionAnimations250, getActionAnimation, easingFunctions, poseLibrary } from '../data/actionAnimations250'
+import { poseBoneData } from '../data/poseBoneData'
 
 // ==================== 移动端检测 Hook ====================
 const useMobileDetect = () => {
@@ -1138,7 +1139,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       
       // 应用初始姿势到骨骼
       Object.entries(initialPose).forEach(([boneName, rotation]) => {
-        const bone = vrm.humanoid.getBoneNode(boneName)
+        const bone = vrm.humanoid.getNormalizedBoneNode(boneName)
         if (bone) {
           bone.rotation.set(rotation.x, rotation.y, rotation.z)
         }
@@ -1257,7 +1258,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     ]
     
     boneNames.forEach(boneName => {
-      const bone = vrmModel.humanoid.getBoneNode(boneName)
+      const bone = vrmModel.humanoid.getNormalizedBoneNode(boneName)
       if (bone) {
         initialBoneRotations.current.set(boneName, bone.rotation.clone())
       }
@@ -1947,13 +1948,16 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       rightLowerArm: { x: -0.4, y: 0, z: 0 },
       spine: { x: -0.05, y: 0, z: 0 },
       head: { x: 0.02, y: 0, z: 0 }
-    }
+    },
+    
+    // 从 poseLibrary 导入的姿势
+    ...poseLibrary
   }
   
   // ==================== 优化版骨骼动画系统 ====================
   
-  // 高级缓动函数
-  const easingFunctions = {
+  // 本地缓动函数（用于特定效果）
+  const localEasingFunctions = {
     // 平滑开始和结束
     smooth: (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2,
     // 弹性效果
@@ -2305,7 +2309,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     }
   }
   
-  // 执行骨骼动画（优化版 - 支持200种精细动作，立即响应）
+  // 执行骨骼动画（专业版 - 60fps高帧率，支持动画融合和平滑过渡）
   const executeBoneAnimation = (actionName) => {
     if (!vrmModel || !vrmModel.humanoid) {
       console.log('VRM模型未加载，无法执行骨骼动画')
@@ -2326,7 +2330,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       saveInitialBoneRotations()
     }
 
-    // 优先使用新的200种动作系统
+    // 优先使用新的250种动作系统
     let action = getActionAnimation(actionName)
 
     // 如果新系统没有，尝试使用旧系统
@@ -2340,139 +2344,168 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       action = generateGenericAction(actionName)
     }
 
-    console.log('立即执行动作:', actionName, '持续时间:', action.duration, 'ms')
+    console.log('执行动作:', actionName, '持续时间:', action.duration, 'ms', 'FPS:', action.fps || 60)
 
-    // 重置动画开始时间，确保立即开始
+    // 记录当前姿势作为起始姿势（用于平滑过渡）
+    const startPose = new Map()
+    const boneNames = [
+      'hips', 'spine', 'chest', 'neck', 'head',
+      'leftShoulder', 'leftUpperArm', 'leftLowerArm', 'leftHand',
+      'rightShoulder', 'rightUpperArm', 'rightLowerArm', 'rightHand',
+      'leftUpperLeg', 'leftLowerLeg', 'leftFoot',
+      'rightUpperLeg', 'rightLowerLeg', 'rightFoot'
+    ]
+    
+    boneNames.forEach(boneName => {
+      const bone = vrmModel.humanoid.getNormalizedBoneNode(boneName)
+      if (bone) {
+        startPose.set(boneName, {
+          x: bone.rotation.x,
+          y: bone.rotation.y,
+          z: bone.rotation.z
+        })
+      }
+    })
+
+    // 重置动画开始时间
     animationStartTime.current = Date.now()
     
-    // 初始化骨骼速度
-    boneVelocities.current.clear()
+    // 动画参数 - 60fps高帧率
+    const targetFPS = action.fps || 60
+    const frameInterval = 1000 / targetFPS
+    const maxLoops = action.loop ? Infinity : 1
+    const blendInDuration = 200 // 更快的淡入时间（毫秒）
+    const blendOutDuration = action.loop ? 0 : 250 // 非循环动作淡出时间
     
-    // 动画循环计数，用于loop类型动作
-    let loopCount = 0
-    const maxLoops = action.loop ? 3 : 1 // 循环动作最多播放3次
+    let frameCount = 0
+    let lastFrameTime = Date.now()
+    let accumulatedTime = 0
+    
+    // 获取缓动函数
+    const easingFunc = easingFunctions[action.easing] || easingFunctions.smoothstep
     
     const animate = () => {
-      const elapsed = Date.now() - animationStartTime.current
-      const loopDuration = action.duration
-      const totalDuration = loopDuration * maxLoops
-      const currentLoopProgress = (elapsed % loopDuration) / loopDuration
-      const totalProgress = Math.min(elapsed / totalDuration, 1)
+      const now = Date.now()
+      const deltaTime = now - lastFrameTime
+      lastFrameTime = now
+      accumulatedTime += deltaTime
       
-      // 找到当前和下一个关键帧
-      let currentKeyframe = action.keyframes[0]
-      let nextKeyframe = action.keyframes[action.keyframes.length - 1]
-      
-      for (let i = 0; i < action.keyframes.length - 1; i++) {
-        if (currentLoopProgress >= action.keyframes[i].time && currentLoopProgress <= action.keyframes[i + 1].time) {
-          currentKeyframe = action.keyframes[i]
-          nextKeyframe = action.keyframes[i + 1]
-          break
+      // 固定时间步长更新，确保60fps
+      while (accumulatedTime >= frameInterval) {
+        accumulatedTime -= frameInterval
+        
+        const elapsed = now - animationStartTime.current
+        const loopDuration = action.duration
+        const currentLoopProgress = (elapsed % loopDuration) / loopDuration
+        const totalProgress = Math.min(elapsed / (loopDuration * maxLoops), 1)
+        
+        // 计算淡入淡出权重 - 使用更平滑的曲线
+        let blendWeight = 1
+        if (elapsed < blendInDuration) {
+          // 淡入阶段 - 使用easeOut
+          blendWeight = easingFunctions['easeOutQuad'](elapsed / blendInDuration)
+        } else if (!action.loop && totalProgress > 0.85) {
+          // 淡出阶段（仅非循环动作）
+          const fadeOutProgress = (totalProgress - 0.85) / 0.15
+          blendWeight = 1 - easingFunctions['easeInOutQuad'](fadeOutProgress)
         }
-      }
-      
-      // 计算关键帧之间的插值
-      const frameDuration = nextKeyframe.time - currentKeyframe.time
-      const frameProgress = frameDuration > 0 ? (currentLoopProgress - currentKeyframe.time) / frameDuration : 0
-      
-      // 根据动作类型选择缓动函数
-      let easeProgress
-      const actionType = actionName.toLowerCase()
-      if (actionType.includes('jump') || actionType.includes('flip') || actionType.includes('somersault')) {
-        // 跳跃类用弹性缓动
-        easeProgress = easingFunctions.elastic(frameProgress)
-      } else if (actionType.includes('dance') || actionType.includes('celebrate') || actionType.includes('happy')) {
-        // 舞蹈庆祝类用回弹缓动
-        easeProgress = easingFunctions.bounce(frameProgress)
-      } else if (actionType.includes('attack') || actionType.includes('combat') || actionType.includes('fight')) {
-        // 战斗类用快速缓动
-        easeProgress = easingFunctions.quint(frameProgress)
-      } else if (actionType.includes('meditation') || actionType.includes('sleep') || actionType.includes('rest')) {
-        // 冥想休息类用超平滑缓动
-        easeProgress = easingFunctions.smooth(frameProgress)
-      } else {
-        // 其他用五次方缓动
-        easeProgress = easingFunctions.quint(frameProgress)
-      }
-      
-      // 应用姿势
-      const currentPose = poses[currentKeyframe.pose] || poses.idle
-      const nextPose = poses[nextKeyframe.pose] || poses.idle
-      
-      // 合并姿势（插值）
-      const allBones = new Set([...Object.keys(currentPose), ...Object.keys(nextPose)])
-      
-      allBones.forEach(boneName => {
-        const bone = vrmModel.humanoid.getBoneNode(boneName)
-        if (!bone) return
         
-        const currentRot = currentPose[boneName] || { x: 0, y: 0, z: 0 }
-        const nextRot = nextPose[boneName] || { x: 0, y: 0, z: 0 }
-        const initialRot = initialBoneRotations.current.get(boneName) || { x: 0, y: 0, z: 0 }
+        // 找到当前和下一个关键帧
+        let currentKeyframe = action.keyframes[0]
+        let nextKeyframe = action.keyframes[action.keyframes.length - 1]
         
-        // 插值计算目标旋转
-        const targetX = initialRot.x + THREE.MathUtils.lerp(currentRot.x, nextRot.x, easeProgress)
-        const targetY = initialRot.y + THREE.MathUtils.lerp(currentRot.y, nextRot.y, easeProgress)
-        const targetZ = initialRot.z + THREE.MathUtils.lerp(currentRot.z, nextRot.z, easeProgress)
-        
-        // 获取或初始化速度
-        if (!boneVelocities.current.has(boneName)) {
-          boneVelocities.current.set(boneName, { x: 0, y: 0, z: 0 })
+        for (let i = 0; i < action.keyframes.length - 1; i++) {
+          if (currentLoopProgress >= action.keyframes[i].time && 
+              currentLoopProgress <= action.keyframes[i + 1].time) {
+            currentKeyframe = action.keyframes[i]
+            nextKeyframe = action.keyframes[i + 1]
+            break
+          }
         }
-        const velocity = boneVelocities.current.get(boneName)
         
-        // 计算目标速度（用于惯性）
-        const deltaX = targetX - bone.rotation.x
-        const deltaY = targetY - bone.rotation.y
-        const deltaZ = targetZ - bone.rotation.z
+        // 计算关键帧之间的插值 - 使用动作指定的缓动函数
+        const frameDuration = nextKeyframe.time - currentKeyframe.time
+        const frameProgress = frameDuration > 0 ? 
+          (currentLoopProgress - currentKeyframe.time) / frameDuration : 0
         
-        // 更新速度（带阻尼）
-        velocity.x = velocity.x * 0.8 + deltaX * 0.2
-        velocity.y = velocity.y * 0.8 + deltaY * 0.2
-        velocity.z = velocity.z * 0.8 + deltaZ * 0.2
+        // 应用缓动函数
+        const easeProgress = easingFunc(frameProgress)
         
-        // 应用速度和位置（提高响应速度到0.6，更快响应）
-        const lerpFactor = 0.6
-        bone.rotation.x += velocity.x * lerpFactor
-        bone.rotation.y += velocity.y * lerpFactor
-        bone.rotation.z += velocity.z * lerpFactor
-      })
-      
-      // 继续动画或结束
-      if (totalProgress < 1) {
-        currentBoneAnimation.current = requestAnimationFrame(animate)
-      } else {
-        console.log('动作完成:', actionName)
+        // 获取姿势 - 优先使用新的姿势库
+        const currentPose = poseLibrary[currentKeyframe.pose] || poses[currentKeyframe.pose] || poses.idle
+        const nextPose = poseLibrary[nextKeyframe.pose] || poses[nextKeyframe.pose] || poses.idle
         
-        // 如果是循环动作（如坐姿、躺姿），保持在最后姿势
-        if (action.loop) {
-          console.log('保持姿势:', actionName)
+        // 合并姿势
+        const allBones = new Set([...Object.keys(currentPose), ...Object.keys(nextPose)])
+        
+        allBones.forEach(boneName => {
+          const bone = vrmModel.humanoid.getNormalizedBoneNode(boneName)
+          if (!bone) return
+          
+          const currentRot = currentPose[boneName] || { x: 0, y: 0, z: 0 }
+          const nextRot = nextPose[boneName] || { x: 0, y: 0, z: 0 }
+          const startRot = startPose.get(boneName) || { x: 0, y: 0, z: 0 }
+          
+          // 计算目标姿势（关键帧插值）
+          const targetPoseX = THREE.MathUtils.lerp(currentRot.x, nextRot.x, easeProgress)
+          const targetPoseY = THREE.MathUtils.lerp(currentRot.y, nextRot.y, easeProgress)
+          const targetPoseZ = THREE.MathUtils.lerp(currentRot.z, nextRot.z, easeProgress)
+          
+          // 融合起始姿势和目标姿势（动画融合）
+          const finalX = THREE.MathUtils.lerp(startRot.x, targetPoseX, blendWeight)
+          const finalY = THREE.MathUtils.lerp(startRot.y, targetPoseY, blendWeight)
+          const finalZ = THREE.MathUtils.lerp(startRot.z, targetPoseZ, blendWeight)
+          
+          // 平滑应用到骨骼 - 使用更高的平滑因子使动作更流畅
+          const smoothFactor = 0.6
+          bone.rotation.x = THREE.MathUtils.lerp(bone.rotation.x, finalX, smoothFactor)
+          bone.rotation.y = THREE.MathUtils.lerp(bone.rotation.y, finalY, smoothFactor)
+          bone.rotation.z = THREE.MathUtils.lerp(bone.rotation.z, finalZ, smoothFactor)
+        })
+        
+        frameCount++
+        
+        // 检查动画是否结束（非循环动作）
+        if (!action.loop && totalProgress >= 1) {
+          console.log('动作完成:', actionName, '总帧数:', frameCount, '平均FPS:', (frameCount / (elapsed / 1000)).toFixed(1))
           currentBoneAnimation.current = null
-          // 不返回idle，保持当前姿势
-        } else {
-          currentBoneAnimation.current = null
-          // 自动返回idle，延迟更短
+          
+          // 非循环动作返回待机
           setTimeout(() => {
             returnToIdleSmooth()
-          }, 300)
+          }, 50)
+          return
         }
+      }
+      
+      // 强制更新 VRM 模型
+      if (vrmModel && typeof vrmModel.update === 'function') {
+        vrmModel.update(0)
+      }
+      
+      // 继续动画循环
+      if (action.loop || (Date.now() - animationStartTime.current) < action.duration * maxLoops) {
+        currentBoneAnimation.current = requestAnimationFrame(animate)
+      } else {
+        currentBoneAnimation.current = null
       }
     }
     
-    animate()
+    // 开始动画循环
+    currentBoneAnimation.current = requestAnimationFrame(animate)
   }
   
-  // 平滑返回待机姿势（优化版）
+  // 平滑返回待机姿势（极速版）
   const returnToIdleSmooth = () => {
     if (!vrmModel || !vrmModel.humanoid) return
     
     const startTime = Date.now()
-    const duration = 800 // 缩短返回时间
+    const duration = 400 // 更快的返回时间
     
     // 记录起始姿势
     const startRotations = new Map()
     initialBoneRotations.current.forEach((rot, boneName) => {
-      const bone = vrmModel.humanoid.getBoneNode(boneName)
+      const bone = vrmModel.humanoid.getNormalizedBoneNode(boneName)
       if (bone) {
         startRotations.set(boneName, bone.rotation.clone())
       }
@@ -2481,19 +2514,19 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     const animate = () => {
       const elapsed = Date.now() - startTime
       const progress = Math.min(elapsed / duration, 1)
-      const easeProgress = easingFunctions.smooth(progress)
+      const easeProgress = localEasingFunctions.smooth(progress)
       
       initialBoneRotations.current.forEach((initialRot, boneName) => {
-        const bone = vrmModel.humanoid.getBoneNode(boneName)
+        const bone = vrmModel.humanoid.getNormalizedBoneNode(boneName)
         if (!bone) return
         
         const startRot = startRotations.get(boneName)
         if (!startRot) return
         
-        // 从当前姿势平滑过渡到初始姿势（提高速度到0.2）
-        bone.rotation.x = THREE.MathUtils.lerp(startRot.x, initialRot.x, easeProgress * 0.2)
-        bone.rotation.y = THREE.MathUtils.lerp(startRot.y, initialRot.y, easeProgress * 0.2)
-        bone.rotation.z = THREE.MathUtils.lerp(startRot.z, initialRot.z, easeProgress * 0.2)
+        // 从当前姿势平滑过渡到初始姿势（直接插值）
+        bone.rotation.x = THREE.MathUtils.lerp(startRot.x, initialRot.x, easeProgress)
+        bone.rotation.y = THREE.MathUtils.lerp(startRot.y, initialRot.y, easeProgress)
+        bone.rotation.z = THREE.MathUtils.lerp(startRot.z, initialRot.z, easeProgress)
       })
       
       if (progress < 1) {
@@ -2517,7 +2550,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       const easeProgress = 1 - Math.pow(1 - progress, 3)
       
       initialBoneRotations.current.forEach((initialRot, boneName) => {
-        const bone = vrmModel.humanoid.getBoneNode(boneName)
+        const bone = vrmModel.humanoid.getNormalizedBoneNode(boneName)
         if (!bone) return
         
         // 从当前姿势平滑过渡到初始姿势
@@ -2822,11 +2855,19 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       }
     }
 
+    // 处理来自设置面板的姿势预设动作
+    const handleCharacterAction = (event) => {
+      const { action, actionName } = event.detail
+      console.log('执行姿势预设:', action, actionName)
+      executePresetAction(action)
+    }
+
     window.addEventListener('executeAction', handleExecuteAction)
     window.addEventListener('executeCombo', handleExecuteCombo)
     window.addEventListener('toggleRandom', handleToggleRandom)
     window.addEventListener('resetPosition', handleResetPosition)
     window.addEventListener('rotateCanvas', handleRotateCanvas)
+    window.addEventListener('execute-character-action', handleCharacterAction)
     // window.addEventListener('swingDetected', handleSwingDetected)
 
     return () => {
@@ -2835,6 +2876,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       window.removeEventListener('toggleRandom', handleToggleRandom)
       window.removeEventListener('resetPosition', handleResetPosition)
       window.removeEventListener('rotateCanvas', handleRotateCanvas)
+      window.removeEventListener('execute-character-action', handleCharacterAction)
       // window.removeEventListener('swingDetected', handleSwingDetected)
     }
   }, [modelAnimations, optimalScale])
@@ -2890,13 +2932,18 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   }, [])
 
   useFrame((state, delta) => {
+    // 骨骼编辑模式或骨骼动画执行时暂停其他动画更新
+    if (isBoneEditing || currentBoneAnimation.current) {
+      return
+    }
+    
     try {
       if (animationMixer && typeof animationMixer.update === 'function') {
         animationMixer.update(delta)
       }
       
       // VRM update 会覆盖骨骼动画，所以在执行骨骼动画时跳过
-      if (vrmModel && typeof vrmModel.update === 'function' && !currentBoneAnimation.current) {
+      if (vrmModel && typeof vrmModel.update === 'function') {
         vrmModel.update(delta)
       }
       
@@ -3128,7 +3175,8 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       
       // 惯性跟随系统 - 头发衣服延迟跟随
       // 注意：只修改rotation，不修改position，避免身体部位分离
-      if (followBones.current.length > 0 && characterRef.current) {
+      // 在执行骨骼动画时禁用，避免冲突
+      if (followBones.current.length > 0 && characterRef.current && !currentBoneAnimation.current) {
         followBones.current.forEach((boneData, index) => {
           if (boneData.bone && boneData.target) {
             const delay = boneData.delay || 0.1
@@ -3260,7 +3308,8 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       }
       
       // 耳朵尾巴物理模拟
-      if (earBones.current.length > 0 || tailBones.current.length > 0) {
+      // 在执行骨骼动画时禁用，避免冲突
+      if ((earBones.current.length > 0 || tailBones.current.length > 0) && !currentBoneAnimation.current) {
         const time = Date.now() * 0.001
         
         earBones.current.forEach((ear, index) => {

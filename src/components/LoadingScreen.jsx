@@ -81,8 +81,8 @@ export const LoadingScreen = ({ onComplete, isMobile }) => {
         </div>
 
         {/* 标题 */}
-        <h1 className="loading-title">AR角色</h1>
-        <p className="loading-subtitle">VIRTUAL CHARACTER SYSTEM</p>
+        <h1 className="loading-title">AR乐园</h1>
+        <p className="loading-subtitle">AR PARADISE SYSTEM</p>
 
         {/* 进度区域 */}
         <div className="progress-container">

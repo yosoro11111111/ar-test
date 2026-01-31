@@ -9,22 +9,18 @@ export const StageEffectsPanel = ({
   currentEffects,
   isMobile
 }) => {
-  const [effects, setEffects] = useState(currentEffects || {
-    // 特效
+  const defaultEffects = {
     particles: {
       enabled: false,
-      type: 'snow', // snow, rain, stars, fireflies
+      type: 'snow',
       intensity: 50
     },
-    // 滤镜
     filter: {
       enabled: false,
-      type: 'none', // none, warm, cool, vintage, noir, dreamy
+      type: 'none',
       intensity: 50
     },
-    // 渲染质量
-    quality: 'high', // low, medium, high, ultra
-    // 渲染特效
+    quality: 'high',
     renderEffects: {
       outline: false,
       outlineColor: '#00d4ff',
@@ -34,25 +30,33 @@ export const StageEffectsPanel = ({
       shadows: true,
       shadowQuality: 'high'
     },
-    // 贴纸
     stickers: []
+  }
+
+  const [effects, setEffects] = useState(() => {
+    if (!currentEffects) return defaultEffects
+    return {
+      particles: { ...defaultEffects.particles, ...currentEffects.particles },
+      filter: { ...defaultEffects.filter, ...currentEffects.filter },
+      quality: currentEffects.quality || defaultEffects.quality,
+      renderEffects: { ...defaultEffects.renderEffects, ...currentEffects.renderEffects },
+      stickers: currentEffects.stickers || defaultEffects.stickers
+    }
   })
 
   const [activeTab, setActiveTab] = useState('effects') // effects, filter, render, stickers
 
   // 更新效果
   const updateEffect = (category, key, value) => {
-    setEffects(prev => {
-      const newEffects = {
-        ...prev,
-        [category]: {
-          ...prev[category],
-          [key]: value
-        }
+    const newEffects = {
+      ...effects,
+      [category]: {
+        ...effects[category],
+        [key]: value
       }
-      onEffectChange?.(newEffects)
-      return newEffects
-    })
+    }
+    setEffects(newEffects)
+    onEffectChange?.(newEffects)
   }
 
   // 添加贴纸
