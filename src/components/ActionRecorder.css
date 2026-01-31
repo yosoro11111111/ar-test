@@ -1,0 +1,383 @@
+/* 动作录制器样式 */
+.action-recorder-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(10px);
+}
+
+.action-recorder {
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.98) 0%, rgba(22, 33, 62, 0.98) 100%);
+  border-radius: 24px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 85vh;
+  overflow-y: auto;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
+}
+
+.action-recorder.mobile {
+  width: 95%;
+  max-height: 90vh;
+  border-radius: 20px;
+}
+
+/* 头部 */
+.recorder-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.recorder-header h3 {
+  margin: 0;
+  color: white;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 28px;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* 录制控制区 */
+.recording-controls {
+  padding: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.recording-status {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.recording-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #e74c3c;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.recording-dot {
+  width: 12px;
+  height: 12px;
+  background: #e74c3c;
+  border-radius: 50%;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
+}
+
+.playing-indicator {
+  color: #3498db;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.ready-indicator {
+  color: #2ecc71;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.control-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.control-buttons button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: white;
+}
+
+.record-btn {
+  background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+}
+
+.record-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(231, 76, 60, 0.4);
+}
+
+.stop-btn {
+  background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
+}
+
+.play-btn {
+  background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+}
+
+.clear-btn {
+  background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+}
+
+.control-buttons button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 时间轴 */
+.timeline {
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.timeline h4 {
+  color: white;
+  margin: 0 0 16px 0;
+  font-size: 16px;
+}
+
+.timeline-track {
+  position: relative;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.timeline-item {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.timeline-marker {
+  width: 12px;
+  height: 12px;
+  background: #3498db;
+  border-radius: 50%;
+  border: 2px solid white;
+}
+
+.timeline-label {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+.timeline-actions {
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.action-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  color: white;
+  font-size: 14px;
+}
+
+.action-item .timestamp {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+}
+
+/* 保存区域 */
+.save-section {
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  gap: 12px;
+}
+
+.recording-name-input {
+  flex: 1;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: white;
+  font-size: 14px;
+  outline: none;
+}
+
+.recording-name-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.save-btn {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #2ecc71 0%, #27ae60 100%);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.save-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(46, 204, 113, 0.4);
+}
+
+.save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 已保存的录制 */
+.saved-recordings {
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.saved-recordings h4 {
+  color: white;
+  margin: 0 0 16px 0;
+  font-size: 16px;
+}
+
+.recordings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.recording-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.recording-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.recording-name {
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.recording-meta {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+}
+
+.recording-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.recording-actions button {
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.recording-actions button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 使用说明 */
+.recorder-help {
+  padding: 20px 24px;
+}
+
+.recorder-help h4 {
+  color: white;
+  margin: 0 0 12px 0;
+  font-size: 16px;
+}
+
+.recorder-help ol {
+  margin: 0;
+  padding-left: 20px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.recorder-help li {
+  margin-bottom: 4px;
+}
+
+/* 滚动条样式 */
+.action-recorder::-webkit-scrollbar,
+.timeline-actions::-webkit-scrollbar,
+.recordings-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.action-recorder::-webkit-scrollbar-track,
+.timeline-actions::-webkit-scrollbar-track,
+.recordings-list::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+.action-recorder::-webkit-scrollbar-thumb,
+.timeline-actions::-webkit-scrollbar-thumb,
+.recordings-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.action-recorder::-webkit-scrollbar-thumb:hover,
+.timeline-actions::-webkit-scrollbar-thumb:hover,
+.recordings-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
