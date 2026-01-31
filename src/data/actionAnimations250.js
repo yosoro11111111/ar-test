@@ -451,6 +451,231 @@ const basePoses = {
     rightFoot: { x: 0, y: 0, z: 0 }
   },
   
+  // ========== 魔法姿势 ==========
+  // 幻术施法
+  magic_illusion_cast: {
+    hips: { x: 0, y: 0, z: 0 },
+    spine: { x: -0.1, y: 0, z: 0 },
+    chest: { x: 0.1, y: 0, z: 0 },
+    head: { x: 0.1, y: 0, z: 0 },
+    leftUpperArm: { x: -1.5, y: 0.5, z: 0.3 },
+    rightUpperArm: { x: -1.5, y: -0.5, z: -0.3 },
+    leftLowerArm: { x: -0.5, y: 0, z: 0 },
+    rightLowerArm: { x: -0.5, y: 0, z: 0 },
+    leftHand: { x: 0, y: 0, z: 0.2 },
+    rightHand: { x: 0, y: 0, z: -0.2 }
+  },
+  
+  // 时间操控
+  magic_time_cast: {
+    hips: { x: 0, y: 0, z: 0 },
+    spine: { x: 0.1, y: 0, z: 0 },
+    chest: { x: 0.15, y: 0, z: 0 },
+    head: { x: -0.1, y: 0, z: 0 },
+    leftUpperArm: { x: -2.0, y: 0, z: 0.2 },
+    rightUpperArm: { x: -0.5, y: 0, z: -0.2 },
+    leftLowerArm: { x: -0.3, y: 0, z: 0 },
+    rightLowerArm: { x: -0.8, y: 0, z: 0 },
+    leftHand: { x: 0, y: 0, z: 0.3 },
+    rightHand: { x: 0, y: 0, z: -0.1 }
+  },
+  
+  // 空间扭曲
+  magic_space_cast: {
+    hips: { x: 0, y: 0.1, z: 0 },
+    spine: { x: -0.15, y: 0, z: 0 },
+    chest: { x: -0.1, y: 0, z: 0 },
+    head: { x: 0.15, y: 0, z: 0 },
+    leftUpperArm: { x: -0.8, y: 0.8, z: 0.5 },
+    rightUpperArm: { x: -0.8, y: -0.8, z: -0.5 },
+    leftLowerArm: { x: -0.6, y: 0, z: 0 },
+    rightLowerArm: { x: -0.6, y: 0, z: 0 },
+    leftHand: { x: 0, y: 0, z: 0.4 },
+    rightHand: { x: 0, y: 0, z: -0.4 }
+  },
+  
+  // 附魔动作
+  magic_enchant_cast: {
+    hips: { x: 0, y: 0, z: 0 },
+    spine: { x: 0.05, y: 0, z: 0 },
+    chest: { x: 0.1, y: 0, z: 0 },
+    head: { x: 0.05, y: 0, z: 0 },
+    leftUpperArm: { x: -1.0, y: 0.3, z: 0.2 },
+    rightUpperArm: { x: -1.0, y: -0.3, z: -0.2 },
+    leftLowerArm: { x: -0.4, y: 0, z: 0 },
+    rightLowerArm: { x: -0.4, y: 0, z: 0 },
+    leftHand: { x: 0, y: 0, z: 0.2 },
+    rightHand: { x: 0, y: 0, z: -0.2 }
+  },
+  
+  // 治疗术
+  magic_heal_cast: {
+    hips: { x: 0, y: 0, z: 0 },
+    spine: { x: 0.1, y: 0, z: 0 },
+    chest: { x: 0.15, y: 0, z: 0 },
+    head: { x: -0.05, y: 0, z: 0 },
+    leftUpperArm: { x: -1.2, y: 0.2, z: 0.3 },
+    rightUpperArm: { x: -1.2, y: -0.2, z: -0.3 },
+    leftLowerArm: { x: -0.5, y: 0, z: 0 },
+    rightLowerArm: { x: -0.5, y: 0, z: 0 },
+    leftHand: { x: 0, y: 0, z: 0.2 },
+    rightHand: { x: 0, y: 0, z: -0.2 }
+  },
+  
+  // 魔法待机
+  magic_idle: {
+    hips: { x: 0, y: 0, z: 0 },
+    spine: { x: 0.05, y: 0, z: 0 },
+    chest: { x: 0.1, y: 0, z: 0 },
+    head: { x: 0.1, y: 0, z: 0 },
+    leftUpperArm: { x: -0.3, y: 0.2, z: 0.2 },
+    rightUpperArm: { x: -0.3, y: -0.2, z: -0.2 },
+    leftLowerArm: { x: -0.2, y: 0, z: 0 },
+    rightLowerArm: { x: -0.2, y: 0, z: 0 }
+  },
+  
+  // 火球术姿势
+  magic_fire_cast: {
+    hips: { x: 0, y: 0, z: 0 },
+    spine: { x: -0.1, y: 0, z: 0 },
+    chest: { x: 0.15, y: 0, z: 0 },
+    head: { x: 0.1, y: 0, z: 0 },
+    leftUpperArm: { x: -1.5, y: 0.3, z: 0.2 },
+    rightUpperArm: { x: -0.5, y: 0, z: -0.2 },
+    leftLowerArm: { x: -0.3, y: 0, z: 0 },
+    rightLowerArm: { x: -0.8, y: 0, z: 0 },
+    leftHand: { x: 0, y: 0, z: 0.3 },
+    rightHand: { x: 0, y: 0, z: -0.1 }
+  },
+  
+  // 冰冻术姿势
+  magic_ice_cast: {
+    hips: { x: 0, y: 0, z: 0 },
+    spine: { x: 0.05, y: 0, z: 0 },
+    chest: { x: 0.1, y: 0, z: 0 },
+    head: { x: 0.05, y: 0, z: 0 },
+    leftUpperArm: { x: -1.0, y: 0.5, z: 0.3 },
+    rightUpperArm: { x: -1.0, y: -0.5, z: -0.3 },
+    leftLowerArm: { x: -0.5, y: 0, z: 0 },
+    rightLowerArm: { x: -0.5, y: 0, z: 0 },
+    leftHand: { x: 0, y: 0, z: 0.2 },
+    rightHand: { x: 0, y: 0, z: -0.2 }
+  },
+  
+  // 雷电术姿势
+  magic_lightning_cast: {
+    hips: { x: 0, y: 0, z: 0 },
+    spine: { x: -0.2, y: 0, z: 0 },
+    chest: { x: 0.2, y: 0, z: 0 },
+    head: { x: 0.15, y: 0, z: 0 },
+    leftUpperArm: { x: -2.0, y: 0, z: 0.2 },
+    rightUpperArm: { x: -2.0, y: 0, z: -0.2 },
+    leftLowerArm: { x: -0.2, y: 0, z: 0 },
+    rightLowerArm: { x: -0.2, y: 0, z: 0 },
+    leftHand: { x: 0, y: 0, z: 0.3 },
+    rightHand: { x: 0, y: 0, z: -0.3 }
+  },
+  
+  // 护盾术姿势
+  magic_shield_cast: {
+    hips: { x: 0, y: 0, z: 0 },
+    spine: { x: 0.1, y: 0, z: 0 },
+    chest: { x: 0.15, y: 0, z: 0 },
+    head: { x: -0.05, y: 0, z: 0 },
+    leftUpperArm: { x: -1.2, y: 0.4, z: 0.3 },
+    rightUpperArm: { x: -1.2, y: -0.4, z: -0.3 },
+    leftLowerArm: { x: -0.6, y: 0, z: 0 },
+    rightLowerArm: { x: -0.6, y: 0, z: 0 },
+    leftHand: { x: 0, y: 0, z: 0.2 },
+    rightHand: { x: 0, y: 0, z: -0.2 }
+  },
+  
+  // 传送术姿势
+  magic_teleport_cast: {
+    hips: { x: 0, y: 0.2, z: 0 },
+    spine: { x: 0.2, y: 0, z: 0 },
+    chest: { x: 0.2, y: 0, z: 0 },
+    head: { x: -0.1, y: 0, z: 0 },
+    leftUpperArm: { x: -1.8, y: 0.2, z: 0.2 },
+    rightUpperArm: { x: -1.8, y: -0.2, z: -0.2 },
+    leftLowerArm: { x: -0.3, y: 0, z: 0 },
+    rightLowerArm: { x: -0.3, y: 0, z: 0 },
+    leftHand: { x: 0, y: 0, z: 0.2 },
+    rightHand: { x: 0, y: 0, z: -0.2 }
+  },
+  
+  // 飞行术姿势
+  magic_fly_pose: {
+    hips: { x: 0.3, y: 0, z: 0 },
+    spine: { x: 0.2, y: 0, z: 0 },
+    chest: { x: 0.15, y: 0, z: 0 },
+    head: { x: 0.1, y: 0, z: 0 },
+    leftUpperArm: { x: -0.5, y: 0.3, z: 0.3 },
+    rightUpperArm: { x: -0.5, y: -0.3, z: -0.3 },
+    leftLowerArm: { x: -0.3, y: 0, z: 0 },
+    rightLowerArm: { x: -0.3, y: 0, z: 0 },
+    leftUpperLeg: { x: -0.3, y: 0, z: 0.1 },
+    rightUpperLeg: { x: -0.3, y: 0, z: -0.1 },
+    leftLowerLeg: { x: 0.2, y: 0, z: 0 },
+    rightLowerLeg: { x: 0.2, y: 0, z: 0 }
+  },
+  
+  // 变形术姿势
+  magic_transform_cast: {
+    hips: { x: 0, y: 0, z: 0 },
+    spine: { x: -0.3, y: 0, z: 0 },
+    chest: { x: 0.25, y: 0, z: 0 },
+    head: { x: 0.2, y: 0, z: 0 },
+    leftUpperArm: { x: -1.5, y: 0.4, z: 0.3 },
+    rightUpperArm: { x: -1.5, y: -0.4, z: -0.3 },
+    leftLowerArm: { x: -0.4, y: 0, z: 0 },
+    rightLowerArm: { x: -0.4, y: 0, z: 0 },
+    leftHand: { x: 0, y: 0, z: 0.2 },
+    rightHand: { x: 0, y: 0, z: -0.2 }
+  },
+  
+  // 召唤术姿势
+  magic_summon_cast: {
+    hips: { x: 0, y: 0, z: 0 },
+    spine: { x: -0.2, y: 0, z: 0 },
+    chest: { x: 0.2, y: 0, z: 0 },
+    head: { x: 0.1, y: 0, z: 0 },
+    leftUpperArm: { x: -2.0, y: 0.3, z: 0.2 },
+    rightUpperArm: { x: -2.0, y: -0.3, z: -0.2 },
+    leftLowerArm: { x: -0.2, y: 0, z: 0 },
+    rightLowerArm: { x: -0.2, y: 0, z: 0 },
+    leftHand: { x: 0, y: 0, z: 0.3 },
+    rightHand: { x: 0, y: 0, z: -0.3 }
+  },
+  
+  // 死灵术姿势
+  magic_necromancy_cast: {
+    hips: { x: 0, y: 0, z: 0 },
+    spine: { x: -0.15, y: 0, z: 0 },
+    chest: { x: 0.15, y: 0, z: 0 },
+    head: { x: 0.1, y: 0, z: 0 },
+    leftUpperArm: { x: -1.8, y: 0.2, z: 0.2 },
+    rightUpperArm: { x: -1.8, y: -0.2, z: -0.2 },
+    leftLowerArm: { x: -0.3, y: 0, z: 0 },
+    rightLowerArm: { x: -0.3, y: 0, z: 0 },
+    leftHand: { x: 0, y: 0, z: 0.2 },
+    rightHand: { x: 0, y: 0, z: -0.2 }
+  },
+  
+  // 占卜术姿势
+  magic_divination_cast: {
+    hips: { x: 0, y: 0, z: 0 },
+    spine: { x: 0.1, y: 0, z: 0 },
+    chest: { x: 0.1, y: 0, z: 0 },
+    head: { x: 0.05, y: 0, z: 0 },
+    leftUpperArm: { x: -0.8, y: 0.3, z: 0.3 },
+    rightUpperArm: { x: -0.8, y: -0.3, z: -0.3 },
+    leftLowerArm: { x: -0.5, y: 0, z: 0 },
+    rightLowerArm: { x: -0.5, y: 0, z: 0 },
+    leftHand: { x: 0, y: 0, z: 0.2 },
+    rightHand: { x: 0, y: 0, z: -0.2 }
+  },
+  
   // 稍息
   stand_at_ease: {
     hips: { x: 0, y: 0, z: 0.05 },
@@ -783,6 +1008,644 @@ export const actionAnimations250 = {
       { time: 0, pose: 'climb1' },
       { time: 0.5, pose: 'climb2' },
       { time: 1, pose: 'climb1' }
+    ]
+  },
+  
+  // ========== 魔法动作 ==========
+  magic_illusion: {
+    duration: 3000,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutElastic',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.2, pose: 'magic_idle' },
+      { time: 0.4, pose: 'magic_illusion_cast' },
+      { time: 0.6, pose: 'magic_illusion_cast' },
+      { time: 0.8, pose: 'magic_idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  magic_time: {
+    duration: 3000,
+    loop: false,
+    fps: 60,
+    easing: 'easeInOutCubic',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.2, pose: 'magic_idle' },
+      { time: 0.4, pose: 'magic_time_cast' },
+      { time: 0.7, pose: 'magic_time_cast' },
+      { time: 0.9, pose: 'magic_idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  magic_space: {
+    duration: 3000,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutBack',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.2, pose: 'magic_idle' },
+      { time: 0.4, pose: 'magic_space_cast' },
+      { time: 0.6, pose: 'magic_space_cast' },
+      { time: 0.8, pose: 'magic_idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  magic_enchant: {
+    duration: 3000,
+    loop: false,
+    fps: 60,
+    easing: 'easeInOutQuad',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.2, pose: 'magic_idle' },
+      { time: 0.4, pose: 'magic_enchant_cast' },
+      { time: 0.7, pose: 'magic_enchant_cast' },
+      { time: 0.9, pose: 'magic_idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  magic_heal: {
+    duration: 3000,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutQuad',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.2, pose: 'magic_idle' },
+      { time: 0.4, pose: 'magic_heal_cast' },
+      { time: 0.7, pose: 'magic_heal_cast' },
+      { time: 0.9, pose: 'magic_idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  // 火球术
+  magic_fire: {
+    duration: 1500,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutQuad',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.3, pose: 'magic_fire_cast' },
+      { time: 0.7, pose: 'magic_fire_cast' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  // 冰冻术
+  magic_ice: {
+    duration: 1500,
+    loop: false,
+    fps: 60,
+    easing: 'easeInOutQuad',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.3, pose: 'magic_ice_cast' },
+      { time: 0.7, pose: 'magic_ice_cast' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  // 雷电术
+  magic_lightning: {
+    duration: 1200,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutElastic',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.2, pose: 'magic_lightning_cast' },
+      { time: 0.6, pose: 'magic_lightning_cast' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  // 护盾术
+  magic_shield: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'easeInOutQuad',
+    keyframes: [
+      { time: 0, pose: 'magic_shield_cast' },
+      { time: 0.5, pose: 'magic_idle' },
+      { time: 1, pose: 'magic_shield_cast' }
+    ]
+  },
+  
+  // 传送术
+  magic_teleport: {
+    duration: 1000,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutBack',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.3, pose: 'magic_teleport_cast' },
+      { time: 0.7, pose: 'magic_teleport_cast' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  // 飞行术
+  magic_fly: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'easeInOutQuad',
+    keyframes: [
+      { time: 0, pose: 'magic_fly_pose' },
+      { time: 0.5, pose: 'magic_fly_pose' },
+      { time: 1, pose: 'magic_fly_pose' }
+    ]
+  },
+  
+  // 变形术
+  magic_transform: {
+    duration: 2000,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutElastic',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.3, pose: 'magic_transform_cast' },
+      { time: 0.7, pose: 'magic_transform_cast' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  // 召唤术
+  magic_summon: {
+    duration: 3000,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutBack',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.2, pose: 'magic_idle' },
+      { time: 0.4, pose: 'magic_summon_cast' },
+      { time: 0.8, pose: 'magic_summon_cast' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  // 死灵术
+  magic_necromancy: {
+    duration: 3000,
+    loop: false,
+    fps: 60,
+    easing: 'easeInOutCubic',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.2, pose: 'magic_idle' },
+      { time: 0.4, pose: 'magic_necromancy_cast' },
+      { time: 0.8, pose: 'magic_necromancy_cast' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  // 占卜术
+  magic_divination: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'easeInOutQuad',
+    keyframes: [
+      { time: 0, pose: 'magic_divination_cast' },
+      { time: 0.5, pose: 'magic_idle' },
+      { time: 1, pose: 'magic_divination_cast' }
+    ]
+  },
+  
+  // ========== 极限动作 ==========
+  extreme_skate: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'smoothstep',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  extreme_bmx: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'smoothstep',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  extreme_rollerblade: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'smoothstep',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  extreme_parkour: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'smoothstep',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  extreme_cliff: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'smoothstep',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  extreme_surf: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'smoothstep',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  extreme_parachute: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'smoothstep',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  extreme_bungee: {
+    duration: 3000,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutElastic',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.3, pose: 'idle' },
+      { time: 0.7, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  extreme_base: {
+    duration: 5000,
+    loop: false,
+    fps: 60,
+    easing: 'smoothstep',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.3, pose: 'idle' },
+      { time: 0.7, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  extreme_wingsuit: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'smoothstep',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  extreme_motocross: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'smoothstep',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  extreme_snowboard: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'smoothstep',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  extreme_ski_jump: {
+    duration: 3000,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutBack',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.3, pose: 'idle' },
+      { time: 0.7, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  extreme_ice_climb: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'smoothstep',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  extreme_kitesurf: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'smoothstep',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  // ========== 特殊动作 ==========
+  special_fly: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'easeInOutQuad',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_swim: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'smoothstep',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_float: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'easeInOutQuad',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_teleport: {
+    duration: 1000,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutBack',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_invisible: {
+    duration: 800,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutQuad',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_clone: {
+    duration: 1500,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutElastic',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_giant: {
+    duration: 2000,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutBack',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_shrink: {
+    duration: 2000,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutBack',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_time_stop: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'easeInOutQuad',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_phase: {
+    duration: 1500,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutQuad',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_ghost: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'easeInOutQuad',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_zombie: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'smoothstep',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_vampire: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'easeInOutQuad',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_werewolf: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'smoothstep',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_ninja: {
+    duration: 800,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutQuad',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_superhero: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'easeInOutQuad',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_possessed: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'easeInOutQuad',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_petrify: {
+    duration: 2000,
+    loop: true,
+    fps: 60,
+    easing: 'easeInOutQuad',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_melt: {
+    duration: 2000,
+    loop: false,
+    fps: 60,
+    easing: 'easeInOutCubic',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
+    ]
+  },
+  
+  special_reform: {
+    duration: 2000,
+    loop: false,
+    fps: 60,
+    easing: 'easeOutBack',
+    keyframes: [
+      { time: 0, pose: 'idle' },
+      { time: 0.5, pose: 'idle' },
+      { time: 1, pose: 'idle' }
     ]
   }
 }
