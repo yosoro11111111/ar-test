@@ -76,7 +76,13 @@ const PosePanel = ({ isOpen, onClose, onSelectPose, currentPose }) => {
       return newRecent
     })
 
-    onSelectPose?.(pose)
+    // 添加 action 属性（使用 id 作为 action 名称）
+    const poseWithAction = {
+      ...pose,
+      action: pose.id
+    }
+
+    onSelectPose?.(poseWithAction)
   }, [onSelectPose])
 
   // 预览姿势
