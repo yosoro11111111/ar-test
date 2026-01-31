@@ -1098,111 +1098,46 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     if (vrm.humanoid) {
       console.log('VRM人形骨骼存在，设置初始姿态 - 自然站立并看向镜头')
       
-      // 头部 - 看向镜头（相机在z轴正方向）
-      const headBone = vrm.humanoid.getBoneNode('head')
-      if (headBone) {
-        headBone.rotation.set(0, 0, 0) // 正视前方
+      // 使用优化的idle姿势作为初始姿态
+      const initialPose = {
+        head: { x: 0.05, y: 0, z: 0 },
+        neck: { x: 0.02, y: 0, z: 0 },
+        leftUpperArm: { x: 0.1, y: 0, z: 0.15 },
+        rightUpperArm: { x: 0.1, y: 0, z: -0.15 },
+        leftLowerArm: { x: 0.15, y: 0, z: 0 },
+        rightLowerArm: { x: 0.15, y: 0, z: 0 },
+        leftHand: { x: 0, y: 0, z: 0 },
+        rightHand: { x: 0, y: 0, z: 0 },
+        spine: { x: 0.02, y: 0, z: 0 },
+        chest: { x: 0.03, y: 0, z: 0 },
+        hips: { x: 0, y: 0, z: 0 },
+        leftUpperLeg: { x: -0.05, y: 0, z: 0 },
+        rightUpperLeg: { x: -0.05, y: 0, z: 0 },
+        leftLowerLeg: { x: 0.1, y: 0, z: 0 },
+        rightLowerLeg: { x: 0.1, y: 0, z: 0 },
+        leftFoot: { x: 0.05, y: 0, z: 0 },
+        rightFoot: { x: 0.05, y: 0, z: 0 },
+        leftShoulder: { x: 0, y: 0, z: 0 },
+        rightShoulder: { x: 0, y: 0, z: 0 }
       }
       
-      // 脖子 - 自然状态
-      const neckBone = vrm.humanoid.getBoneNode('neck')
-      if (neckBone) {
-        neckBone.rotation.set(0, 0, 0)
-      }
-      
-      // 手臂 - 自然下垂，紧贴身体，不要张开
-      const leftArm = vrm.humanoid.getBoneNode('leftUpperArm')
-      const rightArm = vrm.humanoid.getBoneNode('rightUpperArm')
-      const leftLowerArm = vrm.humanoid.getBoneNode('leftLowerArm')
-      const rightLowerArm = vrm.humanoid.getBoneNode('rightLowerArm')
-      const leftHand = vrm.humanoid.getBoneNode('leftHand')
-      const rightHand = vrm.humanoid.getBoneNode('rightHand')
-      
-      if (leftArm) {
-        leftArm.rotation.set(0, 0, 0.05) // 几乎不向外，紧贴身体
-      }
-      if (rightArm) {
-        rightArm.rotation.set(0, 0, -0.05) // 几乎不向外，紧贴身体
-      }
-      if (leftLowerArm) {
-        leftLowerArm.rotation.set(0.05, 0, 0) // 几乎伸直
-      }
-      if (rightLowerArm) {
-        rightLowerArm.rotation.set(0.05, 0, 0) // 几乎伸直
-      }
-      if (leftHand) {
-        leftHand.rotation.set(0, 0, 0)
-      }
-      if (rightHand) {
-        rightHand.rotation.set(0, 0, 0)
-      }
-      
-      // 脊柱 - 挺直站立
-      const spine = vrm.humanoid.getBoneNode('spine')
-      if (spine) {
-        spine.rotation.set(0, 0, 0)
-      }
-      
-      // 胸部 - 自然挺胸
-      const chest = vrm.humanoid.getBoneNode('chest')
-      if (chest) {
-        chest.rotation.set(-0.05, 0, 0) // 轻微挺胸
-      }
-      
-      // 臀部 - 水平
-      const hips = vrm.humanoid.getBoneNode('hips')
-      if (hips) {
-        hips.rotation.set(0, 0, 0)
-        // 设置初始高度，让脚站在地面上
-        hips.position.y = 0
-      }
-      
-      // 腿部 - 站立姿势
-      const leftLeg = vrm.humanoid.getBoneNode('leftUpperLeg')
-      const rightLeg = vrm.humanoid.getBoneNode('rightUpperLeg')
-      const leftLowerLeg = vrm.humanoid.getBoneNode('leftLowerLeg')
-      const rightLowerLeg = vrm.humanoid.getBoneNode('rightLowerLeg')
-      const leftFoot = vrm.humanoid.getBoneNode('leftFoot')
-      const rightFoot = vrm.humanoid.getBoneNode('rightFoot')
-      
-      if (leftLeg) {
-        leftLeg.rotation.set(0, 0, 0)
-      }
-      if (rightLeg) {
-        rightLeg.rotation.set(0, 0, 0)
-      }
-      if (leftLowerLeg) {
-        leftLowerLeg.rotation.set(0.1, 0, 0) // 膝盖轻微弯曲，更自然
-      }
-      if (rightLowerLeg) {
-        rightLowerLeg.rotation.set(0.1, 0, 0)
-      }
-      if (leftFoot) {
-        leftFoot.rotation.set(0, 0, 0)
-      }
-      if (rightFoot) {
-        rightFoot.rotation.set(0, 0, 0)
-      }
-      
-      // 肩膀 - 自然放松
-      const leftShoulder = vrm.humanoid.getBoneNode('leftShoulder')
-      const rightShoulder = vrm.humanoid.getBoneNode('rightShoulder')
-      if (leftShoulder) {
-        leftShoulder.rotation.set(0, 0, 0)
-      }
-      if (rightShoulder) {
-        rightShoulder.rotation.set(0, 0, 0)
-      }
+      // 应用初始姿势到骨骼
+      Object.entries(initialPose).forEach(([boneName, rotation]) => {
+        const bone = vrm.humanoid.getBoneNode(boneName)
+        if (bone) {
+          bone.rotation.set(rotation.x, rotation.y, rotation.z)
+        }
+      })
       
       // 设置表情为自然微笑
       if (vrm.expressionManager) {
         vrm.expressionManager.setValue('neutral', 0.8)
-        vrm.expressionManager.setValue('happy', 0.2) // 轻微微笑
+        vrm.expressionManager.setValue('happy', 0.2)
       }
       
       vrm.scene.updateMatrixWorld(true)
       
-      console.log('初始姿态设置完成 - 角色站立并看向用户')
+      console.log('初始姿态设置完成 - 角色自然站立并看向用户')
     }
   }
 
@@ -1569,94 +1504,100 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     }
   }
   
-  // 姿势定义
+  // 姿势定义 - 优化版（基于VRM标准骨骼结构）
+  // 注意：VRM骨骼旋转使用弧度，范围通常在 -PI 到 PI 之间
+  // x: 俯仰（前后倾斜），y: 偏航（左右转动），z: 翻滚（左右倾斜）
   const poses = {
+    // 待机姿势 - 自然放松站立
     idle: {
-      spine: { x: 0, y: 0, z: 0 },
-      chest: { x: -0.05, y: 0, z: 0 },
-      head: { x: 0.1, y: 0, z: 0 },
-      leftUpperArm: { x: 0, y: 0, z: 0.15 },
-      rightUpperArm: { x: 0, y: 0, z: -0.15 },
-      leftLowerArm: { x: 0.1, y: 0, z: 0 },
-      rightLowerArm: { x: 0.1, y: 0, z: 0 },
+      spine: { x: 0.02, y: 0, z: 0 },           // 脊柱轻微前倾
+      chest: { x: 0.03, y: 0, z: 0 },           // 胸部轻微挺起
+      head: { x: 0.05, y: 0, z: 0 },            // 头部轻微前倾看镜头
+      neck: { x: 0.02, y: 0, z: 0 },            // 颈部自然
+      leftUpperArm: { x: 0.1, y: 0, z: 0.15 },  // 手臂自然下垂，稍微外展
+      rightUpperArm: { x: 0.1, y: 0, z: -0.15 },
+      leftLowerArm: { x: 0.15, y: 0, z: 0 },    // 前臂轻微弯曲
+      rightLowerArm: { x: 0.15, y: 0, z: 0 },
       leftHand: { x: 0, y: 0, z: 0 },
       rightHand: { x: 0, y: 0, z: 0 },
-      leftUpperLeg: { x: 0, y: 0, z: 0 },
-      rightUpperLeg: { x: 0, y: 0, z: 0 },
-      leftLowerLeg: { x: 0.1, y: 0, z: 0 },
-      rightLowerLeg: { x: 0.1, y: 0, z: 0 }
+      leftUpperLeg: { x: -0.05, y: 0, z: 0 },   // 腿部几乎伸直
+      rightUpperLeg: { x: -0.05, y: 0, z: 0 },
+      leftLowerLeg: { x: 0.1, y: 0, z: 0 },     // 膝盖轻微弯曲
+      rightLowerLeg: { x: 0.1, y: 0, z: 0 },
+      leftFoot: { x: 0.05, y: 0, z: 0 },        // 脚自然放置
+      rightFoot: { x: 0.05, y: 0, z: 0 }
     },
-    // 拿书动作姿势
+    // 拿书动作姿势 - 优化幅度
     reachUpStart: {
-      spine: { x: -0.2, y: 0, z: 0 },
-      chest: { x: -0.1, y: 0, z: 0 },
-      rightUpperArm: { x: 0, y: 0, z: -2.5 },
-      rightLowerArm: { x: 0, y: 0, z: 0 },
-      head: { x: -0.3, y: 0, z: 0 }
+      spine: { x: -0.1, y: 0, z: 0 },           // 脊柱轻微后仰
+      chest: { x: -0.05, y: 0, z: 0 },
+      rightUpperArm: { x: -1.2, y: 0.3, z: -0.3 }, // 手臂抬起（约70度）
+      rightLowerArm: { x: -0.3, y: 0, z: 0 },   // 前臂轻微弯曲
+      head: { x: -0.15, y: 0, z: 0 }            // 抬头看
     },
     reachUpHigh: {
-      spine: { x: -0.4, y: 0, z: 0 },
-      chest: { x: -0.2, y: 0, z: 0 },
-      rightUpperArm: { x: -2.8, y: 0.5, z: -0.5 },
-      rightLowerArm: { x: -0.5, y: 0, z: 0 },
-      head: { x: -0.5, y: 0, z: 0 }
+      spine: { x: -0.15, y: 0, z: 0 },
+      chest: { x: -0.08, y: 0, z: 0 },
+      rightUpperArm: { x: -2.0, y: 0.4, z: -0.2 }, // 手臂高举（约115度）
+      rightLowerArm: { x: -0.2, y: 0, z: 0 },
+      head: { x: -0.2, y: 0, z: 0 }
     },
     grabBook: {
-      spine: { x: -0.4, y: 0, z: 0 },
-      rightUpperArm: { x: -2.8, y: 0.3, z: -0.3 },
-      rightLowerArm: { x: -0.3, y: 0, z: 0 },
-      rightHand: { x: 0, y: 0, z: -0.5 }
+      spine: { x: -0.1, y: 0, z: 0 },
+      rightUpperArm: { x: -1.8, y: 0.2, z: -0.2 },
+      rightLowerArm: { x: -0.4, y: 0, z: 0 },
+      rightHand: { x: 0, y: 0, z: -0.2 }        // 手腕轻微弯曲
     },
     pullBook: {
-      spine: { x: -0.2, y: 0, z: 0 },
-      rightUpperArm: { x: -2.0, y: 0, z: -0.5 },
-      rightLowerArm: { x: -1.0, y: 0, z: 0 },
-      head: { x: 0, y: 0.3, z: 0 }
+      spine: { x: -0.05, y: 0, z: 0 },
+      rightUpperArm: { x: -1.0, y: 0, z: -0.3 },
+      rightLowerArm: { x: -0.8, y: 0, z: 0 },
+      head: { x: 0, y: 0.15, z: 0 }             // 轻微转头
     },
     holdBook: {
       spine: { x: 0, y: 0, z: 0 },
-      rightUpperArm: { x: -0.5, y: 0, z: -0.8 },
-      rightLowerArm: { x: -1.5, y: 0, z: 0 },
-      leftUpperArm: { x: 0, y: 0, z: 0.8 },
-      leftLowerArm: { x: -1.0, y: 0, z: 0 }
+      rightUpperArm: { x: -0.3, y: 0, z: -0.4 }, // 手臂前伸持书
+      rightLowerArm: { x: -0.8, y: 0, z: 0 },
+      leftUpperArm: { x: -0.2, y: 0, z: 0.4 },  // 另一只手辅助
+      leftLowerArm: { x: -0.6, y: 0, z: 0 }
     },
-    // 翻跟头姿势
+    // 翻跟头姿势 - 优化幅度
     crouch: {
-      hips: { x: 0, y: -0.3, z: 0 },
-      leftUpperLeg: { x: -1.2, y: 0, z: 0 },
-      rightUpperLeg: { x: -1.2, y: 0, z: 0 },
-      leftLowerLeg: { x: 2.0, y: 0, z: 0 },
-      rightLowerLeg: { x: 2.0, y: 0, z: 0 },
-      spine: { x: 0.3, y: 0, z: 0 }
+      hips: { x: 0.3, y: 0, z: 0 },             // 臀部下沉（通过旋转而非位移）
+      leftUpperLeg: { x: -0.8, y: 0, z: 0 },    // 大腿抬起（约45度）
+      rightUpperLeg: { x: -0.8, y: 0, z: 0 },
+      leftLowerLeg: { x: 1.2, y: 0, z: 0 },     // 小腿弯曲（约70度）
+      rightLowerLeg: { x: 1.2, y: 0, z: 0 },
+      spine: { x: 0.2, y: 0, z: 0 }             // 脊柱前倾
     },
     jumpBack: {
-      hips: { x: 0.5, y: 0.5, z: 0 },
-      leftUpperLeg: { x: -0.8, y: 0, z: 0 },
-      rightUpperLeg: { x: -0.8, y: 0, z: 0 },
-      spine: { x: -0.5, y: 0, z: 0 }
-    },
-    tuck: {
-      hips: { x: 1.5, y: 1.0, z: 0 },
-      leftUpperLeg: { x: -2.0, y: 0, z: 0 },
-      rightUpperLeg: { x: -2.0, y: 0, z: 0 },
-      leftLowerLeg: { x: 2.5, y: 0, z: 0 },
-      rightLowerLeg: { x: 2.5, y: 0, z: 0 },
-      leftUpperArm: { x: 0, y: 0, z: 2.0 },
-      rightUpperArm: { x: 0, y: 0, z: -2.0 },
-      spine: { x: 0.5, y: 0, z: 0 }
-    },
-    unfold: {
-      hips: { x: 0.5, y: 0.3, z: 0 },
+      hips: { x: 0.3, y: 0, z: 0 },
       leftUpperLeg: { x: -0.5, y: 0, z: 0 },
       rightUpperLeg: { x: -0.5, y: 0, z: 0 },
-      spine: { x: -0.2, y: 0, z: 0 }
+      spine: { x: -0.3, y: 0, z: 0 }
+    },
+    tuck: {
+      hips: { x: 0.8, y: 0, z: 0 },             // 身体蜷缩
+      leftUpperLeg: { x: -1.3, y: 0, z: 0 },    // 大腿抬起（约75度）
+      rightUpperLeg: { x: -1.3, y: 0, z: 0 },
+      leftLowerLeg: { x: 1.5, y: 0, z: 0 },     // 小腿弯曲（约85度）
+      rightLowerLeg: { x: 1.5, y: 0, z: 0 },
+      leftUpperArm: { x: 0, y: 0, z: 1.2 },     // 手臂环抱（约70度）
+      rightUpperArm: { x: 0, y: 0, z: -1.2 },
+      spine: { x: 0.3, y: 0, z: 0 }
+    },
+    unfold: {
+      hips: { x: 0.2, y: 0, z: 0 },
+      leftUpperLeg: { x: -0.3, y: 0, z: 0 },
+      rightUpperLeg: { x: -0.3, y: 0, z: 0 },
+      spine: { x: -0.1, y: 0, z: 0 }
     },
     land: {
-      hips: { x: 0, y: -0.2, z: 0 },
-      leftUpperLeg: { x: -0.8, y: 0, z: 0 },
-      rightUpperLeg: { x: -0.8, y: 0, z: 0 },
-      leftLowerLeg: { x: 1.5, y: 0, z: 0 },
-      rightLowerLeg: { x: 1.5, y: 0, z: 0 }
+      hips: { x: 0.1, y: 0, z: 0 },
+      leftUpperLeg: { x: -0.5, y: 0, z: 0 },
+      rightUpperLeg: { x: -0.5, y: 0, z: 0 },
+      leftLowerLeg: { x: 0.8, y: 0, z: 0 },
+      rightLowerLeg: { x: 0.8, y: 0, z: 0 }
     },
     // 超级跳跃姿势
     crouchDeep: {
@@ -1832,142 +1773,165 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       leftUpperArm: { x: 0, y: 0, z: 0.5 },
       rightUpperArm: { x: 0, y: 0, z: -0.5 }
     },
-    // 日常姿势
+    // 日常姿势 - 优化版
     sitPose: {
-      hips: { x: -0.5, y: -0.6, z: 0 }, // 降低臀部位置，向后倾斜
-      leftUpperLeg: { x: -1.4, y: 0, z: 0.1 }, // 大腿抬起更多
-      rightUpperLeg: { x: -1.4, y: 0, z: -0.1 },
-      leftLowerLeg: { x: 2.0, y: 0, z: 0 }, // 小腿垂直向下
-      rightLowerLeg: { x: 2.0, y: 0, z: 0 },
-      leftFoot: { x: 0.3, y: 0, z: 0 }, // 脚自然放置
-      rightFoot: { x: 0.3, y: 0, z: 0 },
-      spine: { x: 0.2, y: 0, z: 0 }, // 脊柱稍微前倾
-      chest: { x: 0.1, y: 0, z: 0 },
-      leftUpperArm: { x: 0.2, y: 0, z: 0.3 }, // 手臂自然放在腿上
-      rightUpperArm: { x: 0.2, y: 0, z: -0.3 },
-      leftLowerArm: { x: 0.5, y: 0, z: 0 },
-      rightLowerArm: { x: 0.5, y: 0, z: 0 }
+      // 坐姿：通过旋转模拟坐下，而不是直接位移hips
+      hips: { x: -0.8, y: 0, z: 0 },            // 臀部向后旋转（约45度）
+      leftUpperLeg: { x: -1.0, y: 0, z: 0.05 }, // 大腿抬起（约57度）
+      rightUpperLeg: { x: -1.0, y: 0, z: -0.05 },
+      leftLowerLeg: { x: 1.0, y: 0, z: 0 },     // 小腿弯曲（约57度）
+      rightLowerLeg: { x: 1.0, y: 0, z: 0 },
+      leftFoot: { x: 0.2, y: 0, z: 0 },         // 脚自然放置
+      rightFoot: { x: 0.2, y: 0, z: 0 },
+      spine: { x: 0.15, y: 0, z: 0 },           // 脊柱稍微前倾
+      chest: { x: 0.05, y: 0, z: 0 },
+      leftUpperArm: { x: 0.3, y: 0, z: 0.2 },   // 手臂自然放在腿上
+      rightUpperArm: { x: 0.3, y: 0, z: -0.2 },
+      leftLowerArm: { x: 0.4, y: 0, z: 0 },
+      rightLowerArm: { x: 0.4, y: 0, z: 0 }
     },
-    // 躺姿
+    // 躺姿 - 优化版
     liePose: {
-      hips: { x: 0, y: -0.9, z: 0 },
-      spine: { x: 0.3, y: 0, z: 0 },
-      chest: { x: 0.2, y: 0, z: 0 },
-      head: { x: 0.5, y: 0, z: 0 },
-      leftUpperLeg: { x: -1.0, y: 0, z: 0 },
-      rightUpperLeg: { x: -1.0, y: 0, z: 0 },
-      leftLowerLeg: { x: 1.8, y: 0, z: 0 },
-      rightLowerLeg: { x: 1.8, y: 0, z: 0 },
-      leftUpperArm: { x: 0, y: 0, z: 0.8 },
-      rightUpperArm: { x: 0, y: 0, z: -0.8 },
-      leftLowerArm: { x: 0.3, y: 0, z: 0 },
-      rightLowerArm: { x: 0.3, y: 0, z: 0 }
+      hips: { x: -1.4, y: 0, z: 0 },            // 臀部几乎平躺（约80度）
+      spine: { x: 0.1, y: 0, z: 0 },            // 脊柱稍微弯曲
+      chest: { x: 0.05, y: 0, z: 0 },
+      head: { x: 0.1, y: 0, z: 0 },             // 头部稍微抬起
+      neck: { x: 0.05, y: 0, z: 0 },
+      leftUpperLeg: { x: -0.2, y: 0, z: 0.1 },  // 大腿几乎伸直
+      rightUpperLeg: { x: -0.2, y: 0, z: -0.1 },
+      leftLowerLeg: { x: 0.3, y: 0, z: 0 },     // 小腿轻微弯曲
+      rightLowerLeg: { x: 0.3, y: 0, z: 0 },
+      leftFoot: { x: 0.1, y: 0, z: 0 },
+      rightFoot: { x: 0.1, y: 0, z: 0 },
+      leftUpperArm: { x: 0, y: 0, z: 0.4 },     // 手臂自然放在身体两侧
+      rightUpperArm: { x: 0, y: 0, z: -0.4 },
+      leftLowerArm: { x: 0.2, y: 0, z: 0 },
+      rightLowerArm: { x: 0.2, y: 0, z: 0 }
     },
+    // 吃饭姿势 - 优化幅度
     eatStart: {
-      rightUpperArm: { x: -1.5, y: 0, z: -0.5 },
-      rightLowerArm: { x: -1.5, y: 0, z: 0 },
-      head: { x: -0.1, y: 0, z: 0 }
+      rightUpperArm: { x: -0.8, y: 0.2, z: -0.3 }, // 手臂抬起（约45度）
+      rightLowerArm: { x: -0.8, y: 0, z: 0 },      // 前臂弯曲（约45度）
+      head: { x: -0.05, y: 0, z: 0 },              // 轻微低头
+      spine: { x: 0.05, y: 0, z: 0 }
     },
     eatBite: {
-      rightUpperArm: { x: -1.5, y: 0, z: -0.3 },
-      rightLowerArm: { x: -2.0, y: 0, z: 0 },
-      head: { x: 0.1, y: 0, z: 0 }
+      rightUpperArm: { x: -0.7, y: 0.2, z: -0.2 },
+      rightLowerArm: { x: -1.2, y: 0, z: 0 },      // 前臂更多弯曲（约70度）
+      head: { x: 0.05, y: 0, z: 0 },               // 轻微抬头
+      spine: { x: 0.02, y: 0, z: 0 }
     },
     eatChew: {
-      rightUpperArm: { x: -1.0, y: 0, z: -0.5 },
-      rightLowerArm: { x: -1.0, y: 0, z: 0 },
-      head: { x: 0.05, y: 0, z: 0 }
+      rightUpperArm: { x: -0.5, y: 0.1, z: -0.3 },
+      rightLowerArm: { x: -0.6, y: 0, z: 0 },
+      head: { x: 0.02, y: 0, z: 0 },
+      spine: { x: 0.03, y: 0, z: 0 }
     },
+    // 阅读姿势 - 优化
     readPose: {
-      spine: { x: -0.2, y: 0, z: 0 },
-      chest: { x: -0.1, y: 0, z: 0 },
-      head: { x: -0.3, y: 0, z: 0 },
-      leftUpperArm: { x: -0.5, y: 0.3, z: 0.8 },
-      rightUpperArm: { x: -0.5, y: -0.3, z: -0.8 },
-      leftLowerArm: { x: -1.0, y: 0, z: 0 },
-      rightLowerArm: { x: -1.0, y: 0, z: 0 }
+      spine: { x: -0.1, y: 0, z: 0 },              // 轻微前倾
+      chest: { x: -0.05, y: 0, z: 0 },
+      head: { x: -0.15, y: 0, z: 0 },              // 低头看书（约8度）
+      neck: { x: -0.1, y: 0, z: 0 },
+      leftUpperArm: { x: -0.3, y: 0.2, z: 0.4 },   // 手臂前伸持书
+      rightUpperArm: { x: -0.3, y: -0.2, z: -0.4 },
+      leftLowerArm: { x: -0.6, y: 0, z: 0 },
+      rightLowerArm: { x: -0.6, y: 0, z: 0 }
     },
+    // 唱歌姿势 - 优化
     singPose: {
-      spine: { x: -0.1, y: 0, z: 0 },
-      chest: { x: -0.1, y: 0, z: 0 },
-      head: { x: -0.2, y: 0, z: 0 },
-      leftUpperArm: { x: -1.0, y: 0, z: 0.5 },
-      rightUpperArm: { x: -1.5, y: 0, z: -0.5 },
-      rightLowerArm: { x: -0.5, y: 0, z: 0 }
+      spine: { x: -0.05, y: 0, z: 0 },
+      chest: { x: 0.1, y: 0, z: 0 },               // 挺胸
+      head: { x: -0.1, y: 0, z: 0 },               // 稍微抬头
+      neck: { x: -0.05, y: 0, z: 0 },
+      leftUpperArm: { x: -0.6, y: 0, z: 0.3 },     // 一只手拿麦克风
+      rightUpperArm: { x: -1.0, y: 0, z: -0.3 },   // 另一只手自然
+      rightLowerArm: { x: -0.4, y: 0, z: 0 }
     },
+    // 拍照姿势 - 优化
     photoPose: {
-      rightUpperArm: { x: -1.5, y: 0, z: -0.8 },
-      rightLowerArm: { x: -1.0, y: 0, z: 0 },
-      head: { x: -0.1, y: -0.2, z: 0 },
-      spine: { x: -0.05, y: 0.1, z: 0 }
+      rightUpperArm: { x: -0.8, y: 0, z: -0.5 },   // 手臂抬起拿相机
+      rightLowerArm: { x: -0.6, y: 0, z: 0 },
+      rightHand: { x: 0, y: 0, z: 0 },
+      head: { x: -0.05, y: -0.1, z: 0 },           // 轻微歪头
+      spine: { x: 0, y: 0.05, z: 0 },              // 轻微转身
+      leftUpperArm: { x: 0.1, y: 0, z: 0.2 }       // 另一只手自然
     },
-    // 攻击姿势
+    // 攻击姿势 - 优化幅度
     attackPose: {
-      leftUpperArm: { x: -1.5, y: 0.5, z: 0.5 },
-      rightUpperArm: { x: -1.5, y: -0.5, z: -0.5 },
-      leftLowerArm: { x: -1.5, y: 0, z: 0 },
-      rightLowerArm: { x: -1.5, y: 0, z: 0 },
-      spine: { x: -0.2, y: 0, z: 0 },
-      hips: { x: 0, y: 0.2, z: 0 }
+      leftUpperArm: { x: -1.0, y: 0.3, z: 0.3 },   // 手臂前伸（约57度）
+      rightUpperArm: { x: -1.0, y: -0.3, z: -0.3 },
+      leftLowerArm: { x: -0.8, y: 0, z: 0 },       // 前臂弯曲（约45度）
+      rightLowerArm: { x: -0.8, y: 0, z: 0 },
+      spine: { x: -0.1, y: 0, z: 0 },              // 身体前倾
+      hips: { x: 0.1, y: 0, z: 0 },
+      leftUpperLeg: { x: -0.2, y: 0, z: 0 },       // 腿部稳定
+      rightUpperLeg: { x: -0.3, y: 0, z: 0 }
     },
-    // 防御姿势
+    // 防御姿势 - 优化
     defendPose: {
-      leftUpperArm: { x: -0.5, y: 0.5, z: 1.5 },
-      rightUpperArm: { x: -0.5, y: -0.5, z: -1.5 },
-      leftLowerArm: { x: -1.5, y: 0, z: 0 },
-      rightLowerArm: { x: -1.5, y: 0, z: 0 },
-      spine: { x: -0.1, y: 0, z: 0 }
+      leftUpperArm: { x: -0.4, y: 0.3, z: 0.8 },   // 手臂交叉防御
+      rightUpperArm: { x: -0.4, y: -0.3, z: -0.8 },
+      leftLowerArm: { x: -0.8, y: 0, z: 0 },
+      rightLowerArm: { x: -0.8, y: 0, z: 0 },
+      spine: { x: -0.05, y: 0, z: 0 },
+      head: { x: 0.05, y: 0, z: 0 }                // 稍微低头
     },
-    // 魔法姿势
+    // 魔法姿势 - 优化
     magicPose: {
-      leftUpperArm: { x: -2.0, y: 0.5, z: 0.3 },
-      rightUpperArm: { x: -2.0, y: -0.5, z: -0.3 },
-      leftLowerArm: { x: -0.5, y: 0, z: 0 },
-      rightLowerArm: { x: -0.5, y: 0, z: 0 },
-      spine: { x: -0.1, y: 0, z: 0 },
-      head: { x: -0.2, y: 0, z: 0 }
+      leftUpperArm: { x: -1.2, y: 0.3, z: 0.2 },   // 手臂举起（约70度）
+      rightUpperArm: { x: -1.2, y: -0.3, z: -0.2 },
+      leftLowerArm: { x: -0.3, y: 0, z: 0 },       // 前臂轻微弯曲
+      rightLowerArm: { x: -0.3, y: 0, z: 0 },
+      spine: { x: -0.05, y: 0, z: 0 },
+      head: { x: -0.1, y: 0, z: 0 },               // 稍微抬头
+      chest: { x: 0.05, y: 0, z: 0 }
     },
     magicCast: {
-      leftUpperArm: { x: -2.5, y: 0.3, z: 0.5 },
-      rightUpperArm: { x: -2.5, y: -0.3, z: -0.5 },
-      leftLowerArm: { x: -0.3, y: 0, z: 0 },
-      rightLowerArm: { x: -0.3, y: 0, z: 0 },
-      spine: { x: -0.2, y: 0, z: 0 },
-      head: { x: -0.3, y: 0, z: 0 }
+      leftUpperArm: { x: -1.5, y: 0.2, z: 0.3 },   // 手臂高举（约86度）
+      rightUpperArm: { x: -1.5, y: -0.2, z: -0.3 },
+      leftLowerArm: { x: -0.2, y: 0, z: 0 },
+      rightLowerArm: { x: -0.2, y: 0, z: 0 },
+      spine: { x: -0.1, y: 0, z: 0 },
+      head: { x: -0.15, y: 0, z: 0 },
+      chest: { x: 0.08, y: 0, z: 0 }
     },
-    // 思考姿势
+    // 思考姿势 - 优化
     thinkPose: {
-      rightUpperArm: { x: -1.5, y: 0, z: -0.5 },
-      rightLowerArm: { x: -1.5, y: 0, z: 0 },
-      head: { x: 0.2, y: 0.3, z: 0 },
-      spine: { x: 0.1, y: 0, z: 0 }
-    },
-    // 行走姿势
-    walk1: {
-      leftUpperLeg: { x: -0.3, y: 0, z: 0 },
-      rightUpperLeg: { x: 0.3, y: 0, z: 0 },
-      leftLowerLeg: { x: 0.5, y: 0, z: 0 },
-      rightLowerLeg: { x: 0.1, y: 0, z: 0 },
-      leftUpperArm: { x: 0.3, y: 0, z: 0.2 },
-      rightUpperArm: { x: -0.3, y: 0, z: -0.2 },
+      rightUpperArm: { x: -0.8, y: 0, z: -0.4 },   // 手臂抬起（约45度）
+      rightLowerArm: { x: -0.8, y: 0, z: 0 },      // 前臂弯曲（约45度）
+      rightHand: { x: 0, y: 0, z: 0 },
+      head: { x: 0.15, y: 0.2, z: 0 },             // 歪头思考
+      neck: { x: 0.1, y: 0.15, z: 0 },
       spine: { x: 0.05, y: 0, z: 0 }
+    },
+    // 行走姿势 - 优化
+    walk1: {
+      leftUpperLeg: { x: -0.25, y: 0, z: 0 },      // 腿部摆动（约14度）
+      rightUpperLeg: { x: 0.25, y: 0, z: 0 },
+      leftLowerLeg: { x: 0.3, y: 0, z: 0 },        // 膝盖弯曲（约17度）
+      rightLowerLeg: { x: 0.05, y: 0, z: 0 },
+      leftUpperArm: { x: 0.2, y: 0, z: 0.1 },      // 手臂自然摆动
+      rightUpperArm: { x: -0.2, y: 0, z: -0.1 },
+      spine: { x: 0.03, y: 0, z: 0 }               // 轻微起伏
     },
     walk2: {
-      leftUpperLeg: { x: 0.3, y: 0, z: 0 },
-      rightUpperLeg: { x: -0.3, y: 0, z: 0 },
-      leftLowerLeg: { x: 0.1, y: 0, z: 0 },
-      rightLowerLeg: { x: 0.5, y: 0, z: 0 },
-      leftUpperArm: { x: -0.3, y: 0, z: 0.2 },
-      rightUpperArm: { x: 0.3, y: 0, z: -0.2 },
-      spine: { x: 0.05, y: 0, z: 0 }
+      leftUpperLeg: { x: 0.25, y: 0, z: 0 },
+      rightUpperLeg: { x: -0.25, y: 0, z: 0 },
+      leftLowerLeg: { x: 0.05, y: 0, z: 0 },
+      rightLowerLeg: { x: 0.3, y: 0, z: 0 },
+      leftUpperArm: { x: -0.2, y: 0, z: 0.1 },
+      rightUpperArm: { x: 0.2, y: 0, z: -0.1 },
+      spine: { x: 0.03, y: 0, z: 0 }
     },
-    // 通用动作姿势
+    // 通用动作姿势 - 优化
     genericAction: {
-      leftUpperArm: { x: -1.0, y: 0, z: 0.5 },
-      rightUpperArm: { x: -1.0, y: 0, z: -0.5 },
-      leftLowerArm: { x: -0.5, y: 0, z: 0 },
-      rightLowerArm: { x: -0.5, y: 0, z: 0 },
-      spine: { x: -0.1, y: 0, z: 0 }
+      leftUpperArm: { x: -0.6, y: 0, z: 0.3 },     // 适中的手臂抬起
+      rightUpperArm: { x: -0.6, y: 0, z: -0.3 },
+      leftLowerArm: { x: -0.4, y: 0, z: 0 },
+      rightLowerArm: { x: -0.4, y: 0, z: 0 },
+      spine: { x: -0.05, y: 0, z: 0 },
+      head: { x: 0.02, y: 0, z: 0 }
     }
   }
   
