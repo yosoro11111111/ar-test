@@ -5,9 +5,14 @@ import * as THREE from 'three'
 import { CharacterController } from './CharacterSystem'
 import modelList from '../models/modelList'
 import VideoRecorder from './VideoRecorder'
+import ErrorBoundary from './ErrorBoundary'
 import { actions as actionList200, actionCategories, searchActions } from '../data/actions200'
 import { furnitureList, furnitureCategories, getFurnitureByCategory, searchFurniture } from '../data/furniture'
+import { expressions, expressionCategories, getExpressionBlendShapes } from '../data/expressions'
+import { scenes, sceneCategories, getSceneConfig } from '../data/scenes'
 import useGyroscope from '../hooks/useGyroscope'
+import useLocalStorage from '../hooks/useLocalStorage'
+import useVoiceControl from '../hooks/useVoiceControl'
 
 // ==================== 分步引导组件 ====================
 const TutorialGuide = ({ isMobile, onClose }) => {
@@ -1591,13 +1596,24 @@ export const ARScene = ({ selectedFile }) => {
       const action = detectAction()
       if (action) {
         console.log('陀螺仪检测到动作:', action)
-        // 可以根据检测到的动作触发相应动画
-        // executeAction(action)
+        // 将陀螺仪动作映射到实际动作
+        const actionMap = {
+          'shake': 'shake_head',
+          'leanForward': 'bow',
+          'leanBack': 'surprised',
+          'leanLeft': 'wave',
+          'leanRight': 'wave'
+        }
+        const mappedAction = actionMap[action]
+        if (mappedAction) {
+          executeAction(mappedAction)
+          showNotification(`陀螺仪触发: ${action}`, 'info')
+        }
       }
-    }, 500)
+    }, 800) // 增加间隔避免频繁触发
     
     return () => clearInterval(checkAction)
-  }, [gyroEnabled, detectAction])
+  }, [gyroEnabled, detectAction, executeAction])
 
   // 使用200种动作数据
   const actionList = useMemo(() => {
@@ -1611,6 +1627,35 @@ export const ARScene = ({ selectedFile }) => {
       highlight: action.category === 'combat' || action.category === 'dance' || action.category === 'special'
     }))
   }, [])
+
+  // 动作收藏和最近使用
+  const [favoriteActions, setFavoriteActions] = useLocalStorage('favoriteActions', [])
+  const [recentActions, setRecentActions] = useLocalStorage('recentActions', [])
+  const [showFavorites, setShowFavorites] = useState(false)
+
+  // 切换收藏
+  const toggleFavorite = useCallback((actionId) => {
+    setFavoriteActions(prev => {
+      if (prev.includes(actionId)) {
+        return prev.filter(id => id !== actionId)
+      }
+      return [...prev, actionId]
+    })
+  }, [setFavoriteActions])
+
+  // 添加到最近使用
+  const addToRecent = useCallback((actionId) => {
+    setRecentActions(prev => {
+      const filtered = prev.filter(id => id !== actionId)
+      return [actionId, ...filtered].slice(0, 10)
+    })
+  }, [setRecentActions])
+
+  // 增强的执行动作函数
+  const executeActionWithTracking = useCallback((action) => {
+    executeAction(action)
+    addToRecent(action)
+  }, [executeAction, addToRecent])
 
   // 动作搜索状态
   const [actionSearchQuery, setActionSearchQuery] = useState('')
