@@ -1,6 +1,29 @@
 import React, { useState, useEffect } from 'react'
 import './StageEffectsPanel.css'
 
+// 获取滤镜CSS样式
+const getFilterPreviewCSS = (filterType, intensity = 50) => {
+  const i = intensity / 100
+  switch (filterType) {
+    case 'warm':
+      return `sepia(${i * 0.5}) saturate(${1 + i * 0.3}) hue-rotate(-10deg)`
+    case 'cool':
+      return `saturate(${1 + i * 0.2}) hue-rotate(${i * 20}deg)`
+    case 'vintage':
+      return `sepia(${i * 0.8}) contrast(${1 + i * 0.2}) brightness(${1 - i * 0.1}) saturate(${1 - i * 0.3})`
+    case 'noir':
+      return `grayscale(${i}) contrast(${1 + i * 0.5})`
+    case 'dreamy':
+      return `saturate(${1 + i * 0.4}) brightness(${1 + i * 0.15}) blur(${i * 2}px)`
+    case 'sunset':
+      return `sepia(${i * 0.4}) saturate(${1 + i * 0.5}) hue-rotate(-${i * 30}deg)`
+    case 'cyber':
+      return `saturate(${1 + i * 0.8}) hue-rotate(${i * 40}deg) contrast(${1 + i * 0.3})`
+    default:
+      return 'none'
+  }
+}
+
 // 舞台效果调整面板
 export const StageEffectsPanel = ({
   isOpen,
@@ -229,7 +252,13 @@ export const StageEffectsPanel = ({
                         onClick={() => updateEffect('filter', 'type', filter.id)}
                         style={{ '--filter-color': filter.color }}
                       >
-                        <div className="filter-preview" style={{ background: filter.color }}></div>
+                        <div
+                          className="filter-preview"
+                          style={{
+                            background: filter.color,
+                            filter: filter.id !== 'none' ? getFilterPreviewCSS(filter.id, effects.filter.intensity) : 'none'
+                          }}
+                        ></div>
                         <span>{filter.name}</span>
                       </button>
                     ))}
@@ -245,6 +274,22 @@ export const StageEffectsPanel = ({
                       onChange={(e) => updateEffect('filter', 'intensity', parseInt(e.target.value))}
                     />
                     <span>{effects.filter.intensity}%</span>
+                  </div>
+
+                  {/* 实时预览提示 */}
+                  <div style={{
+                    padding: '12px',
+                    background: 'rgba(0, 212, 255, 0.1)',
+                    borderRadius: '12px',
+                    border: '1px solid rgba(0, 212, 255, 0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}>
+                    <span style={{ fontSize: '16px' }}>👁️</span>
+                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.8)' }}>
+                      滤镜效果已实时应用到主场景
+                    </span>
                   </div>
                 </>
               )}

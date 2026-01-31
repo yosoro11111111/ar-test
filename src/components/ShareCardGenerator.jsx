@@ -45,6 +45,7 @@ const ShareCardGenerator = ({ isOpen, onClose, canvasRef, characters, currentAct
   const [cardStyle, setCardStyle] = useState('default')
   const [cardTitle, setCardTitle] = useState('我的AR拍照')
   const [cardSubtitle, setCardSubtitle] = useState('Created with AR Camera')
+  const [cardLines, setCardLines] = useState(['', '']) // 多行文字，初始2行
   const [showQRCode, setShowQRCode] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
   const [previewUrl, setPreviewUrl] = useState(null)
@@ -110,17 +111,41 @@ const ShareCardGenerator = ({ isOpen, onClose, canvasRef, characters, currentAct
       }
       ctx.fillRect(0, 0, width, height)
 
-      // 绘制3D场景（居中）
+      // 绘制3D场景（居中）- 保持原始比例
       const sceneSize = Math.min(width, height * 0.6)
       const sceneX = (width - sceneSize) / 2
       const sceneY = height * 0.15
+      
+      // 计算保持比例的绘制尺寸
+      const canvas3DAspect = canvas3D.width / canvas3D.height
+      let drawWidth, drawHeight, offsetX, offsetY
+      
+      if (canvas3DAspect > 1) {
+        // 3D画布更宽
+        drawWidth = sceneSize
+        drawHeight = sceneSize / canvas3DAspect
+        offsetX = sceneX
+        offsetY = sceneY + (sceneSize - drawHeight) / 2
+      } else {
+        // 3D画布更高
+        drawHeight = sceneSize
+        drawWidth = sceneSize * canvas3DAspect
+        offsetX = sceneX + (sceneSize - drawWidth) / 2
+        offsetY = sceneY
+      }
       
       // 添加圆角矩形裁剪
       ctx.save()
       ctx.beginPath()
       ctx.roundRect(sceneX, sceneY, sceneSize, sceneSize, 30)
       ctx.clip()
-      ctx.drawImage(canvas3D, sceneX, sceneY, sceneSize, sceneSize)
+      
+      // 绘制背景色（填充空白区域）
+      ctx.fillStyle = '#1a1a2e'
+      ctx.fillRect(sceneX, sceneY, sceneSize, sceneSize)
+      
+      // 绘制3D场景，保持比例
+      ctx.drawImage(canvas3D, offsetX, offsetY, drawWidth, drawHeight)
       ctx.restore()
 
       // 添加装饰边框
@@ -143,22 +168,38 @@ const ShareCardGenerator = ({ isOpen, onClose, canvasRef, characters, currentAct
       ctx.fillStyle = textColor === '#ffffff' ? 'rgba(255, 255, 255, 0.8)' : 'rgba(0, 0, 0, 0.6)'
       ctx.fillText(cardSubtitle, width / 2, sceneY + sceneSize + 160)
 
+      // 绘制多行内容
+      let currentY = sceneY + sceneSize + 210
+      const lineHeight = 45
+      const validLines = cardLines.filter(line => line.trim() !== '')
+      
+      if (validLines.length > 0) {
+        ctx.font = '32px Arial, sans-serif'
+        ctx.fillStyle = textColor === '#ffffff' ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.5)'
+        
+        validLines.forEach((line) => {
+          ctx.fillText(line, width / 2, currentY)
+          currentY += lineHeight
+        })
+      }
+
       // 绘制角色信息
       if (characters && characters.length > 0) {
         const activeCharacters = characters.filter(c => c)
         if (activeCharacters.length > 0) {
-          ctx.font = '32px Arial, sans-serif'
-          ctx.fillStyle = textColor === '#ffffff' ? 'rgba(255, 255, 255, 0.6)' : 'rgba(0, 0, 0, 0.4)'
+          ctx.font = '28px Arial, sans-serif'
+          ctx.fillStyle = textColor === '#ffffff' ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.3)'
           const charNames = activeCharacters.map(c => c.name).join(' · ')
-          ctx.fillText(`角色: ${charNames}`, width / 2, sceneY + sceneSize + 220)
+          ctx.fillText(`角色: ${charNames}`, width / 2, currentY + 20)
+          currentY += 50
         }
       }
 
       // 绘制动作信息
       if (currentAction) {
-        ctx.font = '28px Arial, sans-serif'
-        ctx.fillStyle = textColor === '#ffffff' ? 'rgba(255, 255, 255, 0.5)' : 'rgba(0, 0, 0, 0.3)'
-        ctx.fillText(`动作: ${currentAction}`, width / 2, sceneY + sceneSize + 260)
+        ctx.font = '24px Arial, sans-serif'
+        ctx.fillStyle = textColor === '#ffffff' ? 'rgba(255, 255, 255, 0.4)' : 'rgba(0, 0, 0, 0.2)'
+        ctx.fillText(`动作: ${currentAction}`, width / 2, currentY + 20)
       }
 
       // 绘制底部信息
@@ -193,7 +234,7 @@ const ShareCardGenerator = ({ isOpen, onClose, canvasRef, characters, currentAct
     } finally {
       setIsGenerating(false)
     }
-  }, [canvasRef, cardStyle, cardTitle, cardSubtitle, characters, currentAction])
+  }, [canvasRef, cardStyle, cardTitle, cardSubtitle, cardLines, characters, currentAction])
 
   // 下载卡片
   const downloadCard = useCallback(() => {
@@ -262,7 +303,7 @@ const ShareCardGenerator = ({ isOpen, onClose, canvasRef, characters, currentAct
           </div>
         </div>
 
-        {/* 文字编辑 */}
+        {/* 文字编辑 - 多行支持 */}
         <div className="text-section">
           <h4>编辑卡片文字</h4>
           <input
@@ -279,6 +320,45 @@ const ShareCardGenerator = ({ isOpen, onClose, canvasRef, characters, currentAct
             placeholder="副标题"
             className="text-input"
           />
+          
+          {/* 多行文字输入 */}
+          <div className="multi-line-section">
+            <h5>卡片内容（最多5行）</h5>
+            {cardLines.map((line, index) => (
+              <input
+                key={index}
+                type="text"
+                value={line}
+                onChange={(e) => {
+                  const newLines = [...cardLines]
+                  newLines[index] = e.target.value
+                  setCardLines(newLines)
+                }}
+                placeholder={`第${index + 1}行`}
+                className="text-input line-input"
+              />
+            ))}
+            
+            {/* 添加/删除行按钮 */}
+            <div className="line-controls">
+              {cardLines.length < 5 && (
+                <button
+                  className="add-line-btn"
+                  onClick={() => setCardLines([...cardLines, ''])}
+                >
+                  ➕ 添加一行
+                </button>
+              )}
+              {cardLines.length > 2 && (
+                <button
+                  className="remove-line-btn"
+                  onClick={() => setCardLines(cardLines.slice(0, -1))}
+                >
+                  ➖ 删除一行
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* 选项 */}

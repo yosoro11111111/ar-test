@@ -117,8 +117,27 @@ export const VideoRecorder = ({
         ctx.drawImage(video, offsetX, offsetY, drawWidth, drawHeight)
       }
       
-      // 绘制3D模型（叠加在视频上方）
-      ctx.drawImage(threeCanvas, 0, 0, width, height)
+      // 绘制3D模型（叠加在视频上方）- 保持原始比例
+      const threeCanvasAspect = threeCanvas.width / threeCanvas.height
+      const outputAspect = width / height
+      
+      let modelDrawWidth, modelDrawHeight, modelOffsetX, modelOffsetY
+      
+      if (threeCanvasAspect > outputAspect) {
+        // 3D画布更宽，以宽度为基准
+        modelDrawWidth = width
+        modelDrawHeight = width / threeCanvasAspect
+        modelOffsetX = 0
+        modelOffsetY = (height - modelDrawHeight) / 2
+      } else {
+        // 3D画布更高，以高度为基准
+        modelDrawHeight = height
+        modelDrawWidth = height * threeCanvasAspect
+        modelOffsetX = (width - modelDrawWidth) / 2
+        modelOffsetY = 0
+      }
+      
+      ctx.drawImage(threeCanvas, modelOffsetX, modelOffsetY, modelDrawWidth, modelDrawHeight)
       
       // 添加水印
       ctx.fillStyle = 'rgba(255, 255, 255, 0.5)'
