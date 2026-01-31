@@ -5,6 +5,10 @@ import * as THREE from 'three'
 import { CharacterController } from './CharacterSystem'
 import modelList from '../models/modelList'
 import VideoRecorder from './VideoRecorder'
+import PlaylistPanel from './PlaylistPanel'
+import StageEffectsPanel from './StageEffectsPanel'
+import SceneManager from './SceneManager'
+import PosePanel from './PosePanel'
 import { actions as actionList200, actionCategories, searchActions } from '../data/actions200'
 import { furnitureList, furnitureCategories, getFurnitureByCategory, searchFurniture } from '../data/furniture'
 import useGyroscope from '../hooks/useGyroscope'
@@ -1982,6 +1986,12 @@ export const ARScene = ({ selectedFile }) => {
   // 舞台效果面板状态
   const [showStageEffects, setShowStageEffects] = useState(false)
 
+  // 场景管理面板状态
+  const [showSceneManager, setShowSceneManager] = useState(false)
+
+  // 姿势面板状态
+  const [showPosePanel, setShowPosePanel] = useState(false)
+
   // 人物管理面板状态
   const [showCharacterManager, setShowCharacterManager] = useState(false)
   const [characterSearchQuery, setCharacterSearchQuery] = useState('')
@@ -3859,6 +3869,54 @@ export const ARScene = ({ selectedFile }) => {
           ✨
         </button>
 
+        {/* 场景管理按钮 */}
+        <button
+          onClick={() => setShowSceneManager(true)}
+          style={{
+            width: isMobile ? '48px' : '56px',
+            height: isMobile ? '48px' : '56px',
+            borderRadius: '16px',
+            background: showSceneManager
+              ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+              : 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isMobile ? '20px' : '24px',
+            cursor: 'pointer',
+            color: 'white',
+            transition: 'all 0.3s ease'
+          }}
+          title="场景管理"
+        >
+          💾
+        </button>
+
+        {/* 姿势面板按钮 */}
+        <button
+          onClick={() => setShowPosePanel(true)}
+          style={{
+            width: isMobile ? '48px' : '56px',
+            height: isMobile ? '48px' : '56px',
+            borderRadius: '16px',
+            background: showPosePanel
+              ? 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)'
+              : 'linear-gradient(135deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isMobile ? '20px' : '24px',
+            cursor: 'pointer',
+            color: 'white',
+            transition: 'all 0.3s ease'
+          }}
+          title="姿势库"
+        >
+          🎭
+        </button>
+
         {/* 陀螺仪控制按钮 */}
         {gyroSupported && (
           <button
@@ -4201,6 +4259,45 @@ export const ARScene = ({ selectedFile }) => {
         canvasRef={canvasRef}
         videoRef={videoRef}
         isMobile={isMobile}
+      />
+
+      {/* 播放列表面板 */}
+      <PlaylistPanel
+        isOpen={showPlaylist}
+        onClose={() => setShowPlaylist(false)}
+        onPlayAction={(action) => {
+          console.log('播放动作:', action)
+          // 触发角色动作
+          if (selectedCharacterIndex !== null && characters[selectedCharacterIndex]) {
+            setCurrentAction(action.id)
+          }
+        }}
+        isMobile={isMobile}
+      />
+
+      {/* 舞台效果面板 */}
+      <StageEffectsPanel
+        isOpen={showStageEffects}
+        onClose={() => setShowStageEffects(false)}
+        isMobile={isMobile}
+      />
+
+      {/* 场景管理面板 */}
+      <SceneManager
+        isOpen={showSceneManager}
+        onClose={() => setShowSceneManager(false)}
+        isMobile={isMobile}
+      />
+
+      {/* 姿势面板 */}
+      <PosePanel
+        isOpen={showPosePanel}
+        onClose={() => setShowPosePanel(false)}
+        onSelectPose={(pose, options) => {
+          console.log('选择姿势:', pose)
+          setCurrentAction(pose.id)
+        }}
+        currentPose={currentAction}
       />
     </div>
   )
