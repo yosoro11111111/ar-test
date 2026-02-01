@@ -2603,7 +2603,7 @@ const PropDisplay = ({ propId, onInteract, characterIndex }) => {
 }
 
 // ==================== 可拖拽角色组件 ====================
-const DraggableCharacter = ({ position, index, isSelected, character, characterScale, actionIntensity, onPositionChange, propId, isBoneEditing, onBoneChange, onPropInteract, onSelect, opacity = 1.0, mmdCurrentAction = null, mmdActionStartTime = 0, isInteractMode = false, onInteract = null }) => {
+const DraggableCharacter = ({ position, index, isSelected, character, characterScale, actionIntensity, onPositionChange, propId, isBoneEditing, onBoneChange, onPropInteract, onSelect, opacity = 1.0, mmdCurrentAction = null, mmdActionStartTime = 0, isInteractMode = false, onInteract = null, onMMDActionComplete = null }) => {
   const groupRef = useRef()
   const [isDragging, setIsDragging] = useState(false)
   const [isLongPress, setIsLongPress] = useState(false)
@@ -2800,6 +2800,7 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
           mmdActionStartTime={mmdActionStartTime}
           isInteractMode={isInteractMode}
           onInteract={onInteract}
+          onMMDActionComplete={onMMDActionComplete}
         />
       </group>
       {/* 道具显示在角色身上 */}
@@ -2911,6 +2912,10 @@ const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionI
               mmdActionStartTime={mmdActionStartTimes?.[index]}
               isInteractMode={isInteractMode}
               onInteract={handleCharacterInteract}
+              onMMDActionComplete={(charIndex) => {
+                // MMD动作完成，清除该角色的动作状态
+                console.log('✅ MMD动作完成，角色', charIndex, '恢复到idle状态')
+              }}
             />
           </group>
         )

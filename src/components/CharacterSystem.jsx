@@ -730,7 +730,7 @@ const ExpressionSystem = ({ vrmModel, actionType, intensity = 1.0, isPlaying = t
   return null
 }
 
-const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null, isBoneEditing = false, onBoneChange = null, scale: externalScale = 1.0, actionIntensity: externalActionIntensity = 1.0, opacity: externalOpacity = 1.0, mmdCurrentAction = null, mmdActionStartTime = 0, isInteractMode = false, onInteract = null }) => {
+const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null, isBoneEditing = false, onBoneChange = null, scale: externalScale = 1.0, actionIntensity: externalActionIntensity = 1.0, opacity: externalOpacity = 1.0, mmdCurrentAction = null, mmdActionStartTime = 0, isInteractMode = false, onInteract = null, onMMDActionComplete = null }) => {
   const { isMobile } = useMobileDetect()
   const { scene, gl, camera, clock } = useThree()
   const characterRef = useRef(null)
@@ -755,6 +755,9 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
   // 骨骼查找缓存 - 避免每帧都查找骨骼
   const boneCache = useRef(new Map())
   const lastCacheClearTime = useRef(0)
+  // 材质缓存 - 避免每帧遍历场景
+  const materialCache = useRef([])
+  const lastOpacity = useRef(externalOpacity)
   // 动画平滑滤波 - 减少抖动（减少到5帧历史）
   const boneRotationHistory = useRef(new Map())
   const bonePositionHistory = useRef(new Map())
@@ -1074,6 +1077,33 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
               
               setVrmModel(vrm)
               
+              // 建立骨骼缓存映射表 - 性能优化
+              if (vrm.humanoid) {
+                boneCache.current.clear()
+                Object.keys(MMD_TO_VRM_BONE_MAP).forEach(boneName => {
+                  const vrmBoneName = MMD_TO_VRM_BONE_MAP[boneName]
+                  let bone = null
+                  
+                  // 尝试多种方式查找骨骼
+                  if (typeof vrm.humanoid.getRawBoneNode === 'function') {
+                    bone = vrm.humanoid.getRawBoneNode(vrmBoneName)
+                  }
+                  if (!bone && typeof vrm.humanoid.getNormalizedBoneNode === 'function') {
+                    bone = vrm.humanoid.getNormalizedBoneNode(vrmBoneName)
+                  }
+                  if (!bone && vrm.scene) {
+                    bone = vrm.scene.getObjectByName(vrmBoneName) ||
+                           vrm.scene.getObjectByName(`J_Bip_C_${vrmBoneName}`) ||
+                           vrm.scene.getObjectByName(boneName)
+                  }
+                  
+                  if (bone) {
+                    boneCache.current.set(boneName, bone)
+                  }
+                })
+                console.log('✅ 骨骼缓存已建立，共', boneCache.current.size, '个骨骼')
+              }
+              
               // 将 vrm 模型暴露到 window，供移动端骨骼编辑器使用
               window.vrmModels = window.vrmModels || {}
               // 使用文件名作为 key，确保 MobileBoneEditor 可以通过 character.path 找到
@@ -1084,6 +1114,19 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
               vrm.scene.position.set(0, 0, 0)
               vrm.scene.rotation.set(0, Math.PI, 0) // 旋转180度，让模型面对用户
               vrm.scene.scale.set(1, 1, 1)
+              
+              // 建立材质缓存 - 性能优化
+              materialCache.current = []
+              vrm.scene.traverse((obj) => {
+                if (obj.isMesh && obj.material) {
+                  if (Array.isArray(obj.material)) {
+                    materialCache.current.push(...obj.material)
+                  } else {
+                    materialCache.current.push(obj.material)
+                  }
+                }
+              })
+              console.log('✅ 材质缓存已建立，共', materialCache.current.length, '个材质')
               
               characterRef.current = vrm.scene
               setCharacterModel(vrm.scene)
@@ -3167,23 +3210,14 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
     // MMD动作优先级高于骨骼编辑
     
     try {
-      // 模型透明度处理
-      if (vrmModel && vrmModel.scene) {
-        vrmModel.scene.traverse((obj) => {
-          if (obj.isMesh && obj.material) {
-            if (Array.isArray(obj.material)) {
-              obj.material.forEach(mat => {
-                mat.transparent = true
-                mat.opacity = opacity
-                mat.needsUpdate = true
-              })
-            } else {
-              obj.material.transparent = true
-              obj.material.opacity = opacity
-              obj.material.needsUpdate = true
-            }
-          }
+      // 模型透明度处理 - 使用缓存优化，仅在opacity变化时更新
+      if (vrmModel && materialCache.current.length > 0 && opacity !== lastOpacity.current) {
+        materialCache.current.forEach(mat => {
+          mat.transparent = true
+          mat.opacity = opacity
+          mat.needsUpdate = true
         })
+        lastOpacity.current = opacity
       }
       
       // MMD动作系统处理
@@ -3197,6 +3231,16 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
       if (canPlayMMD) {
         const currentTime = Date.now()
         const elapsedTime = currentTime - mmdActionStartTime
+        const actionDuration = mmdCurrentAction.duration || 3000
+        
+        // 动作播放结束检测 - 只播放一遍后停止
+        if (elapsedTime >= actionDuration) {
+          // 动作结束，清除当前动作，恢复到idle状态
+          if (onMMDActionComplete) {
+            onMMDActionComplete(index)
+          }
+          return
+        }
         
         // 动作开始时保存初始状态并执行过渡
         if (elapsedTime < 100) {
@@ -3243,27 +3287,29 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
         let missingBoneCount = 0
         
         Object.entries(boneData).forEach(([boneName, transform]) => {
-          // 将MMD骨骼名称映射到VRM标准骨骼名称
-          const vrmBoneName = MMD_TO_VRM_BONE_MAP[boneName] || boneName
+          // 优先从缓存获取骨骼 - 性能优化
+          let bone = boneCache.current.get(boneName)
           
-          // 简化骨骼查找 - 直接使用VRM API
-          let bone = null
-          
-          // 方式1: 使用getRawBoneNode方法（VRM 1.0原始骨骼）
-          if (typeof vrmModel.humanoid.getRawBoneNode === 'function') {
-            bone = vrmModel.humanoid.getRawBoneNode(vrmBoneName)
-          }
-          
-          // 方式2: 使用getNormalizedBoneNode方法（备用）
-          if (!bone && typeof vrmModel.humanoid.getNormalizedBoneNode === 'function') {
-            bone = vrmModel.humanoid.getNormalizedBoneNode(vrmBoneName)
-          }
-          
-          // 方式3: 直接从场景查找（简单匹配）
-          if (!bone && vrmModel.scene) {
-            bone = vrmModel.scene.getObjectByName(vrmBoneName) ||
-                   vrmModel.scene.getObjectByName(`J_Bip_C_${vrmBoneName}`) ||
-                   vrmModel.scene.getObjectByName(boneName)
+          // 缓存未命中时实时查找（备用）
+          if (!bone) {
+            const vrmBoneName = MMD_TO_VRM_BONE_MAP[boneName] || boneName
+            
+            if (typeof vrmModel.humanoid.getRawBoneNode === 'function') {
+              bone = vrmModel.humanoid.getRawBoneNode(vrmBoneName)
+            }
+            if (!bone && typeof vrmModel.humanoid.getNormalizedBoneNode === 'function') {
+              bone = vrmModel.humanoid.getNormalizedBoneNode(vrmBoneName)
+            }
+            if (!bone && vrmModel.scene) {
+              bone = vrmModel.scene.getObjectByName(vrmBoneName) ||
+                     vrmModel.scene.getObjectByName(`J_Bip_C_${vrmBoneName}`) ||
+                     vrmModel.scene.getObjectByName(boneName)
+            }
+            
+            // 找到后加入缓存
+            if (bone) {
+              boneCache.current.set(boneName, bone)
+            }
           }
           
           if (bone) {
