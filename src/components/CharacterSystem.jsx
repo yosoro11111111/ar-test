@@ -3225,10 +3225,6 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
           console.error('❌ interpolateKeyframes 错误:', error)
           boneData = {}
         }
-              位置: firstBone.position?.map(v => v.toFixed(3))
-            })
-          }
-        }
         
         // 检查boneData是否有效
         if (!boneData || Object.keys(boneData).length === 0) {
