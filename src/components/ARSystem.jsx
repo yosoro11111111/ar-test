@@ -3316,8 +3316,6 @@ export const ARScene = ({ selectedFile }) => {
 
   // 执行动作 - 立即响应
   const executeAction = useCallback((action) => {
-    console.log('🔥 executeAction 被调用:', action, '选中角色:', selectedCharacterIndex)
-    
     if (window.dispatchEvent) {
       window.dispatchEvent(new CustomEvent('executeAction', { detail: { action, actionName: action, intensity: actionIntensity[selectedCharacterIndex], characterIndex: selectedCharacterIndex } }))
     }
@@ -3325,21 +3323,17 @@ export const ARScene = ({ selectedFile }) => {
     // 如果是MMD动作系统，查找对应的动作并触发（只针对选中的角色）
     if (useMMDActions) {
       const mmdAction = mmdActions.find(a => a.id === action)
-      console.log('🔍 查找MMD动作:', action, '找到:', mmdAction ? mmdAction.name : '未找到')
       
       if (mmdAction) {
         // 只为选中的角色设置MMD动作
-        console.log('✅ 设置MMD动作到角色', selectedCharacterIndex, ':', mmdAction.name)
         setMmdCurrentActions(prev => {
           const updated = [...prev]
           updated[selectedCharacterIndex] = mmdAction
-          console.log('📝 mmdCurrentActions 更新:', updated)
           return updated
         })
         setMmdActionStartTimes(prev => {
           const updated = [...prev]
           updated[selectedCharacterIndex] = Date.now()
-          console.log('📝 mmdActionStartTimes 更新:', updated)
           return updated
         })
         setCurrentAction(action)
@@ -3371,23 +3365,16 @@ export const ARScene = ({ selectedFile }) => {
 
   // 执行MMD动作（用于交互模式等）
   const executeMMDAction = useCallback((action, characterIndex) => {
-    if (!action) {
-      console.warn('⚠️ executeMMDAction: action为空')
-      return
-    }
-    
-    console.log('🎭 executeMMDAction 被调用:', action.name, '角色:', characterIndex)
+    if (!action) return
     
     setMmdCurrentActions(prev => {
       const updated = [...prev]
       updated[characterIndex] = action
-      console.log('📝 mmdCurrentActions 更新:', updated)
       return updated
     })
     setMmdActionStartTimes(prev => {
       const updated = [...prev]
       updated[characterIndex] = Date.now()
-      console.log('📝 mmdActionStartTimes 更新:', updated)
       return updated
     })
     setCurrentAction(action.id)

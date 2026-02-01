@@ -3192,47 +3192,11 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
       if (!window.mmdFrameStats) {
         window.mmdFrameStats = { lastTime: now, frameCount: 0, fps: 0 }
       }
-      window.mmdFrameStats.frameCount++
-      if (now - window.mmdFrameStats.lastTime >= 1000) {
-        window.mmdFrameStats.fps = window.mmdFrameStats.frameCount
-        console.log('📊 FPS:', window.mmdFrameStats.fps)
-        window.mmdFrameStats.frameCount = 0
-        window.mmdFrameStats.lastTime = now
-      }
-      
-      // 调试：输出canPlayMMD的各个条件
-      if (mmdCurrentAction && Math.random() < 0.01) {
-        console.log('🔍 MMD播放条件检查:', {
-          hasAction: !!mmdCurrentAction,
-          hasModel: !!vrmModel,
-          hasHumanoid: !!(vrmModel && vrmModel.humanoid),
-          startTime: mmdActionStartTime,
-          startTimeValid: mmdActionStartTime > 0
-        })
-      }
-      
       const canPlayMMD = mmdCurrentAction && vrmModel && vrmModel.humanoid && mmdActionStartTime > 0
       
       if (canPlayMMD) {
         const currentTime = Date.now()
         const elapsedTime = currentTime - mmdActionStartTime
-        
-        // 调试：输出elapsedTime
-        if (Math.random() < 0.01) {
-          console.log('⏱️ MMD elapsedTime:', elapsedTime, 'ms')
-        }
-        
-        // 检测MMD更新频率
-        if (!window.mmdUpdateStats) {
-          window.mmdUpdateStats = { lastTime: currentTime, updateCount: 0, updatesPerSecond: 0 }
-        }
-        window.mmdUpdateStats.updateCount++
-        if (currentTime - window.mmdUpdateStats.lastTime >= 1000) {
-          window.mmdUpdateStats.updatesPerSecond = window.mmdUpdateStats.updateCount
-          console.log('🎬 MMD更新频率:', window.mmdUpdateStats.updatesPerSecond, '次/秒')
-          window.mmdUpdateStats.updateCount = 0
-          window.mmdUpdateStats.lastTime = currentTime
-        }
         
         // 动作开始时保存初始状态并执行过渡
         if (elapsedTime < 100) {
@@ -3250,13 +3214,7 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
           // 动作切换时记录
           if (!mmdPreviousAction.current || mmdPreviousAction.current.id !== mmdCurrentAction.id) {
             mmdPreviousAction.current = mmdCurrentAction
-            console.log('🔄 动作切换:', mmdCurrentAction.name)
           }
-        }
-        
-        // 调试日志 - 每500ms输出一次
-        if (elapsedTime % 500 < 50) {
-          console.log('🎬 MMD动作播放中:', mmdCurrentAction.name, '已用时间:', elapsedTime + 'ms', 'vrmModel:', !!vrmModel, 'humanoid:', !!vrmModel.humanoid)
         }
         
         // 应用MMD动作（interpolateKeyframes内部已经处理了循环）
@@ -3267,17 +3225,6 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
           console.error('❌ interpolateKeyframes 错误:', error)
           boneData = {}
         }
-        
-        // 调试日志 - 每2秒输出一次避免刷屏
-        if (elapsedTime < 100 || elapsedTime % 2000 < 50) {
-          console.log('🎭 MMD动作播放中:', mmdCurrentAction.name, '骨骼数量:', Object.keys(boneData).length, '已用时间:', elapsedTime + 'ms')
-          
-          // 输出第一个骨骼的数据作为示例
-          const firstBoneName = Object.keys(boneData)[0]
-          if (firstBoneName) {
-            const firstBone = boneData[firstBoneName]
-            console.log('📋 示例骨骼数据:', firstBoneName, {
-              旋转: firstBone.rotation?.map(v => v.toFixed(3)),
               位置: firstBone.position?.map(v => v.toFixed(3))
             })
           }
@@ -3322,29 +3269,15 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
             
             // 应用旋转（MMD动作主要使用旋转）
             if (transform.rotation && Array.isArray(transform.rotation)) {
-              // 直接应用旋转，只进行坐标系转换
               const [rx, ry, rz] = transform.rotation
-              
-              // 调试日志：记录旋转值变化（只记录leftUpperArm作为示例）
-              if (boneName === 'leftUpperArm' && Math.random() < 0.05) {
-                console.log('🦴 骨骼更新:', boneName, {
-                  输入旋转: [rx.toFixed(3), ry.toFixed(3), rz.toFixed(3)],
-                  应用旋转: [rx.toFixed(3), (-ry).toFixed(3), rz.toFixed(3)],
-                  当前旋转: [bone.rotation.x.toFixed(3), bone.rotation.y.toFixed(3), bone.rotation.z.toFixed(3)]
-                })
-              }
-              
               // MMD到Three.js坐标系转换：Y轴旋转需要取反
               bone.rotation.set(rx, -ry, rz, 'XYZ')
             }
             
-            // 应用位置（如果有）- 使用相对偏移，基于模型当前位置
+            // 应用位置（只对hips骨骼）
             if (transform.position && Array.isArray(transform.position)) {
               const [px, py, pz] = transform.position
-              // 只对特定骨骼应用位置变化（如hips）
               if (boneName === 'hips' || vrmBoneName === 'hips') {
-                // 使用模型的当前位置（position prop）作为基准，加上MMD动作的偏移
-                // 这样即使模型被移动，动作也会跟随模型
                 bone.position.set(
                   position[0] + px,
                   position[1] + py,
@@ -3354,18 +3287,8 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
             }
           } else {
             missingBoneCount++
-            // 调试日志 - 只在动作开始时输出，且只输出一次
-            if (elapsedTime < 200 && !boneCache.current.has(`missing_${boneName}`)) {
-              console.log('⚠️ 无法找到骨骼:', boneName, '->', vrmBoneName, '(将跳过此骨骼)')
-              boneCache.current.set(`missing_${boneName}`, true)
-            }
           }
         })
-        
-        // 调试日志 - 每500ms输出一次统计
-        if (elapsedTime % 500 < 50) {
-          console.log('📊 MMD骨骼更新统计:', '成功:', updatedBoneCount, '失败:', missingBoneCount, '总计:', Object.keys(boneData).length)
-        }
       }
       
       // VRM update 会覆盖骨骼动画，所以在执行MMD动作时跳过
@@ -3373,11 +3296,7 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
         if (!mmdCurrentAction) {
           vrmModel.update(delta)
         } else {
-          // 调试：检测MMD动作播放时VRM update是否被跳过
-          if (Math.random() < 0.01) {
-            console.log('⏭️ VRM update被跳过（MMD动作播放中）')
-          }
-          // 关键修复：即使跳过vrmModel.update()，也要更新VRM的其他系统（如blendShape），但不更新骨骼
+          // 即使跳过vrmModel.update()，也要更新VRM的其他系统（如blendShape），但不更新骨骼
           if (vrmModel.expressionManager) {
             vrmModel.expressionManager.update(delta)
           }
