@@ -12,12 +12,16 @@ import PosePanel from './PosePanel'
 import ActionRecorder from './ActionRecorder'
 import SceneTemplatePanel from './SceneTemplatePanel'
 import ShareCardGenerator from './ShareCardGenerator'
-import { actions as actionList250, actionCategories, searchActions } from '../data/actions250'
+import ModelDownloader from './ModelDownloader'
+import StageEffects from './StageEffects'
+// MMD动作系统 - 替换原有动作系统
+import { mmdActions, mmdActionCategories, interpolateKeyframes } from '../data/mmdActions'
 import { poseBoneData } from '../data/poseBoneData'
 import { sceneTemplates, getSceneTemplate } from '../data/sceneTemplates'
 import { furnitureList, furnitureCategories, getFurnitureByCategory, searchFurniture } from '../data/furniture'
-import useGyroscope from '../hooks/useGyroscope'
-import useVoiceControl from '../hooks/useVoiceControl'
+import actions from '../data/actions250'
+import { useGyroscope } from '../hooks/useGyroscope'
+import { useVoiceControl } from '../hooks/useVoiceControl'
 
 // ==================== 分步引导组件 ====================
 const TutorialGuide = ({ isMobile, onClose }) => {
@@ -2122,17 +2126,23 @@ const PropDisplay = ({ propId, onInteract, characterIndex }) => {
     return null
   }
 
-  // 获取交互动作名称
+  // 获取交互动作名称 - 使用MMD动作
   const getInteractAction = () => {
-    const categoryActions = {
-      seat: 'sit',
-      bed: 'lie',
-      instrument: 'play',
-      tool: 'use',
-      accessory: 'equip',
-      decoration: 'hold'
+    // 优先使用家具定义的MMD动作
+    if (furniture.autoPose && furniture.autoPose.startsWith('mmd_')) {
+      return furniture.autoPose
     }
-    return furniture.autoPose || categoryActions[furniture.category] || 'use'
+    
+    // 默认MMD动作映射
+    const categoryActions = {
+      seat: 'mmd_furniture_0',      // 坐下
+      bed: 'mmd_furniture_2',       // 躺下
+      instrument: 'mmd_dance_10',   // 演奏
+      tool: 'mmd_cool_0',           // 使用工具
+      accessory: 'mmd_cool_3',      // 装备
+      decoration: 'mmd_cute_4'      // 拿装饰
+    }
+    return categoryActions[furniture.category] || 'mmd_idle'
   }
 
   // 获取交互按钮位置和颜色
@@ -2593,9 +2603,10 @@ const PropDisplay = ({ propId, onInteract, characterIndex }) => {
 }
 
 // ==================== 可拖拽角色组件 ====================
-const DraggableCharacter = ({ position, index, isSelected, character, characterScale, actionIntensity, onPositionChange, propId, isBoneEditing, onBoneChange, onPropInteract, onSelect, opacity = 1.0 }) => {
+const DraggableCharacter = ({ position, index, isSelected, character, characterScale, actionIntensity, onPositionChange, propId, isBoneEditing, onBoneChange, onPropInteract, onSelect, opacity = 1.0, mmdCurrentAction = null, mmdActionStartTime = 0 }) => {
   const groupRef = useRef()
   const [isDragging, setIsDragging] = useState(false)
+  const [isLongPress, setIsLongPress] = useState(false)
   const { camera, gl } = useThree()
   const dragPlane = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0))
   const raycaster = useRef(new THREE.Raycaster())
@@ -2603,14 +2614,34 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
   const offset = useRef(new THREE.Vector3())
   const clickStartTime = useRef(0)
   const clickStartPos = useRef({ x: 0, y: 0 })
+  const longPressTimer = useRef(null)
+  const isLongPressTriggered = useRef(false)
+  
+  // 触摸状态管理
+  const touchState = useRef({
+    startTime: 0,
+    startDistance: 0,
+    startScale: characterScale,
+    touches: [],
+    isPinching: false
+  })
 
   const handlePointerDown = (e) => {
     e.stopPropagation()
     clickStartTime.current = Date.now()
     clickStartPos.current = { x: e.pointer.x, y: e.pointer.y }
+    isLongPressTriggered.current = false
     
     // 选中角色（无论是新选中还是已选中）
     onSelect?.(index)
+    
+    // 设置长按定时器（500ms触发长按）
+    longPressTimer.current = setTimeout(() => {
+      isLongPressTriggered.current = true
+      setIsLongPress(true)
+      // 长按触发特殊效果或菜单
+      console.log('长按角色', index)
+    }, 500)
     
     // 开始拖拽
     setIsDragging(true)
@@ -2624,6 +2655,18 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
   }
 
   const handlePointerMove = (e) => {
+    // 如果移动距离超过阈值，取消长按
+    if (clickStartPos.current) {
+      const dx = e.pointer.x - clickStartPos.current.x
+      const dy = e.pointer.y - clickStartPos.current.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      
+      if (distance > 0.05 && longPressTimer.current) {
+        clearTimeout(longPressTimer.current)
+        longPressTimer.current = null
+      }
+    }
+    
     if (!isDragging) return
     e.stopPropagation()
 
@@ -2636,10 +2679,72 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
   }
 
   const handlePointerUp = (e) => {
+    // 清除长按定时器
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+    
+    // 检查是否是点击（短按且没有移动太多）
+    const clickDuration = Date.now() - clickStartTime.current
+    const dx = e.pointer.x - clickStartPos.current.x
+    const dy = e.pointer.y - clickStartPos.current.y
+    const distance = Math.sqrt(dx * dx + dy * dy)
+    
+    if (clickDuration < 200 && distance < 0.05 && !isLongPressTriggered.current) {
+      // 这是点击，可以触发点击效果
+      console.log('点击角色', index)
+    }
+    
     if (isDragging) {
       setIsDragging(false)
+      setIsLongPress(false)
       gl.domElement.releasePointerCapture(e.pointerId)
     }
+  }
+  
+  // 处理触摸事件（用于双指缩放）
+  const handleTouchStart = (e) => {
+    const touches = e.touches
+    touchState.current.touches = touches
+    touchState.current.startTime = Date.now()
+    
+    if (touches.length === 2) {
+      // 双指触摸，准备缩放
+      touchState.current.isPinching = true
+      const dx = touches[0].clientX - touches[1].clientX
+      const dy = touches[0].clientY - touches[1].clientY
+      touchState.current.startDistance = Math.sqrt(dx * dx + dy * dy)
+      touchState.current.startScale = characterScale
+      e.stopPropagation()
+    }
+  }
+  
+  const handleTouchMove = (e) => {
+    const touches = e.touches
+    
+    if (touches.length === 2 && touchState.current.isPinching) {
+      // 双指缩放
+      const dx = touches[0].clientX - touches[1].clientX
+      const dy = touches[0].clientY - touches[1].clientY
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      
+      if (touchState.current.startDistance > 0) {
+        const scale = (distance / touchState.current.startDistance) * touchState.current.startScale
+        const clampedScale = Math.max(0.3, Math.min(3.0, scale))
+        
+        // 触发缩放事件
+        window.dispatchEvent(new CustomEvent('characterScaleChange', {
+          detail: { index, scale: clampedScale }
+        }))
+      }
+      e.stopPropagation()
+    }
+  }
+  
+  const handleTouchEnd = (e) => {
+    touchState.current.isPinching = false
+    touchState.current.touches = e.touches
   }
 
   const fileToLoad = character.file || character
@@ -2651,6 +2756,9 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       {/* 选中人物的蓝色边缘光效果 */}
       {isSelected && (
@@ -2679,6 +2787,7 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
       )}
       <group visible={opacity > 0.01}>
         <CharacterController
+          index={index}
           position={[0, 0, 0]}
           rotation={[0, 0, 0]}
           selectedFile={fileToLoad}
@@ -2687,6 +2796,8 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
           isBoneEditing={isBoneEditing && isSelected}
           onBoneChange={onBoneChange}
           opacity={opacity}
+          mmdCurrentAction={mmdCurrentAction}
+          mmdActionStartTime={mmdActionStartTime}
         />
       </group>
       {/* 道具显示在角色身上 */}
@@ -2699,11 +2810,59 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
   )
 }
 
+// ==================== AR模式特效组件 ====================
+const AREffects = ({ effects }) => {
+  const groupRef = useRef()
+
+  useFrame((state) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y = state.clock.elapsedTime * 0.1
+    }
+  })
+
+  if (!effects?.particles?.enabled) return null
+
+  const particleCount = effects.particles?.intensity ? Math.floor(effects.particles.intensity * 2) : 50
+  const type = effects.particles?.type || 'snow'
+
+  const colors = {
+    snow: '#ffffff',
+    rain: '#54a0ff',
+    stars: '#ffd700',
+    fireflies: '#7bed9f',
+    petals: '#ff9ecd',
+    bubbles: '#00d4ff'
+  }
+
+  return (
+    <group ref={groupRef}>
+      {Array.from({ length: particleCount }).map((_, i) => (
+        <mesh
+          key={i}
+          position={[
+            (Math.random() - 0.5) * 10,
+            Math.random() * 5,
+            (Math.random() - 0.5) * 5 - 2
+          ]}
+        >
+          <sphereGeometry args={[0.02 + Math.random() * 0.03, 8, 8]} />
+          <meshBasicMaterial
+            color={colors[type] || colors.snow}
+            transparent
+            opacity={0.6}
+            blending={THREE.AdditiveBlending}
+          />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
 // ==================== 9. 3D场景内容 ====================
-const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionIntensity, isARMode, characterPositions, onPositionChange, characterProps, isBoneEditing, onBoneChange, onPropInteract, onSelectCharacter, showParticles, particleType, modelVisibility, modelOpacity }) => {
+const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionIntensity, isARMode, characterPositions, onPositionChange, characterProps, isBoneEditing, onBoneChange, onPropInteract, onSelectCharacter, showParticles, particleType, modelVisibility, modelOpacity, stageEffects, mmdCurrentActions, mmdActionStartTimes }) => {
   return (
     <>
-      {/* AR模式下不显示背景特效，避免挡住摄像头画面 */}
+      {/* 层级1: 背景特效（AR模式下不显示，避免挡住摄像头） */}
       {!isARMode && (
         <>
           <ParticleField enabled={showParticles} type={particleType} />
@@ -2712,7 +2871,15 @@ const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionI
         </>
       )}
 
-      {/* 渲染所有已加载的角色 */}
+      {/* 层级2: 舞台效果（在背景之后，模型之前） */}
+      {stageEffects?.particles?.enabled && (
+        <StageEffects effects={stageEffects} />
+      )}
+
+      {/* 层级3: AR模式下的特效（additive混合） */}
+      {isARMode && <AREffects effects={stageEffects} />}
+
+      {/* 层级4: 渲染所有已加载的角色（最前面） */}
       {characters.map((character, index) => {
         if (!character) return null
         // 如果模型被隐藏，不渲染
@@ -2738,6 +2905,8 @@ const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionI
               onPropInteract={onPropInteract}
               onSelect={onSelectCharacter}
               opacity={modelOpacity?.[index] ?? 1.0}
+              mmdCurrentAction={mmdCurrentActions?.[index]}
+              mmdActionStartTime={mmdActionStartTimes?.[index]}
             />
           </group>
         )
@@ -2751,7 +2920,16 @@ export const ARScene = ({ selectedFile }) => {
   const { isMobile, isTablet } = useMobileDetect()
   const { logs, addLog, clearLogs } = useDebugLog()
   const [showDebugPanel, setShowDebugPanel] = useState(false)
-  const [isToolbarExpanded, setIsToolbarExpanded] = useState(false)
+  // 工具栏分组折叠状态
+  const [toolbarGroups, setToolbarGroups] = useState({
+    main: true,      // 主要功能默认展开
+    appearance: false, // 外观功能默认折叠
+    system: false    // 系统功能默认折叠
+  })
+  const [quickAccessPinned, setQuickAccessPinned] = useState(() => {
+    const saved = localStorage.getItem('quickAccessPinned')
+    return saved ? JSON.parse(saved) : ['动作', '姿势', '特效', '设置']
+  })
   // 工具栏滑动状态
   const [toolbarOffsetY, setToolbarOffsetY] = useState(0)
   const [isToolbarDragging, setIsToolbarDragging] = useState(false)
@@ -2793,7 +2971,14 @@ export const ARScene = ({ selectedFile }) => {
   })
   const [isRandomMode, setIsRandomMode] = useState(false)
   const [currentAction, setCurrentAction] = useState('idle')
-  const [activeCategory, setActiveCategory] = useState('all')
+  // MMD动作系统状态 - 始终使用MMD动作
+  const useMMDActions = true
+  const [mmdActiveCategory, setMmdActiveCategory] = useState('all')
+  // MMD动作状态 - 每个角色独立
+  const [mmdCurrentActions, setMmdCurrentActions] = useState([null, null, null])
+  const [mmdActionStartTimes, setMmdActionStartTimes] = useState([0, 0, 0])
+  // MMD动作循环播放状态 - 存储正在循环播放的动作ID
+  const [loopingMMDActions, setLoopingMMDActions] = useState(new Set())
   const [notification, setNotification] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
   // 检查是否首次访问
@@ -2816,11 +3001,11 @@ export const ARScene = ({ selectedFile }) => {
   // 骨骼编辑模式
   const [isBoneEditing, setIsBoneEditing] = useState(false)
   
-  // 角色位置状态 - 支持拖拽移动
+  // 角色位置状态 - 支持拖拽移动（三个人左右排列，第一个人在中间）
   const [characterPositions, setCharacterPositions] = useState([
-    [-1.5, 0, 0],  // 角色0初始位置
-    [0, 0, 0],     // 角色1初始位置
-    [1.5, 0, 0]    // 角色2初始位置
+    [0, 0, 0],      // 角色0初始位置（中间，主角位置）- 基准位置
+    [-3, 0, 0],     // 角色1初始位置（左边3米）- 只有X不同
+    [3, 0, 0]       // 角色2初始位置（右边3米）- 只有X不同
   ])
 
   // 家具搜索状态
@@ -2886,6 +3071,9 @@ export const ARScene = ({ selectedFile }) => {
   // 人物管理面板状态
   const [showCharacterManager, setShowCharacterManager] = useState(false)
   const [characterSearchQuery, setCharacterSearchQuery] = useState('')
+
+  // 模型下载器状态
+  const [showModelDownloader, setShowModelDownloader] = useState(false)
   
   // 玩家自定义标签系统 - 存储在localStorage
   const [playerCustomTags, setPlayerCustomTags] = useState(() => {
@@ -2895,35 +3083,77 @@ export const ARScene = ({ selectedFile }) => {
   const [editingCharacterTags, setEditingCharacterTags] = useState(null)
   const [newTagInput, setNewTagInput] = useState('')
 
-  // 陀螺仪控制
-  const { 
-    isSupported: gyroSupported, 
-    isEnabled: gyroEnabled, 
-    toggleGyroscope,
-    getCharacterTransform,
-    detectAction
-  } = useGyroscope(false)
+  // 陀螺仪控制（暂时禁用）
+  const gyroSupported = false
+  const gyroEnabled = false
+  const toggleGyroscope = () => {}
+  const getCharacterTransform = () => ({ x: 0, y: 0, z: 0 })
+  const detectAction = () => null
   
-  // 监听陀螺仪动作
+  // 监听陀螺仪动作（暂时禁用）
+  // useEffect(() => {
+  //   if (!gyroEnabled) return
+  //   
+  //   const checkAction = setInterval(() => {
+  //     const action = detectAction()
+  //     if (action) {
+  //       console.log('陀螺仪检测到动作:', action)
+  //       // 可以根据检测到的动作触发相应动画
+  //       // executeAction(action)
+  //     }
+  //   }, 500)
+  //   
+  //   return () => clearInterval(checkAction)
+  // }, [gyroEnabled, detectAction])
+  
+  // 监听角色缩放变化事件（双指缩放）
   useEffect(() => {
-    if (!gyroEnabled) return
-    
-    const checkAction = setInterval(() => {
-      const action = detectAction()
-      if (action) {
-        console.log('陀螺仪检测到动作:', action)
-        // 可以根据检测到的动作触发相应动画
-        // executeAction(action)
+    const handleScaleChange = (e) => {
+      const { index, scale } = e.detail
+      if (index !== undefined && scale !== undefined) {
+        setCharacterScale(prev => {
+          const updated = [...prev]
+          updated[index] = scale
+          return updated
+        })
       }
-    }, 500)
+    }
     
-    return () => clearInterval(checkAction)
-  }, [gyroEnabled, detectAction])
+    window.addEventListener('characterScaleChange', handleScaleChange)
+    return () => window.removeEventListener('characterScaleChange', handleScaleChange)
+  }, [])
+
+  // MMD动作循环播放逻辑
+  useEffect(() => {
+    if (loopingMMDActions.size === 0) return
+    
+    const checkLoopInterval = setInterval(() => {
+      const currentAction = mmdCurrentActions[selectedCharacterIndex]
+      const startTime = mmdActionStartTimes[selectedCharacterIndex]
+      
+      if (currentAction && startTime > 0 && loopingMMDActions.has(currentAction.id)) {
+        const elapsed = Date.now() - startTime
+        const duration = currentAction.duration || 3000
+        
+        // 如果动作即将结束（剩余不到100ms），重新触发
+        if (elapsed >= duration - 100) {
+          console.log('🔄 循环播放动作:', currentAction.name)
+          setMmdActionStartTimes(prev => {
+            const updated = [...prev]
+            updated[selectedCharacterIndex] = Date.now()
+            return updated
+          })
+        }
+      }
+    }, 100) // 每100ms检查一次
+    
+    return () => clearInterval(checkLoopInterval)
+  }, [loopingMMDActions, mmdCurrentActions, mmdActionStartTimes, selectedCharacterIndex])
 
   // 使用250种动作数据
   const actionList = useMemo(() => {
     // 转换 actions250.js 的数据格式
-    return actionList250.map(action => ({
+    return actions.map(action => ({
       name: action.name,
       action: action.id,
       icon: action.icon,
@@ -2936,26 +3166,31 @@ export const ARScene = ({ selectedFile }) => {
   // 动作搜索状态
   const [actionSearchQuery, setActionSearchQuery] = useState('')
 
-  // 根据分类和搜索筛选动作
+  // 根据分类和搜索筛选MMD动作
   const filteredActions = useMemo(() => {
-    let filtered = actionList
-    
-    // 先按分类筛选
-    if (activeCategory !== 'all') {
-      filtered = filtered.filter(action => action.category === activeCategory)
+    // 调试日志
+    console.log('📋 mmdActions 数量:', mmdActions?.length || 0)
+    console.log('📂 当前分类:', mmdActiveCategory)
+
+    let filtered = mmdActions || []
+
+    // 按分类筛选
+    if (mmdActiveCategory !== 'all') {
+      filtered = filtered.filter(action => action.category === mmdActiveCategory)
     }
-    
-    // 再按搜索词筛选
+
+    // 按搜索词筛选
     if (actionSearchQuery.trim()) {
       const query = actionSearchQuery.toLowerCase()
-      filtered = filtered.filter(action => 
+      filtered = filtered.filter(action =>
         action.name.toLowerCase().includes(query) ||
-        action.action.toLowerCase().includes(query)
+        action.id.toLowerCase().includes(query)
       )
     }
-    
+
+    console.log('✅ 筛选后动作数量:', filtered.length)
     return filtered
-  }, [activeCategory, actionList, actionSearchQuery])
+  }, [mmdActiveCategory, actionSearchQuery])
 
   // 显示通知
   const showNotification = useCallback((message, type = 'info') => {
@@ -3073,11 +3308,44 @@ export const ARScene = ({ selectedFile }) => {
 
   // 执行动作 - 立即响应
   const executeAction = useCallback((action) => {
+    console.log('🔥 executeAction 被调用:', action, '选中角色:', selectedCharacterIndex)
+    
     if (window.dispatchEvent) {
-      window.dispatchEvent(new CustomEvent('executeAction', { detail: { action, actionName: action, intensity: actionIntensity[selectedCharacterIndex] } }))
+      window.dispatchEvent(new CustomEvent('executeAction', { detail: { action, actionName: action, intensity: actionIntensity[selectedCharacterIndex], characterIndex: selectedCharacterIndex } }))
     }
 
-    setCurrentAction(action)
+    // 如果是MMD动作系统，查找对应的动作并触发（只针对选中的角色）
+    if (useMMDActions) {
+      const mmdAction = mmdActions.find(a => a.id === action)
+      console.log('🔍 查找MMD动作:', action, '找到:', mmdAction ? mmdAction.name : '未找到')
+      
+      if (mmdAction) {
+        // 只为选中的角色设置MMD动作
+        console.log('✅ 设置MMD动作到角色', selectedCharacterIndex, ':', mmdAction.name)
+        setMmdCurrentActions(prev => {
+          const updated = [...prev]
+          updated[selectedCharacterIndex] = mmdAction
+          console.log('📝 mmdCurrentActions 更新:', updated)
+          return updated
+        })
+        setMmdActionStartTimes(prev => {
+          const updated = [...prev]
+          updated[selectedCharacterIndex] = Date.now()
+          console.log('📝 mmdActionStartTimes 更新:', updated)
+          return updated
+        })
+        setCurrentAction(action)
+        showNotification(`角色${selectedCharacterIndex + 1} MMD动作: ${mmdAction.name}`, 'success')
+      } else {
+        // 如果没有找到对应的MMD动作，使用默认方式
+        console.log('⚠️ 未找到MMD动作，使用默认方式:', action)
+        setCurrentAction(action)
+      }
+    } else {
+      // 非MMD动作系统
+      console.log('⚠️ MMD动作系统未启用')
+      setCurrentAction(action)
+    }
 
     if (action === 'combo') {
       setComboCount(prev => {
@@ -3091,7 +3359,7 @@ export const ARScene = ({ selectedFile }) => {
     } else {
       setComboCount(0)
     }
-  }, [actionIntensity, selectedCharacterIndex])
+  }, [actionIntensity, selectedCharacterIndex, useMMDActions, showNotification])
 
   // 切换摆动模式
   const toggleSwingMode = useCallback(() => {
@@ -3166,21 +3434,21 @@ export const ARScene = ({ selectedFile }) => {
     loadAutoSaved()
   }, [])
 
-  // 语音控制
-  const {
-    isListening,
-    transcript,
-    error: voiceError,
-    isSupported: isVoiceSupported,
-    toggleListening
-  } = useVoiceControl({
-    onCommand: (action, text) => {
-      console.log('语音指令:', action, '原文:', text)
-      executeAction(action)
-      showNotification(`语音指令: ${text}`, 'success')
-    },
-    enabled: showVoiceControl
-  })
+  // 语音控制（暂时禁用）
+  const isListening = false
+  const transcript = ''
+  const voiceError = null
+  const isVoiceSupported = false
+  const toggleListening = () => {}
+  
+  // useVoiceControl({
+  //   onCommand: (action, text) => {
+  //     console.log('语音指令:', action, '原文:', text)
+  //     executeAction(action)
+  //     showNotification(`语音指令: ${text}`, 'success')
+  //   },
+  //   enabled: showVoiceControl
+  // })
 
   // 旋转画布
   const rotateCanvas = useCallback(() => {
@@ -3648,6 +3916,21 @@ export const ARScene = ({ selectedFile }) => {
           cursor: pointer;
           box-shadow: 0 2px 10px rgba(255, 107, 157, 0.5);
         }
+        /* 设置面板滚动条样式 */
+        .settings-scroll-container::-webkit-scrollbar {
+          width: 6px;
+        }
+        .settings-scroll-container::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 3px;
+        }
+        .settings-scroll-container::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.2);
+          border-radius: 3px;
+        }
+        .settings-scroll-container::-webkit-scrollbar-thumb:hover {
+          background: rgba(255, 255, 255, 0.3);
+        }
       `}</style>
       
       {/* AR视频背景 - 确保在底层 */}
@@ -3736,6 +4019,9 @@ export const ARScene = ({ selectedFile }) => {
             particleType={particleType}
             modelVisibility={modelVisibility}
             modelOpacity={modelOpacity}
+            stageEffects={stageEffects}
+            mmdCurrentActions={mmdCurrentActions}
+            mmdActionStartTimes={mmdActionStartTimes}
             onBoneChange={(boneName, rotation) => {
               console.log('骨骼变化:', boneName, rotation)
             }}
@@ -3755,6 +4041,7 @@ export const ARScene = ({ selectedFile }) => {
             }}
             onSelectCharacter={(index) => {
               setSelectedCharacterIndex(index)
+              setSettingsTargetIndex(index)
             }}
           />
           
@@ -3988,7 +4275,9 @@ export const ARScene = ({ selectedFile }) => {
           position: 'absolute',
           top: '85px',
           right: '20px',
-          width: '320px',
+          width: isMobile ? 'calc(100vw - 40px)' : '320px',
+          maxWidth: '400px',
+          maxHeight: isMobile ? 'calc(100vh - 120px)' : '70vh',
           background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)',
           borderRadius: '24px',
           padding: '20px',
@@ -3996,7 +4285,10 @@ export const ARScene = ({ selectedFile }) => {
           boxShadow: '0 10px 40px rgba(0,0,0,0.4)',
           backdropFilter: 'blur(20px)',
           border: '1px solid rgba(255,255,255,0.1)',
-          animation: 'slideDown 0.3s ease'
+          animation: 'slideDown 0.3s ease',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
         }}>
           <div style={{
             display: 'flex',
@@ -4068,7 +4360,318 @@ export const ARScene = ({ selectedFile }) => {
             })}
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* 可滚动内容区域 */}
+          <div className="settings-scroll-container" style={{
+            flex: 1,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            paddingRight: '8px',
+            marginRight: '-8px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(255,255,255,0.3) transparent'
+          }}>
+            {/* 角色位置调整 */}
+            <div style={{
+              padding: '12px',
+              background: 'rgba(255,255,255,0.05)',
+              borderRadius: '12px'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '12px',
+                fontSize: '13px',
+                color: 'rgba(255,255,255,0.9)'
+              }}>
+                <span>📍</span>
+                <span>角色位置</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* X轴位置 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', width: '20px' }}>X</span>
+                  <input
+                    type="range"
+                    min="-10"
+                    max="10"
+                    step="0.1"
+                    value={characterPositions[settingsTargetIndex]?.[0] || 0}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value)
+                      setCharacterPositions(prev => {
+                        const updated = [...prev]
+                        updated[settingsTargetIndex] = [val, updated[settingsTargetIndex][1], updated[settingsTargetIndex][2]]
+                        return updated
+                      })
+                    }}
+                    style={{ flex: 1, height: '4px' }}
+                  />
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', width: '40px', textAlign: 'right' }}>
+                    {characterPositions[settingsTargetIndex]?.[0]?.toFixed(1) || 0}
+                  </span>
+                </div>
+                {/* Y轴位置 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', width: '20px' }}>Y</span>
+                  <input
+                    type="range"
+                    min="-5"
+                    max="5"
+                    step="0.1"
+                    value={characterPositions[settingsTargetIndex]?.[1] || 0}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value)
+                      setCharacterPositions(prev => {
+                        const updated = [...prev]
+                        updated[settingsTargetIndex] = [updated[settingsTargetIndex][0], val, updated[settingsTargetIndex][2]]
+                        return updated
+                      })
+                    }}
+                    style={{ flex: 1, height: '4px' }}
+                  />
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', width: '40px', textAlign: 'right' }}>
+                    {characterPositions[settingsTargetIndex]?.[1]?.toFixed(1) || 0}
+                  </span>
+                </div>
+                {/* Z轴位置 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', width: '20px' }}>Z</span>
+                  <input
+                    type="range"
+                    min="-10"
+                    max="10"
+                    step="0.1"
+                    value={characterPositions[settingsTargetIndex]?.[2] || 0}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value)
+                      setCharacterPositions(prev => {
+                        const updated = [...prev]
+                        updated[settingsTargetIndex] = [updated[settingsTargetIndex][0], updated[settingsTargetIndex][1], val]
+                        return updated
+                      })
+                    }}
+                    style={{ flex: 1, height: '4px' }}
+                  />
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.6)', width: '40px', textAlign: 'right' }}>
+                    {characterPositions[settingsTargetIndex]?.[2]?.toFixed(1) || 0}
+                  </span>
+                </div>
+              </div>
+              {/* 重置位置按钮 */}
+              <button
+                onClick={() => {
+                  const defaultPositions = [
+                    [0, 0, 0],
+                    [-3, 0, 0],
+                    [3, 0, 0]
+                  ]
+                  setCharacterPositions(prev => {
+                    const updated = [...prev]
+                    updated[settingsTargetIndex] = defaultPositions[settingsTargetIndex]
+                    return updated
+                  })
+                }}
+                style={{
+                  marginTop: '8px',
+                  width: '100%',
+                  padding: '6px 12px',
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: 'rgba(255,255,255,0.8)',
+                  fontSize: '12px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.2)'}
+                onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+              >
+                🔄 重置位置
+              </button>
+            </div>
+
+            {/* 角色旋转控制 */}
+            <div style={{
+              padding: '12px',
+              background: 'rgba(255,255,255,0.05)',
+              borderRadius: '12px'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '12px',
+                fontSize: '13px',
+                color: 'rgba(255,255,255,0.9)'
+              }}>
+                <span>🔄</span>
+                <span>快速旋转</span>
+              </div>
+              
+              {/* 旋转按钮网格 */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '8px',
+                marginBottom: '12px'
+              }}>
+                {[
+                  { angle: 0, label: '正面', icon: '⬆️' },
+                  { angle: 90, label: '右面', icon: '➡️' },
+                  { angle: 180, label: '背面', icon: '⬇️' },
+                  { angle: 270, label: '左面', icon: '⬅️' },
+                  { angle: 45, label: '右前', icon: '↗️' },
+                  { angle: 135, label: '右后', icon: '↘️' },
+                  { angle: 225, label: '左后', icon: '↙️' },
+                  { angle: 315, label: '左前', icon: '↖️' }
+                ].map(({ angle, label, icon }) => (
+                  <button
+                    key={angle}
+                    onClick={() => {
+                      // 触发角色旋转事件
+                      window.dispatchEvent(new CustomEvent('rotateCharacter', {
+                        detail: { index: settingsTargetIndex, angle: (angle * Math.PI) / 180 }
+                      }))
+                      showNotification(`角色${settingsTargetIndex + 1} 旋转到 ${label}`, 'success')
+                    }}
+                    style={{
+                      padding: '10px 4px',
+                      background: 'rgba(255,255,255,0.08)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '10px',
+                      color: 'white',
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = 'rgba(255,255,255,0.15)'
+                      e.target.style.transform = 'scale(1.05)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = 'rgba(255,255,255,0.08)'
+                      e.target.style.transform = 'scale(1)'
+                    }}
+                  >
+                    <span style={{ fontSize: '16px' }}>{icon}</span>
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* 对称旋转按钮 */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '8px'
+              }}>
+                <button
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('rotateCharacter', {
+                      detail: { index: settingsTargetIndex, angle: Math.PI }
+                    }))
+                    showNotification(`角色${settingsTargetIndex + 1} 旋转180度（面对我）`, 'success')
+                  }}
+                  style={{
+                    padding: '10px',
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    border: 'none',
+                    borderRadius: '10px',
+                    color: 'white',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.transform = 'scale(1.02)'}
+                  onMouseLeave={(e) => e.target.style.transform = 'scale(1)'}
+                >
+                  👤 面对我 (180°)
+                </button>
+                <button
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('rotateCharacter', {
+                      detail: { index: settingsTargetIndex, angle: 0 }
+                    }))
+                    showNotification(`角色${settingsTargetIndex + 1} 重置旋转`, 'success')
+                  }}
+                  style={{
+                    padding: '10px',
+                    background: 'rgba(255,255,255,0.1)',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    borderRadius: '10px',
+                    color: 'white',
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.15)'}
+                  onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.1)'}
+                >
+                  🔄 重置旋转
+                </button>
+              </div>
+            </div>
+
+            {/* 预留的10个预设位置 */}
+            <div style={{
+              padding: '12px',
+              background: 'rgba(255,255,255,0.05)',
+              borderRadius: '12px'
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '12px',
+                fontSize: '13px',
+                color: 'rgba(255,255,255,0.9)'
+              }}>
+                <span>📍</span>
+                <span>预设位置 (预留)</span>
+              </div>
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(5, 1fr)',
+                gap: '8px'
+              }}>
+                {Array.from({ length: 10 }, (_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => showNotification(`预设位置 ${i + 1} 功能预留`, 'info')}
+                    style={{
+                      padding: '12px 4px',
+                      background: 'rgba(255,255,255,0.05)',
+                      border: '1px dashed rgba(255,255,255,0.2)',
+                      borderRadius: '8px',
+                      color: 'rgba(255,255,255,0.5)',
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.background = 'rgba(255,255,255,0.1)'
+                      e.target.style.color = 'rgba(255,255,255,0.8)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.background = 'rgba(255,255,255,0.05)'
+                      e.target.style.color = 'rgba(255,255,255,0.5)'
+                    }}
+                  >
+                    预设{i + 1}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <Slider
               value={characterScale[settingsTargetIndex]}
               onChange={(val) => {
@@ -4774,9 +5377,9 @@ export const ARScene = ({ selectedFile }) => {
                         updated[propTargetCharacter] = [currentPos[0], 0.25, currentPos[2]]
                         return updated
                       })
-                      // 自动触发坐姿
+                      // 自动触发坐姿（MMD动作）
                       setTimeout(() => {
-                        executeAction('sit')
+                        executeAction('mmd_sit')
                       }, 200)
                     } else if (furniture.category === 'bed') {
                       // 床铺类 - 角色躺下
@@ -4787,21 +5390,32 @@ export const ARScene = ({ selectedFile }) => {
                         updated[propTargetCharacter] = [currentPos[0], 0.15, currentPos[2]]
                         return updated
                       })
-                      // 自动触发躺姿
+                      // 自动触发躺姿（MMD动作）
                       setTimeout(() => {
-                        executeAction('lie')
+                        executeAction('mmd_idle')
                       }, 200)
                     } else if (furniture.position === 'hand') {
-                      // 手持物品 - 调整手部位置
+                      // 手持物品 - 调整手部位置（MMD动作）
                       setTimeout(() => {
-                        executeAction('hold')
+                        executeAction('mmd_wave')
                       }, 200)
                     }
 
-                    // 如果家具有自动姿势，触发该姿势
+                    // 如果家具有自动姿势，触发该姿势（MMD动作）
                     if (furniture.autoPose) {
                       setTimeout(() => {
-                        executeAction(furniture.autoPose)
+                        // 将旧的动作ID映射到MMD动作
+                        const mmdActionMap = {
+                          'sit': 'mmd_sit',
+                          'stand': 'mmd_stand',
+                          'walk': 'mmd_walk',
+                          'run': 'mmd_run',
+                          'jump': 'mmd_jump',
+                          'wave': 'mmd_wave',
+                          'clap': 'mmd_clap'
+                        }
+                        const mmdActionId = mmdActionMap[furniture.autoPose] || furniture.autoPose
+                        executeAction(mmdActionId)
                       }, 300)
                     }
                   }}
@@ -5158,6 +5772,7 @@ export const ARScene = ({ selectedFile }) => {
                           <button
                             onClick={() => {
                               setSelectedCharacterIndex(index)
+                              setSettingsTargetIndex(index)
                               setShowCharacterManager(false)
                             }}
                             style={{
@@ -5486,7 +6101,7 @@ export const ARScene = ({ selectedFile }) => {
         />
       )}
 
-      {/* ==================== 8图标可滑动工具栏 ==================== */}
+      {/* ==================== 分组折叠工具栏 ==================== */}
       <div style={{
         position: 'fixed',
         right: isMobile ? '8px' : '16px',
@@ -5494,99 +6109,377 @@ export const ARScene = ({ selectedFile }) => {
         zIndex: 100,
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center'
+        alignItems: 'center',
+        gap: '12px'
       }}>
-        {/* 主工具栏容器 - 可滑动 */}
+        {/* 快捷访问栏 - 固定显示最常用的功能 */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: isMobile ? '6px' : '8px',
+          padding: isMobile ? '6px' : '8px',
+          background: 'linear-gradient(180deg, rgba(255, 107, 157, 0.2) 0%, rgba(102, 126, 234, 0.2) 100%)',
+          borderRadius: '20px',
+          border: '1px solid rgba(255,255,255,0.2)',
+          backdropFilter: 'blur(10px)'
+        }}>
+          {quickAccessPinned.includes('动作') && (
+            <ToolbarButton
+              onClick={() => {
+                // 滚动到动作面板区域
+                const actionPanel = document.getElementById('mmd-action-panel')
+                if (actionPanel) {
+                  actionPanel.scrollIntoView({ behavior: 'smooth' })
+                }
+              }}
+              icon="🎭"
+              gradient="linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)"
+              shadowColor="rgba(255, 107, 157, 0.5)"
+              isMobile={isMobile}
+              label="动作"
+            />
+          )}
+          {quickAccessPinned.includes('姿势') && (
+            <ToolbarButton
+              onClick={() => setShowPosePanel(true)}
+              icon="🎭"
+              gradient="linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)"
+              shadowColor="rgba(0, 212, 255, 0.5)"
+              isActive={showPosePanel}
+              isMobile={isMobile}
+              label="姿势"
+            />
+          )}
+          {quickAccessPinned.includes('特效') && (
+            <ToolbarButton
+              onClick={() => setShowStageEffects(true)}
+              icon="✨"
+              gradient="linear-gradient(135deg, #f39c12 0%, #e67e22 100%)"
+              shadowColor="rgba(243, 156, 18, 0.5)"
+              isActive={showStageEffects}
+              isMobile={isMobile}
+              label="特效"
+            />
+          )}
+          {quickAccessPinned.includes('设置') && (
+            <ToolbarButton
+              onClick={() => setShowSettings(!showSettings)}
+              icon="⚙️"
+              gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+              shadowColor="rgba(102, 126, 234, 0.5)"
+              isActive={showSettings}
+              isMobile={isMobile}
+              label="设置"
+            />
+          )}
+        </div>
+
+        {/* 主工具栏容器 - 分组折叠 */}
         <div
           ref={toolbarRef}
-          onTouchStart={handleToolbarTouchStart}
-          onTouchMove={handleToolbarTouchMove}
-          onTouchEnd={handleToolbarTouchEnd}
-          onMouseDown={handleToolbarMouseDown}
-          onMouseMove={handleToolbarMouseMove}
-          onMouseUp={handleToolbarMouseUp}
-          onMouseLeave={handleToolbarMouseUp}
           style={{
-            width: isMobile ? '56px' : '64px',
-            height: isMobile ? '448px' : '512px', // 8个按钮的高度
+            width: isMobile ? '60px' : '72px',
+            maxHeight: isMobile ? '60vh' : '70vh',
             background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)',
-            borderRadius: '16px',
+            borderRadius: '20px',
             border: '1px solid rgba(255,255,255,0.15)',
             backdropFilter: 'blur(20px)',
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.05)',
             overflow: 'hidden',
-            position: 'relative',
-            cursor: isToolbarDragging ? 'grabbing' : 'grab'
+            display: 'flex',
+            flexDirection: 'column'
           }}
         >
-          {/* 滑动内容区域 */}
-          <div style={{
-            transform: `translateY(${toolbarOffsetY}px)`,
-            transition: isToolbarDragging ? 'none' : 'transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: isMobile ? '8px' : '10px',
-            padding: '8px'
-          }}>
-            {/* 全部工具按钮 - 14个 */}
-            {[
-              { icon: '📸', label: 'AR乐园', onClick: takePhoto, disabled: isCountingDown, altIcon: '⏳', gradient: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)', shadowColor: 'rgba(255, 107, 157, 0.5)' },
-              { icon: '🎥', label: '录像', onClick: () => setShowVideoRecorder(true), isActive: showVideoRecorder, gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', shadowColor: 'rgba(102, 126, 234, 0.5)' },
-              { icon: '🎨', label: '分享', onClick: () => setShowShareCard(true), isActive: showShareCard, gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', shadowColor: 'rgba(240, 147, 251, 0.5)' },
-              { icon: '📍', label: '位置', onClick: () => setShowPositionControl(true), isActive: showPositionControl, gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', shadowColor: 'rgba(102, 126, 234, 0.5)' },
-              { icon: '🏠', label: '家具', onClick: () => { setPropTargetCharacter(selectedCharacterIndex); setShowPropSelect(true); }, isActive: showPropSelect, gradient: 'linear-gradient(135deg, #8B4513 0%, #D2691E 100%)', shadowColor: 'rgba(139, 69, 19, 0.5)', badge: characterProps[selectedCharacterIndex] },
-              { icon: '🎭', label: '姿势', onClick: () => setShowPosePanel(true), isActive: showPosePanel, gradient: 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)', shadowColor: 'rgba(0, 212, 255, 0.5)' },
-              { icon: '📋', label: '列表', onClick: () => setShowPlaylist(true), isActive: showPlaylist, gradient: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)', shadowColor: 'rgba(155, 89, 182, 0.5)' },
-              { icon: '🏞️', label: '场景', onClick: () => setShowSceneTemplate(true), isActive: showSceneTemplate, gradient: 'linear-gradient(135deg, #1abc9c 0%, #16a085 100%)', shadowColor: 'rgba(26, 188, 156, 0.5)' },
-              { icon: '✨', label: '特效', onClick: () => setShowStageEffects(true), isActive: showStageEffects, gradient: 'linear-gradient(135deg, #f39c12 0%, #e67e22 100%)', shadowColor: 'rgba(243, 156, 18, 0.5)' },
-              { icon: '💾', label: '保存', onClick: () => setShowSceneManager(true), isActive: showSceneManager, gradient: 'linear-gradient(135deg, #34495e 0%, #2c3e50 100%)', shadowColor: 'rgba(52, 73, 94, 0.5)' },
-              { icon: '🎬', label: '录制', onClick: () => setShowActionRecorder(true), isActive: showActionRecorder, gradient: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)', shadowColor: 'rgba(231, 76, 60, 0.5)' },
-              ...(isVoiceSupported ? [{ icon: isListening ? '🎙️' : '🎤', label: isListening ? '录音中' : '语音', onClick: () => { setShowVoiceControl(!showVoiceControl); toggleListening(); }, isActive: isListening, gradient: isListening ? 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)' : 'linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%)', shadowColor: isListening ? 'rgba(231, 76, 60, 0.5)' : 'rgba(149, 165, 166, 0.5)', pulse: isListening }] : []),
-              ...(gyroSupported ? [{ icon: '📱', label: '陀螺仪', onClick: toggleGyroscope, isActive: gyroEnabled, gradient: gyroEnabled ? 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)' : 'linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%)', shadowColor: gyroEnabled ? 'rgba(155, 89, 182, 0.5)' : 'rgba(149, 165, 166, 0.5)' }] : []),
-              { icon: '🦴', label: '骨骼', onClick: () => setIsBoneEditing(!isBoneEditing), isActive: isBoneEditing, gradient: isBoneEditing ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)' : 'linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%)', shadowColor: isBoneEditing ? 'rgba(0, 212, 255, 0.5)' : 'rgba(149, 165, 166, 0.5)' },
-              ...(isMobile ? [{ icon: '🐛', label: '调试', onClick: () => setShowDebugPanel(!showDebugPanel), isActive: showDebugPanel, gradient: showDebugPanel ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)' : 'linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%)', shadowColor: showDebugPanel ? 'rgba(255, 107, 107, 0.5)' : 'rgba(149, 165, 166, 0.5)' }] : [])
-            ].map((btn, idx) => (
-              <ToolbarButton
-                key={idx}
-                onClick={btn.onClick}
-                disabled={btn.disabled}
-                icon={btn.disabled ? btn.altIcon || btn.icon : btn.icon}
-                gradient={btn.gradient}
-                shadowColor={btn.shadowColor}
-                isActive={btn.isActive}
-                isMobile={isMobile}
-                label={btn.label}
-                badge={btn.badge ? '●' : null}
-                badgeColor="#00d4ff"
-                pulse={btn.pulse}
-              />
-            ))}
+          {/* 主要功能组 */}
+          <div style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+            <button
+              onClick={() => setToolbarGroups(prev => ({ ...prev, main: !prev.main }))}
+              style={{
+                width: '100%',
+                padding: '10px 8px',
+                background: 'transparent',
+                border: 'none',
+                color: 'white',
+                fontSize: isMobile ? '11px' : '12px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                transition: 'background 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+              onMouseLeave={(e) => e.target.style.background = 'transparent'}
+            >
+              <span>⭐ 主要</span>
+              <span style={{ 
+                transform: toolbarGroups.main ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.3s ease'
+              }}>▼</span>
+            </button>
+            
+            {toolbarGroups.main && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: isMobile ? '6px' : '8px',
+                padding: '0 8px 10px 8px',
+                animation: 'slideDown 0.3s ease'
+              }}>
+                <ToolbarButton
+                  onClick={takePhoto}
+                  disabled={isCountingDown}
+                  icon={isCountingDown ? '⏳' : '📸'}
+                  gradient="linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)"
+                  shadowColor="rgba(255, 107, 157, 0.5)"
+                  isMobile={isMobile}
+                  label="拍照"
+                />
+                <ToolbarButton
+                  onClick={() => setShowVideoRecorder(true)}
+                  icon="🎥"
+                  gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                  shadowColor="rgba(102, 126, 234, 0.5)"
+                  isActive={showVideoRecorder}
+                  isMobile={isMobile}
+                  label="录像"
+                />
+                <ToolbarButton
+                  onClick={() => setShowPlaylist(true)}
+                  icon="📋"
+                  gradient="linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)"
+                  shadowColor="rgba(155, 89, 182, 0.5)"
+                  isActive={showPlaylist}
+                  isMobile={isMobile}
+                  label="列表"
+                />
+                <ToolbarButton
+                  onClick={() => setShowActionRecorder(true)}
+                  icon="🎬"
+                  gradient="linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)"
+                  shadowColor="rgba(231, 76, 60, 0.5)"
+                  isActive={showActionRecorder}
+                  isMobile={isMobile}
+                  label="录制"
+                />
+              </div>
+            )}
           </div>
-          
-          {/* 滑动指示器 */}
-          <div style={{
-            position: 'absolute',
-            bottom: '8px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: '24px',
-            height: '4px',
-            background: 'rgba(255,255,255,0.3)',
-            borderRadius: '2px',
-            opacity: toolbarOffsetY < 0 ? 1 : 0,
-            transition: 'opacity 0.3s ease'
-          }} />
+
+          {/* 外观功能组 */}
+          <div style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+            <button
+              onClick={() => setToolbarGroups(prev => ({ ...prev, appearance: !prev.appearance }))}
+              style={{
+                width: '100%',
+                padding: '10px 8px',
+                background: 'transparent',
+                border: 'none',
+                color: 'white',
+                fontSize: isMobile ? '11px' : '12px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                transition: 'background 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+              onMouseLeave={(e) => e.target.style.background = 'transparent'}
+            >
+              <span>🎨 外观</span>
+              <span style={{ 
+                transform: toolbarGroups.appearance ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.3s ease'
+              }}>▼</span>
+            </button>
+            
+            {toolbarGroups.appearance && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: isMobile ? '6px' : '8px',
+                padding: '0 8px 10px 8px',
+                animation: 'slideDown 0.3s ease'
+              }}>
+                <ToolbarButton
+                  onClick={() => setShowPosePanel(true)}
+                  icon="🎭"
+                  gradient="linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)"
+                  shadowColor="rgba(0, 212, 255, 0.5)"
+                  isActive={showPosePanel}
+                  isMobile={isMobile}
+                  label="姿势"
+                />
+                <ToolbarButton
+                  onClick={() => setShowStageEffects(true)}
+                  icon="✨"
+                  gradient="linear-gradient(135deg, #f39c12 0%, #e67e22 100%)"
+                  shadowColor="rgba(243, 156, 18, 0.5)"
+                  isActive={showStageEffects}
+                  isMobile={isMobile}
+                  label="特效"
+                />
+                <ToolbarButton
+                  onClick={() => setShowSceneTemplate(true)}
+                  icon="🏞️"
+                  gradient="linear-gradient(135deg, #1abc9c 0%, #16a085 100%)"
+                  shadowColor="rgba(26, 188, 156, 0.5)"
+                  isActive={showSceneTemplate}
+                  isMobile={isMobile}
+                  label="场景"
+                />
+                <ToolbarButton
+                  onClick={() => { setPropTargetCharacter(selectedCharacterIndex); setShowPropSelect(true); }}
+                  icon="🏠"
+                  gradient="linear-gradient(135deg, #8B4513 0%, #D2691E 100%)"
+                  shadowColor="rgba(139, 69, 19, 0.5)"
+                  isActive={showPropSelect}
+                  isMobile={isMobile}
+                  label="家具"
+                  badge={characterProps[selectedCharacterIndex] ? '●' : null}
+                  badgeColor="#00d4ff"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* 系统功能组 */}
+          <div>
+            <button
+              onClick={() => setToolbarGroups(prev => ({ ...prev, system: !prev.system }))}
+              style={{
+                width: '100%',
+                padding: '10px 8px',
+                background: 'transparent',
+                border: 'none',
+                color: 'white',
+                fontSize: isMobile ? '11px' : '12px',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer',
+                transition: 'background 0.2s ease'
+              }}
+              onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
+              onMouseLeave={(e) => e.target.style.background = 'transparent'}
+            >
+              <span>⚙️ 系统</span>
+              <span style={{ 
+                transform: toolbarGroups.system ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.3s ease'
+              }}>▼</span>
+            </button>
+            
+            {toolbarGroups.system && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: isMobile ? '6px' : '8px',
+                padding: '0 8px 10px 8px',
+                animation: 'slideDown 0.3s ease'
+              }}>
+                <ToolbarButton
+                  onClick={() => setShowSettings(!showSettings)}
+                  icon="⚙️"
+                  gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                  shadowColor="rgba(102, 126, 234, 0.5)"
+                  isActive={showSettings}
+                  isMobile={isMobile}
+                  label="设置"
+                />
+                <ToolbarButton
+                  onClick={() => setShowPositionControl(true)}
+                  icon="📍"
+                  gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+                  shadowColor="rgba(102, 126, 234, 0.5)"
+                  isActive={showPositionControl}
+                  isMobile={isMobile}
+                  label="位置"
+                />
+                <ToolbarButton
+                  onClick={() => setShowSceneManager(true)}
+                  icon="💾"
+                  gradient="linear-gradient(135deg, #34495e 0%, #2c3e50 100%)"
+                  shadowColor="rgba(52, 73, 94, 0.5)"
+                  isActive={showSceneManager}
+                  isMobile={isMobile}
+                  label="保存"
+                />
+                <ToolbarButton
+                  onClick={() => setShowShareCard(true)}
+                  icon="🎨"
+                  gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
+                  shadowColor="rgba(240, 147, 251, 0.5)"
+                  isActive={showShareCard}
+                  isMobile={isMobile}
+                  label="分享"
+                />
+                <ToolbarButton
+                  onClick={() => setShowModelDownloader(true)}
+                  icon="📥"
+                  gradient="linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)"
+                  shadowColor="rgba(0, 212, 255, 0.5)"
+                  isActive={showModelDownloader}
+                  isMobile={isMobile}
+                  label="模型"
+                />
+                <ToolbarButton
+                  onClick={() => setIsBoneEditing(!isBoneEditing)}
+                  icon="🦴"
+                  gradient={isBoneEditing ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)' : 'linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%)'}
+                  shadowColor={isBoneEditing ? 'rgba(0, 212, 255, 0.5)' : 'rgba(149, 165, 166, 0.5)'}
+                  isActive={isBoneEditing}
+                  isMobile={isMobile}
+                  label="骨骼"
+                />
+                {isVoiceSupported && (
+                  <ToolbarButton
+                    onClick={() => { setShowVoiceControl(!showVoiceControl); toggleListening(); }}
+                    icon={isListening ? '🎙️' : '🎤'}
+                    gradient={isListening ? 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)' : 'linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%)'}
+                    shadowColor={isListening ? 'rgba(231, 76, 60, 0.5)' : 'rgba(149, 165, 166, 0.5)'}
+                    isActive={isListening}
+                    isMobile={isMobile}
+                    label={isListening ? '录音中' : '语音'}
+                    pulse={isListening}
+                  />
+                )}
+                {gyroSupported && (
+                  <ToolbarButton
+                    onClick={toggleGyroscope}
+                    icon="📱"
+                    gradient={gyroEnabled ? 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)' : 'linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%)'}
+                    shadowColor={gyroEnabled ? 'rgba(155, 89, 182, 0.5)' : 'rgba(149, 165, 166, 0.5)'}
+                    isActive={gyroEnabled}
+                    isMobile={isMobile}
+                    label="陀螺仪"
+                  />
+                )}
+                {isMobile && (
+                  <ToolbarButton
+                    onClick={() => setShowDebugPanel(!showDebugPanel)}
+                    icon="🐛"
+                    gradient={showDebugPanel ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)' : 'linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%)'}
+                    shadowColor={showDebugPanel ? 'rgba(255, 107, 107, 0.5)' : 'rgba(149, 165, 166, 0.5)'}
+                    isActive={showDebugPanel}
+                    isMobile={isMobile}
+                    label="调试"
+                  />
+                )}
+              </div>
+            )}
+          </div>
         </div>
         
         {/* 提示文字 */}
         <div style={{
-          marginTop: '8px',
           fontSize: '10px',
           color: 'rgba(255,255,255,0.5)',
-          textAlign: 'center',
-          opacity: 0.8
+          textAlign: 'center'
         }}>
-          上下滑动
+          点击分组展开
         </div>
       </div>
 
@@ -5745,7 +6638,7 @@ export const ARScene = ({ selectedFile }) => {
           </span>
         </div>
 
-        {/* 动作分类标签 - 10个分类 */}
+        {/* 动作分类标签 - MMD分类 */}
         <div style={{
           display: 'flex',
           gap: '6px',
@@ -5753,16 +6646,16 @@ export const ARScene = ({ selectedFile }) => {
           overflowX: 'auto',
           padding: '4px'
         }}>
-          {actionCategories.filter(cat => cat.id !== 'all').map((category) => (
+          {mmdActionCategories.filter(cat => cat.id !== 'all').map((category) => (
             <button
               key={category.id}
-              onClick={() => setActiveCategory(activeCategory === category.id ? 'all' : category.id)}
+              onClick={() => setMmdActiveCategory(mmdActiveCategory === category.id ? 'all' : category.id)}
               style={{
                 padding: isMobile ? '5px 10px' : '6px 12px',
-                background: activeCategory === category.id
+                background: mmdActiveCategory === category.id
                   ? `linear-gradient(135deg, ${category.color} 0%, ${category.color}dd 100%)`
                   : 'rgba(255,255,255,0.08)',
-                border: `1px solid ${activeCategory === category.id ? category.color : 'rgba(255,255,255,0.15)'}`,
+                border: `1px solid ${mmdActiveCategory === category.id ? category.color : 'rgba(255,255,255,0.15)'}`,
                 borderRadius: '16px',
                 color: 'white',
                 fontSize: isMobile ? '10px' : '11px',
@@ -5773,7 +6666,7 @@ export const ARScene = ({ selectedFile }) => {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '4px',
-                boxShadow: activeCategory === category.id
+                boxShadow: mmdActiveCategory === category.id
                   ? `0 0 10px ${category.color}66`
                   : 'none'
               }}
@@ -5785,7 +6678,7 @@ export const ARScene = ({ selectedFile }) => {
         </div>
         
         {/* 动作按钮网格 */}
-        <div style={{
+        <div id="mmd-action-panel" style={{
           display: 'flex',
           gap: isMobile ? '6px' : '10px',
           overflowX: 'auto',
@@ -5801,38 +6694,85 @@ export const ARScene = ({ selectedFile }) => {
             : '0 8px 32px rgba(0,0,0,0.4)'
         }}>
           {filteredActions.map((item, index) => (
-            <button
-              key={item.action}
-              onClick={() => executeAction(item.action)}
+            <div
+              key={item.id}
               style={{
-                minWidth: isMobile ? '60px' : '80px',
-                padding: isMobile ? '10px 8px' : '14px 12px',
-                background: currentAction === item.action
-                  ? 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)'
-                  : 'rgba(255,255,255,0.08)',
-                border: currentAction === item.action
-                  ? '2px solid #ff6b9d'
-                  : '2px solid rgba(255,255,255,0.1)',
-                borderRadius: '12px',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '4px',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                boxShadow: currentAction === item.action
-                  ? '0 0 20px rgba(255, 107, 157, 0.4)'
-                  : 'none'
+                gap: '4px'
               }}
             >
-              <span style={{ fontSize: isMobile ? '20px' : '24px' }}>{item.icon}</span>
-              <span style={{ 
-                fontSize: isMobile ? '10px' : '11px', 
-                color: 'white',
-                fontWeight: '600',
-                whiteSpace: 'nowrap'
-              }}>{item.name}</span>
-            </button>
+              <button
+                onClick={() => {
+                  // MMD动作 - 使用executeAction函数
+                  executeAction(item.id)
+                }}
+                style={{
+                  minWidth: isMobile ? '60px' : '80px',
+                  padding: isMobile ? '10px 8px' : '14px 12px',
+                  background: currentAction === item.id
+                    ? 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)'
+                    : 'rgba(255,255,255,0.08)',
+                  border: currentAction === item.id
+                    ? '2px solid #ff6b9d'
+                    : '2px solid rgba(255,255,255,0.1)',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '4px',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: currentAction === item.id
+                    ? '0 0 20px rgba(255, 107, 157, 0.4)'
+                    : 'none'
+                }}
+              >
+                <span style={{ fontSize: isMobile ? '20px' : '24px' }}>{item.icon}</span>
+                <span style={{
+                  fontSize: isMobile ? '10px' : '11px',
+                  color: 'white',
+                  fontWeight: '600',
+                  whiteSpace: 'nowrap'
+                }}>{item.name}</span>
+              </button>
+              {/* 循环播放按钮 */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const newLooping = new Set(loopingMMDActions)
+                  if (newLooping.has(item.id)) {
+                    newLooping.delete(item.id)
+                    showNotification(`停止循环: ${item.name}`, 'info')
+                  } else {
+                    newLooping.add(item.id)
+                    showNotification(`循环播放: ${item.name}`, 'success')
+                    // 立即开始播放
+                    executeAction(item.id)
+                  }
+                  setLoopingMMDActions(newLooping)
+                }}
+                style={{
+                  width: isMobile ? '24px' : '28px',
+                  height: isMobile ? '24px' : '28px',
+                  borderRadius: '50%',
+                  background: loopingMMDActions.has(item.id)
+                    ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)'
+                    : 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: isMobile ? '12px' : '14px',
+                  transition: 'all 0.2s ease'
+                }}
+                title={loopingMMDActions.has(item.id) ? '点击停止循环' : '点击循环播放'}
+              >
+                {loopingMMDActions.has(item.id) ? '🔁' : '▶️'}
+              </button>
+            </div>
           ))}
         </div>
       </div>
@@ -5884,12 +6824,31 @@ export const ARScene = ({ selectedFile }) => {
       <PlaylistPanel
         isOpen={showPlaylist}
         onClose={() => setShowPlaylist(false)}
-        actions={actionList250}
+        actions={actions}
         onPlayAction={(action) => {
-          console.log('播放动作:', action)
-          // 触发角色动作
+          console.log('播放列表播放动作:', action)
+          // 触发角色动作 - 支持MMD动作系统
           if (selectedCharacterIndex !== null && characters[selectedCharacterIndex]) {
-            setCurrentAction(action.id)
+            // 检查是否是MMD动作
+            const mmdAction = mmdActions.find(a => a.id === action.id || a.id === action.action)
+            if (mmdAction && useMMDActions) {
+              // 使用MMD动作系统
+              setMmdCurrentActions(prev => {
+                const updated = [...prev]
+                updated[selectedCharacterIndex] = mmdAction
+                return updated
+              })
+              setMmdActionStartTimes(prev => {
+                const updated = [...prev]
+                updated[selectedCharacterIndex] = Date.now()
+                return updated
+              })
+              setCurrentAction(action.id || action.action)
+              showNotification(`播放列表: ${mmdAction.name}`, 'success')
+            } else {
+              // 使用普通动作系统
+              setCurrentAction(action.id || action.action)
+            }
           }
         }}
         isMobile={isMobile}
@@ -5973,7 +6932,7 @@ export const ARScene = ({ selectedFile }) => {
       <ActionRecorder
         isOpen={showActionRecorder}
         onClose={() => setShowActionRecorder(false)}
-        actions={actionList250}
+        actions={actions}
         onPlayAction={(action) => {
           console.log('播放录制动作:', action)
           executeAction(action.id)
@@ -6003,6 +6962,19 @@ export const ARScene = ({ selectedFile }) => {
         canvasRef={glRef}
         characters={characters}
         currentAction={currentAction}
+        isMobile={isMobile}
+      />
+
+      {/* 模型下载器 */}
+      <ModelDownloader
+        isOpen={showModelDownloader}
+        onClose={() => setShowModelDownloader(false)}
+        onSelectModel={(model) => {
+          console.log('选择模型:', model)
+          // 加载选中的模型
+          showNotification(`已选择模型: ${model.name}`, 'success')
+          // 可以在这里触发模型加载逻辑
+        }}
         isMobile={isMobile}
       />
     </div>
