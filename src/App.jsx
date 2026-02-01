@@ -12,6 +12,7 @@ import PosePanel from './components/PosePanel'
 import { useAppSettings, useCharacterData, useCacheManager } from './hooks/useLocalStorage'
 import modelList from './models/modelList'
 import './App.css'
+import './styles/cyberpunk-theme.css'
 
 // ==================== 移动端检测 Hook ====================
 const useMobileDetect = () => {
@@ -337,11 +338,10 @@ function App() {
   }
 
   return (
-    <div className="app-container" style={{ 
+    <div className="app-container cyberpunk-app" style={{ 
       width: '100vw', 
       height: '100vh', 
       overflow: 'hidden',
-      background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
       position: 'relative'
     }}>
       {/* 启动画面 */}
