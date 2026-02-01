@@ -3200,17 +3200,27 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
         window.mmdFrameStats.lastTime = now
       }
       
+      // 调试：输出canPlayMMD的各个条件
+      if (mmdCurrentAction && Math.random() < 0.01) {
+        console.log('🔍 MMD播放条件检查:', {
+          hasAction: !!mmdCurrentAction,
+          hasModel: !!vrmModel,
+          hasHumanoid: !!(vrmModel && vrmModel.humanoid),
+          startTime: mmdActionStartTime,
+          startTimeValid: mmdActionStartTime > 0
+        })
+      }
+      
       const canPlayMMD = mmdCurrentAction && vrmModel && vrmModel.humanoid && mmdActionStartTime > 0
       
-      // 限制MMD更新频率，避免过于频繁的更新导致抖动
-      if (!window.mmdLastUpdateTime) window.mmdLastUpdateTime = 0
-      const timeSinceLastUpdate = now - window.mmdLastUpdateTime
-      const minUpdateInterval = 16 // 约60fps，每16ms更新一次
-      
-      if (canPlayMMD && timeSinceLastUpdate >= minUpdateInterval) {
-        window.mmdLastUpdateTime = now
+      if (canPlayMMD) {
         const currentTime = Date.now()
         const elapsedTime = currentTime - mmdActionStartTime
+        
+        // 调试：输出elapsedTime
+        if (Math.random() < 0.01) {
+          console.log('⏱️ MMD elapsedTime:', elapsedTime, 'ms')
+        }
         
         // 检测MMD更新频率
         if (!window.mmdUpdateStats) {
