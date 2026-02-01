@@ -13,5 +13,5 @@ export { default as SceneTemplatePanel } from './SceneTemplatePanel'
 export { default as ShareCardGenerator } from './ShareCardGenerator'
 
 // 数据导出
-export { mmdActions, mmdActionCategories, interpolateKeyframes } from '../data/mmdActions'
+export { mmdActions, mmdActionCategories, interpolateKeyframes, getActionById, getActionsByCategory } from '../data/mmdActions'
 export { furnitureList, furnitureCategories } from '../data/furniture'
