@@ -3376,18 +3376,16 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
       
       // 关键修复：禁用VRM humanoid的自动归一化，防止覆盖我们的骨骼设置
       if (mmdCurrentAction && vrmModel && vrmModel.humanoid) {
-        // VRM更新控制 - 只在有MMD动作时跳过VRM默认更新
-        if (mmdCurrentAction && vrmModel && vrmModel.humanoid) {
-          // 临时禁用VRM humanoid更新，防止覆盖MMD动作
-          if (vrmModel.humanoid.update !== () => {}) {
-            vrmModel.humanoid._originalUpdate = vrmModel.humanoid.update
-            vrmModel.humanoid.update = () => {}
-          }
-        } else if (!mmdCurrentAction && vrmModel && vrmModel.humanoid && vrmModel.humanoid._originalUpdate) {
-          // 恢复VRM humanoid更新
-          vrmModel.humanoid.update = vrmModel.humanoid._originalUpdate
-          delete vrmModel.humanoid._originalUpdate
+        // 临时禁用VRM humanoid更新，防止覆盖MMD动作
+        if (!vrmModel.humanoid._originalUpdate) {
+          vrmModel.humanoid._originalUpdate = vrmModel.humanoid.update
+          vrmModel.humanoid.update = () => {}
         }
+      } else if (!mmdCurrentAction && vrmModel && vrmModel.humanoid && vrmModel.humanoid._originalUpdate) {
+        // 恢复VRM humanoid更新
+        vrmModel.humanoid.update = vrmModel.humanoid._originalUpdate
+        delete vrmModel.humanoid._originalUpdate
+      }
       
       // animationMixer 更新 - 在MMD动作之后执行，避免覆盖
       if (animationMixer && typeof animationMixer.update === 'function') {
