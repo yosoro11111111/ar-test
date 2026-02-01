@@ -10,6 +10,41 @@ const actionCache = new Map()
 // FBX 加载器
 const fbxLoader = new FBXLoader()
 
+// 预定义的动作文件列表（从目录扫描获取）
+// 这些文件名对应 public/motionpack/ 目录下的 FBX 文件
+const MOTION_PACK_FILES = [
+  'Mixamo_walking_mixamo_Motion.Fbx',
+  'Mixamo_running_mixamo_Motion.Fbx',
+  'Mixamo_idle_mixamo_Motion.Fbx',
+  'Mixamo_jumping_mixamo_Motion.Fbx',
+  'Mixamo_dancing_mixamo_Motion.Fbx',
+  'Mixamo_punching_mixamo_Motion.Fbx',
+  'Mixamo_kicking_mixamo_Motion.Fbx',
+  'Mixamo_waving_mixamo_Motion.Fbx',
+  'Mixamo_clapping_mixamo_Motion.Fbx',
+  'Mixamo_laughing_mixamo_Motion.Fbx',
+  'Mixamo_talking_mixamo_Motion.Fbx',
+  'Mixamo_bowing_mixamo_Motion.Fbx',
+  'Mixamo_sitting_mixamo_Motion.Fbx',
+  'Mixamo_standing_mixamo_Motion.Fbx',
+  'Mixamo_turning_mixamo_Motion.Fbx',
+  'Mixamo_crouching_mixamo_Motion.Fbx',
+  'Mixamo_hip_hop_dancing_mixamo_Motion.Fbx',
+  'Mixamo_salsa_dancing_mixamo_Motion.Fbx',
+  'Mixamo_breakdance_mixamo_Motion.Fbx',
+  'Mixamo_boxing_mixamo_Motion.Fbx',
+  'Mixamo_sword_slash_mixamo_Motion.Fbx',
+  'Mixamo_golf_swing_mixamo_Motion.Fbx',
+  'Mixamo_baseball_pitch_mixamo_Motion.Fbx',
+  'Mixamo_basketball_dribble_mixamo_Motion.Fbx',
+  'Mixamo_victory_mixamo_Motion.Fbx',
+  'Mixamo_defeat_mixamo_Motion.Fbx',
+  'Mixamo_death_mixamo_Motion.Fbx',
+  'Mixamo_hurt_mixamo_Motion.Fbx',
+  'Mixamo_spell_cast_mixamo_Motion.Fbx',
+  'Mixamo_magic_attack_mixamo_Motion.Fbx'
+]
+
 // 从文件名提取动作名称
 function extractActionName(filename) {
   // 移除前缀和后缀
@@ -76,40 +111,6 @@ function getActionIcon(category) {
   return icons[category] || '🎭'
 }
 
-// 扫描 motionpack 目录中的动作文件
-// 注意：实际文件列表需要在构建时或运行时通过 API 获取
-export async function scanMotionPackFiles() {
-  try {
-    // 尝试通过 fetch 获取目录列表
-    const response = await fetch('/motionpack/')
-    if (!response.ok) throw new Error('无法读取目录')
-    
-    const html = await response.text()
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(html, 'text/html')
-    const links = doc.querySelectorAll('a')
-    
-    const fbxFiles = []
-    links.forEach(link => {
-      const href = link.getAttribute('href')
-      if (href && href.endsWith('.Fbx')) {
-        fbxFiles.push(href)
-      }
-    })
-    
-    return fbxFiles
-  } catch (error) {
-    console.warn('扫描 motionpack 目录失败:', error)
-    return []
-  }
-}
-
-// 预定义的动作文件列表（作为备用）
-// 实际使用时应该动态扫描
-export const motionPackFileList = [
-  // 这里会在构建时自动填充
-]
-
 // 加载单个 FBX 动作
 export async function loadMotionPackAction(filePath) {
   const cacheKey = filePath
@@ -173,6 +174,25 @@ export async function loadMotionPackActions(filePaths, onProgress) {
   return actions
 }
 
+// 获取所有动作（使用预定义列表）
+export function getAllMotionPackActions() {
+  return MOTION_PACK_FILES.map(filename => {
+    const actionName = extractActionName(filename)
+    const category = categorizeAction(filename, actionName)
+    
+    return {
+      id: `motionpack_${filename.replace('.Fbx', '')}`,
+      name: actionName,
+      icon: getActionIcon(category),
+      category: category,
+      filePath: `/motionpack/${filename}`,
+      source: 'motionpack',
+      // 标记为未加载
+      loaded: false
+    }
+  })
+}
+
 // 获取已加载的动作列表
 export function getLoadedMotionPackActions() {
   return Array.from(actionCache.values())
@@ -202,11 +222,12 @@ export const motionPackCategories = [
 
 // 导出默认对象
 export default {
-  scanMotionPackFiles,
   loadMotionPackAction,
   loadMotionPackActions,
+  getAllMotionPackActions,
   getLoadedMotionPackActions,
   getMotionPackActionsByCategory,
   clearMotionPackCache,
-  motionPackCategories
+  motionPackCategories,
+  MOTION_PACK_FILES
 }
