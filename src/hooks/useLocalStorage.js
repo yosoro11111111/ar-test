@@ -1,7 +1,11 @@
-// Simple localStorage hook
+// Simple localStorage hook - Updated
 import { useState, useEffect, useCallback } from 'react'
 
 export const useLocalStorage = (key, initialValue) => {
+  // Hook must be called at the top level
+  if (typeof window === 'undefined') {
+    return [initialValue, () => {}]
+  }
   const [storedValue, setStoredValue] = useState(() => {
     try {
       const item = window.localStorage.getItem(key)
