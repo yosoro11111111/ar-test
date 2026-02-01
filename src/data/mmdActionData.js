@@ -1607,10 +1607,870 @@ export function isLoopingAction(actionName) {
 export const basicActionNames = Object.keys(basicActionData)
 export const sexyActionNames = Object.keys(sexyActionData)
 
+// 舞蹈动作数据 - 30个
+export const danceActionData = {
+  // 街舞
+  '街舞': {
+    type: ACTION_TYPES.DANCE,
+    duration: 4000,
+    description: '街头舞蹈风格',
+    loop: true,
+    bones: {
+      hips: {
+        bounce: { axis: 'y', amplitude: 0.1, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        wave: { axis: 'z', amplitude: 0.2, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        pop: { axis: 'z', amplitude: 0.8, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        pop: { axis: 'z', amplitude: -0.8, frequency: 4, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      },
+      leftLowerArm: {
+        lock: { axis: 'x', amplitude: -0.5 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightLowerArm: {
+        lock: { axis: 'x', amplitude: -0.5 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  },
+
+  // 芭蕾
+  '芭蕾': {
+    type: ACTION_TYPES.DANCE,
+    duration: 5000,
+    description: '优雅芭蕾舞',
+    loop: true,
+    bones: {
+      hips: {
+        rise: { axis: 'y', amplitude: 0.15, frequency: 0.8 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        arch: { axis: 'x', amplitude: -0.15, frequency: 0.8 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperLeg: {
+        extend: { axis: 'x', amplitude: 0.6, frequency: 0.8 },
+        timing: EASING_TYPES.SINE
+      },
+      leftLowerLeg: {
+        point: { axis: 'x', amplitude: 0.8, frequency: 0.8 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        grace: { axis: 'z', amplitude: 0.6, frequency: 0.8 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        grace: { axis: 'z', amplitude: -0.6, frequency: 0.8, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 机械舞
+  '机械舞': {
+    type: ACTION_TYPES.DANCE,
+    duration: 3000,
+    description: '机械风格舞蹈',
+    loop: true,
+    bones: {
+      hips: {
+        robot: { axis: 'y', amplitude: 0.05, frequency: 3 },
+        timing: EASING_TYPES.LINEAR
+      },
+      spine: {
+        segments: [
+          { rotation: [0.1, 0, 0], time: 0.2 },
+          { rotation: [-0.1, 0, 0], time: 0.4 },
+          { rotation: [0, 0, 0], time: 0.6 }
+        ],
+        timing: EASING_TYPES.LINEAR
+      },
+      leftUpperArm: {
+        robot: { axis: 'z', amplitude: 0.5, frequency: 3 },
+        timing: EASING_TYPES.LINEAR
+      },
+      rightUpperArm: {
+        robot: { axis: 'z', amplitude: -0.5, frequency: 3 },
+        timing: EASING_TYPES.LINEAR
+      }
+    }
+  },
+
+  // 霹雳舞
+  '霹雳舞': {
+    type: ACTION_TYPES.DANCE,
+    duration: 3500,
+    description: '霹雳地板动作',
+    loop: true,
+    bones: {
+      hips: {
+        spin: { axis: 'y', amplitude: Math.PI * 2, frequency: 1 },
+        timing: EASING_TYPES.LINEAR
+      },
+      spine: {
+        twist: { axis: 'y', amplitude: 0.3, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        support: { axis: 'x', amplitude: -0.8 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperArm: {
+        swing: { axis: 'z', amplitude: 0.6, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperLeg: {
+        kick: { axis: 'x', amplitude: 0.5, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 爵士舞
+  '爵士舞': {
+    type: ACTION_TYPES.DANCE,
+    duration: 3000,
+    description: '爵士风格舞蹈',
+    loop: true,
+    bones: {
+      hips: {
+        sass: { axis: 'z', amplitude: 0.25, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        roll: { axis: 'x', amplitude: 0.2, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      chest: {
+        pop: { axis: 'x', amplitude: 0.1, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        jazz: { axis: 'z', amplitude: 0.7, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        jazz: { axis: 'z', amplitude: -0.7, frequency: 2, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 拉丁舞
+  '拉丁舞': {
+    type: ACTION_TYPES.DANCE,
+    duration: 3000,
+    description: '热情拉丁舞',
+    loop: true,
+    bones: {
+      hips: {
+        cuban: { axis: 'z', amplitude: 0.3, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        roll: { axis: 'z', amplitude: 0.15, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperLeg: {
+        step: { axis: 'x', amplitude: 0.4, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperLeg: {
+        step: { axis: 'x', amplitude: 0.4, frequency: 3, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        hold: { axis: 'z', amplitude: 0.4 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperArm: {
+        hold: { axis: 'z', amplitude: -0.4 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  },
+
+  // 现代舞
+  '现代舞': {
+    type: ACTION_TYPES.DANCE,
+    duration: 4000,
+    description: '现代自由舞蹈',
+    loop: true,
+    bones: {
+      spine: {
+        flow: { axis: 'x', amplitude: 0.3, frequency: 0.5 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        flow: { axis: 'x', amplitude: -0.6, frequency: 0.5 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        flow: { axis: 'x', amplitude: -0.6, frequency: 0.5, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      },
+      neck: {
+        release: { axis: 'x', amplitude: 0.2, frequency: 0.5 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 踢踏舞
+  '踢踏舞': {
+    type: ACTION_TYPES.DANCE,
+    duration: 2500,
+    description: '节奏踢踏舞',
+    loop: true,
+    bones: {
+      hips: {
+        tap: { axis: 'y', amplitude: 0.05, frequency: 6 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperLeg: {
+        tap: { axis: 'x', amplitude: 0.3, frequency: 6 },
+        timing: EASING_TYPES.SINE
+      },
+      leftLowerLeg: {
+        tap: { axis: 'x', amplitude: 0.4, frequency: 6 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperLeg: {
+        tap: { axis: 'x', amplitude: 0.3, frequency: 6, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      },
+      rightLowerLeg: {
+        tap: { axis: 'x', amplitude: 0.4, frequency: 6, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        swing: { axis: 'x', amplitude: 0.2, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        swing: { axis: 'x', amplitude: 0.2, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 摇摆舞
+  '摇摆舞': {
+    type: ACTION_TYPES.DANCE,
+    duration: 3000,
+    description: '复古摇摆舞',
+    loop: true,
+    bones: {
+      hips: {
+        swing: { axis: 'z', amplitude: 0.2, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        swing: { axis: 'z', amplitude: 0.15, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        swing: { axis: 'z', amplitude: 0.5, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        swing: { axis: 'z', amplitude: -0.5, frequency: 2, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      },
+      leftLowerArm: {
+        swing: { axis: 'x', amplitude: -0.3, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      rightLowerArm: {
+        swing: { axis: 'x', amplitude: -0.3, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 探戈
+  '探戈': {
+    type: ACTION_TYPES.DANCE,
+    duration: 3500,
+    description: '激情探戈',
+    loop: true,
+    bones: {
+      hips: {
+        sharp: { axis: 'z', amplitude: 0.25, frequency: 1.5 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      spine: {
+        sharp: { axis: 'z', amplitude: 0.2, frequency: 1.5 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperLeg: {
+        sharp: { axis: 'x', amplitude: 0.5, frequency: 1.5 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperLeg: {
+        sharp: { axis: 'x', amplitude: 0.5, frequency: 1.5, phase: Math.PI },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperArm: {
+        frame: { axis: 'z', amplitude: 0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperArm: {
+        frame: { axis: 'z', amplitude: -0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  },
+
+  // 华尔兹
+  '华尔兹': {
+    type: ACTION_TYPES.DANCE,
+    duration: 4000,
+    description: '优雅华尔兹',
+    loop: true,
+    bones: {
+      hips: {
+        rise: { axis: 'y', amplitude: 0.08, frequency: 1 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        sway: { axis: 'z', amplitude: 0.1, frequency: 1 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperLeg: {
+        sweep: { axis: 'x', amplitude: 0.3, frequency: 1 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperLeg: {
+        sweep: { axis: 'x', amplitude: 0.3, frequency: 1, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        frame: { axis: 'z', amplitude: 0.4 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperArm: {
+        frame: { axis: 'z', amplitude: -0.4 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  },
+
+  // 桑巴
+  '桑巴': {
+    type: ACTION_TYPES.DANCE,
+    duration: 2500,
+    description: '热情桑巴',
+    loop: true,
+    bones: {
+      hips: {
+        roll: { axis: 'z', amplitude: 0.3, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        roll: { axis: 'z', amplitude: 0.2, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperLeg: {
+        bounce: { axis: 'x', amplitude: 0.4, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperLeg: {
+        bounce: { axis: 'x', amplitude: 0.4, frequency: 3, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        shake: { axis: 'z', amplitude: 0.5, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        shake: { axis: 'z', amplitude: -0.5, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 恰恰
+  '恰恰': {
+    type: ACTION_TYPES.DANCE,
+    duration: 2500,
+    description: '轻快恰恰',
+    loop: true,
+    bones: {
+      hips: {
+        cha: { axis: 'z', amplitude: 0.2, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperLeg: {
+        cha: { axis: 'x', amplitude: 0.3, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperLeg: {
+        cha: { axis: 'x', amplitude: 0.3, frequency: 4, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        cha: { axis: 'z', amplitude: 0.4, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        cha: { axis: 'z', amplitude: -0.4, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 伦巴
+  '伦巴': {
+    type: ACTION_TYPES.DANCE,
+    duration: 4000,
+    description: '浪漫伦巴',
+    loop: true,
+    bones: {
+      hips: {
+        slow: { axis: 'z', amplitude: 0.25, frequency: 1.2 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        wave: { axis: 'x', amplitude: 0.15, frequency: 1.2 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperLeg: {
+        slow: { axis: 'x', amplitude: 0.35, frequency: 1.2 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperLeg: {
+        slow: { axis: 'x', amplitude: 0.35, frequency: 1.2, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        slow: { axis: 'z', amplitude: 0.3, frequency: 1.2 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        slow: { axis: 'z', amplitude: -0.3, frequency: 1.2 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 弗拉明戈
+  '弗拉明戈': {
+    type: ACTION_TYPES.DANCE,
+    duration: 3000,
+    description: '西班牙弗拉明戈',
+    loop: true,
+    bones: {
+      hips: {
+        sharp: { axis: 'z', amplitude: 0.2, frequency: 2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      spine: {
+        proud: { axis: 'x', amplitude: -0.1 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperArm: {
+        flamenco: { axis: 'z', amplitude: 0.6, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        flamenco: { axis: 'z', amplitude: -0.6, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      leftLowerArm: {
+        wrist: { axis: 'y', amplitude: 0.4, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      },
+      rightLowerArm: {
+        wrist: { axis: 'y', amplitude: -0.4, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 草裙舞
+  '草裙舞': {
+    type: ACTION_TYPES.DANCE,
+    duration: 3000,
+    description: '夏威夷草裙舞',
+    loop: true,
+    bones: {
+      hips: {
+        hula: { axis: 'z', amplitude: 0.3, frequency: 1.5 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        hula: { axis: 'z', amplitude: 0.2, frequency: 1.5 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        hula: { axis: 'z', amplitude: 0.4, frequency: 1.5 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        hula: { axis: 'z', amplitude: -0.4, frequency: 1.5 },
+        timing: EASING_TYPES.SINE
+      },
+      neck: {
+        hula: { axis: 'y', amplitude: 0.15, frequency: 1.5 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 印度舞
+  '印度舞': {
+    type: ACTION_TYPES.DANCE,
+    duration: 3500,
+    description: '印度古典舞',
+    loop: true,
+    bones: {
+      neck: {
+        indian: { axis: 'x', amplitude: 0.15, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      head: {
+        indian: { axis: 'y', amplitude: 0.2, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        mudra: { axis: 'z', amplitude: 0.5, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        mudra: { axis: 'z', amplitude: -0.5, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      leftLowerArm: {
+        mudra: { axis: 'x', amplitude: -0.4, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      rightLowerArm: {
+        mudra: { axis: 'x', amplitude: -0.4, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 钢管舞
+  '钢管舞': {
+    type: ACTION_TYPES.DANCE,
+    duration: 4000,
+    description: '钢管舞蹈',
+    loop: true,
+    bones: {
+      hips: {
+        pole: { axis: 'y', amplitude: 0.3, frequency: 1 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        arch: { axis: 'x', amplitude: -0.3, frequency: 1 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        grip: { axis: 'z', amplitude: 0.4 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperArm: {
+        grip: { axis: 'z', amplitude: -0.4 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperLeg: {
+        wrap: { axis: 'x', amplitude: 0.5, frequency: 1 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperLeg: {
+        wrap: { axis: 'x', amplitude: 0.5, frequency: 1, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 迪斯科
+  '迪斯科': {
+    type: ACTION_TYPES.DANCE,
+    duration: 2500,
+    description: '复古迪斯科',
+    loop: true,
+    bones: {
+      hips: {
+        disco: { axis: 'z', amplitude: 0.25, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        disco: { axis: 'z', amplitude: 0.15, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        point: { axis: 'z', amplitude: 0.7, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        point: { axis: 'z', amplitude: -0.7, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      },
+      leftLowerArm: {
+        point: { axis: 'x', amplitude: -0.5, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      },
+      rightLowerArm: {
+        point: { axis: 'x', amplitude: -0.5, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 锁舞
+  '锁舞': {
+    type: ACTION_TYPES.DANCE,
+    duration: 2000,
+    description: 'Locking锁舞',
+    loop: true,
+    bones: {
+      hips: {
+        lock: { axis: 'y', amplitude: 0.1, frequency: 4 },
+        timing: EASING_TYPES.LINEAR
+      },
+      leftUpperArm: {
+        lock: { axis: 'z', amplitude: 0.6, frequency: 4 },
+        timing: EASING_TYPES.LINEAR
+      },
+      rightUpperArm: {
+        lock: { axis: 'z', amplitude: -0.6, frequency: 4 },
+        timing: EASING_TYPES.LINEAR
+      },
+      leftLowerArm: {
+        lock: { axis: 'x', amplitude: -0.4, frequency: 4 },
+        timing: EASING_TYPES.LINEAR
+      },
+      rightLowerArm: {
+        lock: { axis: 'x', amplitude: -0.4, frequency: 4 },
+        timing: EASING_TYPES.LINEAR
+      }
+    }
+  },
+
+  // 浩室舞
+  '浩室舞': {
+    type: ACTION_TYPES.DANCE,
+    duration: 2500,
+    description: 'House浩室舞',
+    loop: true,
+    bones: {
+      hips: {
+        house: { axis: 'y', amplitude: 0.08, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperLeg: {
+        jack: { axis: 'x', amplitude: 0.3, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperLeg: {
+        jack: { axis: 'x', amplitude: 0.3, frequency: 4, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        jack: { axis: 'z', amplitude: 0.4, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        jack: { axis: 'z', amplitude: -0.4, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 雷鬼舞
+  '雷鬼舞': {
+    type: ACTION_TYPES.DANCE,
+    duration: 3000,
+    description: 'Reggae雷鬼舞',
+    loop: true,
+    bones: {
+      hips: {
+        reggae: { axis: 'z', amplitude: 0.2, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        reggae: { axis: 'z', amplitude: 0.15, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        chill: { axis: 'z', amplitude: 0.3, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        chill: { axis: 'z', amplitude: -0.3, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      neck: {
+        chill: { axis: 'y', amplitude: 0.1, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 尊巴
+  '尊巴': {
+    type: ACTION_TYPES.DANCE,
+    duration: 2500,
+    description: 'Zumba尊巴',
+    loop: true,
+    bones: {
+      hips: {
+        zumba: { axis: 'z', amplitude: 0.3, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperLeg: {
+        zumba: { axis: 'x', amplitude: 0.4, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperLeg: {
+        zumba: { axis: 'x', amplitude: 0.4, frequency: 3, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        zumba: { axis: 'z', amplitude: 0.5, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        zumba: { axis: 'z', amplitude: -0.5, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 曳步舞
+  '曳步舞': {
+    type: ACTION_TYPES.DANCE,
+    duration: 2000,
+    description: 'Shuffle曳步舞',
+    loop: true,
+    bones: {
+      hips: {
+        shuffle: { axis: 'y', amplitude: 0.05, frequency: 5 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperLeg: {
+        slide: { axis: 'x', amplitude: 0.4, frequency: 5 },
+        timing: EASING_TYPES.SINE
+      },
+      leftLowerLeg: {
+        slide: { axis: 'x', amplitude: 0.5, frequency: 5 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperLeg: {
+        slide: { axis: 'x', amplitude: 0.4, frequency: 5, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      },
+      rightLowerLeg: {
+        slide: { axis: 'x', amplitude: 0.5, frequency: 5, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        swing: { axis: 'x', amplitude: 0.2, frequency: 5 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        swing: { axis: 'x', amplitude: 0.2, frequency: 5 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 鬼步舞
+  '鬼步舞': {
+    type: ACTION_TYPES.DANCE,
+    duration: 2000,
+    description: 'Ghost Step鬼步舞',
+    loop: true,
+    bones: {
+      hips: {
+        ghost: { axis: 'y', amplitude: 0.1, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperLeg: {
+        ghost: { axis: 'x', amplitude: 0.5, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      },
+      leftLowerLeg: {
+        ghost: { axis: 'x', amplitude: 0.6, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperLeg: {
+        ghost: { axis: 'x', amplitude: 0.5, frequency: 4, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      },
+      rightLowerLeg: {
+        ghost: { axis: 'x', amplitude: 0.6, frequency: 4, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        float: { axis: 'z', amplitude: 0.3, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        float: { axis: 'z', amplitude: -0.3, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 骑马舞
+  '骑马舞': {
+    type: ACTION_TYPES.DANCE,
+    duration: 3000,
+    description: '江南Style骑马舞',
+    loop: true,
+    bones: {
+      hips: {
+        horse: { axis: 'y', amplitude: 0.15, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperLeg: {
+        horse: { axis: 'x', amplitude: 0.4, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperLeg: {
+        horse: { axis: 'x', amplitude: 0.4, frequency: 2, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        reins: { axis: 'z', amplitude: 0.5, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        reins: { axis: 'z', amplitude: -0.5, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      leftLowerArm: {
+        reins: { axis: 'x', amplitude: -0.3, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      rightLowerArm: {
+        reins: { axis: 'x', amplitude: -0.3, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  }
+}
+
 // 合并所有动作数据
 export const allActionData = {
   ...basicActionData,
-  ...sexyActionData
+  ...sexyActionData,
+  ...danceActionData
 }
 
 // 获取任意动作数据（包括涩涩动作）
