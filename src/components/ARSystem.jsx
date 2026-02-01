@@ -3354,6 +3354,19 @@ export const ARScene = ({ selectedFile }) => {
       console.log('⚠️ MMD动作系统未启用')
       setCurrentAction(action)
     }
+
+    if (action === 'combo') {
+      setComboCount(prev => {
+        const newCount = prev + 1
+        if (newCount >= 3) {
+          setShowCombo(true)
+          setTimeout(() => setShowCombo(false), 2000)
+        }
+        return newCount
+      })
+    } else {
+      setComboCount(0)
+    }
   }, [actionIntensity, selectedCharacterIndex, useMMDActions, showNotification])
 
   // 执行MMD动作（用于交互模式等）
@@ -3380,20 +3393,6 @@ export const ARScene = ({ selectedFile }) => {
     setCurrentAction(action.id)
     showNotification(`角色${characterIndex + 1} MMD动作: ${action.name}`, 'success')
   }, [showNotification])
-
-  if (action === 'combo') {
-      setComboCount(prev => {
-        const newCount = prev + 1
-        if (newCount >= 3) {
-          setShowCombo(true)
-          setTimeout(() => setShowCombo(false), 2000)
-        }
-        return newCount
-      })
-    } else {
-      setComboCount(0)
-    }
-  }, [actionIntensity, selectedCharacterIndex, useMMDActions, showNotification])
 
   // 切换摆动模式
   const toggleSwingMode = useCallback(() => {
