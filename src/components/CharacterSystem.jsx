@@ -3232,6 +3232,12 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
           return
         }
         
+        // 调试：输出第一个骨骼的数据
+        const firstBoneName = Object.keys(boneData)[0]
+        if (firstBoneName && Math.random() < 0.02) {
+          console.log('🦴 第一个骨骼:', firstBoneName, boneData[firstBoneName])
+        }
+        
         // 应用骨骼变换
         let updatedBoneCount = 0
         let missingBoneCount = 0
@@ -3268,6 +3274,14 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
               const [rx, ry, rz] = transform.rotation
               // MMD到Three.js坐标系转换：Y轴旋转需要取反
               bone.rotation.set(rx, -ry, rz, 'XYZ')
+              
+              // 调试：记录leftUpperArm的旋转（每2秒一次）
+              if (boneName === 'leftUpperArm' && Math.random() < 0.02) {
+                console.log('🔄 leftUpperArm旋转:', {
+                  输入: [rx.toFixed(2), ry.toFixed(2), rz.toFixed(2)],
+                  应用后: [bone.rotation.x.toFixed(2), bone.rotation.y.toFixed(2), bone.rotation.z.toFixed(2)]
+                })
+              }
             }
             
             // 应用位置（只对hips骨骼）
