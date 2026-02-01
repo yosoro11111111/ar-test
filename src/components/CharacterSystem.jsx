@@ -3,10 +3,126 @@ import { useThree, useFrame } from '@react-three/fiber'
 import { Html, TransformControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
-import { VRM, VRMLoaderPlugin } from '@pixiv/three-vrm'
+import { VRM, VRMLoaderPlugin, VRMHumanBoneName } from '@pixiv/three-vrm'
 import { DragControls } from 'three/examples/jsm/controls/DragControls'
 import { actionAnimations250, getActionAnimation, easingFunctions, poseLibrary } from '../data/actionAnimations250'
 import { poseBoneData } from '../data/poseBoneData'
+import { interpolateKeyframes } from '../data/mmdActions'
+
+// MMD骨骼名称到VRM标准骨骼名称的映射
+const MMD_TO_VRM_BONE_MAP = {
+  // 核心骨骼
+  hips: 'hips',
+  spine: 'spine',
+  chest: 'chest',
+  upperChest: 'upperChest',
+  neck: 'neck',
+  head: 'head',
+  
+  // 左臂
+  leftShoulder: 'leftShoulder',
+  leftUpperArm: 'leftUpperArm',
+  leftLowerArm: 'leftLowerArm',
+  leftHand: 'leftHand',
+  
+  // 右臂
+  rightShoulder: 'rightShoulder',
+  rightUpperArm: 'rightUpperArm',
+  rightLowerArm: 'rightLowerArm',
+  rightHand: 'rightHand',
+  
+  // 左腿
+  leftUpperLeg: 'leftUpperLeg',
+  leftLowerLeg: 'leftLowerLeg',
+  leftFoot: 'leftFoot',
+  leftToes: 'leftToes',
+  
+  // 右腿
+  rightUpperLeg: 'rightUpperLeg',
+  rightLowerLeg: 'rightLowerLeg',
+  rightFoot: 'rightFoot',
+  rightToes: 'rightToes',
+  
+  // 手指（简化）
+  leftThumbProximal: 'leftThumbProximal',
+  leftThumbIntermediate: 'leftThumbIntermediate',
+  leftThumbDistal: 'leftThumbDistal',
+  leftIndexProximal: 'leftIndexProximal',
+  leftIndexIntermediate: 'leftIndexIntermediate',
+  leftIndexDistal: 'leftIndexDistal',
+  leftMiddleProximal: 'leftMiddleProximal',
+  leftMiddleIntermediate: 'leftMiddleIntermediate',
+  leftMiddleDistal: 'leftMiddleDistal',
+  leftRingProximal: 'leftRingProximal',
+  leftRingIntermediate: 'leftRingIntermediate',
+  leftRingDistal: 'leftRingDistal',
+  leftLittleProximal: 'leftLittleProximal',
+  leftLittleIntermediate: 'leftLittleIntermediate',
+  leftLittleDistal: 'leftLittleDistal',
+  
+  rightThumbProximal: 'rightThumbProximal',
+  rightThumbIntermediate: 'rightThumbIntermediate',
+  rightThumbDistal: 'rightThumbDistal',
+  rightIndexProximal: 'rightIndexProximal',
+  rightIndexIntermediate: 'rightIndexIntermediate',
+  rightIndexDistal: 'rightIndexDistal',
+  rightMiddleProximal: 'rightMiddleProximal',
+  rightMiddleIntermediate: 'rightMiddleIntermediate',
+  rightMiddleDistal: 'rightMiddleDistal',
+  rightRingProximal: 'rightRingProximal',
+  rightRingIntermediate: 'rightRingIntermediate',
+  rightRingDistal: 'rightRingDistal',
+  rightLittleProximal: 'rightLittleProximal',
+  rightLittleIntermediate: 'rightLittleIntermediate',
+  rightLittleDistal: 'rightLittleDistal'
+}
+
+// ==================== 骨骼约束配置 ====================
+// 限制骨骼的旋转范围，防止不自然的动作 - 大幅增加限制范围以支持MMD动作
+const BONE_CONSTRAINTS = {
+  // 头部
+  head: { minX: -1.5, maxX: 1.5, minY: -2.0, maxY: 2.0, minZ: -1.0, maxZ: 1.0 },
+  neck: { minX: -1.2, maxX: 1.2, minY: -1.5, maxY: 1.5, minZ: -0.8, maxZ: 0.8 },
+  
+  // 脊柱
+  spine: { minX: -1.0, maxX: 1.0, minY: -1.5, maxY: 1.5, minZ: -0.8, maxZ: 0.8 },
+  chest: { minX: -0.8, maxX: 0.8, minY: -1.0, maxY: 1.0, minZ: -0.5, maxZ: 0.5 },
+  
+  // 手臂 - 大幅增加活动范围
+  leftShoulder: { minX: -2.0, maxX: 2.0, minY: -1.5, maxY: 1.5, minZ: -1.0, maxZ: 1.0 },
+  leftUpperArm: { minX: -4.0, maxX: 4.0, minY: -4.0, maxY: 4.0, minZ: -3.0, maxZ: 3.0 },
+  leftLowerArm: { minX: -3.0, maxX: 0.5, minY: -1.5, maxY: 1.5, minZ: -1.5, maxZ: 1.5 },
+  leftHand: { minX: -1.5, maxX: 1.5, minY: -1.5, maxY: 1.5, minZ: -1.5, maxZ: 1.5 },
+  
+  rightShoulder: { minX: -2.0, maxX: 2.0, minY: -1.5, maxY: 1.5, minZ: -1.0, maxZ: 1.0 },
+  rightUpperArm: { minX: -4.0, maxX: 4.0, minY: -4.0, maxY: 4.0, minZ: -3.0, maxZ: 3.0 },
+  rightLowerArm: { minX: -3.0, maxX: 0.5, minY: -1.5, maxY: 1.5, minZ: -1.5, maxZ: 1.5 },
+  rightHand: { minX: -1.5, maxX: 1.5, minY: -1.5, maxY: 1.5, minZ: -1.5, maxZ: 1.5 },
+  
+  // 腿部 - 大幅增加活动范围
+  leftUpperLeg: { minX: -3.0, maxX: 2.0, minY: -2.0, maxY: 2.0, minZ: -1.5, maxZ: 1.5 },
+  leftLowerLeg: { minX: -0.5, maxX: 3.0, minY: -1.0, maxY: 1.0, minZ: -1.0, maxZ: 1.0 },
+  leftFoot: { minX: -1.5, maxX: 1.5, minY: -1.0, maxY: 1.0, minZ: -1.0, maxZ: 1.0 },
+  
+  rightUpperLeg: { minX: -3.0, maxX: 2.0, minY: -2.0, maxY: 2.0, minZ: -1.5, maxZ: 1.5 },
+  rightLowerLeg: { minX: -0.5, maxX: 3.0, minY: -1.0, maxY: 1.0, minZ: -1.0, maxZ: 1.0 },
+  rightFoot: { minX: -1.5, maxX: 1.5, minY: -1.0, maxY: 1.0, minZ: -1.0, maxZ: 1.0 },
+  
+  // 臀部 - 大幅增加活动范围
+  hips: { minX: -1.0, maxX: 1.0, minY: -4.0, maxY: 4.0, minZ: -1.0, maxZ: 1.0 }
+}
+
+// 应用骨骼约束
+function applyBoneConstraints(boneName, rotation) {
+  const constraints = BONE_CONSTRAINTS[boneName]
+  if (!constraints) return rotation
+  
+  return [
+    Math.max(constraints.minX, Math.min(constraints.maxX, rotation[0])),
+    Math.max(constraints.minY, Math.min(constraints.maxY, rotation[1])),
+    Math.max(constraints.minZ, Math.min(constraints.maxZ, rotation[2]))
+  ]
+}
 
 // ==================== 移动端检测 Hook ====================
 const useMobileDetect = () => {
@@ -614,9 +730,9 @@ const ExpressionSystem = ({ vrmModel, actionType, intensity = 1.0, isPlaying = t
   return null
 }
 
-const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null, isBoneEditing = false, onBoneChange = null, scale: externalScale = 1.0, actionIntensity: externalActionIntensity = 1.0 }) => {
+const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null, isBoneEditing = false, onBoneChange = null, scale: externalScale = 1.0, actionIntensity: externalActionIntensity = 1.0, opacity: externalOpacity = 1.0, mmdCurrentAction = null, mmdActionStartTime = 0 }) => {
   const { isMobile } = useMobileDetect()
-  const { scene, gl, camera } = useThree()
+  const { scene, gl, camera, clock } = useThree()
   const characterRef = useRef(null)
   const [isLoading, setIsLoading] = useState(false)
   const [loadingProgress, setLoadingProgress] = useState(0)
@@ -631,8 +747,29 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const [isDragging, setIsDragging] = useState(false)
   const [initialPosition, setInitialPosition] = useState([0, 0, 0])
   const [currentActionType, setCurrentActionType] = useState('idle')
+  // MMD动作基础位置偏移 - 保存角色当前位置作为基础
+  const mmdBasePosition = useRef(position)
+  const mmdInitialHipsPosition = useRef(null)
+  const mmdPreviousAction = useRef(null)
+  const mmdInitialBoneRotations = useRef(new Map())
+  // 骨骼查找缓存 - 避免每帧都查找骨骼
+  const boneCache = useRef(new Map())
+  const lastCacheClearTime = useRef(0)
+  // 动画平滑滤波 - 减少抖动（减少到5帧历史）
+  const boneRotationHistory = useRef(new Map())
+  const bonePositionHistory = useRef(new Map())
+  const HISTORY_LENGTH = 5 // 减少到5帧，平衡平滑度和灵敏度
+  // 物理惯性模拟
+  const boneVelocities = useRef(new Map())
+  const boneLastRotations = useRef(new Map())
+  // 动画混合权重
+  const blendWeight = useRef(1.0)
+  const targetBlendWeight = useRef(1.0)
+  // 低通滤波器系数（0-1，越大越平滑但延迟越高）
+  const SMOOTHING_FACTOR = 0.4
   const [showParticles, setShowParticles] = useState(false)
   const [actionIntensity, setActionIntensity] = useState(externalActionIntensity)
+  const [opacity, setOpacity] = useState(externalOpacity)
   const [isComboMode, setIsComboMode] = useState(false)
   const [comboSequence, setComboSequence] = useState([])
   const [isRandomMode, setIsRandomMode] = useState(false)
@@ -646,6 +783,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   const [isTouching, setIsTouching] = useState(false)
   const [touchPosition, setTouchPosition] = useState(new THREE.Vector3())
   const [canvasRotation, setCanvasRotation] = useState(0)
+  const [currentLoadedFile, setCurrentLoadedFile] = useState(null)
   const loader = useRef(null)
   const dragControls = useRef(null)
   const loadRetryCount = useRef(0)
@@ -771,9 +909,43 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     setActionIntensity(externalActionIntensity)
   }, [externalActionIntensity])
 
+  // 监听MMD动作变化
+  useEffect(() => {
+    if (mmdCurrentAction) {
+      console.log('🎯 CharacterSystem 收到MMD动作:', mmdCurrentAction.name, 'ID:', mmdCurrentAction.id)
+      console.log('⏰ 动作开始时间:', mmdActionStartTime)
+    } else {
+      console.log('🎯 CharacterSystem MMD动作已清除')
+    }
+  }, [mmdCurrentAction, mmdActionStartTime])
+
+  // 监听角色旋转事件
+  useEffect(() => {
+    const handleRotateCharacter = (e) => {
+      const { index: targetIndex, angle } = e.detail
+      if (targetIndex === index && characterRef.current) {
+        // 应用旋转
+        characterRef.current.rotation.y = angle
+        console.log(`🔄 角色${index} 旋转到 ${(angle * 180 / Math.PI).toFixed(0)}度`)
+      }
+    }
+    
+    window.addEventListener('rotateCharacter', handleRotateCharacter)
+    return () => window.removeEventListener('rotateCharacter', handleRotateCharacter)
+  }, [index])
+
   useEffect(() => {
     if (selectedFile) {
-      loadVRMModel(selectedFile)
+      // 检查是否已经加载了相同的文件，避免重复加载
+      const fileIdentifier = selectedFile.name || selectedFile.localPath || selectedFile
+      const currentFileIdentifier = currentLoadedFile?.name || currentLoadedFile?.localPath || currentLoadedFile
+      
+      if (fileIdentifier !== currentFileIdentifier) {
+        loadVRMModel(selectedFile)
+        setCurrentLoadedFile(selectedFile)
+      } else {
+        console.log('模型文件已加载，跳过重复加载:', fileIdentifier)
+      }
     }
   }, [selectedFile])
 
@@ -798,10 +970,11 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       
       if (characterModel) {
         try {
-          scene.remove(characterModel)
-          console.log('移除之前的模型')
+          console.log('准备加载新模型，清理之前的模型引用')
+          // 由于模型现在通过React Three Fiber渲染，不需要从场景中移除
+          // 只需要清理引用即可
         } catch (error) {
-          console.error('移除模型失败:', error)
+          console.error('清理模型失败:', error)
         }
       }
       
@@ -860,7 +1033,6 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
                 gltf.scene.position.set(0, 0, 0)
                 gltf.scene.rotation.set(0, 0, 0)
                 gltf.scene.scale.set(1, 1, 1)
-                scene.add(gltf.scene)
                 characterRef.current = gltf.scene
                 setCharacterModel(gltf.scene)
                 
@@ -886,6 +1058,20 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
               console.log('VRM实例加载成功:', vrm)
               console.log('VRM结构:', Object.keys(vrm))
               console.log('VRM.humanoid:', vrm.humanoid)
+              
+              // 调试：输出所有可用的骨骼名称
+              if (vrm.humanoid) {
+                console.log('=== VRM骨骼名称列表 ===')
+                console.log('VRMHumanBoneName:', VRMHumanBoneName)
+                const humanBones = vrm.humanoid.humanBones
+                if (humanBones) {
+                  Object.entries(humanBones).forEach(([key, value]) => {
+                    console.log(`骨骼: ${key} -> ${value?.node?.name || 'no node'}`)
+                  })
+                }
+                console.log('=== 骨骼名称列表结束 ===')
+              }
+              
               setVrmModel(vrm)
               
               // 将 vrm 模型暴露到 window，供移动端骨骼编辑器使用
@@ -899,7 +1085,6 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
               vrm.scene.rotation.set(0, Math.PI, 0) // 旋转180度，让模型面对用户
               vrm.scene.scale.set(1, 1, 1)
               
-              scene.add(vrm.scene)
               characterRef.current = vrm.scene
               setCharacterModel(vrm.scene)
               
@@ -1147,8 +1332,15 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
       
       // 设置表情为自然微笑
       if (vrm.expressionManager) {
-        vrm.expressionManager.setValue('neutral', 0.8)
-        vrm.expressionManager.setValue('happy', 0.2)
+        try {
+          vrm.expressionManager.setValue('neutral', 0.8)
+          vrm.expressionManager.setValue('happy', 0.2)
+          console.log('✅ 表情设置成功')
+        } catch (e) {
+          console.warn('⚠️ 表情设置失败:', e.message)
+        }
+      } else {
+        console.log('ℹ️ VRM模型没有expressionManager，跳过表情设置')
       }
       
       vrm.scene.updateMatrixWorld(true)
@@ -1986,9 +2178,6 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
     // 指数缓动
     expo: (t) => t === 0 ? 0 : t === 1 ? 1 : t < 0.5 ? Math.pow(2, 20 * t - 10) / 2 : (2 - Math.pow(2, -20 * t + 10)) / 2
   }
-  
-  // 骨骼速度追踪（用于惯性效果）
-  const boneVelocities = useRef(new Map())
   
   // 生成通用动作 - 为未定义的动作创建默认动画
   const generateGenericAction = (actionName) => {
@@ -2932,19 +3121,324 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   }, [])
 
   useFrame((state, delta) => {
-    // 骨骼编辑模式或骨骼动画执行时暂停其他动画更新
-    if (isBoneEditing || currentBoneAnimation.current) {
+    // 骨骼编辑模式时暂停其他动画更新
+    // 注意：MMD动作播放时不应该被currentBoneAnimation阻塞
+    if (isBoneEditing) {
       return
     }
     
     try {
-      if (animationMixer && typeof animationMixer.update === 'function') {
-        animationMixer.update(delta)
+      // 模型透明度处理
+      if (vrmModel && vrmModel.scene) {
+        vrmModel.scene.traverse((obj) => {
+          if (obj.isMesh && obj.material) {
+            if (Array.isArray(obj.material)) {
+              obj.material.forEach(mat => {
+                mat.transparent = true
+                mat.opacity = opacity
+                mat.needsUpdate = true
+              })
+            } else {
+              obj.material.transparent = true
+              obj.material.opacity = opacity
+              obj.material.needsUpdate = true
+            }
+          }
+        })
       }
       
-      // VRM update 会覆盖骨骼动画，所以在执行骨骼动画时跳过
+      // MMD动作系统处理
+      // 帧率检测
+      const now = Date.now()
+      if (!window.mmdFrameStats) {
+        window.mmdFrameStats = { lastTime: now, frameCount: 0, fps: 0 }
+      }
+      window.mmdFrameStats.frameCount++
+      if (now - window.mmdFrameStats.lastTime >= 1000) {
+        window.mmdFrameStats.fps = window.mmdFrameStats.frameCount
+        console.log('📊 FPS:', window.mmdFrameStats.fps)
+        window.mmdFrameStats.frameCount = 0
+        window.mmdFrameStats.lastTime = now
+      }
+      
+      const canPlayMMD = mmdCurrentAction && vrmModel && vrmModel.humanoid && mmdActionStartTime > 0
+      
+      // 限制MMD更新频率，避免过于频繁的更新导致抖动
+      if (!window.mmdLastUpdateTime) window.mmdLastUpdateTime = 0
+      const timeSinceLastUpdate = now - window.mmdLastUpdateTime
+      const minUpdateInterval = 16 // 约60fps，每16ms更新一次
+      
+      if (canPlayMMD && timeSinceLastUpdate >= minUpdateInterval) {
+        window.mmdLastUpdateTime = now
+        const currentTime = Date.now()
+        const elapsedTime = currentTime - mmdActionStartTime
+        
+        // 检测MMD更新频率
+        if (!window.mmdUpdateStats) {
+          window.mmdUpdateStats = { lastTime: currentTime, updateCount: 0, updatesPerSecond: 0 }
+        }
+        window.mmdUpdateStats.updateCount++
+        if (currentTime - window.mmdUpdateStats.lastTime >= 1000) {
+          window.mmdUpdateStats.updatesPerSecond = window.mmdUpdateStats.updateCount
+          console.log('🎬 MMD更新频率:', window.mmdUpdateStats.updatesPerSecond, '次/秒')
+          window.mmdUpdateStats.updateCount = 0
+          window.mmdUpdateStats.lastTime = currentTime
+        }
+        
+        // 动作开始时保存初始状态并执行过渡
+        if (elapsedTime < 100) {
+          // 保存角色的基础位置（来自props）
+          mmdBasePosition.current = position
+          
+          // 获取hips的初始位置
+          const hipsBone = vrmModel.humanoid.getNormalizedBoneNode('hips') || 
+                          vrmModel.scene.getObjectByName('hips') ||
+                          vrmModel.scene.getObjectByName('J_Bip_C_Hips')
+          if (hipsBone) {
+            mmdInitialHipsPosition.current = hipsBone.position.clone()
+          }
+          
+          // 保存所有骨骼的初始旋转（用于动作过渡）
+          if (!mmdPreviousAction.current || mmdPreviousAction.current.id !== mmdCurrentAction.id) {
+            mmdInitialBoneRotations.current.clear()
+            Object.keys(MMD_TO_VRM_BONE_MAP).forEach(boneName => {
+              const vrmBoneName = MMD_TO_VRM_BONE_MAP[boneName] || boneName
+              let bone = null
+              
+              if (typeof vrmModel.humanoid.getNormalizedBoneNode === 'function') {
+                bone = vrmModel.humanoid.getNormalizedBoneNode(vrmBoneName)
+              }
+              if (!bone && typeof vrmModel.humanoid.getBone === 'function') {
+                const boneRef = vrmModel.humanoid.getBone(vrmBoneName)
+                if (boneRef && boneRef.node) bone = boneRef.node
+              }
+              
+              if (bone) {
+                mmdInitialBoneRotations.current.set(boneName, bone.rotation.clone())
+              }
+            })
+            mmdPreviousAction.current = mmdCurrentAction
+            console.log('🔄 动作切换，保存初始骨骼状态:', mmdCurrentAction.name)
+          }
+        }
+        
+        // 计算过渡因子（前300ms为过渡期）
+        const transitionDuration = 300
+        const transitionFactor = Math.min(elapsedTime / transitionDuration, 1.0)
+        
+        // 调试日志 - 每500ms输出一次
+        if (elapsedTime % 500 < 50) {
+          console.log('🎬 MMD动作播放中:', mmdCurrentAction.name, '已用时间:', elapsedTime + 'ms', 'vrmModel:', !!vrmModel, 'humanoid:', !!vrmModel.humanoid)
+        }
+        
+        // 应用MMD动作（interpolateKeyframes内部已经处理了循环）
+        let boneData
+        try {
+          boneData = interpolateKeyframes(mmdCurrentAction, elapsedTime)
+        } catch (error) {
+          console.error('❌ interpolateKeyframes 错误:', error)
+          boneData = {}
+        }
+        
+        // 调试日志 - 每2秒输出一次避免刷屏
+        if (elapsedTime < 100 || elapsedTime % 2000 < 50) {
+          console.log('🎭 MMD动作播放中:', mmdCurrentAction.name, '骨骼数量:', Object.keys(boneData).length, '已用时间:', elapsedTime + 'ms')
+          
+          // 输出第一个骨骼的数据作为示例
+          const firstBoneName = Object.keys(boneData)[0]
+          if (firstBoneName) {
+            const firstBone = boneData[firstBoneName]
+            console.log('📋 示例骨骼数据:', firstBoneName, {
+              旋转: firstBone.rotation?.map(v => v.toFixed(3)),
+              位置: firstBone.position?.map(v => v.toFixed(3))
+            })
+          }
+        }
+        
+        // 检查boneData是否有效
+        if (!boneData || Object.keys(boneData).length === 0) {
+          console.warn('⚠️ boneData为空或无效')
+          return
+        }
+        
+        // 应用骨骼变换
+        let updatedBoneCount = 0
+        let missingBoneCount = 0
+        
+        Object.entries(boneData).forEach(([boneName, transform]) => {
+          // 将MMD骨骼名称映射到VRM标准骨骼名称
+          const vrmBoneName = MMD_TO_VRM_BONE_MAP[boneName] || boneName
+          
+          // 尝试从缓存获取骨骼
+          const cacheKey = `${vrmBoneName}_${boneName}`
+          let bone = boneCache.current.get(cacheKey)
+          
+          // 如果缓存中没有，或者每5秒清理一次缓存，重新查找
+          const currentTime = Date.now()
+          if (!bone || (currentTime - lastCacheClearTime.current > 5000)) {
+            if (currentTime - lastCacheClearTime.current > 5000) {
+              boneCache.current.clear()
+              lastCacheClearTime.current = currentTime
+            }
+            
+            // 方式1: 使用getRawBoneNode方法（VRM 1.0原始骨骼，不会被自动重置）
+            if (typeof vrmModel.humanoid.getRawBoneNode === 'function') {
+              bone = vrmModel.humanoid.getRawBoneNode(vrmBoneName)
+            }
+            
+            // 方式2: 使用getNormalizedBoneNode方法（VRM 1.0归一化骨骼，会被自动重置，不推荐用于MMD）
+            if (!bone && typeof vrmModel.humanoid.getNormalizedBoneNode === 'function') {
+              bone = vrmModel.humanoid.getNormalizedBoneNode(vrmBoneName)
+            }
+            
+            // 方式3: 使用getBone方法（VRM 0.x兼容，但已弃用）
+            if (!bone && typeof vrmModel.humanoid.getBone === 'function') {
+              try {
+                const boneRef = vrmModel.humanoid.getBone(vrmBoneName)
+                if (boneRef && boneRef.node) {
+                  bone = boneRef.node
+                }
+              } catch (e) {
+                // getBone已弃用，忽略错误
+              }
+            }
+            
+            // 方式4: 直接从场景中查找（备用方案）
+            if (!bone && vrmModel.scene) {
+              // 尝试多种可能的命名格式
+              const possibleNames = [
+                vrmBoneName,
+                `J_Bip_C_${vrmBoneName}`,
+                `J_Sec_${vrmBoneName}`,
+                boneName,
+                `J_Bip_C_${boneName}`,
+                `J_Sec_${boneName}`,
+                // 添加更多可能的命名格式
+                vrmBoneName.toLowerCase(),
+                vrmBoneName.toUpperCase(),
+                `j_bip_c_${vrmBoneName.toLowerCase()}`,
+                `j_sec_${vrmBoneName.toLowerCase()}`
+              ]
+              
+              for (const name of possibleNames) {
+                bone = vrmModel.scene.getObjectByName(name)
+                if (bone) break
+              }
+              
+              // 如果还是找不到，尝试遍历场景查找包含骨骼名称的对象
+              if (!bone) {
+                vrmModel.scene.traverse((obj) => {
+                  if (!bone && obj.name && obj.name.toLowerCase().includes(vrmBoneName.toLowerCase())) {
+                    bone = obj
+                  }
+                })
+              }
+            }
+            
+            // 将找到的骨骼存入缓存
+            if (bone) {
+              boneCache.current.set(cacheKey, bone)
+            }
+          }
+          
+          if (bone) {
+            updatedBoneCount++
+            
+            // 应用旋转（MMD动作主要使用旋转）
+            if (transform.rotation && Array.isArray(transform.rotation)) {
+              // 直接应用旋转，只进行坐标系转换
+              const [rx, ry, rz] = transform.rotation
+              
+              // 调试日志：记录旋转值变化（只记录leftUpperArm作为示例）
+              if (boneName === 'leftUpperArm' && Math.random() < 0.05) {
+                console.log('🦴 骨骼更新:', boneName, {
+                  输入旋转: [rx.toFixed(3), ry.toFixed(3), rz.toFixed(3)],
+                  应用旋转: [rx.toFixed(3), (-ry).toFixed(3), rz.toFixed(3)],
+                  当前旋转: [bone.rotation.x.toFixed(3), bone.rotation.y.toFixed(3), bone.rotation.z.toFixed(3)]
+                })
+              }
+              
+              // MMD到Three.js坐标系转换：Y轴旋转需要取反
+              bone.rotation.set(rx, -ry, rz, 'XYZ')
+            }
+            
+            // 应用位置（如果有）- 使用相对偏移
+            if (transform.position && Array.isArray(transform.position)) {
+              const [px, py, pz] = transform.position
+              // 只对特定骨骼应用位置变化（如hips）
+              if (boneName === 'hips' || vrmBoneName === 'hips') {
+                // 直接应用位置偏移
+                if (mmdInitialHipsPosition.current) {
+                  bone.position.set(
+                    mmdInitialHipsPosition.current.x + px,
+                    mmdInitialHipsPosition.current.y + py,
+                    mmdInitialHipsPosition.current.z + pz
+                  )
+                } else {
+                  bone.position.set(
+                    mmdBasePosition.current[0] + px,
+                    mmdBasePosition.current[1] + py,
+                    mmdBasePosition.current[2] + pz
+                  )
+                }
+              }
+            }
+          } else {
+            missingBoneCount++
+            // 调试日志 - 只在动作开始时输出，且只输出一次
+            if (elapsedTime < 200 && !boneCache.current.has(`missing_${boneName}`)) {
+              console.log('⚠️ 无法找到骨骼:', boneName, '->', vrmBoneName, '(将跳过此骨骼)')
+              boneCache.current.set(`missing_${boneName}`, true)
+            }
+          }
+        })
+        
+        // 调试日志 - 每500ms输出一次统计
+        if (elapsedTime % 500 < 50) {
+          console.log('📊 MMD骨骼更新统计:', '成功:', updatedBoneCount, '失败:', missingBoneCount, '总计:', Object.keys(boneData).length)
+        }
+      }
+      
+      // VRM update 会覆盖骨骼动画，所以在执行MMD动作时跳过
       if (vrmModel && typeof vrmModel.update === 'function') {
-        vrmModel.update(delta)
+        if (!mmdCurrentAction) {
+          vrmModel.update(delta)
+        } else {
+          // 调试：检测MMD动作播放时VRM update是否被跳过
+          if (Math.random() < 0.01) {
+            console.log('⏭️ VRM update被跳过（MMD动作播放中）')
+          }
+          // 关键修复：即使跳过vrmModel.update()，也要更新VRM的其他系统（如blendShape），但不更新骨骼
+          if (vrmModel.expressionManager) {
+            vrmModel.expressionManager.update(delta)
+          }
+        }
+      }
+      
+      // 关键修复：禁用VRM humanoid的自动归一化，防止覆盖我们的骨骼设置
+      if (mmdCurrentAction && vrmModel && vrmModel.humanoid) {
+        // 保存humanoid的原始状态
+        if (!window.humanoidStateSaved) {
+          window.originalHumanoidUpdate = vrmModel.humanoid.update
+          window.humanoidStateSaved = true
+        }
+        // 禁用humanoid更新
+        vrmModel.humanoid.update = () => {}
+      } else if (!mmdCurrentAction && vrmModel && vrmModel.humanoid && window.originalHumanoidUpdate) {
+        // 恢复humanoid更新
+        vrmModel.humanoid.update = window.originalHumanoidUpdate
+      }
+      
+      // animationMixer 更新 - 在MMD动作之后执行，避免覆盖
+      if (animationMixer && typeof animationMixer.update === 'function') {
+        if (!mmdCurrentAction) {
+          animationMixer.update(delta)
+        } else {
+          // 调试：检测MMD动作播放时animationMixer是否被跳过
+          if (Math.random() < 0.01) {
+            console.log('⏭️ animationMixer被跳过（MMD动作播放中）')
+          }
+        }
       }
       
       if (characterRef.current && isAnimating) {
@@ -3380,6 +3874,11 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
         </mesh>
       )}
       
+      {/* 渲染VRM模型 - 通过React Three Fiber的正常渲染流程 */}
+      {characterModel && (
+        <primitive object={characterModel} />
+      )}
+      
       {/* 加载进度条 */}
       {isLoading && (
         <Html 
@@ -3477,7 +3976,7 @@ const CharacterSystem = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedF
   )
 }
 
-const CharacterController = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null, isBoneEditing = false, onBoneChange = null, scale = 1.0 }) => {
+const CharacterController = ({ position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null, isBoneEditing = false, onBoneChange = null, scale = 1.0, actionIntensity = 1.0, opacity = 1.0, mmdCurrentAction = null, mmdActionStartTime = 0 }) => {
   return (
     <group scale={[scale, scale, scale]}>
       <CharacterSystem 
@@ -3487,6 +3986,11 @@ const CharacterController = ({ position = [0, 0, 0], rotation = [0, 0, 0], selec
         onSwing={onSwing}
         isBoneEditing={isBoneEditing}
         onBoneChange={onBoneChange}
+        scale={scale}
+        actionIntensity={actionIntensity}
+        opacity={opacity}
+        mmdCurrentAction={mmdCurrentAction}
+        mmdActionStartTime={mmdActionStartTime}
       />
     </group>
   )

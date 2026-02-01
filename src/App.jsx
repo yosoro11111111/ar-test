@@ -205,10 +205,10 @@ function App() {
   }
 
   const filteredModelList = modelList.filter(model => {
-    const matchesSearch = model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          model.filename.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesSearch = model.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          model.filename?.toLowerCase().includes(searchQuery.toLowerCase())
     const matchesTags = selectedTags.length === 0 ||
-                        selectedTags.every(tag => model.tags.includes(tag))
+                        selectedTags.every(tag => model.tags?.includes(tag))
     return matchesSearch && matchesTags
   })
 

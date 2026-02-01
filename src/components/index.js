@@ -1,18 +1,17 @@
-// 组件导出文件 - 统一导出所有组件
-
-export { ARScene } from './ARSystem'
-export { default as ModelViewer } from './ModelViewer'
-export { default as LoadingScreen } from './LoadingScreen'
-export { default as CharacterManager } from './CharacterManager'
-export { default as ActionPanel } from './ActionPanel'
-export { default as BoneEditor } from './BoneEditor'
-export { default as VideoRecorder } from './VideoRecorder'
+// 组件导出
+export { default as ARSystem } from './ARSystem'
 export { default as CharacterSystem } from './CharacterSystem'
+export { default as LayeredCanvas, BackgroundLayer, ModelLayer } from './LayeredCanvas'
+export { default as ModelDownloader } from './ModelDownloader'
+export { default as StageEffectsPanel } from './StageEffectsPanel'
+export { default as VideoRecorder } from './VideoRecorder'
+export { default as PlaylistPanel } from './PlaylistPanel'
+export { default as SceneManager } from './SceneManager'
+export { default as PosePanel } from './PosePanel'
+export { default as ActionRecorder } from './ActionRecorder'
+export { default as SceneTemplatePanel } from './SceneTemplatePanel'
+export { default as ShareCardGenerator } from './ShareCardGenerator'
 
-// 新增组件
-export { StageEffectsPanel } from './StageEffectsPanel'
-export { PlaylistPanel } from './PlaylistPanel'
-export { SceneManager } from './SceneManager'
-
-// Hooks
-export { useGestureSystem, useSceneGestureController } from '../hooks/useGestureSystem'
+// 数据导出
+export { mmdActions, mmdActionCategories, interpolateKeyframes } from '../data/mmdActions'
+export { furnitureList, furnitureCategories } from '../data/furniture'
