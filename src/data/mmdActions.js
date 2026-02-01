@@ -542,8 +542,18 @@ class SimpleQuaternion {
 // 插值函数 - 使用简单的线性插值（更稳定）
 export function interpolateKeyframes(action, elapsedTime) {
   // 验证输入
-  if (!action || !action.keyframes || action.keyframes.length === 0) {
-    console.warn('⚠️ interpolateKeyframes: 无效的动作数据')
+  if (!action) {
+    console.warn('⚠️ interpolateKeyframes: action为空')
+    return {}
+  }
+  
+  if (!action.keyframes || action.keyframes.length === 0) {
+    console.warn('⚠️ interpolateKeyframes: 关键帧为空', action.id, action.name)
+    return {}
+  }
+  
+  if (!action.duration || action.duration <= 0) {
+    console.warn('⚠️ interpolateKeyframes: 无效的duration', action.id, action.duration)
     return {}
   }
   

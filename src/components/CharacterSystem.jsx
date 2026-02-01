@@ -3163,11 +3163,8 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
   }, [])
 
   useFrame((state, delta) => {
-    // 骨骼编辑模式时暂停其他动画更新
-    // 注意：MMD动作播放时不应该被currentBoneAnimation阻塞
-    if (isBoneEditing) {
-      return
-    }
+    // 骨骼编辑模式时暂停其他动画更新，但不阻塞MMD动作播放
+    // MMD动作优先级高于骨骼编辑
     
     try {
       // 模型透明度处理
@@ -3240,33 +3237,12 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
             mmdInitialHipsPosition.current = hipsBone.position.clone()
           }
           
-          // 保存所有骨骼的初始旋转（用于动作过渡）
+          // 动作切换时记录
           if (!mmdPreviousAction.current || mmdPreviousAction.current.id !== mmdCurrentAction.id) {
-            mmdInitialBoneRotations.current.clear()
-            Object.keys(MMD_TO_VRM_BONE_MAP).forEach(boneName => {
-              const vrmBoneName = MMD_TO_VRM_BONE_MAP[boneName] || boneName
-              let bone = null
-              
-              if (typeof vrmModel.humanoid.getNormalizedBoneNode === 'function') {
-                bone = vrmModel.humanoid.getNormalizedBoneNode(vrmBoneName)
-              }
-              if (!bone && typeof vrmModel.humanoid.getBone === 'function') {
-                const boneRef = vrmModel.humanoid.getBone(vrmBoneName)
-                if (boneRef && boneRef.node) bone = boneRef.node
-              }
-              
-              if (bone) {
-                mmdInitialBoneRotations.current.set(boneName, bone.rotation.clone())
-              }
-            })
             mmdPreviousAction.current = mmdCurrentAction
-            console.log('🔄 动作切换，保存初始骨骼状态:', mmdCurrentAction.name)
+            console.log('🔄 动作切换:', mmdCurrentAction.name)
           }
         }
-        
-        // 计算过渡因子（前300ms为过渡期）
-        const transitionDuration = 300
-        const transitionFactor = Math.min(elapsedTime / transitionDuration, 1.0)
         
         // 调试日志 - 每500ms输出一次
         if (elapsedTime % 500 < 50) {
@@ -3311,76 +3287,25 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
           // 将MMD骨骼名称映射到VRM标准骨骼名称
           const vrmBoneName = MMD_TO_VRM_BONE_MAP[boneName] || boneName
           
-          // 尝试从缓存获取骨骼
-          const cacheKey = `${vrmBoneName}_${boneName}`
-          let bone = boneCache.current.get(cacheKey)
+          // 简化骨骼查找 - 直接使用VRM API
+          let bone = null
           
-          // 如果缓存中没有，或者每5秒清理一次缓存，重新查找
-          const currentTime = Date.now()
-          if (!bone || (currentTime - lastCacheClearTime.current > 5000)) {
-            if (currentTime - lastCacheClearTime.current > 5000) {
-              boneCache.current.clear()
-              lastCacheClearTime.current = currentTime
-            }
-            
-            // 方式1: 使用getRawBoneNode方法（VRM 1.0原始骨骼，不会被自动重置）
-            if (typeof vrmModel.humanoid.getRawBoneNode === 'function') {
-              bone = vrmModel.humanoid.getRawBoneNode(vrmBoneName)
-            }
-            
-            // 方式2: 使用getNormalizedBoneNode方法（VRM 1.0归一化骨骼，会被自动重置，不推荐用于MMD）
-            if (!bone && typeof vrmModel.humanoid.getNormalizedBoneNode === 'function') {
-              bone = vrmModel.humanoid.getNormalizedBoneNode(vrmBoneName)
-            }
-            
-            // 方式3: 使用getBone方法（VRM 0.x兼容，但已弃用）
-            if (!bone && typeof vrmModel.humanoid.getBone === 'function') {
-              try {
-                const boneRef = vrmModel.humanoid.getBone(vrmBoneName)
-                if (boneRef && boneRef.node) {
-                  bone = boneRef.node
-                }
-              } catch (e) {
-                // getBone已弃用，忽略错误
-              }
-            }
-            
-            // 方式4: 直接从场景中查找（备用方案）
-            if (!bone && vrmModel.scene) {
-              // 尝试多种可能的命名格式
-              const possibleNames = [
-                vrmBoneName,
-                `J_Bip_C_${vrmBoneName}`,
-                `J_Sec_${vrmBoneName}`,
-                boneName,
-                `J_Bip_C_${boneName}`,
-                `J_Sec_${boneName}`,
-                // 添加更多可能的命名格式
-                vrmBoneName.toLowerCase(),
-                vrmBoneName.toUpperCase(),
-                `j_bip_c_${vrmBoneName.toLowerCase()}`,
-                `j_sec_${vrmBoneName.toLowerCase()}`
-              ]
-              
-              for (const name of possibleNames) {
-                bone = vrmModel.scene.getObjectByName(name)
-                if (bone) break
-              }
-              
-              // 如果还是找不到，尝试遍历场景查找包含骨骼名称的对象
-              if (!bone) {
-                vrmModel.scene.traverse((obj) => {
-                  if (!bone && obj.name && obj.name.toLowerCase().includes(vrmBoneName.toLowerCase())) {
-                    bone = obj
-                  }
-                })
-              }
-            }
-            
-            // 将找到的骨骼存入缓存
-            if (bone) {
-              boneCache.current.set(cacheKey, bone)
-            }
+          // 方式1: 使用getRawBoneNode方法（VRM 1.0原始骨骼）
+          if (typeof vrmModel.humanoid.getRawBoneNode === 'function') {
+            bone = vrmModel.humanoid.getRawBoneNode(vrmBoneName)
+          }
+          
+          // 方式2: 使用getNormalizedBoneNode方法（备用）
+          if (!bone && typeof vrmModel.humanoid.getNormalizedBoneNode === 'function') {
+            bone = vrmModel.humanoid.getNormalizedBoneNode(vrmBoneName)
+          }
+          
+          // 方式3: 直接从场景查找（简单匹配）
+          if (!bone && vrmModel.scene) {
+            bone = vrmModel.scene.getObjectByName(vrmBoneName) ||
+                   vrmModel.scene.getObjectByName(`J_Bip_C_${vrmBoneName}`) ||
+                   vrmModel.scene.getObjectByName(boneName)
+          }
           }
           
           if (bone) {
@@ -3452,17 +3377,18 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
       
       // 关键修复：禁用VRM humanoid的自动归一化，防止覆盖我们的骨骼设置
       if (mmdCurrentAction && vrmModel && vrmModel.humanoid) {
-        // 保存humanoid的原始状态
-        if (!window.humanoidStateSaved) {
-          window.originalHumanoidUpdate = vrmModel.humanoid.update
-          window.humanoidStateSaved = true
+        // VRM更新控制 - 只在有MMD动作时跳过VRM默认更新
+        if (mmdCurrentAction && vrmModel && vrmModel.humanoid) {
+          // 临时禁用VRM humanoid更新，防止覆盖MMD动作
+          if (vrmModel.humanoid.update !== () => {}) {
+            vrmModel.humanoid._originalUpdate = vrmModel.humanoid.update
+            vrmModel.humanoid.update = () => {}
+          }
+        } else if (!mmdCurrentAction && vrmModel && vrmModel.humanoid && vrmModel.humanoid._originalUpdate) {
+          // 恢复VRM humanoid更新
+          vrmModel.humanoid.update = vrmModel.humanoid._originalUpdate
+          delete vrmModel.humanoid._originalUpdate
         }
-        // 禁用humanoid更新
-        vrmModel.humanoid.update = () => {}
-      } else if (!mmdCurrentAction && vrmModel && vrmModel.humanoid && window.originalHumanoidUpdate) {
-        // 恢复humanoid更新
-        vrmModel.humanoid.update = window.originalHumanoidUpdate
-      }
       
       // animationMixer 更新 - 在MMD动作之后执行，避免覆盖
       if (animationMixer && typeof animationMixer.update === 'function') {
