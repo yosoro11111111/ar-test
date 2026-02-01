@@ -284,29 +284,29 @@ function generateBonesForAction(category, progress, type) {
       break
       
     default:
-      // 基础：自然动作
-      bones.hips = createBone([0, 0, 0], [0, breathCycle * 0.015, 0])
-      bones.spine = createBone([breathCycle * 0.03, 0, 0])
-      bones.chest = createBone([breathCycle * 0.04, 0, 0])
-      bones.neck = createBone([breathCycle * 0.02, 0, 0])
-      bones.head = createBone([breathCycle * 0.015, breathCycle * 0.02, 0])
+      // 基础：自然动作（放大5倍）
+      bones.hips = createBone([0, actionCycle * 0.3, 0], [0, Math.abs(actionCycle) * 0.1, 0])
+      bones.spine = createBone([actionCycle * 0.2, 0, 0])
+      bones.chest = createBone([actionCycle * 0.25, 0, 0])
+      bones.neck = createBone([actionCycle * 0.3, actionCycle * 0.2, 0])
+      bones.head = createBone([actionCycle * 0.25, actionCycle * 0.3, 0])
       // 左臂完整链
-      bones.leftShoulder = createBone([0, 0, breathCycle * 0.02])
-      bones.leftUpperArm = createBone([0, 0, breathCycle * 0.1 + 0.1])
-      bones.leftLowerArm = createBone([0.2 + breathCycle * 0.05, 0, 0])
-      bones.leftHand = createBone([0, 0, breathCycle * 0.05])
+      bones.leftShoulder = createBone([0, 0, actionCycle * 0.3])
+      bones.leftUpperArm = createBone([0, 0, actionCycle * 1.5 + 0.5])
+      bones.leftLowerArm = createBone([1.0 + actionCycle * 0.5, 0, 0])
+      bones.leftHand = createBone([0, 0, actionCycle * 0.4])
       // 右臂完整链
-      bones.rightShoulder = createBone([0, 0, -breathCycle * 0.02])
-      bones.rightUpperArm = createBone([0, 0, -breathCycle * 0.1 - 0.1])
-      bones.rightLowerArm = createBone([0.2 + breathCycle * 0.05, 0, 0])
-      bones.rightHand = createBone([0, 0, -breathCycle * 0.05])
+      bones.rightShoulder = createBone([0, 0, -actionCycle * 0.3])
+      bones.rightUpperArm = createBone([0, 0, -actionCycle * 1.5 - 0.5])
+      bones.rightLowerArm = createBone([1.0 + actionCycle * 0.5, 0, 0])
+      bones.rightHand = createBone([0, 0, -actionCycle * 0.4])
       // 腿部自然
-      bones.leftUpperLeg = createBone([0, 0, 0])
-      bones.leftLowerLeg = createBone([0.1, 0, 0])
-      bones.leftFoot = createBone([-0.1, 0, 0])
-      bones.rightUpperLeg = createBone([0, 0, 0])
-      bones.rightLowerLeg = createBone([0.1, 0, 0])
-      bones.rightFoot = createBone([-0.1, 0, 0])
+      bones.leftUpperLeg = createBone([actionCycle * 0.3, 0, 0])
+      bones.leftLowerLeg = createBone([0.3 + actionCycle * 0.2, 0, 0])
+      bones.leftFoot = createBone([-0.3 + actionCycle * 0.1, 0, 0])
+      bones.rightUpperLeg = createBone([-actionCycle * 0.3, 0, 0])
+      bones.rightLowerLeg = createBone([0.3 + actionCycle * 0.2, 0, 0])
+      bones.rightFoot = createBone([-0.3 + actionCycle * 0.1, 0, 0])
   }
   
   return bones
