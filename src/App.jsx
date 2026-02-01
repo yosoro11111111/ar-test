@@ -9,6 +9,7 @@ import PlaylistPanel from './components/PlaylistPanel'
 import StageEffectsPanel from './components/StageEffectsPanel'
 import SceneManager from './components/SceneManager'
 import PosePanel from './components/PosePanel'
+import MobileDock from './components/MobileDock'
 import { useAppSettings, useCharacterData, useCacheManager } from './hooks/useLocalStorage'
 import modelList from './models/modelList'
 import './App.css'
@@ -1023,6 +1024,27 @@ function App() {
             onOpenBoneEditor={() => setShowBoneEditor(true)}
           />
         </div>
+      )}
+
+      {/* 底部 Dock 栏 - 只在显示AR场景时显示 */}
+      {!showFileInput && selectedFile && (
+        <MobileDock
+          onActionClick={() => setShowActionPanel(true)}
+          onCameraClick={() => {
+            // 触发截图功能
+            const canvas = document.querySelector('canvas')
+            if (canvas) {
+              const link = document.createElement('a')
+              link.download = `ar-character-${Date.now()}.png`
+              link.href = canvas.toDataURL('image/png')
+              link.click()
+            }
+          }}
+          onSettingsClick={() => setShowCharacterManager(true)}
+          onEffectsClick={() => setShowStageEffects(true)}
+          activePanel={showActionPanel ? 'actions' : showCharacterManager ? 'settings' : null}
+          isMobile={isMobile}
+        />
       )}
     </div>
   )

@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { actions, actionCategories, getActionsByCategory, searchActions } from '../data/actions'
+import { 
+  getAllMotionPackActions, 
+  motionPackCategories, 
+  loadMotionPackAction 
+} from '../data/motionPackActions'
 import './ActionPanel.css'
 
 // 动作面板组件 - 优化版本
@@ -36,20 +40,27 @@ export const ActionPanel = ({
 
   if (!isOpen) return null
 
+  // 获取所有动作（从 motionPack）
+  const allActions = getAllMotionPackActions()
+
   // 过滤动作
   const getFilteredActions = () => {
-    let filtered = actions
+    let filtered = allActions
 
     if (activeCategory === 'favorites') {
-      filtered = actions.filter(a => favorites.includes(a.id))
+      filtered = allActions.filter(a => favorites.includes(a.id))
     } else if (activeCategory === 'recent') {
-      filtered = recentActions.map(id => actions.find(a => a.id === id)).filter(Boolean)
+      filtered = recentActions.map(id => allActions.find(a => a.id === id)).filter(Boolean)
     } else if (activeCategory !== 'all') {
-      filtered = getActionsByCategory(activeCategory)
+      filtered = allActions.filter(a => a.category === activeCategory)
     }
 
     if (searchQuery) {
-      filtered = searchActions(searchQuery).filter(a => 
+      const query = searchQuery.toLowerCase()
+      filtered = allActions.filter(a => 
+        a.name.toLowerCase().includes(query) ||
+        a.category.toLowerCase().includes(query)
+      ).filter(a => 
         activeCategory === 'all' || 
         activeCategory === 'favorites' && favorites.includes(a.id) ||
         activeCategory === 'recent' && recentActions.includes(a.id) ||
@@ -63,7 +74,7 @@ export const ActionPanel = ({
   const filteredActions = getFilteredActions()
 
   // 处理动作选择 - 立即切换
-  const handleSelectAction = useCallback((action) => {
+  const handleSelectAction = useCallback(async (action) => {
     // 立即停止当前动作，开始新动作
     setPlayingAction(action.id)
     
@@ -72,8 +83,22 @@ export const ActionPanel = ({
     setRecentActions(newRecent)
     localStorage.setItem('recentActions', JSON.stringify(newRecent))
     
-    // 立即触发动作
-    onSelectAction?.(action, { immediate: true })
+    // 加载真实的 FBX 动作数据
+    if (!action.loaded && action.filePath) {
+      try {
+        const loadedAction = await loadMotionPackAction(action.filePath)
+        // 合并加载的数据
+        const fullAction = { ...action, ...loadedAction, loaded: true }
+        onSelectAction?.(fullAction, { immediate: true })
+      } catch (error) {
+        console.warn('加载动作失败:', error)
+        // 即使加载失败也触发动作，使用默认数据
+        onSelectAction?.(action, { immediate: true })
+      }
+    } else {
+      // 已加载或无需加载，直接触发
+      onSelectAction?.(action, { immediate: true })
+    }
   }, [onSelectAction, recentActions])
 
   // 切换收藏
@@ -90,8 +115,8 @@ export const ActionPanel = ({
   const getCategoryCount = (categoryId) => {
     if (categoryId === 'favorites') return favorites.length
     if (categoryId === 'recent') return recentActions.length
-    if (categoryId === 'all') return actions.length
-    return getActionsByCategory(categoryId).length
+    if (categoryId === 'all') return allActions.length
+    return allActions.filter(a => a.category === categoryId).length
   }
 
   // 键盘导航
@@ -106,7 +131,7 @@ export const ActionPanel = ({
       // 数字键快速选择分类
       if (e.key >= '1' && e.key <= '9') {
         const index = parseInt(e.key) - 1
-        const categories = ['all', 'favorites', 'recent', ...actionCategories.map(c => c.id)]
+        const categories = ['all', 'favorites', 'recent', ...motionPackCategories.map(c => c.id)]
         if (categories[index]) {
           setActiveCategory(categories[index])
         }
@@ -168,7 +193,7 @@ export const ActionPanel = ({
   const renderActionListItem = (action) => {
     const isPlaying = playingAction === action.id
     const isFavorite = favorites.includes(action.id)
-    const category = actionCategories.find(c => c.id === action.category)
+    const category = motionPackCategories.find(c => c.id === action.category)
     
     return (
       <div
@@ -294,12 +319,11 @@ export const ActionPanel = ({
             <span>🕐 最近</span>
             <span className="count">{getCategoryCount('recent')}</span>
           </button>
-          {actionCategories.map(cat => (
+          {motionPackCategories.map(cat => (
             <button 
               key={cat.id}
               className={activeCategory === cat.id ? 'active' : ''}
               onClick={() => setActiveCategory(cat.id)}
-              style={activeCategory === cat.id ? { background: cat.color } : {}}
             >
               <span>{cat.icon}</span>
               <span>{cat.name}</span>
