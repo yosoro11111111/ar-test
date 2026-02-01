@@ -431,6 +431,17 @@ console.log(`✅ 成功生成 ${generatedActions.length} 个MMD动作`)
 // 导出动作数据
 export const mmdActions = generatedActions
 
+// MMD动作分类（用于UI展示）
+export const mmdActionCategories = [
+  { id: 'all', name: '全部', icon: '✨', color: '#ff6b9d' },
+  { id: '基础', name: '基础', icon: '👤', color: '#4ecdc4' },
+  { id: '舞蹈', name: '舞蹈', icon: '💃', color: '#ff6b9d' },
+  { id: '可爱', name: '可爱', icon: '😊', color: '#ffe66d' },
+  { id: '帅气', name: '帅气', icon: '😎', color: '#1a535c' },
+  { id: '表情', name: '表情', icon: '😄', color: '#ff8c42' },
+  { id: '特殊', name: '特殊', icon: '✨', color: '#9b5de5' }
+]
+
 // 按分类获取动作
 export function getActionsByCategory(category) {
   return mmdActions.filter(action => action.category === category)
