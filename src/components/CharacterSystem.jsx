@@ -730,7 +730,7 @@ const ExpressionSystem = ({ vrmModel, actionType, intensity = 1.0, isPlaying = t
   return null
 }
 
-const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null, isBoneEditing = false, onBoneChange = null, scale: externalScale = 1.0, actionIntensity: externalActionIntensity = 1.0, opacity: externalOpacity = 1.0, mmdCurrentAction = null, mmdActionStartTime = 0 }) => {
+const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0], selectedFile = null, onSwing = null, isBoneEditing = false, onBoneChange = null, scale: externalScale = 1.0, actionIntensity: externalActionIntensity = 1.0, opacity: externalOpacity = 1.0, mmdCurrentAction = null, mmdActionStartTime = 0, isInteractMode = false, onInteract = null }) => {
   const { isMobile } = useMobileDetect()
   const { scene, gl, camera, clock } = useThree()
   const characterRef = useRef(null)
@@ -2925,6 +2925,48 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
           }, 600)
         }
         
+        // 交互模式：根据触摸部位播放不同动画
+        if (isInteractMode && intersects.length > 0) {
+          const touchPoint = intersects[0].point
+          const localY = touchPoint.y - position[1] // 相对于角色位置的Y坐标
+          
+          // 根据Y坐标判断触摸部位
+          let bodyPart = ''
+          let actionId = ''
+          
+          if (localY > 1.4) {
+            bodyPart = '头部'
+            actionId = 'mmd_expression_0' // 摸头动画
+          } else if (localY > 0.8) {
+            bodyPart = '身体'
+            actionId = 'mmd_basic_4' // 摸身体动画
+          } else if (localY > 0.3) {
+            bodyPart = '手部'
+            actionId = 'mmd_basic_8' // 摸手动画
+          } else {
+            bodyPart = '腿部'
+            actionId = 'mmd_basic_16' // 摸腿动画
+          }
+          
+          // 触发交互回调
+          if (onInteract) {
+            onInteract(index, bodyPart, actionId, touchPoint)
+          }
+          
+          // 显示部位反馈
+          setTouchFeedback({
+            show: true,
+            x: clientX,
+            y: clientY,
+            type: 'interact',
+            message: `触摸了${bodyPart}`
+          })
+          
+          setTimeout(() => {
+            setTouchFeedback({ show: false, x: 0, y: 0, type: null })
+          }, 1000)
+        }
+        
         setShowParticles(true)
         setTimeout(() => setShowParticles(false), 1000)
       }
@@ -3362,25 +3404,18 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
               bone.rotation.set(rx, -ry, rz, 'XYZ')
             }
             
-            // 应用位置（如果有）- 使用相对偏移
+            // 应用位置（如果有）- 使用相对偏移，基于模型当前位置
             if (transform.position && Array.isArray(transform.position)) {
               const [px, py, pz] = transform.position
               // 只对特定骨骼应用位置变化（如hips）
               if (boneName === 'hips' || vrmBoneName === 'hips') {
-                // 直接应用位置偏移
-                if (mmdInitialHipsPosition.current) {
-                  bone.position.set(
-                    mmdInitialHipsPosition.current.x + px,
-                    mmdInitialHipsPosition.current.y + py,
-                    mmdInitialHipsPosition.current.z + pz
-                  )
-                } else {
-                  bone.position.set(
-                    mmdBasePosition.current[0] + px,
-                    mmdBasePosition.current[1] + py,
-                    mmdBasePosition.current[2] + pz
-                  )
-                }
+                // 使用模型的当前位置（position prop）作为基准，加上MMD动作的偏移
+                // 这样即使模型被移动，动作也会跟随模型
+                bone.position.set(
+                  position[0] + px,
+                  position[1] + py,
+                  position[2] + pz
+                )
               }
             }
           } else {

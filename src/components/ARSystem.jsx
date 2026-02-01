@@ -2603,7 +2603,7 @@ const PropDisplay = ({ propId, onInteract, characterIndex }) => {
 }
 
 // ==================== 可拖拽角色组件 ====================
-const DraggableCharacter = ({ position, index, isSelected, character, characterScale, actionIntensity, onPositionChange, propId, isBoneEditing, onBoneChange, onPropInteract, onSelect, opacity = 1.0, mmdCurrentAction = null, mmdActionStartTime = 0 }) => {
+const DraggableCharacter = ({ position, index, isSelected, character, characterScale, actionIntensity, onPositionChange, propId, isBoneEditing, onBoneChange, onPropInteract, onSelect, opacity = 1.0, mmdCurrentAction = null, mmdActionStartTime = 0, isInteractMode = false, onInteract = null }) => {
   const groupRef = useRef()
   const [isDragging, setIsDragging] = useState(false)
   const [isLongPress, setIsLongPress] = useState(false)
@@ -2798,6 +2798,8 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
           opacity={opacity}
           mmdCurrentAction={mmdCurrentAction}
           mmdActionStartTime={mmdActionStartTime}
+          isInteractMode={isInteractMode}
+          onInteract={onInteract}
         />
       </group>
       {/* 道具显示在角色身上 */}
@@ -2859,7 +2861,7 @@ const AREffects = ({ effects }) => {
 }
 
 // ==================== 9. 3D场景内容 ====================
-const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionIntensity, isARMode, characterPositions, onPositionChange, characterProps, isBoneEditing, onBoneChange, onPropInteract, onSelectCharacter, showParticles, particleType, modelVisibility, modelOpacity, stageEffects, mmdCurrentActions, mmdActionStartTimes }) => {
+const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionIntensity, isARMode, characterPositions, onPositionChange, characterProps, isBoneEditing, onBoneChange, onPropInteract, onSelectCharacter, showParticles, particleType, modelVisibility, modelOpacity, stageEffects, mmdCurrentActions, mmdActionStartTimes, isInteractMode, handleCharacterInteract }) => {
   return (
     <>
       {/* 层级1: 背景特效（AR模式下不显示，避免挡住摄像头） */}
@@ -2907,6 +2909,8 @@ const ARContent = ({ characters, selectedCharacterIndex, characterScale, actionI
               opacity={modelOpacity?.[index] ?? 1.0}
               mmdCurrentAction={mmdCurrentActions?.[index]}
               mmdActionStartTime={mmdActionStartTimes?.[index]}
+              isInteractMode={isInteractMode}
+              onInteract={handleCharacterInteract}
             />
           </group>
         )
@@ -2981,6 +2985,10 @@ export const ARScene = ({ selectedFile }) => {
   const [loopingMMDActions, setLoopingMMDActions] = useState(new Set())
   const [notification, setNotification] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
+  // 编辑/预览模式切换 - 防止移动端误操作
+  const [isEditMode, setIsEditMode] = useState(true)
+  // 交互模式 - 触摸不同部位播放不同动画
+  const [isInteractMode, setIsInteractMode] = useState(false)
   // 检查是否首次访问
   const [showHelp, setShowHelp] = useState(() => {
     const hasSeenTutorial = localStorage.getItem('hasSeenTutorial')
@@ -3518,6 +3526,21 @@ export const ARScene = ({ selectedFile }) => {
   // 实际拍照函数
   const capturePhoto = useCallback(() => {
     try {
+      // 临时禁用特效，只保留模型
+      const originalShowParticles = showParticles
+      const originalStageEffects = { ...stageEffects }
+      
+      // 禁用粒子效果
+      setShowParticles(false)
+      // 禁用后期处理效果
+      setStageEffects(prev => ({
+        ...prev,
+        bloom: false,
+        particles: { ...prev.particles, enabled: false }
+      }))
+      
+      addLog('📸 拍照模式：已禁用特效')
+      
       // 获取3D画布 - 使用多种方式尝试
       let canvas3D = null
       
@@ -3549,6 +3572,9 @@ export const ARScene = ({ selectedFile }) => {
       if (!canvas3D) {
         showNotification('3D场景未就绪', 'error')
         addLog('错误: 无法找到3D画布')
+        // 恢复特效
+        setShowParticles(originalShowParticles)
+        setStageEffects(originalStageEffects)
         return
       }
 
@@ -3649,12 +3675,20 @@ export const ARScene = ({ selectedFile }) => {
         document.body.removeChild(a)
         URL.revokeObjectURL(url)
         showNotification('📸 AR乐园照片已保存！', 'success')
+        
+        // 恢复特效
+        setShowParticles(originalShowParticles)
+        setStageEffects(originalStageEffects)
+        addLog('✅ 特效已恢复')
       }, 'image/png', 0.95)
     } catch (error) {
       console.error('拍照失败:', error)
       showNotification('拍照失败，请重试', 'error')
+      // 恢复特效
+      setShowParticles(originalShowParticles)
+      setStageEffects(originalStageEffects)
     }
-  }, [showNotification, isARMode])
+  }, [showNotification, isARMode, showParticles, stageEffects])
 
   // 开始录像
   const startRecording = useCallback(() => {
@@ -4043,6 +4077,15 @@ export const ARScene = ({ selectedFile }) => {
               setSelectedCharacterIndex(index)
               setSettingsTargetIndex(index)
             }}
+            handleCharacterInteract={(index, bodyPart, actionId, touchPoint) => {
+              console.log(`角色${index}被触摸了${bodyPart}，播放动作${actionId}`)
+              // 播放对应的MMD动作
+              const action = getActionById(actionId)
+              if (action) {
+                executeMMDAction(action, index)
+                showNotification(`触摸了${bodyPart}：${action.name}`, 'success')
+              }
+            }}
           />
           
           {/* OrbitControls - 移动端始终启用，AR模式下也可以调整模型位置 */}
@@ -4247,6 +4290,28 @@ export const ARScene = ({ selectedFile }) => {
             }}
           >⚙️</button>
 
+          {/* 切换摄像头按钮 - 仅在AR模式显示 */}
+          {isARMode && (
+            <button
+              onClick={toggleCamera}
+              style={{
+                width: isMobile ? '32px' : '40px',
+                height: isMobile ? '32px' : '40px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: isMobile ? '14px' : '18px',
+                cursor: 'pointer',
+                color: 'white',
+                transition: 'all 0.3s ease'
+              }}
+              title={`当前: ${cameraFacingMode === 'environment' ? '后置' : '前置'}摄像头`}
+            >🔄</button>
+          )}
+
           <button
             onClick={() => setIsARMode(!isARMode)}
             style={{
@@ -4269,8 +4334,8 @@ export const ARScene = ({ selectedFile }) => {
         </div>
       </div>
 
-      {/* 设置面板 */}
-      {showSettings && (
+      {/* 设置面板 - 仅在编辑模式显示 */}
+      {showSettings && isEditMode && (
         <div style={{
           position: 'absolute',
           top: '85px',
@@ -6123,22 +6188,64 @@ export const ARScene = ({ selectedFile }) => {
           border: '1px solid rgba(255,255,255,0.2)',
           backdropFilter: 'blur(10px)'
         }}>
-          {quickAccessPinned.includes('动作') && (
-            <ToolbarButton
-              onClick={() => {
-                // 滚动到动作面板区域
-                const actionPanel = document.getElementById('mmd-action-panel')
-                if (actionPanel) {
-                  actionPanel.scrollIntoView({ behavior: 'smooth' })
-                }
-              }}
-              icon="🎭"
-              gradient="linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)"
-              shadowColor="rgba(255, 107, 157, 0.5)"
-              isMobile={isMobile}
-              label="动作"
-            />
-          )}
+          {/* 编辑/预览模式切换按钮 - 防止移动端误操作 */}
+          <ToolbarButton
+            onClick={() => {
+              setIsEditMode(!isEditMode)
+              showNotification(isEditMode ? '切换到预览模式' : '切换到编辑模式', 'info')
+            }}
+            icon={isEditMode ? "👁️" : "✏️"}
+            gradient={isEditMode 
+              ? "linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)"
+              : "linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)"
+            }
+            shadowColor={isEditMode 
+              ? "rgba(0, 212, 255, 0.5)"
+              : "rgba(255, 107, 157, 0.5)"
+            }
+            isActive={isEditMode}
+            isMobile={isMobile}
+            label={isEditMode ? "预览" : "编辑"}
+          />
+          
+          {/* 交互模式按钮 - 触摸不同部位播放不同动画 */}
+          <ToolbarButton
+            onClick={() => {
+              setIsInteractMode(!isInteractMode)
+              showNotification(isInteractMode ? '退出交互模式' : '进入交互模式：触摸角色不同部位触发不同动作', 'info')
+            }}
+            icon={isInteractMode ? "🤚" : "👆"}
+            gradient={isInteractMode 
+              ? "linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)"
+              : "linear-gradient(135deg, #f39c12 0%, #e67e22 100%)"
+            }
+            shadowColor={isInteractMode 
+              ? "rgba(231, 76, 60, 0.5)"
+              : "rgba(243, 156, 18, 0.5)"
+            }
+            isActive={isInteractMode}
+            isMobile={isMobile}
+            label={isInteractMode ? "交互中" : "交互"}
+            pulse={isInteractMode}
+          />
+          
+          {/* 预览按钮 - 隐藏所有UI只显示模型 */}
+          <ToolbarButton
+            onClick={() => {
+              setIsEditMode(false)
+              setIsInteractMode(false)
+              setShowSettings(false)
+              setShowPosePanel(false)
+              setShowStageEffects(false)
+              showNotification('进入纯净预览模式', 'success')
+            }}
+            icon="👁️"
+            gradient="linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)"
+            shadowColor="rgba(155, 89, 182, 0.5)"
+            isMobile={isMobile}
+            label="纯净"
+          />
+          
           {quickAccessPinned.includes('姿势') && (
             <ToolbarButton
               onClick={() => setShowPosePanel(true)}
@@ -6150,28 +6257,17 @@ export const ARScene = ({ selectedFile }) => {
               label="姿势"
             />
           )}
-          {quickAccessPinned.includes('特效') && (
-            <ToolbarButton
-              onClick={() => setShowStageEffects(true)}
-              icon="✨"
-              gradient="linear-gradient(135deg, #f39c12 0%, #e67e22 100%)"
-              shadowColor="rgba(243, 156, 18, 0.5)"
-              isActive={showStageEffects}
-              isMobile={isMobile}
-              label="特效"
-            />
-          )}
-          {quickAccessPinned.includes('设置') && (
-            <ToolbarButton
-              onClick={() => setShowSettings(!showSettings)}
-              icon="⚙️"
-              gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-              shadowColor="rgba(102, 126, 234, 0.5)"
-              isActive={showSettings}
-              isMobile={isMobile}
-              label="设置"
-            />
-          )}
+          
+          {/* 设置按钮 - 保留在快捷栏 */}
+          <ToolbarButton
+            onClick={() => setShowSettings(!showSettings)}
+            icon="⚙️"
+            gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+            shadowColor="rgba(102, 126, 234, 0.5)"
+            isActive={showSettings}
+            isMobile={isMobile}
+            label="设置"
+          />
         </div>
 
         {/* 主工具栏容器 - 分组折叠 */}
@@ -6380,15 +6476,7 @@ export const ARScene = ({ selectedFile }) => {
                 padding: '0 8px 10px 8px',
                 animation: 'slideDown 0.3s ease'
               }}>
-                <ToolbarButton
-                  onClick={() => setShowSettings(!showSettings)}
-                  icon="⚙️"
-                  gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-                  shadowColor="rgba(102, 126, 234, 0.5)"
-                  isActive={showSettings}
-                  isMobile={isMobile}
-                  label="设置"
-                />
+                {/* 设置按钮已移至快捷栏，此处删除避免重复 */}
                 <ToolbarButton
                   onClick={() => setShowPositionControl(true)}
                   icon="📍"
@@ -6854,9 +6942,9 @@ export const ARScene = ({ selectedFile }) => {
         isMobile={isMobile}
       />
 
-      {/* 舞台效果面板 */}
+      {/* 舞台效果面板 - 仅在编辑模式显示 */}
       <StageEffectsPanel
-        isOpen={showStageEffects}
+        isOpen={showStageEffects && isEditMode}
         onClose={() => setShowStageEffects(false)}
         isMobile={isMobile}
         onEffectChange={(effects) => {
@@ -6899,9 +6987,9 @@ export const ARScene = ({ selectedFile }) => {
         isMobile={isMobile}
       />
 
-      {/* 姿势面板 */}
+      {/* 姿势面板 - 仅在编辑模式显示 */}
       <PosePanel
-        isOpen={showPosePanel}
+        isOpen={showPosePanel && isEditMode}
         onClose={() => setShowPosePanel(false)}
         onSelectPose={(pose, options) => {
           console.log('选择姿势:', pose)
