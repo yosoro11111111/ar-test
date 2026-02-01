@@ -927,6 +927,665 @@ export const basicActionData = {
   }
 }
 
+// 涩涩动作数据 - 20个
+export const sexyActionData = {
+  // 妩媚动作
+  '妩媚': {
+    type: ACTION_TYPES.SEXY,
+    duration: 3000,
+    description: '妩媚姿态展示',
+    loop: true,
+    bones: {
+      hips: {
+        sway: { axis: 'z', amplitude: 0.15, frequency: 1 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        curve: { axis: 'z', amplitude: 0.1, frequency: 1 },
+        timing: EASING_TYPES.SINE
+      },
+      chest: {
+        breathe: { axis: 'x', amplitude: 0.04, frequency: 0.8 },
+        timing: EASING_TYPES.SINE
+      },
+      neck: {
+        tilt: { axis: 'z', amplitude: 0.2, frequency: 0.5 },
+        timing: EASING_TYPES.SINE
+      },
+      head: {
+        tilt: { axis: 'z', amplitude: 0.15, frequency: 0.5 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        pose: { axis: 'z', amplitude: 0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperArm: {
+        pose: { axis: 'z', amplitude: -0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  },
+
+  // 诱惑动作
+  '诱惑': {
+    type: ACTION_TYPES.SEXY,
+    duration: 2500,
+    description: '诱惑姿态',
+    loop: true,
+    bones: {
+      hips: {
+        circle: { axis: 'y', amplitude: 0.3, frequency: 0.8 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        arch: { axis: 'x', amplitude: -0.2, frequency: 0.8 },
+        timing: EASING_TYPES.SINE
+      },
+      chest: {
+        forward: { axis: 'x', amplitude: 0.1 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      neck: {
+        stretch: { axis: 'x', amplitude: -0.15 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperArm: {
+        caress: { axis: 'x', amplitude: -0.4, frequency: 1.5 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        caress: { axis: 'x', amplitude: -0.4, frequency: 1.5, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 撩发动作
+  '撩发': {
+    type: ACTION_TYPES.SEXY,
+    duration: 2000,
+    description: '撩动头发',
+    bones: {
+      rightShoulder: {
+        rotation: [0, 0, -0.3],
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperArm: {
+        lift: { axis: 'x', amplitude: -1.2 },
+        timing: EASING_TYPES.EASE_OUT
+      },
+      rightLowerArm: {
+        bend: { axis: 'x', amplitude: -1.0 },
+        timing: EASING_TYPES.EASE_OUT
+      },
+      rightHand: {
+        flick: { axis: 'y', amplitude: 0.3, frequency: 3 },
+        timing: EASING_TYPES.SINE
+      },
+      neck: {
+        tilt: { axis: 'z', amplitude: -0.1 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      head: {
+        tilt: { axis: 'z', amplitude: -0.15 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  },
+
+  // 咬唇动作
+  '咬唇': {
+    type: ACTION_TYPES.SEXY,
+    duration: 1500,
+    description: '轻咬嘴唇',
+    bones: {
+      neck: {
+        tilt: { axis: 'x', amplitude: 0.1 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      head: {
+        tilt: { axis: 'x', amplitude: 0.15 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperArm: {
+        touch: { axis: 'x', amplitude: -0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperArm: {
+        touch: { axis: 'x', amplitude: -0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  },
+
+  // 扭腰动作
+  '扭腰': {
+    type: ACTION_TYPES.SEXY,
+    duration: 2000,
+    description: '扭动腰部',
+    loop: true,
+    bones: {
+      hips: {
+        twist: { axis: 'y', amplitude: 0.4, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        wave: { axis: 'z', amplitude: 0.15, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      chest: {
+        counter: { axis: 'y', amplitude: -0.2, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperArm: {
+        swing: { axis: 'z', amplitude: 0.2, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperArm: {
+        swing: { axis: 'z', amplitude: -0.2, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 抛媚眼动作
+  '抛媚眼': {
+    type: ACTION_TYPES.SEXY,
+    duration: 2000,
+    description: '抛媚眼',
+    bones: {
+      neck: {
+        turn: { axis: 'y', amplitude: 0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      head: {
+        turn: { axis: 'y', amplitude: 0.4 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperArm: {
+        pose: { axis: 'z', amplitude: 0.2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperArm: {
+        wink: { axis: 'z', amplitude: -0.3, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 轻抚动作
+  '轻抚': {
+    type: ACTION_TYPES.SEXY,
+    duration: 3000,
+    description: '轻抚身体',
+    loop: true,
+    bones: {
+      leftUpperArm: {
+        stroke: { axis: 'x', amplitude: -0.5, frequency: 1 },
+        timing: EASING_TYPES.SINE
+      },
+      leftLowerArm: {
+        stroke: { axis: 'x', amplitude: -0.8, frequency: 1 },
+        timing: EASING_TYPES.SINE
+      },
+      leftHand: {
+        caress: { axis: 'y', amplitude: 0.2, frequency: 1.5 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        arch: { axis: 'x', amplitude: -0.1, frequency: 1 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 依偎动作
+  '依偎': {
+    type: ACTION_TYPES.SEXY,
+    duration: 3000,
+    description: '依偎姿态',
+    loop: true,
+    bones: {
+      spine: {
+        lean: { axis: 'x', amplitude: 0.2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      chest: {
+        forward: { axis: 'x', amplitude: 0.08 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      neck: {
+        tilt: { axis: 'z', amplitude: 0.25 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      head: {
+        rest: { axis: 'z', amplitude: 0.2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperArm: {
+        hold: { axis: 'z', amplitude: 0.4 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperArm: {
+        hold: { axis: 'z', amplitude: -0.2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  },
+
+  // 侧身动作
+  '侧身': {
+    type: ACTION_TYPES.SEXY,
+    duration: 2500,
+    description: '侧身展示',
+    loop: true,
+    bones: {
+      hips: {
+        pose: { axis: 'z', amplitude: 0.25 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      spine: {
+        curve: { axis: 'z', amplitude: 0.15 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      chest: {
+        turn: { axis: 'y', amplitude: -0.2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      neck: {
+        turn: { axis: 'y', amplitude: -0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      head: {
+        turn: { axis: 'y', amplitude: -0.4 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperArm: {
+        pose: { axis: 'z', amplitude: 0.2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperArm: {
+        pose: { axis: 'z', amplitude: -0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  },
+
+  // 回眸动作
+  '回眸': {
+    type: ACTION_TYPES.SEXY,
+    duration: 2000,
+    description: '回眸一笑',
+    bones: {
+      hips: {
+        turn: { axis: 'y', amplitude: 0.5 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      spine: {
+        twist: { axis: 'y', amplitude: 0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      chest: {
+        turn: { axis: 'y', amplitude: 0.2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      neck: {
+        turn: { axis: 'y', amplitude: -0.6 },
+        timing: EASING_TYPES.EASE_OUT
+      },
+      head: {
+        turn: { axis: 'y', amplitude: -0.8 },
+        timing: EASING_TYPES.EASE_OUT
+      },
+      leftUpperArm: {
+        pose: { axis: 'z', amplitude: 0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  },
+
+  // 轻咬动作
+  '轻咬': {
+    type: ACTION_TYPES.SEXY,
+    duration: 1500,
+    description: '轻咬手指',
+    bones: {
+      rightShoulder: {
+        rotation: [0, 0, -0.2],
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperArm: {
+        lift: { axis: 'x', amplitude: -0.8 },
+        timing: EASING_TYPES.EASE_OUT
+      },
+      rightLowerArm: {
+        bend: { axis: 'x', amplitude: -1.2 },
+        timing: EASING_TYPES.EASE_OUT
+      },
+      rightHand: {
+        bite: { axis: 'y', amplitude: 0.1, frequency: 4 },
+        timing: EASING_TYPES.SINE
+      },
+      neck: {
+        tilt: { axis: 'x', amplitude: 0.1 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  },
+
+  // 舔唇动作
+  '舔唇': {
+    type: ACTION_TYPES.SEXY,
+    duration: 1800,
+    description: '舔嘴唇',
+    bones: {
+      neck: {
+        stretch: { axis: 'x', amplitude: -0.1 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      head: {
+        tilt: { axis: 'x', amplitude: -0.15 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperArm: {
+        pose: { axis: 'z', amplitude: 0.15 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperArm: {
+        pose: { axis: 'z', amplitude: -0.15 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  },
+
+  // 抚胸动作
+  '抚胸': {
+    type: ACTION_TYPES.SEXY,
+    duration: 2500,
+    description: '轻抚胸口',
+    bones: {
+      leftShoulder: {
+        rotation: [0, 0, 0.2],
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperArm: {
+        lift: { axis: 'x', amplitude: -0.6 },
+        timing: EASING_TYPES.EASE_OUT
+      },
+      leftLowerArm: {
+        bend: { axis: 'x', amplitude: -1.0 },
+        timing: EASING_TYPES.EASE_OUT
+      },
+      leftHand: {
+        caress: { axis: 'y', amplitude: 0.15, frequency: 2 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        arch: { axis: 'x', amplitude: -0.1 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  },
+
+  // 摸腿动作
+  '摸腿': {
+    type: ACTION_TYPES.SEXY,
+    duration: 3000,
+    description: '轻抚腿部',
+    loop: true,
+    bones: {
+      rightShoulder: {
+        rotation: [0, 0, -0.3],
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperArm: {
+        reach: { axis: 'x', amplitude: -0.4 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightLowerArm: {
+        stroke: { axis: 'x', amplitude: -0.3, frequency: 1 },
+        timing: EASING_TYPES.SINE
+      },
+      rightHand: {
+        glide: { axis: 'y', amplitude: 0.2, frequency: 1 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        bend: { axis: 'x', amplitude: 0.15 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  },
+
+  // 翘臀动作
+  '翘臀': {
+    type: ACTION_TYPES.SEXY,
+    duration: 2000,
+    description: '翘起臀部',
+    loop: true,
+    bones: {
+      hips: {
+        arch: { axis: 'x', amplitude: -0.25, frequency: 1.5 },
+        timing: EASING_TYPES.SINE
+      },
+      spine: {
+        arch: { axis: 'x', amplitude: -0.2, frequency: 1.5 },
+        timing: EASING_TYPES.SINE
+      },
+      chest: {
+        forward: { axis: 'x', amplitude: 0.1, frequency: 1.5 },
+        timing: EASING_TYPES.SINE
+      },
+      leftUpperLeg: {
+        pose: { axis: 'x', amplitude: -0.2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperLeg: {
+        pose: { axis: 'x', amplitude: -0.2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  },
+
+  // 挺胸动作
+  '挺胸': {
+    type: ACTION_TYPES.SEXY,
+    duration: 2000,
+    description: '挺起胸膛',
+    loop: true,
+    bones: {
+      spine: {
+        arch: { axis: 'x', amplitude: -0.15, frequency: 1.2 },
+        timing: EASING_TYPES.SINE
+      },
+      chest: {
+        forward: { axis: 'x', amplitude: 0.12, frequency: 1.2 },
+        timing: EASING_TYPES.SINE
+      },
+      neck: {
+        stretch: { axis: 'x', amplitude: -0.1, frequency: 1.2 },
+        timing: EASING_TYPES.SINE
+      },
+      leftShoulder: {
+        back: { axis: 'x', amplitude: -0.1, frequency: 1.2 },
+        timing: EASING_TYPES.SINE
+      },
+      rightShoulder: {
+        back: { axis: 'x', amplitude: -0.1, frequency: 1.2 },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 收腿动作
+  '收腿': {
+    type: ACTION_TYPES.SEXY,
+    duration: 3000,
+    description: '收腿坐姿',
+    loop: true,
+    bones: {
+      hips: {
+        position: [0, -0.7, 0],
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperLeg: {
+        close: { axis: 'z', amplitude: 0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperLeg: {
+        close: { axis: 'z', amplitude: -0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftLowerLeg: {
+        bend: { axis: 'x', amplitude: 1.2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightLowerLeg: {
+        bend: { axis: 'x', amplitude: 1.2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      spine: {
+        curve: { axis: 'z', amplitude: 0.1 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  },
+
+  // 侧卧动作
+  '侧卧': {
+    type: ACTION_TYPES.SEXY,
+    duration: 3000,
+    description: '侧卧姿态',
+    loop: true,
+    bones: {
+      hips: {
+        position: [0, -0.8, 0],
+        rotation: [0, 0, -1.4],
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      spine: {
+        curve: { axis: 'z', amplitude: -0.2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperLeg: {
+        pose: { axis: 'x', amplitude: -0.2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperLeg: {
+        pose: { axis: 'x', amplitude: 0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperArm: {
+        support: { axis: 'x', amplitude: -0.5 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperArm: {
+        rest: { axis: 'z', amplitude: -0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  },
+
+  // 俯卧动作
+  '俯卧': {
+    type: ACTION_TYPES.SEXY,
+    duration: 3000,
+    description: '俯卧姿态',
+    loop: true,
+    bones: {
+      hips: {
+        position: [0, -0.9, 0],
+        rotation: [1.5, 0, 0],
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      spine: {
+        arch: { axis: 'x', amplitude: -0.2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      chest: {
+        lift: { axis: 'x', amplitude: -0.15, frequency: 0.8 },
+        timing: EASING_TYPES.SINE
+      },
+      neck: {
+        stretch: { axis: 'x', amplitude: -0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperArm: {
+        rest: { axis: 'x', amplitude: -0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperArm: {
+        rest: { axis: 'x', amplitude: -0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperLeg: {
+        lift: { axis: 'x', amplitude: -0.3, frequency: 0.8 },
+        timing: EASING_TYPES.SINE
+      },
+      rightUpperLeg: {
+        lift: { axis: 'x', amplitude: -0.3, frequency: 0.8, phase: Math.PI },
+        timing: EASING_TYPES.SINE
+      }
+    }
+  },
+
+  // 蜷缩动作
+  '蜷缩': {
+    type: ACTION_TYPES.SEXY,
+    duration: 3000,
+    description: '蜷缩姿态',
+    loop: true,
+    bones: {
+      hips: {
+        position: [0, -0.6, 0],
+        rotation: [0, 0, 0.3],
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      spine: {
+        curl: { axis: 'x', amplitude: 0.4 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      chest: {
+        tuck: { axis: 'x', amplitude: 0.2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      neck: {
+        tuck: { axis: 'x', amplitude: 0.3 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      head: {
+        bow: { axis: 'x', amplitude: 0.4 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperArm: {
+        hug: { axis: 'z', amplitude: 0.5 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperArm: {
+        hug: { axis: 'z', amplitude: -0.5 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftUpperLeg: {
+        curl: { axis: 'x', amplitude: 0.8 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightUpperLeg: {
+        curl: { axis: 'x', amplitude: 0.8 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      leftLowerLeg: {
+        bend: { axis: 'x', amplitude: 1.2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      },
+      rightLowerLeg: {
+        bend: { axis: 'x', amplitude: 1.2 },
+        timing: EASING_TYPES.EASE_IN_OUT
+      }
+    }
+  }
+}
+
 // 获取动作数据
 export function getActionData(actionName) {
   return basicActionData[actionName] || null
@@ -946,13 +1605,28 @@ export function isLoopingAction(actionName) {
 
 // 导出所有动作名称
 export const basicActionNames = Object.keys(basicActionData)
+export const sexyActionNames = Object.keys(sexyActionData)
+
+// 合并所有动作数据
+export const allActionData = {
+  ...basicActionData,
+  ...sexyActionData
+}
+
+// 获取任意动作数据（包括涩涩动作）
+export function getActionData(actionName) {
+  return allActionData[actionName] || null
+}
 
 export default {
   ACTION_TYPES,
   EASING_TYPES,
   basicActionData,
+  sexyActionData,
+  allActionData,
   getActionData,
   getActionType,
   isLoopingAction,
-  basicActionNames
+  basicActionNames,
+  sexyActionNames
 }
