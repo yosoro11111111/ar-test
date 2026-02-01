@@ -3330,15 +3330,26 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
               }
             }
             
-            // 应用位置（只对hips骨骼）
+            // 应用位置（只对hips骨骼）- 使用相对偏移，保持角色在现有位置
             if (transform.position && Array.isArray(transform.position)) {
               const [px, py, pz] = transform.position
               if (boneName === 'hips' || vrmBoneName === 'hips') {
-                bone.position.set(
-                  position[0] + px,
-                  position[1] + py,
-                  position[2] + pz
-                )
+                // 使用初始hips位置作为基准，加上MMD动作的相对偏移
+                const basePos = mmdInitialHipsPosition.current
+                if (basePos) {
+                  bone.position.set(
+                    basePos.x + px,
+                    basePos.y + py,
+                    basePos.z + pz
+                  )
+                } else {
+                  // 如果没有初始位置，使用角色位置作为基准
+                  bone.position.set(
+                    position[0] + px,
+                    position[1] + py,
+                    position[2] + pz
+                  )
+                }
               }
             }
           } else {

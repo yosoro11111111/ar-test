@@ -58,6 +58,15 @@ const actionNames = {
     ['分身', '👥'], ['变大', '📈'], ['变小', '📉'], ['召唤', '🔮'],
     ['魔法', '✨'], ['超能力', '🦸'], ['剑气', '⚔️'], ['拳风', '👊'],
     ['必杀技', '💥'], ['觉醒', '🔥'], ['进化', '🦋']
+  ],
+  
+  // 涩涩动作 - 20个
+  sexy: [
+    ['妩媚', '💋'], ['诱惑', '🌹'], ['撩发', '💇'], ['咬唇', '👄'],
+    ['扭腰', '💃'], ['抛媚眼', '😉'], ['轻抚', '🤚'], ['依偎', '🫂'],
+    ['侧身', '🌙'], ['回眸', '👀'], ['轻咬', '🦷'], ['舔唇', '👅'],
+    ['抚胸', '❤️'], ['摸腿', '🦵'], ['翘臀', '🍑'], ['挺胸', '✨'],
+    ['收腿', '🧘'], ['侧卧', '🛌'], ['俯卧', '😴'], ['蜷缩', '🐱']
   ]
 }
 
@@ -123,6 +132,11 @@ const ACTION_CONFIG = {
     intensity: 2.5,
     frequency: 3,
     description: '特殊动作，夸张效果'
+  },
+  sexy: {
+    intensity: 1.2,
+    frequency: 1.5,
+    description: '涩涩动作，妩媚诱惑'
   }
 }
 
@@ -152,6 +166,11 @@ function generateBonesForAction(category, actionCycle, intensity = 1.0) {
     case 'special':
       // 特殊：夸张效果
       generateSpecialBones(bones, actionCycle, baseIntensity)
+      break
+      
+    case 'sexy':
+      // 涩涩：妩媚诱惑
+      generateSexyBones(bones, actionCycle, baseIntensity)
       break
       
     default:
@@ -290,6 +309,38 @@ function generateSpecialBones(bones, actionCycle, intensity) {
   bones.rightUpperLeg = createBone([-actionCycle * 1.0, 0, 0])
   bones.rightLowerLeg = createBone([0.4 + actionCycle * 0.4, 0, 0])
   bones.rightFoot = createBone([-0.4 + actionCycle * 0.2, 0, 0])
+}
+
+// 涩涩动作骨骼生成
+function generateSexyBones(bones, actionCycle, intensity) {
+  // 下半身 - 妩媚姿态
+  bones.hips = createBone([0, actionCycle * 0.3, 0], [0, Math.abs(actionCycle) * 0.15, 0])
+  bones.spine = createBone([actionCycle * 0.25, 0, actionCycle * 0.15])
+  bones.chest = createBone([actionCycle * 0.2, 0, actionCycle * 0.2])
+
+  // 头部 - 诱惑表情
+  bones.neck = createBone([actionCycle * 0.2, actionCycle * 0.3, 0])
+  bones.head = createBone([actionCycle * 0.15, actionCycle * 0.25, actionCycle * 0.1])
+
+  // 左臂 - 妩媚手势
+  bones.leftShoulder = createBone([0, 0, actionCycle * 0.4])
+  bones.leftUpperArm = createBone([0, 0, actionCycle * 1.0 * intensity])
+  bones.leftLowerArm = createBone([0.5 + actionCycle * 0.3, 0, actionCycle * 0.4])
+  bones.leftHand = createBone([0, 0, actionCycle * 0.5])
+
+  // 右臂 - 妩媚手势
+  bones.rightShoulder = createBone([0, 0, -actionCycle * 0.4])
+  bones.rightUpperArm = createBone([0, 0, -actionCycle * 1.0 * intensity])
+  bones.rightLowerArm = createBone([0.5 + actionCycle * 0.3, 0, -actionCycle * 0.4])
+  bones.rightHand = createBone([0, 0, -actionCycle * 0.5])
+
+  // 腿部 - 诱惑姿态
+  bones.leftUpperLeg = createBone([actionCycle * 0.5, 0, 0])
+  bones.leftLowerLeg = createBone([0.25 + actionCycle * 0.2, 0, 0])
+  bones.leftFoot = createBone([-0.25 + actionCycle * 0.1, 0, 0])
+  bones.rightUpperLeg = createBone([-actionCycle * 0.5, 0, 0])
+  bones.rightLowerLeg = createBone([0.25 + actionCycle * 0.2, 0, 0])
+  bones.rightFoot = createBone([-0.25 + actionCycle * 0.1, 0, 0])
 }
 
 // 基础动作骨骼生成
@@ -468,6 +519,24 @@ actionNames.special.forEach(([name, icon], index) => {
   }
 })
 
+// 生成涩涩动作 (20个)
+actionNames.sexy.forEach(([name, icon], index) => {
+  try {
+    const action = generateAction(
+      `mmd_sexy_${index}`,
+      name,
+      icon,
+      '涩涩',
+      'sexy'
+    )
+    if (action && action.keyframes && action.keyframes.length > 0) {
+      generatedActions.push(action)
+    }
+  } catch (error) {
+    console.error(`生成动作失败 ${name}:`, error)
+  }
+})
+
 // 导出动作列表
 export const mmdActions = generatedActions
 
@@ -478,7 +547,8 @@ export const mmdActionCategories = [
   { id: '舞蹈', name: '舞蹈', icon: '💃' },
   { id: '表情', name: '表情', icon: '😊' },
   { id: '酷炫', name: '酷炫', icon: '😎' },
-  { id: '特殊', name: '特殊', icon: '✨' }
+  { id: '特殊', name: '特殊', icon: '✨' },
+  { id: '涩涩', name: '涩涩', icon: '💋', color: '#ff69b4' }
 ]
 
 // 根据ID获取动作
