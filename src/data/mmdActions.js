@@ -152,30 +152,30 @@ function generateBonesForAction(category, progress, type) {
   // 根据分类调整运动模式
   switch(category) {
     case '舞蹈':
-      // 舞蹈：全身大幅度运动
-      bones.hips = createBone([0, actionCycle * 0.1, 0], [0, Math.abs(actionCycle) * 0.05, 0])
-      bones.spine = createBone([actionCycle * 0.1, 0, actionCycle * 0.05])
-      bones.chest = createBone([actionCycle * 0.08, 0, actionCycle * 0.08])
-      bones.neck = createBone([actionCycle * 0.05, actionCycle * 0.08, 0])
-      bones.head = createBone([actionCycle * 0.08, actionCycle * 0.1, actionCycle * 0.03])
+      // 舞蹈：全身大幅度运动（放大3倍）
+      bones.hips = createBone([0, actionCycle * 0.5, 0], [0, Math.abs(actionCycle) * 0.2, 0])
+      bones.spine = createBone([actionCycle * 0.4, 0, actionCycle * 0.2])
+      bones.chest = createBone([actionCycle * 0.3, 0, actionCycle * 0.3])
+      bones.neck = createBone([actionCycle * 0.3, actionCycle * 0.4, 0])
+      bones.head = createBone([actionCycle * 0.4, actionCycle * 0.5, actionCycle * 0.2])
       // 左臂完整链
-      bones.leftShoulder = createBone([0, 0, actionCycle * 0.1])
-      bones.leftUpperArm = createBone([0, 0, actionCycle * 0.8 * intensity])
-      bones.leftLowerArm = createBone([actionCycle * 0.3, 0, actionCycle * 0.2])
-      bones.leftHand = createBone([0, 0, actionCycle * 0.15])
+      bones.leftShoulder = createBone([0, 0, actionCycle * 0.5])
+      bones.leftUpperArm = createBone([0, 0, actionCycle * 2.5 * intensity])
+      bones.leftLowerArm = createBone([actionCycle * 1.0, 0, actionCycle * 0.8])
+      bones.leftHand = createBone([0, 0, actionCycle * 0.6])
       // 右臂完整链
-      bones.rightShoulder = createBone([0, 0, -actionCycle * 0.1])
-      bones.rightUpperArm = createBone([0, 0, -actionCycle * 0.8 * intensity])
-      bones.rightLowerArm = createBone([actionCycle * 0.3, 0, -actionCycle * 0.2])
-      bones.rightHand = createBone([0, 0, -actionCycle * 0.15])
+      bones.rightShoulder = createBone([0, 0, -actionCycle * 0.5])
+      bones.rightUpperArm = createBone([0, 0, -actionCycle * 2.5 * intensity])
+      bones.rightLowerArm = createBone([actionCycle * 1.0, 0, -actionCycle * 0.8])
+      bones.rightHand = createBone([0, 0, -actionCycle * 0.6])
       // 左腿完整链
-      bones.leftUpperLeg = createBone([actionCycle * 0.5 * intensity, 0, 0])
-      bones.leftLowerLeg = createBone([actionCycle > 0 ? actionCycle * 0.8 : 0.1, 0, 0])
-      bones.leftFoot = createBone([actionCycle > 0 ? -actionCycle * 0.3 : -0.1, 0, 0])
+      bones.leftUpperLeg = createBone([actionCycle * 1.5 * intensity, 0, 0])
+      bones.leftLowerLeg = createBone([actionCycle > 0 ? actionCycle * 2.0 : 0.3, 0, 0])
+      bones.leftFoot = createBone([actionCycle > 0 ? -actionCycle * 0.8 : -0.3, 0, 0])
       // 右腿完整链
-      bones.rightUpperLeg = createBone([-actionCycle * 0.5 * intensity, 0, 0])
-      bones.rightLowerLeg = createBone([actionCycle > 0 ? actionCycle * 0.8 : 0.1, 0, 0])
-      bones.rightFoot = createBone([actionCycle > 0 ? -actionCycle * 0.3 : -0.1, 0, 0])
+      bones.rightUpperLeg = createBone([-actionCycle * 1.5 * intensity, 0, 0])
+      bones.rightLowerLeg = createBone([actionCycle > 0 ? actionCycle * 2.0 : 0.3, 0, 0])
+      bones.rightFoot = createBone([actionCycle > 0 ? -actionCycle * 0.8 : -0.3, 0, 0])
       break
       
     case '可爱':
