@@ -3306,7 +3306,6 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
                    vrmModel.scene.getObjectByName(`J_Bip_C_${vrmBoneName}`) ||
                    vrmModel.scene.getObjectByName(boneName)
           }
-          }
           
           if (bone) {
             updatedBoneCount++
