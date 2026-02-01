@@ -868,15 +868,17 @@ const PositionControlPanel = ({
   )
 }
 
-// ==================== 移动端骨骼拖动组件 ====================
+// ==================== 移动端骨骼拖动组件（支持触摸和鼠标） ====================
 const MobileBoneDragger = ({ bone, onBoneChange, onClose }) => {
   const [isDragging, setIsDragging] = useState(false)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [panelPos, setPanelPos] = useState({ x: window.innerWidth / 2 - 140, y: window.innerHeight / 2 - 100 })
+  const [rotation, setRotation] = useState({ x: 0, y: 0 })
   
   if (!bone?.bone) return null
 
+  // 面板拖动 - 触摸
   const handleTouchStart = (e) => {
     const touch = e.touches[0]
     setIsDragging(true)
@@ -897,7 +899,25 @@ const MobileBoneDragger = ({ bone, onBoneChange, onClose }) => {
     setIsDragging(false)
   }
 
-  // 在弹框内拖动控制骨骼旋转
+  // 面板拖动 - 鼠标
+  const handleMouseDown = (e) => {
+    setIsDragging(true)
+    setDragStart({ x: e.clientX - panelPos.x, y: e.clientY - panelPos.y })
+  }
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return
+    setPanelPos({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    })
+  }
+
+  const handleMouseUp = () => {
+    setIsDragging(false)
+  }
+
+  // 骨骼旋转 - 触摸
   const handleRotateStart = (e) => {
     const touch = e.touches[0]
     bone.bone.userData.rotateStartX = touch.clientX
@@ -914,12 +934,52 @@ const MobileBoneDragger = ({ bone, onBoneChange, onClose }) => {
     const deltaX = touch.clientX - bone.bone.userData.rotateStartX
     const deltaY = touch.clientY - bone.bone.userData.rotateStartY
     
-    bone.bone.rotation.y = bone.bone.userData.startRotY + deltaX * 0.01
-    bone.bone.rotation.x = bone.bone.userData.startRotX + deltaY * 0.01
+    // 限制旋转角度在 ±90度 范围内
+    const MAX_ROTATION = Math.PI / 2
+    const newRotY = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, 
+      bone.bone.userData.startRotY + deltaX * 0.01))
+    const newRotX = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, 
+      bone.bone.userData.startRotX + deltaY * 0.01))
+    
+    bone.bone.rotation.y = newRotY
+    bone.bone.rotation.x = newRotX
     
     onBoneChange?.(bone.name, bone.bone.rotation)
     // 强制刷新
-    setPosition({ x: deltaX, y: deltaY })
+    setRotation({ x: newRotX, y: newRotY })
+  }
+
+  // 骨骼旋转 - 鼠标
+  const handleRotateMouseDown = (e) => {
+    bone.bone.userData.rotateStartX = e.clientX
+    bone.bone.userData.rotateStartY = e.clientY
+    bone.bone.userData.startRotX = bone.bone.rotation.x
+    bone.bone.userData.startRotY = bone.bone.rotation.y
+    bone.bone.userData.isRotating = true
+  }
+
+  const handleRotateMouseMove = (e) => {
+    if (!bone.bone.userData.isRotating) return
+    
+    const deltaX = e.clientX - bone.bone.userData.rotateStartX
+    const deltaY = e.clientY - bone.bone.userData.rotateStartY
+    
+    // 限制旋转角度在 ±90度 范围内
+    const MAX_ROTATION = Math.PI / 2
+    const newRotY = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, 
+      bone.bone.userData.startRotY + deltaX * 0.01))
+    const newRotX = Math.max(-MAX_ROTATION, Math.min(MAX_ROTATION, 
+      bone.bone.userData.startRotX + deltaY * 0.01))
+    
+    bone.bone.rotation.y = newRotY
+    bone.bone.rotation.x = newRotX
+    
+    onBoneChange?.(bone.name, bone.bone.rotation)
+    setRotation({ x: newRotX, y: newRotY })
+  }
+
+  const handleRotateMouseUp = () => {
+    bone.bone.userData.isRotating = false
   }
 
   return (
@@ -943,6 +1003,10 @@ const MobileBoneDragger = ({ bone, onBoneChange, onClose }) => {
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
         style={{
           display: 'flex',
           justifyContent: 'space-between',
@@ -950,7 +1014,8 @@ const MobileBoneDragger = ({ bone, onBoneChange, onClose }) => {
           padding: '8px 0',
           borderBottom: `2px solid ${bone.color}50`,
           marginBottom: '12px',
-          cursor: 'move'
+          cursor: 'move',
+          userSelect: 'none'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -981,13 +1046,19 @@ const MobileBoneDragger = ({ bone, onBoneChange, onClose }) => {
         onTouchStart={handleRotateStart}
         onTouchMove={handleRotateMove}
         onTouchEnd={() => { bone.bone.userData.rotateStartX = null }}
+        onMouseDown={handleRotateMouseDown}
+        onMouseMove={handleRotateMouseMove}
+        onMouseUp={handleRotateMouseUp}
+        onMouseLeave={handleRotateMouseUp}
         style={{
           background: `radial-gradient(circle, ${bone.color}30 0%, transparent 70%)`,
           borderRadius: '16px',
           padding: '40px 20px',
           textAlign: 'center',
           touchAction: 'none',
-          border: `2px dashed ${bone.color}60`
+          border: `2px dashed ${bone.color}60`,
+          cursor: 'grab',
+          userSelect: 'none'
         }}
       >
         <div style={{ fontSize: '40px', marginBottom: '8px' }}>🔄</div>
@@ -997,6 +1068,15 @@ const MobileBoneDragger = ({ bone, onBoneChange, onClose }) => {
         <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', marginTop: '8px' }}>
           左右拖动 = 水平旋转<br/>
           上下拖动 = 垂直旋转
+        </div>
+        {/* 显示当前旋转角度 */}
+        <div style={{ 
+          color: bone.color, 
+          fontSize: '11px', 
+          marginTop: '8px',
+          fontFamily: 'monospace'
+        }}>
+          X: {(rotation.x * 180 / Math.PI).toFixed(1)}° | Y: {(rotation.y * 180 / Math.PI).toFixed(1)}°
         </div>
       </div>
 
@@ -2994,6 +3074,10 @@ export const ARScene = ({ selectedFile }) => {
   const [isEditMode, setIsEditMode] = useState(true)
   // 交互模式 - 触摸不同部位播放不同动画
   const [isInteractMode, setIsInteractMode] = useState(false)
+  // 视角模式 - free/follow/fixed
+  const [cameraMode, setCameraMode] = useState('free')
+  // 表情面板显示状态
+  const [showExpressionPanel, setShowExpressionPanel] = useState(false)
   // 检查是否首次访问
   const [showHelp, setShowHelp] = useState(() => {
     const hasSeenTutorial = localStorage.getItem('hasSeenTutorial')
@@ -6217,44 +6301,46 @@ export const ARScene = ({ selectedFile }) => {
         alignItems: 'center',
         gap: '12px'
       }}>
-        {/* 快捷访问栏 - 固定显示最常用的功能 */}
+        {/* 快捷访问栏 - 移动端优化，精简为4个核心按钮 */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: isMobile ? '6px' : '8px',
-          padding: isMobile ? '6px' : '8px',
-          background: 'linear-gradient(180deg, rgba(255, 107, 157, 0.2) 0%, rgba(102, 126, 234, 0.2) 100%)',
-          borderRadius: '20px',
-          border: '1px solid rgba(255,255,255,0.2)',
-          backdropFilter: 'blur(10px)'
+          gap: isMobile ? '10px' : '12px',
+          padding: isMobile ? '10px' : '12px',
+          background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)',
+          borderRadius: '24px',
+          border: '1px solid rgba(255,255,255,0.15)',
+          backdropFilter: 'blur(20px)',
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
         }}>
-          {/* 编辑/预览模式切换按钮 - 防止移动端误操作 */}
+          {/* 1. 视角切换按钮 - 自由/跟随/固定 */}
           <ToolbarButton
             onClick={() => {
-              setIsEditMode(!isEditMode)
-              showNotification(isEditMode ? '切换到预览模式' : '切换到编辑模式', 'info')
+              // 循环切换视角模式
+              const modes = ['free', 'follow', 'fixed']
+              const currentIndex = modes.indexOf(cameraMode || 'free')
+              const nextMode = modes[(currentIndex + 1) % modes.length]
+              setCameraMode(nextMode)
+              showNotification(
+                nextMode === 'free' ? '自由视角模式' : 
+                nextMode === 'follow' ? '跟随视角模式' : '固定视角模式', 
+                'info'
+              )
             }}
-            icon={isEditMode ? "👁️" : "✏️"}
-            gradient={isEditMode 
-              ? "linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)"
-              : "linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)"
-            }
-            shadowColor={isEditMode 
-              ? "rgba(0, 212, 255, 0.5)"
-              : "rgba(255, 107, 157, 0.5)"
-            }
-            isActive={isEditMode}
+            icon={cameraMode === 'free' ? "🔓" : cameraMode === 'follow' ? "👁️" : "📌"}
+            gradient="linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)"
+            shadowColor="rgba(0, 212, 255, 0.5)"
             isMobile={isMobile}
-            label={isEditMode ? "预览" : "编辑"}
+            label="视角"
           />
           
-          {/* 交互模式按钮 - 触摸不同部位播放不同动画 */}
+          {/* 2. 交互模式按钮 - 触摸角色触发动作 */}
           <ToolbarButton
             onClick={() => {
               setIsInteractMode(!isInteractMode)
-              showNotification(isInteractMode ? '退出交互模式' : '进入交互模式：触摸角色不同部位触发不同动作', 'info')
+              showNotification(isInteractMode ? '退出交互模式' : '进入交互模式：触摸角色触发动作', 'info')
             }}
-            icon={isInteractMode ? "🤚" : "👆"}
+            icon={isInteractMode ? "✋" : "👆"}
             gradient={isInteractMode 
               ? "linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)"
               : "linear-gradient(135deg, #f39c12 0%, #e67e22 100%)"
@@ -6269,49 +6355,18 @@ export const ARScene = ({ selectedFile }) => {
             pulse={isInteractMode}
           />
           
-          {/* 预览按钮 - 切换纯净预览模式（隐藏所有UI只显示模型） */}
+          {/* 3. 表情面板按钮 - 快速切换表情 */}
           <ToolbarButton
-            onClick={() => {
-              if (isEditMode) {
-                // 进入纯净预览模式
-                setIsEditMode(false)
-                setIsInteractMode(false)
-                setShowSettings(false)
-                setShowPosePanel(false)
-                setShowStageEffects(false)
-                showNotification('进入纯净预览模式', 'success')
-              } else {
-                // 退出纯净预览模式，回到编辑模式
-                setIsEditMode(true)
-                showNotification('退出预览模式，回到编辑模式', 'success')
-              }
-            }}
-            icon={isEditMode ? "👁️" : "✏️"}
-            gradient={isEditMode 
-              ? "linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)"
-              : "linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)"
-            }
-            shadowColor={isEditMode 
-              ? "rgba(155, 89, 182, 0.5)"
-              : "rgba(255, 107, 157, 0.5)"
-            }
+            onClick={() => setShowExpressionPanel(!showExpressionPanel)}
+            icon="😊"
+            gradient="linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)"
+            shadowColor="rgba(255, 107, 157, 0.5)"
+            isActive={showExpressionPanel}
             isMobile={isMobile}
-            label={isEditMode ? "纯净" : "编辑"}
+            label="表情"
           />
           
-          {quickAccessPinned.includes('姿势') && (
-            <ToolbarButton
-              onClick={() => setShowPosePanel(true)}
-              icon="🎭"
-              gradient="linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)"
-              shadowColor="rgba(0, 212, 255, 0.5)"
-              isActive={showPosePanel}
-              isMobile={isMobile}
-              label="姿势"
-            />
-          )}
-          
-          {/* 设置按钮 - 保留在快捷栏 */}
+          {/* 4. 设置按钮 */}
           <ToolbarButton
             onClick={() => setShowSettings(!showSettings)}
             icon="⚙️"
@@ -6965,31 +7020,24 @@ export const ARScene = ({ selectedFile }) => {
       <PlaylistPanel
         isOpen={showPlaylist}
         onClose={() => setShowPlaylist(false)}
-        actions={actions}
+        actions={mmdActions}
         onPlayAction={(action) => {
           console.log('播放列表播放动作:', action)
-          // 触发角色动作 - 支持MMD动作系统
+          // 触发角色动作 - 使用MMD动作系统
           if (selectedCharacterIndex !== null && characters[selectedCharacterIndex]) {
-            // 检查是否是MMD动作
-            const mmdAction = mmdActions.find(a => a.id === action.id || a.id === action.action)
-            if (mmdAction && useMMDActions) {
-              // 使用MMD动作系统
-              setMmdCurrentActions(prev => {
-                const updated = [...prev]
-                updated[selectedCharacterIndex] = mmdAction
-                return updated
-              })
-              setMmdActionStartTimes(prev => {
-                const updated = [...prev]
-                updated[selectedCharacterIndex] = Date.now()
-                return updated
-              })
-              setCurrentAction(action.id || action.action)
-              showNotification(`播放列表: ${mmdAction.name}`, 'success')
-            } else {
-              // 使用普通动作系统
-              setCurrentAction(action.id || action.action)
-            }
+            // 直接使用MMD动作
+            setMmdCurrentActions(prev => {
+              const updated = [...prev]
+              updated[selectedCharacterIndex] = action
+              return updated
+            })
+            setMmdActionStartTimes(prev => {
+              const updated = [...prev]
+              updated[selectedCharacterIndex] = Date.now()
+              return updated
+            })
+            setCurrentAction(action.id)
+            showNotification(`播放列表: ${action.name}`, 'success')
           }
         }}
         isMobile={isMobile}

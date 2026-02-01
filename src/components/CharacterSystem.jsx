@@ -2882,7 +2882,10 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
   }
 
   const handleTouchStart = (event) => {
-    event.stopPropagation()
+    // 阻止默认触摸行为，但允许事件冒泡
+    if (event.cancelable) {
+      event.preventDefault()
+    }
     touchStartTime.current = Date.now()
     isLongPress.current = false
     
