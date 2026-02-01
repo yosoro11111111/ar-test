@@ -15,7 +15,7 @@ import ShareCardGenerator from './ShareCardGenerator'
 import ModelDownloader from './ModelDownloader'
 import StageEffects from './StageEffects'
 // MMD动作系统 - 替换原有动作系统
-import { mmdActions, mmdActionCategories, interpolateKeyframes } from '../data/mmdActions'
+import { mmdActions, mmdActionCategories, interpolateKeyframes, getActionById } from '../data/mmdActions'
 import { poseBoneData } from '../data/poseBoneData'
 import { sceneTemplates, getSceneTemplate } from '../data/sceneTemplates'
 import { furnitureList, furnitureCategories, getFurnitureByCategory, searchFurniture } from '../data/furniture'
@@ -3354,8 +3354,34 @@ export const ARScene = ({ selectedFile }) => {
       console.log('⚠️ MMD动作系统未启用')
       setCurrentAction(action)
     }
+  }, [actionIntensity, selectedCharacterIndex, useMMDActions, showNotification])
 
-    if (action === 'combo') {
+  // 执行MMD动作（用于交互模式等）
+  const executeMMDAction = useCallback((action, characterIndex) => {
+    if (!action) {
+      console.warn('⚠️ executeMMDAction: action为空')
+      return
+    }
+    
+    console.log('🎭 executeMMDAction 被调用:', action.name, '角色:', characterIndex)
+    
+    setMmdCurrentActions(prev => {
+      const updated = [...prev]
+      updated[characterIndex] = action
+      console.log('📝 mmdCurrentActions 更新:', updated)
+      return updated
+    })
+    setMmdActionStartTimes(prev => {
+      const updated = [...prev]
+      updated[characterIndex] = Date.now()
+      console.log('📝 mmdActionStartTimes 更新:', updated)
+      return updated
+    })
+    setCurrentAction(action.id)
+    showNotification(`角色${characterIndex + 1} MMD动作: ${action.name}`, 'success')
+  }, [showNotification])
+
+  if (action === 'combo') {
       setComboCount(prev => {
         const newCount = prev + 1
         if (newCount >= 3) {
@@ -3698,6 +3724,22 @@ export const ARScene = ({ selectedFile }) => {
     }
 
     try {
+      // 临时禁用特效，只保留模型
+      const originalShowParticles = showParticles
+      const originalStageEffects = { ...stageEffects }
+      setShowParticles(false)
+      setStageEffects(prev => ({
+        ...prev,
+        bloom: false,
+        particles: { ...prev.particles, enabled: false }
+      }))
+      
+      // 保存原始状态用于恢复
+      window.recordingOriginalEffects = {
+        showParticles: originalShowParticles,
+        stageEffects: originalStageEffects
+      }
+      
       const mediaRecorder = new MediaRecorder(streamRef.current, { mimeType: 'video/webm' })
       mediaRecorderRef.current = mediaRecorder
       recordedChunksRef.current = []
@@ -3738,6 +3780,13 @@ export const ARScene = ({ selectedFile }) => {
     if (recordingTimerRef.current) {
       clearInterval(recordingTimerRef.current)
       recordingTimerRef.current = null
+    }
+    
+    // 恢复特效
+    if (window.recordingOriginalEffects) {
+      setShowParticles(window.recordingOriginalEffects.showParticles)
+      setStageEffects(window.recordingOriginalEffects.stageEffects)
+      delete window.recordingOriginalEffects
     }
   }, [])
 
@@ -6229,21 +6278,34 @@ export const ARScene = ({ selectedFile }) => {
             pulse={isInteractMode}
           />
           
-          {/* 预览按钮 - 隐藏所有UI只显示模型 */}
+          {/* 预览按钮 - 切换纯净预览模式（隐藏所有UI只显示模型） */}
           <ToolbarButton
             onClick={() => {
-              setIsEditMode(false)
-              setIsInteractMode(false)
-              setShowSettings(false)
-              setShowPosePanel(false)
-              setShowStageEffects(false)
-              showNotification('进入纯净预览模式', 'success')
+              if (isEditMode) {
+                // 进入纯净预览模式
+                setIsEditMode(false)
+                setIsInteractMode(false)
+                setShowSettings(false)
+                setShowPosePanel(false)
+                setShowStageEffects(false)
+                showNotification('进入纯净预览模式', 'success')
+              } else {
+                // 退出纯净预览模式，回到编辑模式
+                setIsEditMode(true)
+                showNotification('退出预览模式，回到编辑模式', 'success')
+              }
             }}
-            icon="👁️"
-            gradient="linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)"
-            shadowColor="rgba(155, 89, 182, 0.5)"
+            icon={isEditMode ? "👁️" : "✏️"}
+            gradient={isEditMode 
+              ? "linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)"
+              : "linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)"
+            }
+            shadowColor={isEditMode 
+              ? "rgba(155, 89, 182, 0.5)"
+              : "rgba(255, 107, 157, 0.5)"
+            }
             isMobile={isMobile}
-            label="纯净"
+            label={isEditMode ? "纯净" : "编辑"}
           />
           
           {quickAccessPinned.includes('姿势') && (
