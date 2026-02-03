@@ -1,6 +1,6 @@
 # Aetheris - AR 角色展示系统
 
-一个基于 React + Three.js 的 VRM 角色展示平台，支持多角色管理、VRMA 动作播放、时间轴编辑、GIF/视频录制等功能。
+一个基于 React + Three.js 的 VRM 角色展示平台，支持多角色管理、VRMA 动作播放、时间轴编辑、GIF/视频录制等功能。1
 
 ## ✨ 功能特性
 
