@@ -14,6 +14,7 @@ import { sceneTemplates, getSceneTemplate } from '../data/sceneTemplates'
 import { furnitureList, furnitureCategories, getFurnitureByCategory, searchFurniture } from '../data/furniture'
 import { useGyroscope } from '../hooks/useGyroscope'
 import { useVoiceControl } from '../hooks/useVoiceControl'
+import { WebXRAR } from './WebXRAR'
 
 // ==================== 分步引导组件 ====================
 const TutorialGuide = ({ isMobile, onClose }) => {
@@ -2939,6 +2940,7 @@ export const ARScene = ({ selectedFile }) => {
   const toolbarDragStartY = useRef(0)
   const toolbarDragStartOffsetY = useRef(0)
   const [isARMode, setIsARMode] = useState(false)
+  const [isWebXRARMode, setIsWebXRARMode] = useState(false)
   const videoRef = useRef(null)
   const [cameraFacingMode, setCameraFacingMode] = useState('environment')
   const streamRef = useRef(null)
