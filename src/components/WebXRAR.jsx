@@ -158,10 +158,20 @@ export const useWebXRAR = () => {
           }
         }
         
+        // 绑定 XR 帧缓冲
+        const glLayer = session.renderState.baseLayer
+        const gl = renderer.getContext()
+        gl.bindFramebuffer(gl.FRAMEBUFFER, glLayer.framebuffer)
+        
         // 更新相机位置
         const view = pose.views[0]
         camera.matrix.fromArray(view.transform.matrix)
         camera.matrix.decompose(camera.position, camera.quaternion, camera.scale)
+        
+        // 设置视口
+        const viewport = glLayer.getViewport(view)
+        renderer.setSize(viewport.width, viewport.height)
+        gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height)
       }
 
       renderer.render(scene, camera)
