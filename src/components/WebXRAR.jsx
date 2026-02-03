@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react'
 import * as THREE from 'three'
+import { ARGestureHandler } from './ARGestureHandler'
 
 // AR 核心管理器
 class ARSessionManager {
@@ -280,6 +281,9 @@ class ARSessionManager {
 
       // 更新环境光
       this.updateEnvironmentLighting()
+      
+      // 更新动画
+      this.updateAnimations()
 
       this.renderer.render(this.scene, this.camera)
       this.session.requestAnimationFrame(loop)
@@ -319,6 +323,8 @@ class ARSessionManager {
     // 创建角色容器
     const characterGroup = new THREE.Group()
     characterGroup.position.copy(position)
+    characterGroup.userData.isCharacter = true
+    characterGroup.userData.characterId = Date.now()
     
     // 这里应该加载实际的VRM模型
     // 简化版本：创建一个占位体
@@ -332,6 +338,7 @@ class ARSessionManager {
     mesh.position.y = 0.9
     mesh.castShadow = true
     mesh.receiveShadow = true
+    mesh.userData.isCharacter = true
     characterGroup.add(mesh)
 
     // 添加选择框
@@ -347,12 +354,118 @@ class ARSessionManager {
     selectionBox.name = 'selectionBox'
     characterGroup.add(selectionBox)
 
+    // 添加动作状态
+    characterGroup.userData.currentAction = null
+    characterGroup.userData.isPlayingAction = false
+
     this.scene.add(characterGroup)
     
     // 隐藏放置指示器
     this.placementIndicator.visible = false
 
     return characterGroup
+  }
+
+  // 播放动作
+  playAction(character, actionName) {
+    if (!character) return
+    
+    console.log('播放动作:', actionName)
+    
+    // 停止当前动作
+    this.stopAction(character)
+    
+    // 这里应该加载并播放实际的VRMA动作
+    // 简化版本：根据动作类型播放不同的动画
+    character.userData.currentAction = actionName
+    character.userData.isPlayingAction = true
+    
+    // 创建简单的动画效果
+    this.createSimpleAnimation(character, actionName)
+  }
+
+  // 停止动作
+  stopAction(character) {
+    if (!character) return
+    
+    // 清除动画
+    if (character.userData.animationMixer) {
+      character.userData.animationMixer.stopAllAction()
+    }
+    
+    character.userData.currentAction = null
+    character.userData.isPlayingAction = false
+  }
+
+  // 创建简单动画（占位）
+  createSimpleAnimation(character, actionName) {
+    // 根据动作类型创建不同的动画
+    const mesh = character.children.find(child => child.geometry && child.geometry.type === 'CapsuleGeometry')
+    if (!mesh) return
+
+    let animationType = 'idle'
+    
+    if (actionName.includes('wave') || actionName.includes('Wave')) {
+      animationType = 'wave'
+    } else if (actionName.includes('jump') || actionName.includes('Jump')) {
+      animationType = 'jump'
+    } else if (actionName.includes('dance') || actionName.includes('Dance')) {
+      animationType = 'dance'
+    } else if (actionName.includes('bow') || actionName.includes('Bow')) {
+      animationType = 'bow'
+    }
+
+    // 存储动画类型
+    character.userData.animationType = animationType
+    character.userData.animationStartTime = Date.now()
+  }
+
+  // 更新动画
+  updateAnimations() {
+    const characters = this.scene.children.filter(child => child.userData.isCharacter)
+    
+    characters.forEach(character => {
+      if (!character.userData.isPlayingAction) return
+      
+      const mesh = character.children.find(child => child.geometry && child.geometry.type === 'CapsuleGeometry')
+      if (!mesh) return
+      
+      const elapsed = (Date.now() - character.userData.animationStartTime) / 1000
+      const animationType = character.userData.animationType
+      
+      switch (animationType) {
+        case 'wave':
+          // 挥手动画
+          mesh.rotation.z = Math.sin(elapsed * 10) * 0.3
+          break
+        case 'jump':
+          // 跳跃动画
+          mesh.position.y = 0.9 + Math.abs(Math.sin(elapsed * 5)) * 0.5
+          break
+        case 'dance':
+          // 跳舞动画
+          mesh.rotation.y = Math.sin(elapsed * 3) * 0.5
+          mesh.position.y = 0.9 + Math.sin(elapsed * 8) * 0.1
+          break
+        case 'bow':
+          // 鞠躬动画
+          const bowPhase = Math.min(1, elapsed / 0.5)
+          if (bowPhase < 0.5) {
+            mesh.rotation.x = bowPhase * 2 * 0.5
+          } else {
+            mesh.rotation.x = (1 - bowPhase) * 2 * 0.5
+          }
+          if (elapsed > 1) {
+            this.stopAction(character)
+            mesh.rotation.x = 0
+          }
+          break
+        default:
+          // 呼吸动画
+          mesh.scale.y = 1 + Math.sin(elapsed * 2) * 0.02
+          break
+      }
+    })
   }
 
   // 结束会话
@@ -470,6 +583,20 @@ export const useWebXRAR = () => {
     }
   }, [])
 
+  // 播放动作
+  const playCharacterAction = useCallback((character, actionName) => {
+    if (arManagerRef.current && character) {
+      arManagerRef.current.playAction(character, actionName)
+    }
+  }, [])
+
+  // 停止动作
+  const stopCharacterAction = useCallback((character) => {
+    if (arManagerRef.current && character) {
+      arManagerRef.current.stopAction(character)
+    }
+  }, [])
+
   return {
     isSupported,
     isSessionActive,
@@ -483,7 +610,10 @@ export const useWebXRAR = () => {
     selectCharacter,
     moveCharacter,
     scaleCharacter,
-    rotateCharacter
+    rotateCharacter,
+    playCharacterAction,
+    stopCharacterAction,
+    arManager: arManagerRef.current
   }
 }
 
@@ -495,6 +625,7 @@ export const WebXRAR = ({
   isMobile 
 }) => {
   const canvasRef = useRef(null)
+  const gestureHandlerRef = useRef(null)
   const {
     isSupported,
     isSessionActive,
@@ -508,13 +639,18 @@ export const WebXRAR = ({
     selectCharacter,
     moveCharacter,
     scaleCharacter,
-    rotateCharacter
+    rotateCharacter,
+    playCharacterAction,
+    stopCharacterAction,
+    arManager
   } = useWebXRAR()
 
   const [isStarting, setIsStarting] = useState(false)
   const [showControls, setShowControls] = useState(false)
   const [scale, setScale] = useState(1)
   const [rotation, setRotation] = useState(0)
+  const [showActionPanel, setShowActionPanel] = useState(false)
+  const [showGestureHint, setShowGestureHint] = useState(true)
 
   // 启动AR
   const handleStartAR = async () => {
@@ -524,7 +660,56 @@ export const WebXRAR = ({
     setIsStarting(false)
     if (success) {
       setShowControls(true)
+      // 初始化手势处理器
+      initGestureHandler()
     }
+  }
+
+  // 初始化手势处理器
+  const initGestureHandler = () => {
+    if (!arManager || !canvasRef.current) return
+    
+    gestureHandlerRef.current = new ARGestureHandler(arManager)
+    gestureHandlerRef.current.init(canvasRef.current)
+    
+    // 设置回调
+    gestureHandlerRef.current.onCharacterSelect = (character) => {
+      selectCharacter(character)
+      if (character) {
+        setShowActionPanel(true)
+        setScale(character.scale.x)
+        setRotation(character.rotation.y)
+      } else {
+        setShowActionPanel(false)
+      }
+    }
+    
+    gestureHandlerRef.current.onCharacterMove = (character, position) => {
+      moveCharacter(character, position)
+    }
+    
+    gestureHandlerRef.current.onCharacterScale = (character, newScale) => {
+      setScale(newScale)
+    }
+    
+    gestureHandlerRef.current.onCharacterRotate = (character, newRotation) => {
+      setRotation(newRotation)
+    }
+    
+    gestureHandlerRef.current.onLongPress = (character, pos) => {
+      // 长按显示菜单
+      setShowActionPanel(true)
+    }
+    
+    gestureHandlerRef.current.onTap = (pos) => {
+      // 点击空白处取消选择
+      if (!selectedCharacter) {
+        setShowActionPanel(false)
+      }
+    }
+    
+    // 3秒后隐藏手势提示
+    setTimeout(() => setShowGestureHint(false), 3000)
   }
 
   // 放置角色
@@ -621,12 +806,61 @@ export const WebXRAR = ({
           )}
         </div>
 
-        {/* 控制面板 */}
-        {showControls && isPlaced && (
+        {/* 手势提示 */}
+        {isSessionActive && showGestureHint && (
           <div style={{
-            background: 'rgba(0,0,0,0.7)', padding: '16px', borderRadius: '12px',
-            pointerEvents: 'auto', marginBottom: '12px'
+            background: 'rgba(0,0,0,0.7)', padding: '12px 20px',
+            borderRadius: '12px', pointerEvents: 'auto', marginBottom: '12px'
           }}>
+            <p style={{ color: 'white', margin: 0, fontSize: '14px', textAlign: 'center' }}>
+              👆 点击选择角色 | ✋ 拖拽移动 | 🤏 双指缩放/旋转 | ⏱️ 长按菜单
+            </p>
+          </div>
+        )}
+
+        {/* 动作面板 */}
+        {showActionPanel && selectedCharacter && (
+          <div style={{
+            background: 'rgba(0,0,0,0.8)', padding: '16px', borderRadius: '12px',
+            pointerEvents: 'auto', marginBottom: '12px', maxHeight: '200px', overflowY: 'auto'
+          }}>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(4, 1fr)', 
+              gap: '8px',
+              marginBottom: '12px'
+            }}>
+              {['wave', 'jump', 'dance', 'bow', 'idle', 'stop'].map(action => (
+                <button
+                  key={action}
+                  onClick={() => {
+                    if (action === 'stop') {
+                      stopCharacterAction(selectedCharacter)
+                    } else {
+                      playCharacterAction(selectedCharacter, action)
+                    }
+                  }}
+                  style={{
+                    padding: '10px 8px',
+                    background: action === 'stop' 
+                      ? 'rgba(239, 68, 68, 0.8)' 
+                      : 'rgba(59, 130, 246, 0.8)',
+                    border: 'none', borderRadius: '8px',
+                    color: 'white', fontSize: '12px', cursor: 'pointer',
+                    textTransform: 'capitalize'
+                  }}
+                >
+                  {action === 'wave' && '👋 挥手'}
+                  {action === 'jump' && '⬆️ 跳跃'}
+                  {action === 'dance' && '💃 跳舞'}
+                  {action === 'bow' && '🙇 鞠躬'}
+                  {action === 'idle' && '😌 待机'}
+                  {action === 'stop' && '⏹️ 停止'}
+                </button>
+              ))}
+            </div>
+            
+            {/* 变换控制 */}
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
               {/* 缩放控制 */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
