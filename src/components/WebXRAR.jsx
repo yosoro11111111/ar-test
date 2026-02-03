@@ -51,19 +51,34 @@ export const useWebXRAR = () => {
 
       sessionRef.current = session
 
-      // 创建 WebGL 渲染器 - 配置为 XR 兼容
+      // 首先获取 XR 兼容的 WebGL 上下文
+      const gl = canvas.getContext('webgl2', { 
+        xrCompatible: true,
+        alpha: true,
+        antialias: true
+      }) || canvas.getContext('webgl', { 
+        xrCompatible: true,
+        alpha: true,
+        antialias: true
+      })
+      
+      if (!gl) {
+        throw new Error('无法创建 WebGL 上下文')
+      }
+
+      // 创建 WebGL 渲染器 - 使用已创建的上下文
       const renderer = new THREE.WebGLRenderer({
         canvas: canvas,
+        context: gl,
         alpha: true,
-        antialias: true,
-        xrCompatible: true  // 关键：标记为 XR 兼容
+        antialias: true
       })
       renderer.setSize(window.innerWidth, window.innerHeight)
       renderer.setPixelRatio(window.devicePixelRatio)
       renderer.xr.enabled = true
       
       // 配置 XR 渲染层
-      const baseLayer = new XRWebGLLayer(session, renderer.getContext())
+      const baseLayer = new XRWebGLLayer(session, gl)
       session.updateRenderState({ 
         baseLayer,
         depthNear: 0.1,
