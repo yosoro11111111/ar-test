@@ -51,21 +51,32 @@ export const useWebXRAR = () => {
 
       sessionRef.current = session
 
-      // 创建 WebGL 渲染器
+      // 创建 WebGL 渲染器 - 配置为 XR 兼容
       const renderer = new THREE.WebGLRenderer({
         canvas: canvas,
         alpha: true,
-        antialias: true
+        antialias: true,
+        xrCompatible: true  // 关键：标记为 XR 兼容
       })
       renderer.setSize(window.innerWidth, window.innerHeight)
+      renderer.setPixelRatio(window.devicePixelRatio)
       renderer.xr.enabled = true
+      
+      // 配置 XR 渲染层
+      const baseLayer = new XRWebGLLayer(session, renderer.getContext())
+      session.updateRenderState({ 
+        baseLayer,
+        depthNear: 0.1,
+        depthFar: 1000
+      })
+      
       rendererRef.current = renderer
 
       // 创建场景
       const scene = new THREE.Scene()
       sceneRef.current = scene
 
-      // 创建相机
+      // 创建相机 - 使用 XR 相机
       const camera = new THREE.PerspectiveCamera(
         75,
         window.innerWidth / window.innerHeight,
@@ -73,9 +84,6 @@ export const useWebXRAR = () => {
         1000
       )
       cameraRef.current = camera
-
-      // 设置 XR 会话
-      await renderer.xr.setSession(session)
 
       // 获取参考空间
       const refSpace = await session.requestReferenceSpace('local-floor')
@@ -134,6 +142,11 @@ export const useWebXRAR = () => {
             setPlacementPosition(position)
           }
         }
+        
+        // 更新相机位置
+        const view = pose.views[0]
+        camera.matrix.fromArray(view.transform.matrix)
+        camera.matrix.decompose(camera.position, camera.quaternion, camera.scale)
       }
 
       renderer.render(scene, camera)
