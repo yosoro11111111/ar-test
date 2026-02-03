@@ -12,11 +12,13 @@
   },
   "dependencies": {
     "@pixiv/three-vrm": "^3.4.5",
-    "@react-three/drei": "^9.95.5",
-    "@react-three/fiber": "^8.15.12",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "three": "^0.160.0"
+    "@pixiv/three-vrm-animation": "^3.4.5",
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
+    "framer-motion": "^12.30.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.160.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

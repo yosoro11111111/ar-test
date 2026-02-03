@@ -1,13 +1,24 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { 
-  getAllMotionPackActions, 
-  motionPackCategories, 
-  loadMotionPackAction 
-} from '../data/motionPackActions'
+import { getAllVRMAActions, loadVRMAAction } from '../data/vrmaActions'
 import './ActionPanel.css'
+
+// VRMA 分类定义
+const vrmaCategories = [
+  { id: '基础', name: '基础动作', icon: '👤' },
+  { id: '舞蹈', name: '舞蹈动作', icon: '💃' },
+  { id: '战斗', name: '战斗动作', icon: '⚔️' },
+  { id: '表情', name: '表情动作', icon: '😊' },
+  { id: '运动', name: '运动动作', icon: '⚽' },
+  { id: '特殊', name: '特殊动作', icon: '✨' },
+  { id: '其他', name: '其他动作', icon: '🎭' }
+]
 
 // 动作面板组件 - 优化版本
 // 支持全屏显示、立即切换动作、更好的视觉反馈
+// VERSION: 2024-02-02-002 - VRMA Edition
+
+console.log('🎭 ActionPanel.jsx 模块加载 - VRMA Edition')
+
 export const ActionPanel = ({ 
   isOpen, 
   onClose, 
@@ -28,7 +39,8 @@ export const ActionPanel = ({
     return saved ? JSON.parse(saved) : []
   })
   const [playingAction, setPlayingAction] = useState(null)
-  const [viewMode, setViewMode] = useState('grid') // 'grid' | 'list'
+  const [viewMode, setViewMode] = useState('grid')
+  const [loadedList, setLoadedList] = useState([])
   const gridRef = useRef(null)
 
   // 监听当前动作变化
@@ -38,26 +50,36 @@ export const ActionPanel = ({
     }
   }, [currentAction])
 
-  if (!isOpen) return null
+  const allActions = React.useMemo(() => {
+    if (!isOpen) return []
+    return loadedList
+  }, [isOpen, loadedList])
 
-  // 获取所有动作（从 motionPack）
-  const allActions = getAllMotionPackActions()
+  useEffect(() => {
+    let mounted = true
+    if (isOpen) {
+      getAllVRMAActions().then(list => {
+        if (mounted) setLoadedList(list)
+      })
+    }
+    return () => { mounted = false }
+  }, [isOpen])
 
   // 过滤动作
-  const getFilteredActions = () => {
-    let filtered = allActions
+  const filteredActions = React.useMemo(() => {
+    let filtered = loadedList
 
     if (activeCategory === 'favorites') {
       filtered = allActions.filter(a => favorites.includes(a.id))
     } else if (activeCategory === 'recent') {
       filtered = recentActions.map(id => allActions.find(a => a.id === id)).filter(Boolean)
     } else if (activeCategory !== 'all') {
-      filtered = allActions.filter(a => a.category === activeCategory)
+      filtered = loadedList.filter(a => a.category === activeCategory)
     }
 
     if (searchQuery) {
       const query = searchQuery.toLowerCase()
-      filtered = allActions.filter(a => 
+      filtered = loadedList.filter(a => 
         a.name.toLowerCase().includes(query) ||
         a.category.toLowerCase().includes(query)
       ).filter(a => 
@@ -69,12 +91,12 @@ export const ActionPanel = ({
     }
 
     return filtered
-  }
-
-  const filteredActions = getFilteredActions()
+  }, [loadedList, activeCategory, favorites, recentActions, searchQuery])
 
   // 处理动作选择 - 立即切换
   const handleSelectAction = useCallback(async (action) => {
+    console.log('🎯 ActionPanel 选择动作:', action.name, action.id)
+    
     // 立即停止当前动作，开始新动作
     setPlayingAction(action.id)
     
@@ -83,20 +105,16 @@ export const ActionPanel = ({
     setRecentActions(newRecent)
     localStorage.setItem('recentActions', JSON.stringify(newRecent))
     
-    // 加载真实的 FBX 动作数据
     if (!action.loaded && action.filePath) {
       try {
-        const loadedAction = await loadMotionPackAction(action.filePath)
-        // 合并加载的数据
+        const vrmModel = window.vrmModels && Object.values(window.vrmModels)[0]
+        const loadedAction = await loadVRMAAction(action.filePath, vrmModel)
         const fullAction = { ...action, ...loadedAction, loaded: true }
         onSelectAction?.(fullAction, { immediate: true })
       } catch (error) {
-        console.warn('加载动作失败:', error)
-        // 即使加载失败也触发动作，使用默认数据
         onSelectAction?.(action, { immediate: true })
       }
     } else {
-      // 已加载或无需加载，直接触发
       onSelectAction?.(action, { immediate: true })
     }
   }, [onSelectAction, recentActions])
@@ -115,8 +133,8 @@ export const ActionPanel = ({
   const getCategoryCount = (categoryId) => {
     if (categoryId === 'favorites') return favorites.length
     if (categoryId === 'recent') return recentActions.length
-    if (categoryId === 'all') return allActions.length
-    return allActions.filter(a => a.category === categoryId).length
+    if (categoryId === 'all') return loadedList.length
+    return loadedList.filter(a => a.category === categoryId).length
   }
 
   // 键盘导航
@@ -131,7 +149,7 @@ export const ActionPanel = ({
       // 数字键快速选择分类
       if (e.key >= '1' && e.key <= '9') {
         const index = parseInt(e.key) - 1
-        const categories = ['all', 'favorites', 'recent', ...motionPackCategories.map(c => c.id)]
+        const categories = ['all', 'favorites', 'recent', ...vrmaCategories.map(c => c.id)]
         if (categories[index]) {
           setActiveCategory(categories[index])
         }
@@ -193,7 +211,7 @@ export const ActionPanel = ({
   const renderActionListItem = (action) => {
     const isPlaying = playingAction === action.id
     const isFavorite = favorites.includes(action.id)
-    const category = motionPackCategories.find(c => c.id === action.category)
+    const category = vrmaCategories.find(c => c.id === action.category)
     
     return (
       <div
@@ -230,6 +248,8 @@ export const ActionPanel = ({
     )
   }
 
+  if (!isOpen) return null
+
   return (
     <div className={`action-panel-overlay ${isFullscreen ? 'fullscreen' : ''}`} onClick={onClose}>
       <div 
@@ -239,8 +259,8 @@ export const ActionPanel = ({
         {/* 头部 */}
         <div className="panel-header">
           <div className="header-left">
-            <h2>动作库</h2>
-            <span className="action-count">{filteredActions.length} / {actions.length}</span>
+            <h2>动作库 [VRMA]</h2>
+            <span className="action-count">{filteredActions.length} / {loadedList.length}</span>
           </div>
           <div className="header-controls">
             {/* 视图切换 */}
@@ -319,9 +339,11 @@ export const ActionPanel = ({
             <span>🕐 最近</span>
             <span className="count">{getCategoryCount('recent')}</span>
           </button>
-          {motionPackCategories.map(cat => (
+          {['基础','舞蹈','战斗','表情','运动','特殊','其他'].map(id => {
+            const cat = { id, name: id, icon: id === '基础' ? '👤' : id === '舞蹈' ? '💃' : id === '战斗' ? '⚔️' : id === '表情' ? '😊' : id === '运动' ? '⚽' : id === '特殊' ? '✨' : '🎭' }
+            return (
             <button 
-              key={cat.id}
+              key={id}
               className={activeCategory === cat.id ? 'active' : ''}
               onClick={() => setActiveCategory(cat.id)}
             >
@@ -329,7 +351,8 @@ export const ActionPanel = ({
               <span>{cat.name}</span>
               <span className="count">{getCategoryCount(cat.id)}</span>
             </button>
-          ))}
+            )
+          })}
         </div>
 
         {/* 动作区域 */}

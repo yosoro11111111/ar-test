@@ -1,0 +1,411 @@
+/* 二次元动漫主题样式 */
+
+:root {
+  /* 主色调 - 樱花粉系 */
+  --anime-pink: #FFB6C1;
+  --anime-pink-light: #FFD1DC;
+  --anime-pink-dark: #FF69B4;
+  
+  /* 天空蓝系 */
+  --anime-blue: #87CEEB;
+  --anime-blue-light: #B0E0E6;
+  --anime-blue-dark: #00BFFF;
+  
+  /* 薰衣草紫系 */
+  --anime-purple: #E6E6FA;
+  --anime-purple-light: #F0F0FF;
+  --anime-purple-dark: #DDA0DD;
+  
+  /* 辅助色 */
+  --anime-gold: #FFD700;
+  --anime-mint: #98FB98;
+  --anime-coral: #FF7F50;
+  
+  /* 背景色 */
+  --anime-bg-primary: linear-gradient(135deg, #FFF0F5 0%, #F0F8FF 50%, #F8F0FF 100%);
+  --anime-bg-dark: linear-gradient(135deg, #2D1F3D 0%, #1F293D 50%, #1F3D3D 100%);
+  
+  /* 文字色 */
+  --anime-text-primary: #4A4A6A;
+  --anime-text-secondary: #6A6A8A;
+  --anime-text-light: #FFFFFF;
+  
+  /* 阴影 */
+  --anime-shadow: 0 4px 20px rgba(255, 182, 193, 0.3);
+  --anime-shadow-lg: 0 8px 40px rgba(255, 182, 193, 0.4);
+  --anime-glow: 0 0 20px rgba(255, 182, 193, 0.5);
+  
+  /* 圆角 */
+  --anime-radius-sm: 8px;
+  --anime-radius-md: 16px;
+  --anime-radius-lg: 24px;
+  --anime-radius-xl: 32px;
+  
+  /* 动画 */
+  --anime-transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 全局样式覆盖 */
+.anime-theme {
+  font-family: 'Nunito', 'Quicksand', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* 樱花飘落动画 */
+@keyframes sakura-fall {
+  0% {
+    transform: translateY(-10vh) translateX(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) translateX(100px) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+.sakura-particle {
+  position: fixed;
+  top: -50px;
+  font-size: 20px;
+  animation: sakura-fall linear infinite;
+  pointer-events: none;
+  z-index: 1;
+  filter: drop-shadow(0 2px 4px rgba(255, 182, 193, 0.3));
+}
+
+/* 浮动动画 */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.float-animation {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* 脉冲光效 */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px var(--anime-pink), 0 0 10px var(--anime-pink);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--anime-pink), 0 0 30px var(--anime-pink);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* 弹跳动画 */
+@keyframes bounce-in {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.bounce-in {
+  animation: bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* 摇晃动画 */
+@keyframes wobble {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-5deg);
+  }
+  75% {
+    transform: rotate(5deg);
+  }
+}
+
+.wobble:hover {
+  animation: wobble 0.5s ease-in-out;
+}
+
+/* 星星闪烁 */
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+}
+
+.twinkle {
+  animation: twinkle 1.5s ease-in-out infinite;
+}
+
+/* 渐变文字 */
+.gradient-text {
+  background: linear-gradient(135deg, var(--anime-pink-dark) 0%, var(--anime-blue-dark) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* 玻璃态卡片 */
+.glass-card {
+  background: linear-gradient(135deg, 
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0.2) 100%
+  );
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  border-radius: var(--anime-radius-lg);
+  box-shadow: var(--anime-shadow);
+}
+
+/* 按钮样式 */
+.anime-button {
+  position: relative;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--anime-pink) 0%, var(--anime-blue) 100%);
+  border: none;
+  border-radius: var(--anime-radius-md);
+  color: white;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: var(--anime-transition);
+  box-shadow: var(--anime-shadow);
+}
+
+.anime-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transition: left 0.5s;
+}
+
+.anime-button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--anime-shadow-lg);
+}
+
+.anime-button:hover::before {
+  left: 100%;
+}
+
+.anime-button:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* 圆形按钮 */
+.anime-circle-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--anime-pink) 0%, var(--anime-purple) 100%);
+  border: 3px solid rgba(255, 255, 255, 0.8);
+  box-shadow: var(--anime-shadow);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  transition: var(--anime-transition);
+}
+
+.anime-circle-btn:hover {
+  transform: scale(1.1) rotate(10deg);
+  box-shadow: var(--anime-glow);
+}
+
+/* 输入框样式 */
+.anime-input {
+  padding: 14px 20px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 2px solid rgba(255, 182, 193, 0.3);
+  border-radius: var(--anime-radius-md);
+  font-size: 14px;
+  color: var(--anime-text-primary);
+  transition: var(--anime-transition);
+  outline: none;
+}
+
+.anime-input:focus {
+  border-color: var(--anime-pink);
+  box-shadow: 0 0 0 4px rgba(255, 182, 193, 0.2);
+  background: white;
+}
+
+.anime-input::placeholder {
+  color: var(--anime-text-secondary);
+}
+
+/* 标签样式 */
+.anime-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  background: linear-gradient(135deg, rgba(255, 182, 193, 0.2) 0%, rgba(135, 206, 235, 0.2) 100%);
+  border: 1px solid rgba(255, 182, 193, 0.4);
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--anime-text-primary);
+  transition: var(--anime-transition);
+}
+
+.anime-tag:hover {
+  background: linear-gradient(135deg, rgba(255, 182, 193, 0.4) 0%, rgba(135, 206, 235, 0.4) 100%);
+  transform: translateY(-2px);
+}
+
+.anime-tag.active {
+  background: linear-gradient(135deg, var(--anime-pink) 0%, var(--anime-blue) 100%);
+  color: white;
+  border-color: transparent;
+}
+
+/* 分割线 */
+.anime-divider {
+  height: 2px;
+  background: linear-gradient(90deg, 
+    transparent 0%,
+    var(--anime-pink) 20%,
+    var(--anime-blue) 50%,
+    var(--anime-purple) 80%,
+    transparent 100%
+  );
+  margin: 20px 0;
+}
+
+/* 加载动画 */
+.anime-loader {
+  width: 60px;
+  height: 60px;
+  position: relative;
+}
+
+.anime-loader::before,
+.anime-loader::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 4px solid transparent;
+}
+
+.anime-loader::before {
+  border-top-color: var(--anime-pink);
+  animation: spin 1s linear infinite;
+}
+
+.anime-loader::after {
+  border-top-color: var(--anime-blue);
+  animation: spin 1.5s linear infinite reverse;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 提示框 */
+.anime-tooltip {
+  position: relative;
+}
+
+.anime-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-8px);
+  padding: 8px 16px;
+  background: rgba(74, 74, 106, 0.95);
+  color: white;
+  font-size: 12px;
+  border-radius: var(--anime-radius-sm);
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.anime-tooltip:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  :root {
+    --anime-radius-lg: 20px;
+    --anime-radius-xl: 24px;
+  }
+  
+  .anime-button {
+    padding: 10px 20px;
+    font-size: 13px;
+  }
+  
+  .anime-circle-btn {
+    width: 48px;
+    height: 48px;
+    font-size: 20px;
+  }
+  
+  .glass-card {
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+}
+
+/* 暗色模式 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --anime-text-primary: #F0F0FF;
+    --anime-text-secondary: #C0C0D0;
+  }
+  
+  .glass-card {
+    background: linear-gradient(135deg, 
+      rgba(45, 31, 61, 0.6) 0%,
+      rgba(31, 41, 61, 0.4) 100%
+    );
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* 减少动画偏好 */
+@media (prefers-reduced-motion: reduce) {
+  .sakura-particle,
+  .float-animation,
+  .pulse-glow,
+  .bounce-in,
+  .wobble,
+  .twinkle {
+    animation: none;
+  }
+  
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}

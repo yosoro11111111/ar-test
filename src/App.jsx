@@ -1,19 +1,80 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { ARScene } from './components/ARSystem'
-import ModelViewer from './components/ModelViewer'
 import LoadingScreen from './components/LoadingScreen'
 import CharacterManager from './components/CharacterManager'
 import ActionPanel from './components/ActionPanel'
-import BoneEditor from './components/BoneEditor'
-import PlaylistPanel from './components/PlaylistPanel'
 import StageEffectsPanel from './components/StageEffectsPanel'
 import SceneManager from './components/SceneManager'
 import PosePanel from './components/PosePanel'
-import MobileDock from './components/MobileDock'
-import { useAppSettings, useCharacterData, useCacheManager } from './hooks/useLocalStorage'
+import AnimeSidebar from './components/AnimeSidebar'
+import { useGesture } from './hooks/useGesture'
+import { initMobileAdapter, vibrate } from './utils/mobileAdapter'
 import modelList from './models/modelList'
 import './App.css'
-import './styles/cyberpunk-theme.css'
+import './styles/anime-theme.css'
+
+// ==================== LocalStorage Hooks (内联定义) ====================
+const useLocalStorage = (key, initialValue) => {
+  const [storedValue, setStoredValue] = useState(() => {
+    if (typeof window === 'undefined') return initialValue
+    try {
+      const item = window.localStorage.getItem(key)
+      return item ? JSON.parse(item) : initialValue
+    } catch (error) {
+      return initialValue
+    }
+  })
+  const setValue = (value) => {
+    try {
+      const valueToStore = value instanceof Function ? value(storedValue) : value
+      setStoredValue(valueToStore)
+      window.localStorage.setItem(key, JSON.stringify(valueToStore))
+    } catch (error) {}
+  }
+  return [storedValue, setValue]
+}
+
+const useAppSettings = () => {
+  const [settings, setSettings] = useLocalStorage('ar-character-settings', {
+    showFPS: true, showDebug: false, showGrid: false, quality: 'high',
+    shadows: true, antialias: true, language: 'zh-CN', theme: 'dark',
+    cameraPosition: { x: 0, y: 1.5, z: 3 }, cameraTarget: { x: 0, y: 1, z: 0 },
+    defaultHeight: 0.8, defaultScale: 1, soundEnabled: true, volume: 0.5,
+    analyticsEnabled: false, crashReports: true
+  })
+  const updateSetting = (key, value) => setSettings(prev => ({ ...prev, [key]: value }))
+  const resetSettings = () => setSettings({
+    showFPS: true, showDebug: false, showGrid: false, quality: 'high',
+    shadows: true, antialias: true, language: 'zh-CN', theme: 'dark',
+    cameraPosition: { x: 0, y: 1.5, z: 3 }, cameraTarget: { x: 0, y: 1, z: 0 },
+    defaultHeight: 0.8, defaultScale: 1, soundEnabled: true, volume: 0.5,
+    analyticsEnabled: false, crashReports: true
+  })
+  return { settings, updateSetting, resetSettings, setSettings }
+}
+
+const useCharacterData = () => {
+  const [characters, setCharacters] = useLocalStorage('ar-character-list', [])
+  const [currentCharacter, setCurrentCharacter] = useLocalStorage('ar-current-character', null)
+  const addCharacter = (character) => {
+    const newChar = { ...character, id: Date.now().toString(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+    setCharacters(prev => [...prev, newChar])
+    return newChar
+  }
+  const updateCharacter = (id, updates) => setCharacters(prev => prev.map(char => char.id === id ? { ...char, ...updates, updatedAt: new Date().toISOString() } : char))
+  const deleteCharacter = (id) => { setCharacters(prev => prev.filter(char => char.id !== id)); if (currentCharacter?.id === id) setCurrentCharacter(null) }
+  const selectCharacter = (character) => { setCurrentCharacter(character); setCharacters(prev => prev.map(char => ({ ...char, selected: char.id === character.id }))) }
+  return { characters, currentCharacter, addCharacter, updateCharacter, deleteCharacter, selectCharacter }
+}
+
+const useCacheManager = () => {
+  const clearAllCache = () => { Object.keys(localStorage).forEach(key => { if (key !== 'ar-character-settings') localStorage.removeItem(key) }); sessionStorage.clear(); return true }
+  const getCacheSize = () => { let total = 0; for (let key in localStorage) { if (localStorage.hasOwnProperty(key)) total += localStorage[key].length * 2 }; return (total / 1024 / 1024).toFixed(2) + ' MB' }
+  return { clearAllCache, getCacheSize }
+}
+
+// 强制导入 Motion Pack 动作
+ 
 
 // ==================== 移动端检测 Hook ====================
 const useMobileDetect = () => {
@@ -178,8 +239,6 @@ function App() {
   const [showModelSelect, setShowModelSelect] = useState(false)
   const [showCharacterManager, setShowCharacterManager] = useState(false)
   const [showActionPanel, setShowActionPanel] = useState(false)
-  const [showBoneEditor, setShowBoneEditor] = useState(false)
-  const [showPlaylist, setShowPlaylist] = useState(false)
   const [showStageEffects, setShowStageEffects] = useState(false)
   const [showSceneManager, setShowSceneManager] = useState(false)
   const [showPosePanel, setShowPosePanel] = useState(false)
@@ -193,8 +252,51 @@ function App() {
   const [selectedTags, setSelectedTags] = useState([])
   const [currentAction, setCurrentAction] = useState(null)
   const [showUpdateConfirm, setShowUpdateConfirm] = useState(false)
+  const [favorites, setFavorites] = useState(() => {
+    const saved = localStorage.getItem('actionFavorites')
+    return saved ? JSON.parse(saved) : []
+  })
 
   const fileInputRef = useRef(null)
+  const gestureAreaRef = useRef(null)
+
+  // 初始化移动端适配
+  useEffect(() => {
+    initMobileAdapter()
+  }, [])
+
+  // 手势控制
+  useGesture({
+    elementRef: gestureAreaRef,
+    onSwipeLeft: () => {
+      // 切换到下一个动作
+      if (!showFileInput && selectedFile) {
+        console.log('👈 向左滑动：下一个动作')
+        vibrate(20)
+      }
+    },
+    onSwipeRight: () => {
+      // 切换到上一个动作
+      if (!showFileInput && selectedFile) {
+        console.log('👉 向右滑动：上一个动作')
+        vibrate(20)
+      }
+    },
+    onDoubleTap: () => {
+      // 快速拍照
+      if (!showFileInput && selectedFile) {
+        console.log('📸 双击：快速拍照')
+        const canvas = document.querySelector('canvas')
+        if (canvas) {
+          const link = document.createElement('a')
+          link.download = `ar-character-${Date.now()}.png`
+          link.href = canvas.toDataURL('image/png')
+          link.click()
+          vibrate([30, 50, 30])
+        }
+      }
+    }
+  })
 
   const allTags = ['#原神', '#星穹铁道', '#崩坏3', '#正太', '#萝莉', '#御姐', '#少年', '#成男', '#成女', '#男性', '#女性', '#可爱', '#帅气', '#冷酷', '#活泼', '#温柔', '#成熟']
 
@@ -308,13 +410,10 @@ function App() {
   const handleSelectAction = (action) => {
     setCurrentAction(action)
     setShowActionPanel(false)
-    // 这里可以触发AR场景中的动作
-  }
-
-  // 处理骨骼变化
-  const handleBoneChange = (boneName, type, axis, value) => {
-    // 这里可以更新VRM模型的骨骼
-    console.log('Bone change:', boneName, type, axis, value)
+    // 触发AR场景中的动作
+    if (window.executeARAction) {
+      window.executeARAction(action)
+    }
   }
 
   // 拖拽上传
@@ -801,22 +900,6 @@ function App() {
         isMobile={isMobile}
       />
 
-      {/* 骨骼编辑器 */}
-      <BoneEditor
-        isOpen={showBoneEditor}
-        onClose={() => setShowBoneEditor(false)}
-        onBoneChange={handleBoneChange}
-        isMobile={isMobile}
-      />
-
-      {/* 播放列表面板 */}
-      <PlaylistPanel
-        isOpen={showPlaylist}
-        onClose={() => setShowPlaylist(false)}
-        onPlayAction={handleSelectAction}
-        isMobile={isMobile}
-      />
-
       {/* 舞台效果面板 */}
       <StageEffectsPanel
         isOpen={showStageEffects}
@@ -1008,14 +1091,18 @@ function App() {
 
       {/* AR场景 */}
       {!showFileInput && selectedFile && (
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 100
-        }}>
+        <div 
+          ref={gestureAreaRef}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 100,
+            touchAction: 'pan-y'
+          }}
+        >
           <ARScene 
             selectedFile={selectedFile} 
             defaultHeight={settings.defaultHeight}
@@ -1026,23 +1113,47 @@ function App() {
         </div>
       )}
 
-      {/* 底部 Dock 栏 - 只在显示AR场景时显示 */}
+      {/* 二次元风格侧边栏 - 替换原来的 Dock 栏 */}
       {!showFileInput && selectedFile && (
-        <MobileDock
-          onActionClick={() => setShowActionPanel(true)}
+        <AnimeSidebar
+          characterName={currentCharacter?.name || '角色'}
+          characterAvatar={currentCharacter?.avatar || '👧'}
+          currentAction={currentAction?.name || '待机'}
+          onActionClick={() => {
+            setShowActionPanel(true)
+            vibrate(30)
+          }}
           onCameraClick={() => {
-            // 触发截图功能
             const canvas = document.querySelector('canvas')
             if (canvas) {
               const link = document.createElement('a')
               link.download = `ar-character-${Date.now()}.png`
               link.href = canvas.toDataURL('image/png')
               link.click()
+              vibrate([50, 100, 50])
             }
           }}
-          onSettingsClick={() => setShowCharacterManager(true)}
-          onEffectsClick={() => setShowStageEffects(true)}
-          activePanel={showActionPanel ? 'actions' : showCharacterManager ? 'settings' : null}
+          onSettingsClick={() => {
+            setShowCharacterManager(true)
+            vibrate(30)
+          }}
+          onEffectsClick={() => {
+            setShowStageEffects(true)
+            vibrate(30)
+          }}
+          onPoseClick={() => {
+            setShowPosePanel(true)
+            vibrate(30)
+          }}
+          onSceneClick={() => {
+            setShowSceneManager(true)
+            vibrate(30)
+          }}
+          favorites={favorites}
+          onFavoritesClick={(action) => {
+            handleSelectAction(action)
+            vibrate(30)
+          }}
           isMobile={isMobile}
         />
       )}

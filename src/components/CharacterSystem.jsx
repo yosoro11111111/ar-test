@@ -9,6 +9,15 @@ import { actionAnimations250, getActionAnimation, easingFunctions, poseLibrary }
 import { poseBoneData } from '../data/poseBoneData'
 import { interpolateKeyframes } from '../data/mmdActions'
 
+// 动态骨骼映射缓存 - 从mappings文件夹加载
+let dynamicBoneMappings = null
+
+// 加载骨骼映射配置 - 已禁用，使用VRM标准骨骼
+const loadBoneMappings = async (modelName) => {
+  // VRMA动画使用VRM标准骨骼名称，不需要额外的映射文件
+  return null
+}
+
 // MMD骨骼名称到VRM标准骨骼名称的映射
 const MMD_TO_VRM_BONE_MAP = {
   // 核心骨骼
@@ -961,14 +970,27 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
       console.log('loadVRMModel 被调用:', file)
       console.log('file 类型:', typeof file)
       console.log('file.constructor:', file?.constructor?.name)
-      console.log('file.localPath:', file?.localPath)
-      console.log('file.name:', file?.name)
-      console.log('file.size:', file?.size)
       
-      if (file.localPath) {
-        console.log('开始加载本地模型:', file.name, '路径:', file.localPath)
+      // 处理字符串路径（来自 modelList 的模型）
+      let fileObj = file
+      if (typeof file === 'string') {
+        // 如果是字符串，视为来自内置模型目录
+        fileObj = {
+          name: file,
+          localPath: `/models/${file}`,
+          isStringPath: true
+        }
+        console.log('字符串路径转换为文件对象:', fileObj)
+      }
+      
+      console.log('file.localPath:', fileObj?.localPath)
+      console.log('file.name:', fileObj?.name)
+      console.log('file.size:', fileObj?.size)
+      
+      if (fileObj.localPath) {
+        console.log('开始加载本地模型:', fileObj.name, '路径:', fileObj.localPath)
       } else {
-        console.log('开始加载模型文件:', file.name, '大小:', (file.size / 1024 / 1024).toFixed(2), 'MB')
+        console.log('开始加载模型文件:', fileObj.name, '大小:', (fileObj.size / 1024 / 1024).toFixed(2), 'MB')
       }
       
       if (characterModel) {
@@ -989,17 +1011,17 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
       }
 
       let modelUrl
-      const isLocalFile = !!file.localPath
+      const isLocalFile = !!fileObj.localPath || fileObj.isStringPath
 
       console.log('isLocalFile:', isLocalFile)
 
       if (isLocalFile) {
-        modelUrl = file.localPath
+        modelUrl = fileObj.localPath
         console.log('使用本地模型路径:', modelUrl)
       } else {
         console.log('使用 createObjectURL 创建模型 URL')
         // 检查文件大小（仅对上传的文件）
-        const fileSize = file.size || 0
+        const fileSize = fileObj.size || 0
 
         // 对于本地文件，跳过大小检查
         if (fileSize > 100 * 1024 * 1024) {
@@ -1009,7 +1031,7 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
           return
         }
 
-        modelUrl = URL.createObjectURL(file)
+        modelUrl = URL.createObjectURL(fileObj)
         console.log('创建模型URL:', modelUrl, '文件大小:', (fileSize / 1024 / 1024).toFixed(2), 'MB')
       }
 
@@ -1030,6 +1052,29 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
             }
             
             const vrm = gltf.userData.vrm
+            
+            // 检查 VRM 结构完整性
+            if (vrm) {
+              console.log('VRM 结构检查:')
+              console.log('- vrm.scene:', !!vrm.scene)
+              console.log('- vrm.humanoid:', !!vrm.humanoid)
+              console.log('- vrm.expressionManager:', !!vrm.expressionManager)
+              console.log('- vrm.meta:', vrm.meta)
+              
+              // 如果 humanoid 不存在，记录警告
+              if (!vrm.humanoid) {
+                console.warn('⚠️ VRM 模型缺少 humanoid 数据，某些功能可能无法正常工作')
+              }
+              
+              // 如果 scene 不存在，这是一个无效的 VRM
+              if (!vrm.scene) {
+                console.error('❌ VRM 模型缺少 scene，无法渲染')
+                setIsLoading(false)
+                setLoadingProgress(0)
+                return
+              }
+            }
+            
             if (!vrm) {
               console.error('VRM实例不存在，尝试加载普通GLTF模型')
               try {
@@ -1077,24 +1122,41 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
               
               setVrmModel(vrm)
               
-              // 建立骨骼缓存映射表 - 性能优化
-              if (vrm.humanoid) {
+              // 加载骨骼映射并建立缓存
+              const setupBoneCache = async () => {
+                if (!vrm.humanoid) return
+                
+                // 加载动态骨骼映射
+                const modelFileName = fileObj.name || fileObj.localPath || selectedFile
+                dynamicBoneMappings = await loadBoneMappings(modelFileName)
+                
                 boneCache.current.clear()
                 Object.keys(MMD_TO_VRM_BONE_MAP).forEach(boneName => {
                   const vrmBoneName = MMD_TO_VRM_BONE_MAP[boneName]
                   let bone = null
                   
-                  // 尝试多种方式查找骨骼
-                  if (typeof vrm.humanoid.getRawBoneNode === 'function') {
-                    bone = vrm.humanoid.getRawBoneNode(vrmBoneName)
+                  // 优先使用动态映射查找骨骼
+                  if (dynamicBoneMappings && dynamicBoneMappings[boneName]) {
+                    const actualBoneName = dynamicBoneMappings[boneName]
+                    bone = vrm.scene.getObjectByName(actualBoneName)
+                    if (bone) {
+                      console.log(`使用动态映射找到骨骼: ${boneName} -> ${actualBoneName}`)
+                    }
                   }
-                  if (!bone && typeof vrm.humanoid.getNormalizedBoneNode === 'function') {
-                    bone = vrm.humanoid.getNormalizedBoneNode(vrmBoneName)
-                  }
-                  if (!bone && vrm.scene) {
-                    bone = vrm.scene.getObjectByName(vrmBoneName) ||
-                           vrm.scene.getObjectByName(`J_Bip_C_${vrmBoneName}`) ||
-                           vrm.scene.getObjectByName(boneName)
+                  
+                  // 如果动态映射没找到，尝试标准方式
+                  if (!bone) {
+                    if (typeof vrm.humanoid.getRawBoneNode === 'function') {
+                      bone = vrm.humanoid.getRawBoneNode(vrmBoneName)
+                    }
+                    if (!bone && typeof vrm.humanoid.getNormalizedBoneNode === 'function') {
+                      bone = vrm.humanoid.getNormalizedBoneNode(vrmBoneName)
+                    }
+                    if (!bone && vrm.scene) {
+                      bone = vrm.scene.getObjectByName(vrmBoneName) ||
+                             vrm.scene.getObjectByName(`J_Bip_C_${vrmBoneName}`) ||
+                             vrm.scene.getObjectByName(boneName)
+                    }
                   }
                   
                   if (bone) {
@@ -1102,12 +1164,17 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
                   }
                 })
                 console.log('✅ 骨骼缓存已建立，共', boneCache.current.size, '个骨骼')
+                if (dynamicBoneMappings) {
+                  console.log('✅ 使用了动态骨骼映射配置')
+                }
               }
+              
+              setupBoneCache()
               
               // 将 vrm 模型暴露到 window，供移动端骨骼编辑器使用
               window.vrmModels = window.vrmModels || {}
               // 使用文件名作为 key，确保 MobileBoneEditor 可以通过 character.path 找到
-              const modelKey = file.name || file.localPath || selectedFile
+              const modelKey = fileObj.name || fileObj.localPath || selectedFile
               window.vrmModels[modelKey] = vrm
               console.log('VRM 模型已暴露到 window.vrmModels:', modelKey)
               
@@ -1192,7 +1259,7 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
             console.log('模型加载完成，已添加到场景')
           } catch (error) {
             console.error('处理加载完成的模型失败:', error)
-            if (!file.localPath) {
+            if (!fileObj.localPath) {
               try {
                 URL.revokeObjectURL(modelUrl)
               } catch (revokeError) {
@@ -1213,7 +1280,7 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
         },
         (error) => {
           console.error('模型加载失败:', error)
-          if (!file.localPath) {
+          if (!fileObj.localPath) {
             try {
               URL.revokeObjectURL(modelUrl)
               console.log('清理模型URL成功')
@@ -3231,7 +3298,7 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
       }
       const canPlayMMD = mmdCurrentAction && vrmModel && vrmModel.humanoid && mmdActionStartTime > 0
       
-      if (canPlayMMD) {
+      if (canPlayMMD && vrmModel && vrmModel.scene) {
         const currentTime = Date.now()
         const elapsedTime = currentTime - mmdActionStartTime
         const actionDuration = mmdCurrentAction.duration || 3000
@@ -3251,9 +3318,14 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
           mmdBasePosition.current = position
           
           // 获取hips的初始位置
-          const hipsBone = vrmModel.humanoid.getNormalizedBoneNode('hips') || 
-                          vrmModel.scene.getObjectByName('hips') ||
-                          vrmModel.scene.getObjectByName('J_Bip_C_Hips')
+          let hipsBone = null
+          if (vrmModel.humanoid) {
+            hipsBone = vrmModel.humanoid.getNormalizedBoneNode('hips')
+          }
+          if (!hipsBone && vrmModel.scene) {
+            hipsBone = vrmModel.scene.getObjectByName('hips') ||
+                       vrmModel.scene.getObjectByName('J_Bip_C_Hips')
+          }
           if (hipsBone) {
             mmdInitialHipsPosition.current = hipsBone.position.clone()
           }
@@ -3264,7 +3336,148 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
           }
         }
         
-        // 应用MMD动作（interpolateKeyframes内部已经处理了循环）
+        // 检查是否是 VRMA 动作（有 clip 属性）
+        if (mmdCurrentAction.clip && vrmModel.scene) {
+          // VRMA 动作 - 使用 AnimationMixer 播放
+          if (!window.vrmaMixer) {
+            window.vrmaMixer = new THREE.AnimationMixer(vrmModel.scene)
+          }
+          
+          // 基于位置的骨骼重定向系统
+          // 收集 VRM 模型的所有骨骼及其世界位置
+          const vrmBonesByPosition = []
+          vrmModel.scene.updateMatrixWorld(true)
+          
+          vrmModel.scene.traverse((obj) => {
+            if (obj.isBone || (obj.type === 'Object3D' && obj.name)) {
+              const worldPos = new THREE.Vector3()
+              obj.getWorldPosition(worldPos)
+              vrmBonesByPosition.push({
+                name: obj.name,
+                position: worldPos,
+                object: obj
+              })
+            }
+          })
+          
+          // 调试：输出 VRM 骨骼列表
+          if (!window.vrmBonesLogged) {
+            console.log('🦴 VRM 模型骨骼列表:', vrmBonesByPosition.map(b => ({ name: b.name, pos: b.position.toArray().map(v => v.toFixed(2)) })))
+            window.vrmBonesLogged = true
+          }
+          
+          // 根据位置识别骨骼类型
+          const findBoneByPosition = (targetPos, tolerance = 0.1) => {
+            for (const bone of vrmBonesByPosition) {
+              const distance = bone.position.distanceTo(targetPos)
+              if (distance < tolerance) {
+                return bone.name
+              }
+            }
+            return null
+          }
+          
+          // 获取 VRM 模型的边界框来确定身体部位
+          const box = new THREE.Box3().setFromObject(vrmModel.scene)
+          const center = box.getCenter(new THREE.Vector3())
+          const size = box.getSize(new THREE.Vector3())
+          
+          // 定义身体各部位的相对位置（基于标准人体比例）
+          const bodyParts = {
+            hips: new THREE.Vector3(center.x, box.min.y + size.y * 0.45, center.z),
+            spine: new THREE.Vector3(center.x, box.min.y + size.y * 0.55, center.z),
+            chest: new THREE.Vector3(center.x, box.min.y + size.y * 0.65, center.z),
+            neck: new THREE.Vector3(center.x, box.min.y + size.y * 0.85, center.z),
+            head: new THREE.Vector3(center.x, box.min.y + size.y * 0.95, center.z),
+            leftShoulder: new THREE.Vector3(center.x - size.x * 0.25, box.min.y + size.y * 0.75, center.z),
+            leftUpperArm: new THREE.Vector3(center.x - size.x * 0.35, box.min.y + size.y * 0.7, center.z),
+            leftLowerArm: new THREE.Vector3(center.x - size.x * 0.45, box.min.y + size.y * 0.55, center.z),
+            leftHand: new THREE.Vector3(center.x - size.x * 0.5, box.min.y + size.y * 0.4, center.z),
+            rightShoulder: new THREE.Vector3(center.x + size.x * 0.25, box.min.y + size.y * 0.75, center.z),
+            rightUpperArm: new THREE.Vector3(center.x + size.x * 0.35, box.min.y + size.y * 0.7, center.z),
+            rightLowerArm: new THREE.Vector3(center.x + size.x * 0.45, box.min.y + size.y * 0.55, center.z),
+            rightHand: new THREE.Vector3(center.x + size.x * 0.5, box.min.y + size.y * 0.4, center.z),
+            leftUpperLeg: new THREE.Vector3(center.x - size.x * 0.1, box.min.y + size.y * 0.35, center.z),
+            leftLowerLeg: new THREE.Vector3(center.x - size.x * 0.1, box.min.y + size.y * 0.2, center.z),
+            leftFoot: new THREE.Vector3(center.x - size.x * 0.1, box.min.y + size.y * 0.05, center.z),
+            rightUpperLeg: new THREE.Vector3(center.x + size.x * 0.1, box.min.y + size.y * 0.35, center.z),
+            rightLowerLeg: new THREE.Vector3(center.x + size.x * 0.1, box.min.y + size.y * 0.2, center.z),
+            rightFoot: new THREE.Vector3(center.x + size.x * 0.1, box.min.y + size.y * 0.05, center.z)
+          }
+          
+          // 根据位置匹配骨骼
+          const boneMapping = {}
+          for (const [partName, targetPos] of Object.entries(bodyParts)) {
+            const matchedBone = findBoneByPosition(targetPos, size.y * 0.15)
+            if (matchedBone) {
+              boneMapping[partName] = matchedBone
+            }
+          }
+          
+          // 调试：输出骨骼映射
+          if (!window.boneMappingLogged) {
+            console.log('🦴 基于位置的骨骼映射:', boneMapping)
+            window.boneMappingLogged = true
+          }
+          
+          // 创建 Mixamo 到 VRM 的骨骼名称映射
+          const mixamoToVrmMap = {
+            'hips': boneMapping.hips,
+            'spine': boneMapping.spine,
+            'spine_01': boneMapping.spine,
+            'spine_02': boneMapping.chest,
+            'spine_03': boneMapping.chest,
+            'neck': boneMapping.neck,
+            'head': boneMapping.head,
+            'shoulder_l': boneMapping.leftShoulder,
+            'upperarm_l': boneMapping.leftUpperArm,
+            'lowerarm_l': boneMapping.leftLowerArm,
+            'hand_l': boneMapping.leftHand,
+            'shoulder_r': boneMapping.rightShoulder,
+            'upperarm_r': boneMapping.rightUpperArm,
+            'lowerarm_r': boneMapping.rightLowerArm,
+            'hand_r': boneMapping.rightHand,
+            'thigh_l': boneMapping.leftUpperLeg,
+            'calf_l': boneMapping.leftLowerLeg,
+            'foot_l': boneMapping.leftFoot,
+            'thigh_r': boneMapping.rightUpperLeg,
+            'calf_r': boneMapping.rightLowerLeg,
+            'foot_r': boneMapping.rightFoot
+          }
+          
+          // 克隆 clip 并修改轨道名称
+          const clip = mmdCurrentAction.clip.clone()
+          let mappedTracks = 0
+          clip.tracks.forEach(track => {
+            const parts = track.name.split('.')
+            const boneName = parts[0]
+            const property = parts[1]
+            
+            // 尝试映射到 VRM 骨骼名称
+            const vrmBoneName = mixamoToVrmMap[boneName]
+            if (vrmBoneName) {
+              track.name = `${vrmBoneName}.${property}`
+              mappedTracks++
+            }
+          })
+          
+          // 调试：输出映射统计
+          if (!window.mappingStatsLogged) {
+            console.log(`🦴 骨骼映射统计: ${mappedTracks}/${clip.tracks.length} 个轨道已映射`)
+            window.mappingStatsLogged = true
+          }
+          
+          // 播放动画
+          const action = window.vrmaMixer.clipAction(clip)
+          action.play()
+          
+          // 更新动画
+          window.vrmaMixer.update(0.016) // 约 60fps
+          
+          return
+        }
+        
+        // MMD 动作 - 使用 interpolateKeyframes
         let boneData
         try {
           boneData = interpolateKeyframes(mmdCurrentAction, elapsedTime)
@@ -3396,6 +3609,11 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
             console.log('⏭️ animationMixer被跳过（MMD动作播放中）')
           }
         }
+      }
+      
+      // VRMA mixer 更新
+      if (window.vrmaMixer && typeof window.vrmaMixer.update === 'function') {
+        window.vrmaMixer.update(delta)
       }
       
       if (characterRef.current && isAnimating) {

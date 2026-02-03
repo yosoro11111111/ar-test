@@ -1,12 +1,10 @@
-// Simple localStorage hook - Updated
 import { useState, useEffect, useCallback } from 'react'
 
 export const useLocalStorage = (key, initialValue) => {
-  // Hook must be called at the top level
-  if (typeof window === 'undefined') {
-    return [initialValue, () => {}]
-  }
   const [storedValue, setStoredValue] = useState(() => {
+    if (typeof window === 'undefined') {
+      return initialValue
+    }
     try {
       const item = window.localStorage.getItem(key)
       return item ? JSON.parse(item) : initialValue
@@ -139,3 +137,5 @@ export const useCacheManager = () => {
 
   return { clearAllCache, getCacheSize }
 }
+
+export default { useLocalStorage, useAppSettings, useCharacterData, useCacheManager }

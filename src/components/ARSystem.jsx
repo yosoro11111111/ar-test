@@ -4,22 +4,14 @@ import { OrbitControls, PerspectiveCamera, Stars, Cloud, useTexture, Html } from
 import * as THREE from 'three'
 import { CharacterController } from './CharacterSystem'
 import modelList from '../models/modelList'
-import VideoRecorder from './VideoRecorder'
-import PlaylistPanel from './PlaylistPanel'
+import StageEffects from './StageEffects'
 import StageEffectsPanel from './StageEffectsPanel'
 import SceneManager from './SceneManager'
 import PosePanel from './PosePanel'
-import ActionRecorder from './ActionRecorder'
-import SceneTemplatePanel from './SceneTemplatePanel'
-import ShareCardGenerator from './ShareCardGenerator'
-import ModelDownloader from './ModelDownloader'
-import StageEffects from './StageEffects'
-// MMD动作系统 - 替换原有动作系统
-import { mmdActions, mmdActionCategories, interpolateKeyframes, getActionById } from '../data/mmdActions'
+import { loadVRMAAction, getAllVRMAActions, getAllCategories } from '../data/vrmaActions'
 import { poseBoneData } from '../data/poseBoneData'
 import { sceneTemplates, getSceneTemplate } from '../data/sceneTemplates'
 import { furnitureList, furnitureCategories, getFurnitureByCategory, searchFurniture } from '../data/furniture'
-import actions from '../data/actions250'
 import { useGyroscope } from '../hooks/useGyroscope'
 import { useVoiceControl } from '../hooks/useVoiceControl'
 
@@ -29,88 +21,53 @@ const TutorialGuide = ({ isMobile, onClose }) => {
   
   const steps = [
     {
-      icon: '🎮',
-      title: '三种操作方式',
-      desc: '我们提供三种操作方式：1.直接拖拽 - 在场景中拖动角色；2.虚拟摇杆 - 使用摇杆控制移动；3.精确数值 - 通过滑块精确调整位置。',
-      color: 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)',
+      icon: '👋',
+      title: '欢迎使用',
+      desc: '简单实用的AR角色展示应用。右侧标签栏可快速访问所有功能。',
+      color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       demo: 'pulse'
     },
     {
-      icon: '👆',
-      title: '点击选中',
-      desc: '点击角色可以选中/取消选中，选中后角色会有蓝色光环显示。长按角色可打开动作菜单。',
-      color: 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)',
-      demo: 'single-tap'
-    },
-    {
-      icon: '✋',
-      title: '长按操作',
-      desc: '长按角色打开动作菜单快速切换动作。长按空白处可添加新角色。',
-      color: 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)',
-      demo: 'long-press'
-    },
-    {
       icon: '🤏',
-      title: '手势控制',
-      desc: '单指滑动旋转视角，双指滑动移动角色，双指捏合缩放角色大小。',
+      title: '双指缩放',
+      desc: '使用双指捏合手势来放大或缩小角色。这是唯一的必需手势操作。',
       color: 'linear-gradient(135deg, #ffd93d 0%, #ffb347 100%)',
       demo: 'pinch-zoom'
     },
     {
-      icon: '📍',
-      title: '位置控制',
-      desc: '点击"位置"按钮打开位置控制面板，选择三种方式之一来调整角色位置。',
-      color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      demo: 'slideUp'
-    },
-    {
-      icon: '🎬',
+      icon: '🎭',
       title: '动作面板',
-      desc: '底部动作栏可触发各种动作。点击立即播放，再次点击立即切换到新动作。',
-      color: 'linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)',
+      desc: '点击右侧"动作"标签打开动作面板，选择动作让角色表演。',
+      color: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)',
       demo: 'action-panel'
     },
     {
-      icon: '📋',
-      title: '播放列表',
-      desc: '使用播放列表可以设置动作序列，自动按顺序播放多个动作。',
-      color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      demo: 'playlist'
+      icon: '📸',
+      title: '拍照分享',
+      desc: '点击"拍照"标签可截取精彩瞬间，保存到相册或分享给朋友。',
+      color: 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)',
+      demo: 'tools'
     },
     {
-      icon: '🏠',
-      title: '家具交互',
-      desc: '点击家具按钮选择家具，角色可以自动与家具进行交互。点击家具可触发动作。',
-      color: 'linear-gradient(135deg, #8B4513 0%, #D2691E 100%)',
-      demo: 'furniture'
-    },
-    {
-      icon: '🎭',
-      title: '姿势系统',
-      desc: '点击面具按钮打开姿势面板，选择各种预设姿势让角色摆出不同造型。',
+      icon: '⭐',
+      title: '收藏动作',
+      desc: '喜欢的动作可以收藏，在"收藏"标签中快速找到并使用。',
       color: 'linear-gradient(135deg, #f39c12 0%, #e67e22 100%)',
       demo: 'pulse'
     },
     {
-      icon: '🦴',
-      title: '骨骼编辑',
-      desc: '点击骨骼按钮进入骨骼编辑模式，可以精细调整角色身体各部位的角度。',
-      color: 'linear-gradient(135deg, #1abc9c 0%, #16a085 100%)',
+      icon: '🎨',
+      title: '姿势系统',
+      desc: '点击"姿势"标签打开姿势面板，让角色摆出各种造型。',
+      color: 'linear-gradient(135deg, #6BCB77 0%, #4CAF50 100%)',
       demo: 'pulse'
     },
     {
-      icon: '✨',
-      title: '舞台特效',
-      desc: '点击特效按钮添加粒子效果、滤镜和贴纸，打造独特的视觉效果。',
-      color: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
+      icon: '⚙️',
+      title: '设置选项',
+      desc: '在"设置"中可以调整角色大小、透明度等参数，定制你的体验。',
+      color: 'linear-gradient(135deg, #9B59B6 0%, #8E44AD 100%)',
       demo: 'pulse'
-    },
-    {
-      icon: '📸',
-      title: '拍照录像',
-      desc: '右侧工具栏可以拍照、录像、生成分享卡片。录像支持倒计时和暂停功能。',
-      color: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 100%)',
-      demo: 'tools'
     }
   ]
   
@@ -2692,12 +2649,8 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
   const raycaster = useRef(new THREE.Raycaster())
   const mouse = useRef(new THREE.Vector2())
   const offset = useRef(new THREE.Vector3())
-  const clickStartTime = useRef(0)
-  const clickStartPos = useRef({ x: 0, y: 0 })
-  const longPressTimer = useRef(null)
-  const isLongPressTriggered = useRef(false)
   
-  // 触摸状态管理
+  // 触摸状态管理（仅用于双指缩放）
   const touchState = useRef({
     startTime: 0,
     startDistance: 0,
@@ -2706,22 +2659,12 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
     isPinching: false
   })
 
+  // 简单交互：点击选中，拖拽移动
   const handlePointerDown = (e) => {
     e.stopPropagation()
-    clickStartTime.current = Date.now()
-    clickStartPos.current = { x: e.pointer.x, y: e.pointer.y }
-    isLongPressTriggered.current = false
     
-    // 选中角色（无论是新选中还是已选中）
+    // 选中角色
     onSelect?.(index)
-    
-    // 设置长按定时器（500ms触发长按）
-    longPressTimer.current = setTimeout(() => {
-      isLongPressTriggered.current = true
-      setIsLongPress(true)
-      // 长按触发特殊效果或菜单
-      console.log('长按角色', index)
-    }, 500)
     
     // 开始拖拽
     setIsDragging(true)
@@ -2735,18 +2678,6 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
   }
 
   const handlePointerMove = (e) => {
-    // 如果移动距离超过阈值，取消长按
-    if (clickStartPos.current) {
-      const dx = e.pointer.x - clickStartPos.current.x
-      const dy = e.pointer.y - clickStartPos.current.y
-      const distance = Math.sqrt(dx * dx + dy * dy)
-      
-      if (distance > 0.05 && longPressTimer.current) {
-        clearTimeout(longPressTimer.current)
-        longPressTimer.current = null
-      }
-    }
-    
     if (!isDragging) return
     e.stopPropagation()
 
@@ -2759,26 +2690,8 @@ const DraggableCharacter = ({ position, index, isSelected, character, characterS
   }
 
   const handlePointerUp = (e) => {
-    // 清除长按定时器
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current)
-      longPressTimer.current = null
-    }
-    
-    // 检查是否是点击（短按且没有移动太多）
-    const clickDuration = Date.now() - clickStartTime.current
-    const dx = e.pointer.x - clickStartPos.current.x
-    const dy = e.pointer.y - clickStartPos.current.y
-    const distance = Math.sqrt(dx * dx + dy * dy)
-    
-    if (clickDuration < 200 && distance < 0.05 && !isLongPressTriggered.current) {
-      // 这是点击，可以触发点击效果
-      console.log('点击角色', index)
-    }
-    
     if (isDragging) {
       setIsDragging(false)
-      setIsLongPress(false)
       gl.domElement.releasePointerCapture(e.pointerId)
     }
   }
@@ -3063,6 +2976,54 @@ export const ARScene = ({ selectedFile }) => {
   // MMD动作系统状态 - 始终使用MMD动作
   const useMMDActions = true
   const [mmdActiveCategory, setMmdActiveCategory] = useState('all')
+  // VRMA动作列表
+  const [vrmaActions, setVrmaActions] = useState([])
+  // 动作分类 - 动态生成
+  const actionCategories = useMemo(() => {
+    const categories = [
+      { id: 'all', name: '全部', icon: '✨', color: '#00d4ff' }
+    ]
+    
+    // 从所有动作中提取分类
+    const cats = new Map()
+    vrmaActions.forEach(action => {
+      if (!cats.has(action.category)) {
+        cats.set(action.category, { count: 0, icon: action.icon })
+      }
+      cats.get(action.category).count++
+    })
+    
+    // 按分类名称排序
+    const sortedCats = Array.from(cats.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+    
+    // 为每个分类分配颜色
+    const colors = ['#4facfe', '#ff6b9d', '#ff4757', '#ffa502', '#2ed573', '#a29bfe', '#ff6348', '#7bed9f', '#70a1ff', '#5352ed', '#ff9ff3', '#feca57']
+    sortedCats.forEach(([cat, data], index) => {
+      const mainCat = cat.split('-')[0]
+      const colorMap = {
+        '基础': '#4facfe',
+        '舞蹈': '#ff6b9d',
+        '战斗': '#ff4757',
+        '表情': '#ffa502',
+        '运动': '#2ed573',
+        '特殊': '#a29bfe',
+        '其他': '#747d8c'
+      }
+      categories.push({
+        id: cat,
+        name: cat,
+        icon: data.icon,
+        color: colorMap[mainCat] || colors[index % colors.length],
+        count: data.count
+      })
+    })
+    
+    return categories
+  }, [vrmaActions])
+  
+  // 分类滚动位置
+  const [categoryScrollPos, setCategoryScrollPos] = useState(0)
+  const categoryContainerRef = useRef(null)
   // MMD动作状态 - 每个角色独立
   const [mmdCurrentActions, setMmdCurrentActions] = useState([null, null, null])
   const [mmdActionStartTimes, setMmdActionStartTimes] = useState([0, 0, 0])
@@ -3114,11 +3075,7 @@ export const ARScene = ({ selectedFile }) => {
   const [showPropSelect, setShowPropSelect] = useState(false)
   const [propTargetCharacter, setPropTargetCharacter] = useState(0)
   
-  // 视频录制面板状态
-  const [showVideoRecorder, setShowVideoRecorder] = useState(false)
 
-  // 播放列表面板状态
-  const [showPlaylist, setShowPlaylist] = useState(false)
 
   // 舞台效果面板状态
   const [showStageEffects, setShowStageEffects] = useState(false)
@@ -3149,28 +3106,12 @@ export const ARScene = ({ selectedFile }) => {
   // 姿势面板状态
   const [showPosePanel, setShowPosePanel] = useState(false)
 
-  // 位置控制面板状态
-  const [showPositionControl, setShowPositionControl] = useState(false)
-
   // 语音控制状态
   const [showVoiceControl, setShowVoiceControl] = useState(false)
-
-  // 动作录制器状态
-  const [showActionRecorder, setShowActionRecorder] = useState(false)
-
-  // 场景模板状态
-  const [showSceneTemplate, setShowSceneTemplate] = useState(false)
-  const [currentSceneTemplate, setCurrentSceneTemplate] = useState('default')
-
-  // 分享卡片生成器状态
-  const [showShareCard, setShowShareCard] = useState(false)
 
   // 人物管理面板状态
   const [showCharacterManager, setShowCharacterManager] = useState(false)
   const [characterSearchQuery, setCharacterSearchQuery] = useState('')
-
-  // 模型下载器状态
-  const [showModelDownloader, setShowModelDownloader] = useState(false)
   
   // 玩家自定义标签系统 - 存储在localStorage
   const [playerCustomTags, setPlayerCustomTags] = useState(() => {
@@ -3247,47 +3188,38 @@ export const ARScene = ({ selectedFile }) => {
     return () => clearInterval(checkLoopInterval)
   }, [loopingMMDActions, mmdCurrentActions, mmdActionStartTimes, selectedCharacterIndex])
 
-  // 使用250种动作数据
-  const actionList = useMemo(() => {
-    // 转换 actions250.js 的数据格式
-    return actions.map(action => ({
-      name: action.name,
-      action: action.id,
-      icon: action.icon,
-      category: action.category,
-      type: action.type,
-      highlight: action.category === 'combat' || action.category === 'dance' || action.category === 'special' || action.category === 'extreme' || action.category === 'magic'
-    }))
-  }, [])
-
   // 动作搜索状态
   const [actionSearchQuery, setActionSearchQuery] = useState('')
 
-  // 根据分类和搜索筛选MMD动作
+  // 加载VRMA动作列表
+  useEffect(() => {
+    getAllVRMAActions().then(actions => {
+      console.log('✅ 加载VRMA动作:', actions.length)
+      setVrmaActions(actions)
+    }).catch(err => {
+      console.error('❌ 加载VRMA动作失败:', err)
+    })
+  }, [])
+
+  // 根据分类和搜索筛选动作
   const filteredActions = useMemo(() => {
-    // 调试日志
-    console.log('📋 mmdActions 数量:', mmdActions?.length || 0)
-    console.log('📂 当前分类:', mmdActiveCategory)
-
-    let filtered = mmdActions || []
-
+    let filtered = vrmaActions
+    
     // 按分类筛选
     if (mmdActiveCategory !== 'all') {
-      filtered = filtered.filter(action => action.category === mmdActiveCategory)
+      filtered = filtered.filter(a => a.category === mmdActiveCategory)
     }
-
+    
     // 按搜索词筛选
-    if (actionSearchQuery.trim()) {
+    if (actionSearchQuery) {
       const query = actionSearchQuery.toLowerCase()
-      filtered = filtered.filter(action =>
-        action.name.toLowerCase().includes(query) ||
-        action.id.toLowerCase().includes(query)
+      filtered = filtered.filter(a => 
+        a.name.toLowerCase().includes(query)
       )
     }
-
-    console.log('✅ 筛选后动作数量:', filtered.length)
+    
     return filtered
-  }, [mmdActiveCategory, actionSearchQuery])
+  }, [vrmaActions, mmdActiveCategory, actionSearchQuery])
 
   // 显示通知
   const showNotification = useCallback((message, type = 'info') => {
@@ -3403,56 +3335,7 @@ export const ARScene = ({ selectedFile }) => {
     }
   }, [selectedFile, selectedCharacterIndex, showNotification])
 
-  // 执行动作 - 立即响应
-  const executeAction = useCallback((action) => {
-    if (window.dispatchEvent) {
-      window.dispatchEvent(new CustomEvent('executeAction', { detail: { action, actionName: action, intensity: actionIntensity[selectedCharacterIndex], characterIndex: selectedCharacterIndex } }))
-    }
-
-    // 如果是MMD动作系统，查找对应的动作并触发（只针对选中的角色）
-    if (useMMDActions) {
-      const mmdAction = mmdActions.find(a => a.id === action)
-      
-      if (mmdAction) {
-        // 只为选中的角色设置MMD动作
-        setMmdCurrentActions(prev => {
-          const updated = [...prev]
-          updated[selectedCharacterIndex] = mmdAction
-          return updated
-        })
-        setMmdActionStartTimes(prev => {
-          const updated = [...prev]
-          updated[selectedCharacterIndex] = Date.now()
-          return updated
-        })
-        setCurrentAction(action)
-        showNotification(`角色${selectedCharacterIndex + 1} MMD动作: ${mmdAction.name}`, 'success')
-      } else {
-        // 如果没有找到对应的MMD动作，使用默认方式
-        console.log('⚠️ 未找到MMD动作，使用默认方式:', action)
-        setCurrentAction(action)
-      }
-    } else {
-      // 非MMD动作系统
-      console.log('⚠️ MMD动作系统未启用')
-      setCurrentAction(action)
-    }
-
-    if (action === 'combo') {
-      setComboCount(prev => {
-        const newCount = prev + 1
-        if (newCount >= 3) {
-          setShowCombo(true)
-          setTimeout(() => setShowCombo(false), 2000)
-        }
-        return newCount
-      })
-    } else {
-      setComboCount(0)
-    }
-  }, [actionIntensity, selectedCharacterIndex, useMMDActions, showNotification])
-
-  // 执行MMD动作（用于交互模式等）
+  // 执行MMD动作（用于交互模式等）- 先定义以避免循环依赖
   const executeMMDAction = useCallback((action, characterIndex) => {
     if (!action) return
     
@@ -3469,6 +3352,85 @@ export const ARScene = ({ selectedFile }) => {
     setCurrentAction(action.id)
     showNotification(`角色${characterIndex + 1} MMD动作: ${action.name}`, 'success')
   }, [showNotification])
+
+  // 执行动作 - 立即响应
+  const executeAction = useCallback(async (action) => {
+    console.log('🔥 executeAction 被调用:', action)
+    
+    // 处理动作对象或动作ID
+    let actionId = typeof action === 'object' ? action.id : action
+    let actionData = typeof action === 'object' ? action : null
+    
+    console.log('🔥 处理后的 actionId:', actionId)
+    console.log('🔥 是否是 vrma:', actionId && actionId.startsWith('vrma_'))
+    
+    if (window.dispatchEvent) {
+      window.dispatchEvent(new CustomEvent('executeAction', { detail: { action: actionId, actionName: actionId, intensity: actionIntensity[selectedCharacterIndex], characterIndex: selectedCharacterIndex } }))
+    }
+
+    if (actionId && actionId.startsWith('vrma_')) {
+      try {
+        // 如果没有动作数据，从vrmaActions中查找
+        if (!actionData) {
+          actionData = vrmaActions.find(a => a.id === actionId)
+        }
+        if (!actionData || !actionData.filePath) {
+          console.error('❌ 找不到动作数据或filePath:', actionId)
+          showNotification(`动作加载失败: ${actionId}`, 'error')
+          return
+        }
+        const character = characters[selectedCharacterIndex]
+        const key = character?.filename || character?.file?.name
+        const vrm = (key && window.vrmModels?.[key]) || (window.vrmModels && Object.values(window.vrmModels)[0])
+        if (!vrm) {
+          console.error('❌ 没有可用的VRM模型')
+          showNotification('请先加载角色模型', 'error')
+          return
+        }
+        const loaded = await loadVRMAAction(actionData.filePath, vrm)
+        if (!loaded || !loaded.clip) {
+          console.error('❌ 加载VRMA动作失败:', actionData.filePath)
+          showNotification(`动作加载失败: ${actionData.name}`, 'error')
+          return
+        }
+        
+        // 停止之前的动画
+        if (window.vrmaMixer) {
+          window.vrmaMixer.stopAllAction()
+        }
+        
+        // 创建新的 AnimationMixer
+        const mixer = new THREE.AnimationMixer(vrm.scene)
+        window.vrmaMixer = mixer
+        
+        const clipAction = mixer.clipAction(loaded.clip)
+        clipAction.reset().setLoop(THREE.LoopRepeat, Infinity).play()
+        
+        console.log('✅ VRMA 动画开始播放:', actionData.name, '时长:', loaded.duration, 'ms')
+        showNotification(`角色${selectedCharacterIndex + 1}: ${actionData.name}`, 'success')
+        setCurrentAction(actionId)
+        return
+      } catch (e) {
+        console.error('VRMA 播放失败', e)
+        showNotification('动作播放失败', 'error')
+      }
+    }
+
+    setCurrentAction(actionId)
+
+    if (actionId === 'combo') {
+      setComboCount(prev => {
+        const newCount = prev + 1
+        if (newCount >= 3) {
+          setShowCombo(true)
+          setTimeout(() => setShowCombo(false), 2000)
+        }
+        return newCount
+      })
+    } else {
+      setComboCount(0)
+    }
+  }, [actionIntensity, selectedCharacterIndex, useMMDActions, showNotification, executeMMDAction])
 
   // 切换摆动模式
   const toggleSwingMode = useCallback(() => {
@@ -3490,6 +3452,25 @@ export const ARScene = ({ selectedFile }) => {
       return newState
     })
   }, [showNotification])
+
+  // 暴露全局函数供 App.jsx 调用
+  useEffect(() => {
+    window.executeARAction = (action) => {
+      console.log('🎬 执行AR动作:', action?.name || action?.id || action)
+      console.log('动作对象:', action)
+      if (action && typeof action === 'object') {
+        executeAction(action)
+      } else {
+        console.error('❌ 无效的动作对象:', action)
+      }
+    }
+    
+    console.log('✅ AR动作全局函数已注册')
+    
+    return () => {
+      delete window.executeARAction
+    }
+  }, [executeAction])
 
   // 自动保存场景状态
   useEffect(() => {
@@ -6290,395 +6271,6 @@ export const ARScene = ({ selectedFile }) => {
         />
       )}
 
-      {/* ==================== 分组折叠工具栏 ==================== */}
-      <div style={{
-        position: 'fixed',
-        right: isMobile ? '8px' : '16px',
-        top: isMobile ? '80px' : '100px',
-        zIndex: 100,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '12px'
-      }}>
-        {/* 快捷访问栏 - 移动端优化，精简为4个核心按钮 */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: isMobile ? '10px' : '12px',
-          padding: isMobile ? '10px' : '12px',
-          background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)',
-          borderRadius: '24px',
-          border: '1px solid rgba(255,255,255,0.15)',
-          backdropFilter: 'blur(20px)',
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
-        }}>
-          {/* 1. 视角切换按钮 - 自由/跟随/固定 */}
-          <ToolbarButton
-            onClick={() => {
-              // 循环切换视角模式
-              const modes = ['free', 'follow', 'fixed']
-              const currentIndex = modes.indexOf(cameraMode || 'free')
-              const nextMode = modes[(currentIndex + 1) % modes.length]
-              setCameraMode(nextMode)
-              showNotification(
-                nextMode === 'free' ? '自由视角模式' : 
-                nextMode === 'follow' ? '跟随视角模式' : '固定视角模式', 
-                'info'
-              )
-            }}
-            icon={cameraMode === 'free' ? "🔓" : cameraMode === 'follow' ? "👁️" : "📌"}
-            gradient="linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)"
-            shadowColor="rgba(0, 212, 255, 0.5)"
-            isMobile={isMobile}
-            label="视角"
-          />
-          
-          {/* 2. 交互模式按钮 - 触摸角色触发动作 */}
-          <ToolbarButton
-            onClick={() => {
-              setIsInteractMode(!isInteractMode)
-              showNotification(isInteractMode ? '退出交互模式' : '进入交互模式：触摸角色触发动作', 'info')
-            }}
-            icon={isInteractMode ? "✋" : "👆"}
-            gradient={isInteractMode 
-              ? "linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)"
-              : "linear-gradient(135deg, #f39c12 0%, #e67e22 100%)"
-            }
-            shadowColor={isInteractMode 
-              ? "rgba(231, 76, 60, 0.5)"
-              : "rgba(243, 156, 18, 0.5)"
-            }
-            isActive={isInteractMode}
-            isMobile={isMobile}
-            label={isInteractMode ? "交互中" : "交互"}
-            pulse={isInteractMode}
-          />
-          
-          {/* 3. 表情面板按钮 - 快速切换表情 */}
-          <ToolbarButton
-            onClick={() => setShowExpressionPanel(!showExpressionPanel)}
-            icon="😊"
-            gradient="linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)"
-            shadowColor="rgba(255, 107, 157, 0.5)"
-            isActive={showExpressionPanel}
-            isMobile={isMobile}
-            label="表情"
-          />
-          
-          {/* 4. 设置按钮 */}
-          <ToolbarButton
-            onClick={() => setShowSettings(!showSettings)}
-            icon="⚙️"
-            gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-            shadowColor="rgba(102, 126, 234, 0.5)"
-            isActive={showSettings}
-            isMobile={isMobile}
-            label="设置"
-          />
-        </div>
-
-        {/* 主工具栏容器 - 分组折叠 */}
-        <div
-          ref={toolbarRef}
-          style={{
-            width: isMobile ? '60px' : '72px',
-            maxHeight: isMobile ? '60vh' : '70vh',
-            background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)',
-            borderRadius: '20px',
-            border: '1px solid rgba(255,255,255,0.15)',
-            backdropFilter: 'blur(20px)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255,255,255,0.05)',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column'
-          }}
-        >
-          {/* 主要功能组 */}
-          <div style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-            <button
-              onClick={() => setToolbarGroups(prev => ({ ...prev, main: !prev.main }))}
-              style={{
-                width: '100%',
-                padding: '10px 8px',
-                background: 'transparent',
-                border: 'none',
-                color: 'white',
-                fontSize: isMobile ? '11px' : '12px',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                transition: 'background 0.2s ease'
-              }}
-              onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-              onMouseLeave={(e) => e.target.style.background = 'transparent'}
-            >
-              <span>⭐ 主要</span>
-              <span style={{ 
-                transform: toolbarGroups.main ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.3s ease'
-              }}>▼</span>
-            </button>
-            
-            {toolbarGroups.main && (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: isMobile ? '6px' : '8px',
-                padding: '0 8px 10px 8px',
-                animation: 'slideDown 0.3s ease'
-              }}>
-                <ToolbarButton
-                  onClick={takePhoto}
-                  disabled={isCountingDown}
-                  icon={isCountingDown ? '⏳' : '📸'}
-                  gradient="linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)"
-                  shadowColor="rgba(255, 107, 157, 0.5)"
-                  isMobile={isMobile}
-                  label="拍照"
-                />
-                <ToolbarButton
-                  onClick={() => setShowVideoRecorder(true)}
-                  icon="🎥"
-                  gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-                  shadowColor="rgba(102, 126, 234, 0.5)"
-                  isActive={showVideoRecorder}
-                  isMobile={isMobile}
-                  label="录像"
-                />
-                <ToolbarButton
-                  onClick={() => setShowPlaylist(true)}
-                  icon="📋"
-                  gradient="linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)"
-                  shadowColor="rgba(155, 89, 182, 0.5)"
-                  isActive={showPlaylist}
-                  isMobile={isMobile}
-                  label="列表"
-                />
-                <ToolbarButton
-                  onClick={() => setShowActionRecorder(true)}
-                  icon="🎬"
-                  gradient="linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)"
-                  shadowColor="rgba(231, 76, 60, 0.5)"
-                  isActive={showActionRecorder}
-                  isMobile={isMobile}
-                  label="录制"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* 外观功能组 */}
-          <div style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-            <button
-              onClick={() => setToolbarGroups(prev => ({ ...prev, appearance: !prev.appearance }))}
-              style={{
-                width: '100%',
-                padding: '10px 8px',
-                background: 'transparent',
-                border: 'none',
-                color: 'white',
-                fontSize: isMobile ? '11px' : '12px',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                transition: 'background 0.2s ease'
-              }}
-              onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-              onMouseLeave={(e) => e.target.style.background = 'transparent'}
-            >
-              <span>🎨 外观</span>
-              <span style={{ 
-                transform: toolbarGroups.appearance ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.3s ease'
-              }}>▼</span>
-            </button>
-            
-            {toolbarGroups.appearance && (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: isMobile ? '6px' : '8px',
-                padding: '0 8px 10px 8px',
-                animation: 'slideDown 0.3s ease'
-              }}>
-                <ToolbarButton
-                  onClick={() => setShowPosePanel(true)}
-                  icon="🎭"
-                  gradient="linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)"
-                  shadowColor="rgba(0, 212, 255, 0.5)"
-                  isActive={showPosePanel}
-                  isMobile={isMobile}
-                  label="姿势"
-                />
-                <ToolbarButton
-                  onClick={() => setShowStageEffects(true)}
-                  icon="✨"
-                  gradient="linear-gradient(135deg, #f39c12 0%, #e67e22 100%)"
-                  shadowColor="rgba(243, 156, 18, 0.5)"
-                  isActive={showStageEffects}
-                  isMobile={isMobile}
-                  label="特效"
-                />
-                <ToolbarButton
-                  onClick={() => setShowSceneTemplate(true)}
-                  icon="🏞️"
-                  gradient="linear-gradient(135deg, #1abc9c 0%, #16a085 100%)"
-                  shadowColor="rgba(26, 188, 156, 0.5)"
-                  isActive={showSceneTemplate}
-                  isMobile={isMobile}
-                  label="场景"
-                />
-                <ToolbarButton
-                  onClick={() => { setPropTargetCharacter(selectedCharacterIndex); setShowPropSelect(true); }}
-                  icon="🏠"
-                  gradient="linear-gradient(135deg, #8B4513 0%, #D2691E 100%)"
-                  shadowColor="rgba(139, 69, 19, 0.5)"
-                  isActive={showPropSelect}
-                  isMobile={isMobile}
-                  label="家具"
-                  badge={characterProps[selectedCharacterIndex] ? '●' : null}
-                  badgeColor="#00d4ff"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* 系统功能组 */}
-          <div>
-            <button
-              onClick={() => setToolbarGroups(prev => ({ ...prev, system: !prev.system }))}
-              style={{
-                width: '100%',
-                padding: '10px 8px',
-                background: 'transparent',
-                border: 'none',
-                color: 'white',
-                fontSize: isMobile ? '11px' : '12px',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                cursor: 'pointer',
-                transition: 'background 0.2s ease'
-              }}
-              onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.05)'}
-              onMouseLeave={(e) => e.target.style.background = 'transparent'}
-            >
-              <span>⚙️ 系统</span>
-              <span style={{ 
-                transform: toolbarGroups.system ? 'rotate(180deg)' : 'rotate(0deg)',
-                transition: 'transform 0.3s ease'
-              }}>▼</span>
-            </button>
-            
-            {toolbarGroups.system && (
-              <div style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: isMobile ? '6px' : '8px',
-                padding: '0 8px 10px 8px',
-                animation: 'slideDown 0.3s ease'
-              }}>
-                {/* 设置按钮已移至快捷栏，此处删除避免重复 */}
-                <ToolbarButton
-                  onClick={() => setShowPositionControl(true)}
-                  icon="📍"
-                  gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-                  shadowColor="rgba(102, 126, 234, 0.5)"
-                  isActive={showPositionControl}
-                  isMobile={isMobile}
-                  label="位置"
-                />
-                <ToolbarButton
-                  onClick={() => setShowSceneManager(true)}
-                  icon="💾"
-                  gradient="linear-gradient(135deg, #34495e 0%, #2c3e50 100%)"
-                  shadowColor="rgba(52, 73, 94, 0.5)"
-                  isActive={showSceneManager}
-                  isMobile={isMobile}
-                  label="保存"
-                />
-                <ToolbarButton
-                  onClick={() => setShowShareCard(true)}
-                  icon="🎨"
-                  gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
-                  shadowColor="rgba(240, 147, 251, 0.5)"
-                  isActive={showShareCard}
-                  isMobile={isMobile}
-                  label="分享"
-                />
-                <ToolbarButton
-                  onClick={() => setShowModelDownloader(true)}
-                  icon="📥"
-                  gradient="linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)"
-                  shadowColor="rgba(0, 212, 255, 0.5)"
-                  isActive={showModelDownloader}
-                  isMobile={isMobile}
-                  label="模型"
-                />
-                <ToolbarButton
-                  onClick={() => setIsBoneEditing(!isBoneEditing)}
-                  icon="🦴"
-                  gradient={isBoneEditing ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)' : 'linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%)'}
-                  shadowColor={isBoneEditing ? 'rgba(0, 212, 255, 0.5)' : 'rgba(149, 165, 166, 0.5)'}
-                  isActive={isBoneEditing}
-                  isMobile={isMobile}
-                  label="骨骼"
-                />
-                {isVoiceSupported && (
-                  <ToolbarButton
-                    onClick={() => { setShowVoiceControl(!showVoiceControl); toggleListening(); }}
-                    icon={isListening ? '🎙️' : '🎤'}
-                    gradient={isListening ? 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)' : 'linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%)'}
-                    shadowColor={isListening ? 'rgba(231, 76, 60, 0.5)' : 'rgba(149, 165, 166, 0.5)'}
-                    isActive={isListening}
-                    isMobile={isMobile}
-                    label={isListening ? '录音中' : '语音'}
-                    pulse={isListening}
-                  />
-                )}
-                {gyroSupported && (
-                  <ToolbarButton
-                    onClick={toggleGyroscope}
-                    icon="📱"
-                    gradient={gyroEnabled ? 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)' : 'linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%)'}
-                    shadowColor={gyroEnabled ? 'rgba(155, 89, 182, 0.5)' : 'rgba(149, 165, 166, 0.5)'}
-                    isActive={gyroEnabled}
-                    isMobile={isMobile}
-                    label="陀螺仪"
-                  />
-                )}
-                {isMobile && (
-                  <ToolbarButton
-                    onClick={() => setShowDebugPanel(!showDebugPanel)}
-                    icon="🐛"
-                    gradient={showDebugPanel ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)' : 'linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%)'}
-                    shadowColor={showDebugPanel ? 'rgba(255, 107, 107, 0.5)' : 'rgba(149, 165, 166, 0.5)'}
-                    isActive={showDebugPanel}
-                    isMobile={isMobile}
-                    label="调试"
-                  />
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-        
-        {/* 提示文字 */}
-        <div style={{
-          fontSize: '10px',
-          color: 'rgba(255,255,255,0.5)',
-          textAlign: 'center'
-        }}>
-          点击分组展开
-        </div>
-      </div>
-
       {/* 调试面板 - 显示日志 */}
       {isMobile && showDebugPanel && (
         <div style={{
@@ -6835,44 +6427,110 @@ export const ARScene = ({ selectedFile }) => {
         </div>
 
         {/* 动作分类标签 - MMD分类 */}
+        {/* 分类标签栏 - 带左右滑动 */}
         <div style={{
           display: 'flex',
-          gap: '6px',
+          alignItems: 'center',
+          gap: '8px',
           marginBottom: '8px',
-          overflowX: 'auto',
           padding: '4px'
         }}>
-          {mmdActionCategories.filter(cat => cat.id !== 'all').map((category) => (
-            <button
-              key={category.id}
-              onClick={() => setMmdActiveCategory(mmdActiveCategory === category.id ? 'all' : category.id)}
-              style={{
-                padding: isMobile ? '5px 10px' : '6px 12px',
-                background: mmdActiveCategory === category.id
-                  ? `linear-gradient(135deg, ${category.color} 0%, ${category.color}dd 100%)`
-                  : 'rgba(255,255,255,0.08)',
-                border: `1px solid ${mmdActiveCategory === category.id ? category.color : 'rgba(255,255,255,0.15)'}`,
-                borderRadius: '16px',
-                color: 'white',
-                fontSize: isMobile ? '10px' : '11px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                transition: 'all 0.3s ease',
-                whiteSpace: 'nowrap',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                boxShadow: mmdActiveCategory === category.id
-                  ? `0 0 10px ${category.color}66`
-                  : 'none'
-              }}
-            >
-              <span>{category.icon}</span>
-              <span>{category.name}</span>
-            </button>
-          ))}
+          {/* 左滑动按钮 */}
+          <button
+            onClick={() => {
+              if (categoryContainerRef.current) {
+                categoryContainerRef.current.scrollBy({ left: -200, behavior: 'smooth' })
+              }
+            }}
+            style={{
+              padding: '6px 8px',
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '8px',
+              color: 'white',
+              fontSize: '14px',
+              cursor: 'pointer',
+              flexShrink: 0
+            }}
+          >
+            ◀
+          </button>
+          
+          {/* 分类标签容器 */}
+          <div 
+            ref={categoryContainerRef}
+            style={{
+              display: 'flex',
+              gap: '6px',
+              overflowX: 'auto',
+              padding: '4px',
+              flex: 1,
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              WebkitOverflowScrolling: 'touch'
+            }}
+          >
+            {actionCategories.map((category) => (
+              <button
+                key={category.id}
+                onClick={() => setMmdActiveCategory(mmdActiveCategory === category.id ? 'all' : category.id)}
+                style={{
+                  padding: isMobile ? '5px 10px' : '6px 12px',
+                  background: mmdActiveCategory === category.id
+                    ? `linear-gradient(135deg, ${category.color} 0%, ${category.color}dd 100%)`
+                    : 'rgba(255,255,255,0.08)',
+                  border: `1px solid ${mmdActiveCategory === category.id ? category.color : 'rgba(255,255,255,0.15)'}`,
+                  borderRadius: '16px',
+                  color: 'white',
+                  fontSize: isMobile ? '10px' : '11px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  boxShadow: mmdActiveCategory === category.id
+                    ? `0 0 10px ${category.color}66`
+                    : 'none',
+                  flexShrink: 0
+                }}
+              >
+                <span>{category.icon}</span>
+                <span>{category.name}</span>
+                {category.count && (
+                  <span style={{
+                    fontSize: '9px',
+                    opacity: 0.8,
+                    marginLeft: '2px'
+                  }}>({category.count})</span>
+                )}
+              </button>
+            ))}
+          </div>
+          
+          {/* 右滑动按钮 */}
+          <button
+            onClick={() => {
+              if (categoryContainerRef.current) {
+                categoryContainerRef.current.scrollBy({ left: 200, behavior: 'smooth' })
+              }
+            }}
+            style={{
+              padding: '6px 8px',
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '8px',
+              color: 'white',
+              fontSize: '14px',
+              cursor: 'pointer',
+              flexShrink: 0
+            }}
+          >
+            ▶
+          </button>
         </div>
-        
+
         {/* 动作按钮网格 */}
         <div id="mmd-action-panel" style={{
           display: 'flex',
@@ -6901,8 +6559,8 @@ export const ARScene = ({ selectedFile }) => {
             >
               <button
                 onClick={() => {
-                  // MMD动作 - 使用executeAction函数
-                  executeAction(item.id)
+                  // MMD动作 - 使用executeAction函数，传入完整的动作对象
+                  executeAction(item)
                 }}
                 style={{
                   minWidth: isMobile ? '60px' : '80px',
@@ -6945,7 +6603,7 @@ export const ARScene = ({ selectedFile }) => {
                     newLooping.add(item.id)
                     showNotification(`循环播放: ${item.name}`, 'success')
                     // 立即开始播放
-                    executeAction(item.id)
+                    executeAction(item)
                   }
                   setLoopingMMDActions(newLooping)
                 }}
@@ -6972,7 +6630,7 @@ export const ARScene = ({ selectedFile }) => {
           ))}
         </div>
       </div>
-      
+
       {/* 语音识别状态显示 */}
       {isListening && (
         <div style={{
@@ -7007,42 +6665,6 @@ export const ARScene = ({ selectedFile }) => {
         </div>
       )}
 
-      {/* 视频录制面板 */}
-      <VideoRecorder
-        isOpen={showVideoRecorder}
-        onClose={() => setShowVideoRecorder(false)}
-        canvasRef={glRef}
-        videoRef={videoRef}
-        isMobile={isMobile}
-      />
-
-      {/* 播放列表面板 */}
-      <PlaylistPanel
-        isOpen={showPlaylist}
-        onClose={() => setShowPlaylist(false)}
-        actions={mmdActions}
-        onPlayAction={(action) => {
-          console.log('播放列表播放动作:', action)
-          // 触发角色动作 - 使用MMD动作系统
-          if (selectedCharacterIndex !== null && characters[selectedCharacterIndex]) {
-            // 直接使用MMD动作
-            setMmdCurrentActions(prev => {
-              const updated = [...prev]
-              updated[selectedCharacterIndex] = action
-              return updated
-            })
-            setMmdActionStartTimes(prev => {
-              const updated = [...prev]
-              updated[selectedCharacterIndex] = Date.now()
-              return updated
-            })
-            setCurrentAction(action.id)
-            showNotification(`播放列表: ${action.name}`, 'success')
-          }
-        }}
-        isMobile={isMobile}
-      />
-
       {/* 舞台效果面板 - 仅在编辑模式显示 */}
       <StageEffectsPanel
         isOpen={showStageEffects && isEditMode}
@@ -7069,22 +6691,6 @@ export const ARScene = ({ selectedFile }) => {
       <SceneManager
         isOpen={showSceneManager}
         onClose={() => setShowSceneManager(false)}
-        isMobile={isMobile}
-      />
-
-      {/* 位置控制面板 */}
-      <PositionControlPanel
-        isOpen={showPositionControl}
-        onClose={() => setShowPositionControl(false)}
-        characterPositions={characterPositions}
-        onPositionChange={(index, newPos) => {
-          setCharacterPositions(prev => {
-            const updated = [...prev]
-            updated[index] = newPos
-            return updated
-          })
-        }}
-        selectedCharacterIndex={selectedCharacterIndex}
         isMobile={isMobile}
       />
 
@@ -7117,55 +6723,7 @@ export const ARScene = ({ selectedFile }) => {
         currentPose={currentAction}
       />
 
-      {/* 动作录制器面板 */}
-      <ActionRecorder
-        isOpen={showActionRecorder}
-        onClose={() => setShowActionRecorder(false)}
-        actions={actions}
-        onPlayAction={(action) => {
-          console.log('播放录制动作:', action)
-          executeAction(action.id)
-          setCurrentAction(action.id)
-        }}
-        isMobile={isMobile}
-      />
 
-      {/* 场景模板面板 */}
-      <SceneTemplatePanel
-        isOpen={showSceneTemplate}
-        onClose={() => setShowSceneTemplate(false)}
-        onSelectTemplate={(template) => {
-          console.log('选择场景模板:', template)
-          setCurrentSceneTemplate(template.id)
-          // 应用场景设置
-          showNotification(`已切换到场景: ${template.name}`, 'success')
-        }}
-        currentTemplate={currentSceneTemplate}
-        isMobile={isMobile}
-      />
-
-      {/* 分享卡片生成器 */}
-      <ShareCardGenerator
-        isOpen={showShareCard}
-        onClose={() => setShowShareCard(false)}
-        canvasRef={glRef}
-        characters={characters}
-        currentAction={currentAction}
-        isMobile={isMobile}
-      />
-
-      {/* 模型下载器 */}
-      <ModelDownloader
-        isOpen={showModelDownloader}
-        onClose={() => setShowModelDownloader(false)}
-        onSelectModel={(model) => {
-          console.log('选择模型:', model)
-          // 加载选中的模型
-          showNotification(`已选择模型: ${model.name}`, 'success')
-          // 可以在这里触发模型加载逻辑
-        }}
-        isMobile={isMobile}
-      />
     </div>
   )
 }
