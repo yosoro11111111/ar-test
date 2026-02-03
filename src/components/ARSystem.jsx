@@ -4476,7 +4476,28 @@ export const ARScene = ({ selectedFile }) => {
               color: 'white',
               transition: 'all 0.3s ease'
             }}
+            title="AR模式（绿幕）"
           >{isARMode ? '📷' : '🎥'}</button>
+
+          {/* WebXR AR 按钮 */}
+          <button
+            onClick={() => setIsWebXRARMode(true)}
+            style={{
+              width: isMobile ? '32px' : '40px',
+              height: isMobile ? '32px' : '40px',
+              borderRadius: '10px',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: isMobile ? '14px' : '18px',
+              cursor: 'pointer',
+              color: 'white',
+              transition: 'all 0.3s ease'
+            }}
+            title="WebXR AR（真实世界）"
+          >🥽</button>
         </div>
       </div>
 
@@ -6764,6 +6785,20 @@ export const ARScene = ({ selectedFile }) => {
         currentPose={currentAction}
       />
 
+      {/* WebXR AR 模式 */}
+      {isWebXRARMode && (
+        <WebXRAR
+          character={characters[selectedCharacterIndex]}
+          onPositionChange={(position) => {
+            // 更新角色位置
+            const newPositions = [...characterPositions]
+            newPositions[selectedCharacterIndex] = position
+            setCharacterPositions(newPositions)
+          }}
+          onClose={() => setIsWebXRARMode(false)}
+          isMobile={isMobile}
+        />
+      )}
 
     </div>
   )
