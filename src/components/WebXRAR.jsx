@@ -748,22 +748,62 @@ export const WebXRAR = ({
     }
   }
   
-  // 自动放置角色
-  const autoPlaceCharacter = () => {
+  // 自动放置角色 - 优化位置和大小
+  const autoPlaceCharacter = useCallback(() => {
     // 等待平面检测
     const checkAndPlace = () => {
-      if (placementPosition && !isPlaced) {
-        // 自动放置角色
-        handlePlace()
+      if (placementPosition && !isPlaced && arManager) {
+        // 直接调用 ARManager 的 placeCharacter 获取角色引用
+        const placedChar = arManager.placeCharacter(character, placementPosition)
+        
+        if (placedChar) {
+          // 添加到列表
+          setPlacedCharacters(prev => [...prev, placedChar])
+          setIsPlaced(true)
+          
+          // 1. 调整大小为合适比例 (0.8x - 适合AR观看)
+          const optimalScale = 0.8
+          placedChar.scale.setScalar(optimalScale)
+          setScale(optimalScale)
+          
+          // 2. 调整朝向 - 面向相机
+          if (arManager.camera) {
+            const cameraPos = arManager.camera.position
+            const characterPos = placedChar.position
+            const angle = Math.atan2(
+              cameraPos.x - characterPos.x,
+              cameraPos.z - characterPos.z
+            )
+            placedChar.rotation.y = angle
+            setRotation(angle)
+          }
+          
+          // 3. 稍微调整位置到视野中心
+          placedChar.position.y += 0.02 // 稍微抬高避免穿模
+          
+          // 4. 自动选中并播放待机动作
+          setTimeout(() => {
+            selectCharacter(placedChar)
+            playCharacterAction(placedChar, 'idle')
+          }, 300)
+          
+          if (onPositionChange) {
+            onPositionChange([
+              placedChar.position.x,
+              placedChar.position.y,
+              placedChar.position.z
+            ])
+          }
+        }
       } else if (!isPlaced) {
         // 继续等待
         setTimeout(checkAndPlace, 500)
       }
     }
     
-    // 2秒后开始尝试放置
-    setTimeout(checkAndPlace, 2000)
-  }
+    // 1.5秒后开始尝试放置（给用户一点准备时间）
+    setTimeout(checkAndPlace, 1500)
+  }, [placementPosition, isPlaced, arManager, character, onPositionChange, selectCharacter, playCharacterAction])
 
   // 初始化手势处理器
   const initGestureHandler = () => {
