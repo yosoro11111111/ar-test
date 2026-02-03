@@ -112,85 +112,130 @@ class ARSessionManager {
     }
   }
 
-  // 设置灯光
+  // 设置灯光 - Cotton风格（更柔和自然）
   setupLighting() {
-    // 环境光
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.5)
+    // 环境光 - 稍微暖色调
+    const ambientLight = new THREE.AmbientLight(0xfff5e6, 0.6)
     this.scene.add(ambientLight)
 
-    // 主方向光（模拟阳光）
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1)
-    dirLight.position.set(5, 10, 7)
+    // 主方向光（模拟自然光）
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8)
+    dirLight.position.set(3, 8, 5)
     dirLight.castShadow = true
     dirLight.shadow.mapSize.width = 2048
     dirLight.shadow.mapSize.height = 2048
     dirLight.shadow.camera.near = 0.1
-    dirLight.shadow.camera.far = 50
-    dirLight.shadow.bias = -0.001
+    dirLight.shadow.camera.far = 30
+    dirLight.shadow.bias = -0.0005
+    dirLight.shadow.radius = 4 // 柔和阴影边缘
     this.scene.add(dirLight)
     this.mainLight = dirLight
 
-    // 补光
-    const fillLight = new THREE.DirectionalLight(0x99ccff, 0.3)
-    fillLight.position.set(-5, 3, -5)
+    // 补光 - 冷色调平衡
+    const fillLight = new THREE.DirectionalLight(0xe6f3ff, 0.4)
+    fillLight.position.set(-3, 4, -3)
     this.scene.add(fillLight)
+    
+    // 轮廓光 - 增加立体感
+    const rimLight = new THREE.DirectionalLight(0xffffff, 0.3)
+    rimLight.position.set(0, 2, -5)
+    this.scene.add(rimLight)
   }
 
-  // 创建放置指示器
+  // 创建放置指示器 - Cotton风格
   createPlacementIndicator() {
     const group = new THREE.Group()
     
-    // 外圆环
-    const ringGeo = new THREE.RingGeometry(0.15, 0.2, 32)
+    // 外圆环 - 更细更优雅
+    const ringGeo = new THREE.RingGeometry(0.12, 0.14, 64)
     const ringMat = new THREE.MeshBasicMaterial({ 
-      color: 0x4ade80, transparent: true, opacity: 0.8, side: THREE.DoubleSide
+      color: 0xffffff, transparent: true, opacity: 0.9, side: THREE.DoubleSide
     })
     const ring = new THREE.Mesh(ringGeo, ringMat)
     ring.rotation.x = -Math.PI / 2
+    ring.name = 'outerRing'
     group.add(ring)
 
-    // 内圆点
-    const dotGeo = new THREE.CircleGeometry(0.05, 32)
+    // 内圆环 - 动态旋转
+    const innerRingGeo = new THREE.RingGeometry(0.08, 0.09, 64)
+    const innerRingMat = new THREE.MeshBasicMaterial({ 
+      color: 0x4ade80, transparent: true, opacity: 0.8, side: THREE.DoubleSide
+    })
+    const innerRing = new THREE.Mesh(innerRingGeo, innerRingMat)
+    innerRing.rotation.x = -Math.PI / 2
+    innerRing.position.y = 0.001
+    innerRing.name = 'innerRing'
+    group.add(innerRing)
+
+    // 中心点 - 脉动效果
+    const dotGeo = new THREE.CircleGeometry(0.04, 32)
     const dotMat = new THREE.MeshBasicMaterial({ 
-      color: 0x4ade80, transparent: true, opacity: 0.6
+      color: 0x4ade80, transparent: true, opacity: 0.9
     })
     const dot = new THREE.Mesh(dotGeo, dotMat)
     dot.rotation.x = -Math.PI / 2
-    dot.position.y = 0.001
+    dot.position.y = 0.002
+    dot.name = 'centerDot'
     group.add(dot)
 
-    // 四个方向箭头
-    for (let i = 0; i < 4; i++) {
-      const arrowGeo = new THREE.ConeGeometry(0.03, 0.1, 8)
-      const arrowMat = new THREE.MeshBasicMaterial({ 
-        color: 0x4ade80, transparent: true, opacity: 0.7
-      })
-      const arrow = new THREE.Mesh(arrowGeo, arrowMat)
-      arrow.rotation.x = Math.PI
-      arrow.rotation.z = (Math.PI / 2) * i
-      arrow.position.set(
-        Math.sin((Math.PI / 2) * i) * 0.25,
-        0.05,
-        Math.cos((Math.PI / 2) * i) * 0.25
-      )
-      group.add(arrow)
-    }
+    // 扫描线效果
+    const scanLineGeo = new THREE.RingGeometry(0.05, 0.06, 64)
+    const scanLineMat = new THREE.MeshBasicMaterial({ 
+      color: 0x4ade80, transparent: true, opacity: 0.4, side: THREE.DoubleSide
+    })
+    const scanLine = new THREE.Mesh(scanLineGeo, scanLineMat)
+    scanLine.rotation.x = -Math.PI / 2
+    scanLine.position.y = 0.003
+    scanLine.name = 'scanLine'
+    scanLine.userData = { scanPhase: 0 }
+    group.add(scanLine)
 
     return group
   }
 
-  // 创建地面网格
+  // 创建地面网格 - Cotton风格
   createGroundGrid() {
-    const gridHelper = new THREE.GridHelper(10, 20, 0x4ade80, 0x2d3748)
+    const group = new THREE.Group()
+    
+    // 主网格 - 更细更淡
+    const gridHelper = new THREE.GridHelper(8, 16, 0xffffff, 0x444444)
     gridHelper.material.transparent = true
-    gridHelper.material.opacity = 0.3
-    return gridHelper
+    gridHelper.material.opacity = 0.15
+    group.add(gridHelper)
+    
+    // 中心圆环
+    const centerRingGeo = new THREE.RingGeometry(0.3, 0.32, 64)
+    const centerRingMat = new THREE.MeshBasicMaterial({
+      color: 0x4ade80, transparent: true, opacity: 0.3, side: THREE.DoubleSide
+    })
+    const centerRing = new THREE.Mesh(centerRingGeo, centerRingMat)
+    centerRing.rotation.x = -Math.PI / 2
+    centerRing.position.y = 0.001
+    group.add(centerRing)
+    
+    // 十字准星
+    const crossSize = 0.5
+    const crossGeo = new THREE.BufferGeometry()
+    const crossVertices = new Float32Array([
+      -crossSize, 0, 0, crossSize, 0, 0,
+      0, 0, -crossSize, 0, 0, crossSize
+    ])
+    crossGeo.setAttribute('position', new THREE.BufferAttribute(crossVertices, 3))
+    const crossMat = new THREE.LineBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.4 })
+    const cross = new THREE.LineSegments(crossGeo, crossMat)
+    cross.position.y = 0.002
+    group.add(cross)
+    
+    return group
   }
 
-  // 创建阴影接收平面
+  // 创建阴影接收平面 - Cotton风格（更柔和的阴影）
   createShadowPlane() {
-    const geometry = new THREE.PlaneGeometry(10, 10)
-    const material = new THREE.ShadowMaterial({ opacity: 0.3 })
+    const geometry = new THREE.PlaneGeometry(8, 8)
+    const material = new THREE.ShadowMaterial({ 
+      opacity: 0.2,
+      color: 0x000000
+    })
     const plane = new THREE.Mesh(geometry, material)
     plane.rotation.x = -Math.PI / 2
     plane.receiveShadow = true
@@ -244,8 +289,30 @@ class ARSessionManager {
               hitPose.transform.position.y,
               hitPose.transform.position.z
             )
-            // 浮动动画
-            this.placementIndicator.position.y += Math.sin(time * 0.005) * 0.01
+            
+            // Cotton风格动画
+            const innerRing = this.placementIndicator.getObjectByName('innerRing')
+            const centerDot = this.placementIndicator.getObjectByName('centerDot')
+            const scanLine = this.placementIndicator.getObjectByName('scanLine')
+            
+            if (innerRing) {
+              // 内环旋转
+              innerRing.rotation.z = time * 0.002
+            }
+            
+            if (centerDot) {
+              // 中心点脉动
+              const pulse = 1 + Math.sin(time * 0.008) * 0.3
+              centerDot.scale.set(pulse, pulse, pulse)
+            }
+            
+            if (scanLine) {
+              // 扫描线扩散
+              scanLine.userData.scanPhase += 0.02
+              const scanScale = 1 + Math.sin(scanLine.userData.scanPhase) * 0.5
+              scanLine.scale.set(scanScale, scanScale, scanScale)
+              scanLine.material.opacity = 0.4 * (1 - Math.sin(scanLine.userData.scanPhase))
+            }
             
             // 更新地面网格和阴影平面
             this.groundGrid.position.copy(this.placementIndicator.position)
