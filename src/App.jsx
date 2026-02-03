@@ -283,18 +283,8 @@ function App() {
       }
     },
     onDoubleTap: () => {
-      // 快速拍照
-      if (!showFileInput && selectedFile) {
-        console.log('📸 双击：快速拍照')
-        const canvas = document.querySelector('canvas')
-        if (canvas) {
-          const link = document.createElement('a')
-          link.download = `ar-character-${Date.now()}.png`
-          link.href = canvas.toDataURL('image/png')
-          link.click()
-          vibrate([30, 50, 30])
-        }
-      }
+      // 双击功能已禁用，避免与动作按钮点击冲突
+      // 如需拍照，请使用右侧边栏的拍照按钮
     }
   })
 
