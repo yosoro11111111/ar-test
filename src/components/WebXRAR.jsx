@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react'
 import * as THREE from 'three'
 import { ARGestureHandler } from './ARGestureHandler'
+import { ARParticleSystem } from './ARParticleSystem'
 
 // AR 核心管理器
 class ARSessionManager {
@@ -16,6 +17,8 @@ class ARSessionManager {
     this.onPlaneLost = null
     this.placementIndicator = null
     this.shadowPlane = null
+    this.particleSystem = null
+    this.selectionRing = null
   }
 
   // 检查支持
@@ -81,6 +84,9 @@ class ARSessionManager {
       this.shadowPlane = this.createShadowPlane()
       this.shadowPlane.visible = false
       this.scene.add(this.shadowPlane)
+
+      // 初始化粒子系统
+      this.particleSystem = new ARParticleSystem(this.scene)
 
       // 创建相机
       this.camera = new THREE.PerspectiveCamera(
@@ -284,6 +290,16 @@ class ARSessionManager {
       
       // 更新动画
       this.updateAnimations()
+      
+      // 更新粒子系统
+      if (this.particleSystem) {
+        this.particleSystem.update()
+        
+        // 更新选中光环
+        if (this.selectionRing) {
+          this.particleSystem.updateSelectionRing(this.selectionRing, time)
+        }
+      }
 
       this.renderer.render(this.scene, this.camera)
       this.session.requestAnimationFrame(loop)
@@ -360,10 +376,36 @@ class ARSessionManager {
 
     this.scene.add(characterGroup)
     
+    // 播放放置特效
+    if (this.particleSystem) {
+      this.particleSystem.createPlacementEffect(position)
+    }
+    
     // 隐藏放置指示器
     this.placementIndicator.visible = false
 
     return characterGroup
+  }
+
+  // 设置选中角色
+  setSelectedCharacter(character) {
+    // 移除之前的光环
+    if (this.selectionRing) {
+      this.scene.remove(this.selectionRing.mesh)
+      this.selectionRing = null
+    }
+    
+    // 创建新的光环
+    if (character && this.particleSystem) {
+      this.selectionRing = this.particleSystem.createSelectionRing(character.position)
+    }
+  }
+
+  // 更新选中光环位置
+  updateSelectionRingPosition(position) {
+    if (this.selectionRing) {
+      this.selectionRing.mesh.position.copy(position)
+    }
   }
 
   // 播放动作
@@ -382,6 +424,29 @@ class ARSessionManager {
     
     // 创建简单的动画效果
     this.createSimpleAnimation(character, actionName)
+    
+    // 播放动作特效
+    if (this.particleSystem) {
+      const position = character.position
+      if (actionName.includes('jump') || actionName.includes('Jump')) {
+        // 跳跃特效延迟播放（落地时）
+        setTimeout(() => {
+          this.particleSystem.createJumpEffect(position)
+        }, 300)
+      } else if (actionName.includes('dance') || actionName.includes('Dance')) {
+        // 跳舞特效
+        this.particleSystem.createDanceEffect(position)
+        // 持续产生音符
+        character.userData.danceInterval = setInterval(() => {
+          if (character.userData.isPlayingAction && 
+              character.userData.animationType === 'dance') {
+            this.particleSystem.createDanceEffect(character.position)
+          } else {
+            clearInterval(character.userData.danceInterval)
+          }
+        }, 1000)
+      }
+    }
   }
 
   // 停止动作
@@ -557,8 +622,18 @@ export const useWebXRAR = () => {
       const box = character.getObjectByName('selectionBox')
       if (box) box.material.opacity = 0.5
       setSelectedCharacter(character)
+      
+      // 创建选中光环
+      if (arManagerRef.current) {
+        arManagerRef.current.setSelectedCharacter(character)
+      }
     } else {
       setSelectedCharacter(null)
+      
+      // 移除选中光环
+      if (arManagerRef.current) {
+        arManagerRef.current.setSelectedCharacter(null)
+      }
     }
   }, [placedCharacters])
 
@@ -566,8 +641,13 @@ export const useWebXRAR = () => {
   const moveCharacter = useCallback((character, newPosition) => {
     if (character) {
       character.position.copy(newPosition)
+      
+      // 更新选中光环位置
+      if (arManagerRef.current && selectedCharacter === character) {
+        arManagerRef.current.updateSelectionRingPosition(newPosition)
+      }
     }
-  }, [])
+  }, [selectedCharacter])
 
   // 缩放角色
   const scaleCharacter = useCallback((character, scale) => {
@@ -662,7 +742,27 @@ export const WebXRAR = ({
       setShowControls(true)
       // 初始化手势处理器
       initGestureHandler()
+      
+      // 自动放置角色到合适位置
+      autoPlaceCharacter()
     }
+  }
+  
+  // 自动放置角色
+  const autoPlaceCharacter = () => {
+    // 等待平面检测
+    const checkAndPlace = () => {
+      if (placementPosition && !isPlaced) {
+        // 自动放置角色
+        handlePlace()
+      } else if (!isPlaced) {
+        // 继续等待
+        setTimeout(checkAndPlace, 500)
+      }
+    }
+    
+    // 2秒后开始尝试放置
+    setTimeout(checkAndPlace, 2000)
   }
 
   // 初始化手势处理器
