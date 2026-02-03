@@ -12,6 +12,8 @@ export default defineConfig({
     },
   },
   server: {
+    host: '0.0.0.0', // 允许外部访问（手机端）
+    port: 5173,
     fs: {
       // Allow serving files from one level up to the project root
       allow: ['..']

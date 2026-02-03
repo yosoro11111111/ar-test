@@ -26,7 +26,9 @@ export const ActionPanel = ({
   currentAction,
   isMobile,
   isFullscreen = false,
-  onToggleFullscreen
+  onToggleFullscreen,
+  onDragStart,
+  onDragEnd
 }) => {
   const [activeCategory, setActiveCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -171,6 +173,13 @@ export const ActionPanel = ({
         className={`action-card ${isPlaying ? 'playing' : ''} ${isFavorite ? 'favorited' : ''}`}
         onClick={() => handleSelectAction(action)}
         data-action-id={action.id}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData('action', JSON.stringify(action))
+          e.dataTransfer.effectAllowed = 'copy'
+          onDragStart?.(action)
+        }}
+        onDragEnd={() => onDragEnd?.()}
       >
         <div className="action-card-inner">
           <div className="action-icon-wrapper">

@@ -10,6 +10,15 @@ import AnimeSidebar from './components/AnimeSidebar'
 import { useGesture } from './hooks/useGesture'
 import { initMobileAdapter, vibrate } from './utils/mobileAdapter'
 import modelList from './models/modelList'
+
+// 新架构引入
+import { useUIStore } from './stores/uiStore'
+import { useActionStore } from './stores/actionStore'
+import { useShortcut } from './hooks/useShortcut'
+import { ShortcutHelp } from './components/ui/ShortcutHelp'
+import { ButtonPanel } from './components/ui/ButtonPanel'
+import { TimelineEditor } from './components/features/timeline/TimelineEditor'
+
 import './App.css'
 import './styles/anime-theme.css'
 
@@ -233,6 +242,31 @@ function App() {
   const { characters, currentCharacter, addCharacter, updateCharacter, deleteCharacter, selectCharacter, reorderCharacters } = useCharacterData()
   const { clearAllCache, getCacheSize } = useCacheManager()
 
+  // 新架构状态管理
+  const { 
+    isUIVisible, 
+    toggleUI, 
+    activePanel, 
+    setActivePanel, 
+    closePanel,
+    toggleFullscreen 
+  } = useUIStore()
+  
+  const { 
+    isPlaying, 
+    togglePlay, 
+    playbackSpeed,
+    increaseSpeed,
+    decreaseSpeed,
+    isLooping,
+    toggleLoop,
+    favorites: actionFavorites,
+    addFavorite,
+    removeFavorite,
+    addRecentAction,
+    recordActionUsage
+  } = useActionStore()
+
   // 状态管理
   const [showSplash, setShowSplash] = useState(true)
   const [showFileInput, setShowFileInput] = useState(true)
@@ -286,6 +320,48 @@ function App() {
       // 双击功能已禁用，避免与动作按钮点击冲突
       // 如需拍照，请使用右侧边栏的拍照按钮
     }
+  })
+
+  // 新功能：快捷键支持
+  const [showHelp, setShowHelp] = useState(false)
+  const [showTimeline, setShowTimeline] = useState(false)
+  const [isDraggingAction, setIsDraggingAction] = useState(false)
+  const [draggedAction, setDraggedAction] = useState(null)
+  
+  // 快捷键处理
+  const handlePrevAction = useCallback(() => {
+    // 触发上一个动作逻辑
+    vibrate(20)
+  }, [])
+  
+  const handleNextAction = useCallback(() => {
+    // 触发下一个动作逻辑
+    vibrate(20)
+  }, [])
+  
+  const handleRandomAction = useCallback(() => {
+    // 随机动作逻辑
+    vibrate(30)
+  }, [])
+  
+  const handleScreenshot = useCallback(() => {
+    const canvas = document.querySelector('canvas')
+    if (canvas) {
+      const link = document.createElement('a')
+      link.download = `ar-character-${Date.now()}.png`
+      link.href = canvas.toDataURL('image/png')
+      link.click()
+      vibrate([50, 100, 50])
+    }
+  }, [])
+  
+  // 注册快捷键
+  useShortcut({
+    onPrevAction: handlePrevAction,
+    onNextAction: handleNextAction,
+    onRandomAction: handleRandomAction,
+    onScreenshot: handleScreenshot,
+    favorites: favorites.slice(0, 9),
   })
 
   const allTags = ['#原神', '#星穹铁道', '#崩坏3', '#正太', '#萝莉', '#御姐', '#少年', '#成男', '#成女', '#男性', '#女性', '#可爱', '#帅气', '#冷酷', '#活泼', '#温柔', '#成熟']
@@ -1103,49 +1179,94 @@ function App() {
         </div>
       )}
 
-      {/* 二次元风格侧边栏 - 替换原来的 Dock 栏 */}
+      {/* 新按钮面板 - 替换侧边栏和控制球 */}
       {!showFileInput && selectedFile && (
-        <AnimeSidebar
-          characterName={currentCharacter?.name || '角色'}
-          characterAvatar={currentCharacter?.avatar || '👧'}
-          currentAction={currentAction?.name || '待机'}
-          onActionClick={() => {
-            setShowActionPanel(true)
-            vibrate(30)
-          }}
-          onCameraClick={() => {
-            const canvas = document.querySelector('canvas')
-            if (canvas) {
-              const link = document.createElement('a')
-              link.download = `ar-character-${Date.now()}.png`
-              link.href = canvas.toDataURL('image/png')
-              link.click()
-              vibrate([50, 100, 50])
-            }
-          }}
-          onSettingsClick={() => {
+        <ButtonPanel
+          onCharacterManager={() => {
             setShowCharacterManager(true)
             vibrate(30)
           }}
-          onEffectsClick={() => {
+          onScreenshot={handleScreenshot}
+          onStageEffects={() => {
             setShowStageEffects(true)
             vibrate(30)
           }}
-          onPoseClick={() => {
-            setShowPosePanel(true)
+          onTimeline={() => {
+            setShowTimeline(true)
             vibrate(30)
           }}
-          onSceneClick={() => {
-            setShowSceneManager(true)
-            vibrate(30)
-          }}
-          favorites={favorites}
-          onFavoritesClick={(action) => {
-            handleSelectAction(action)
+          onHelp={() => {
+            setShowHelp(true)
             vibrate(30)
           }}
           isMobile={isMobile}
+          onActionDrop={(action) => {
+            // 拖放动作到时间轴按钮
+            setDraggedAction(action)
+            setShowTimeline(true)
+            vibrate(50)
+            // 添加到时间轴
+            setTimeout(() => {
+              addRecentAction(action)
+              recordActionUsage(action.id)
+            }, 100)
+          }}
         />
+      )}
+
+      {/* 新功能：时间轴编辑器 - 页签式 */}
+      {showTimeline && (
+        <TimelineEditor 
+          onClose={() => setShowTimeline(false)}
+          onExecuteAction={(action) => {
+            // 时间轴播放时执行动作
+            handleSelectAction(action)
+          }}
+          onPause={() => {
+            // 暂停动作播放
+            if (window.arSystem) {
+              window.arSystem.pauseAnimation()
+            }
+          }}
+          onResume={() => {
+            // 继续动作播放
+            if (window.arSystem) {
+              window.arSystem.resumeAnimation()
+            }
+          }}
+          onStop={() => {
+            // 停止动作播放
+            if (window.arSystem) {
+              window.arSystem.stopAnimation()
+            }
+          }}
+          isMobile={isMobile}
+        />
+      )}
+
+      {/* 新功能：快捷键帮助面板 */}
+      <ShortcutHelp isOpen={showHelp} onClose={() => setShowHelp(false)} />
+
+      {/* 新功能：UI隐藏提示 */}
+      {!isUIVisible && !isMobile && (
+        <div 
+          onClick={toggleUI}
+          style={{
+            position: 'fixed',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            padding: '8px 16px',
+            background: 'rgba(0,0,0,0.6)',
+            color: 'rgba(255,255,255,0.7)',
+            fontSize: '12px',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            zIndex: 1000
+          }}
+        >
+          按 H 键显示UI
+        </div>
       )}
     </div>
   )

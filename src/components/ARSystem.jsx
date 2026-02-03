@@ -3060,10 +3060,11 @@ export const ARScene = ({ selectedFile }) => {
   const [isBoneEditing, setIsBoneEditing] = useState(false)
   
   // 角色位置状态 - 支持拖拽移动（三个人左右排列，第一个人在中间）
+  // Y坐标-0.3表示人物站在地面上（原来0是漂浮的）
   const [characterPositions, setCharacterPositions] = useState([
-    [0, 0, 0],      // 角色0初始位置（中间，主角位置）- 基准位置
-    [-3, 0, 0],     // 角色1初始位置（左边3米）- 只有X不同
-    [3, 0, 0]       // 角色2初始位置（右边3米）- 只有X不同
+    [0, -0.3, 0],      // 角色0初始位置（中间，主角位置）- 基准位置
+    [-3, -0.3, 0],     // 角色1初始位置（左边3米）- 只有X不同
+    [3, -0.3, 0]       // 角色2初始位置（右边3米）- 只有X不同
   ])
 
   // 家具搜索状态
@@ -3394,17 +3395,28 @@ export const ARScene = ({ selectedFile }) => {
           return
         }
         
-        // 停止之前的动画
-        if (window.vrmaMixer) {
-          window.vrmaMixer.stopAllAction()
+        // 使用现有的 mixer 或创建新的
+        let mixer = window.vrmaMixer
+        if (!mixer) {
+          mixer = new THREE.AnimationMixer(vrm.scene)
+          window.vrmaMixer = mixer
         }
         
-        // 创建新的 AnimationMixer
-        const mixer = new THREE.AnimationMixer(vrm.scene)
-        window.vrmaMixer = mixer
+        // 停止之前的动作，但保持当前姿态
+        const prevAction = mixer._actions[0]
         
         const clipAction = mixer.clipAction(loaded.clip)
-        clipAction.reset().setLoop(THREE.LoopRepeat, Infinity).play()
+        
+        // 如果有之前的动作，进行平滑过渡
+        if (prevAction && prevAction !== clipAction) {
+          // 停止之前的动作
+          prevAction.stop()
+          // 新动作从当前姿态开始（不重置）
+          clipAction.setLoop(THREE.LoopRepeat, Infinity).play()
+        } else {
+          // 第一个动作或相同动作
+          clipAction.reset().setLoop(THREE.LoopRepeat, Infinity).play()
+        }
         
         console.log('✅ VRMA 动画开始播放:', actionData.name, '时长:', loaded.duration, 'ms')
         showNotification(`角色${selectedCharacterIndex + 1}: ${actionData.name}`, 'success')
@@ -3465,10 +3477,33 @@ export const ARScene = ({ selectedFile }) => {
       }
     }
     
+    // 暂停动画
+    window.arSystem = {
+      pauseAnimation: () => {
+        if (window.vrmaMixer) {
+          window.vrmaMixer.timeScale = 0
+          console.log('⏸️ 动画已暂停')
+        }
+      },
+      resumeAnimation: () => {
+        if (window.vrmaMixer) {
+          window.vrmaMixer.timeScale = 1
+          console.log('▶️ 动画已继续')
+        }
+      },
+      stopAnimation: () => {
+        if (window.vrmaMixer) {
+          window.vrmaMixer.stopAllAction()
+          console.log('⏹️ 动画已停止')
+        }
+      }
+    }
+    
     console.log('✅ AR动作全局函数已注册')
     
     return () => {
       delete window.executeARAction
+      delete window.arSystem
     }
   }, [executeAction])
 
@@ -4133,6 +4168,10 @@ export const ARScene = ({ selectedFile }) => {
           onCreated={({ gl }) => { 
             glRef.current = gl
             console.log('Canvas created')
+            // 暴露 canvas 给父组件
+            if (gl.domElement) {
+              window.arCanvas = gl.domElement
+            }
           }}
         >
           <PerspectiveCamera makeDefault position={[0, 0.8, 2.5]} fov={50} />
@@ -4635,9 +4674,9 @@ export const ARScene = ({ selectedFile }) => {
               <button
                 onClick={() => {
                   const defaultPositions = [
-                    [0, 0, 0],
-                    [-3, 0, 0],
-                    [3, 0, 0]
+                    [0, -0.3, 0],
+                    [-3, -0.3, 0],
+                    [3, -0.3, 0]
                   ]
                   setCharacterPositions(prev => {
                     const updated = [...prev]

@@ -16,9 +16,13 @@
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
     "framer-motion": "^12.30.0",
+    "gif.js": "^0.2.0",
+    "media-recorder-js": "^2.1.0",
+    "omggif": "^1.0.10",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "three": "^0.160.1"
+    "three": "^0.160.1",
+    "zustand": "^5.0.11"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

@@ -1,0 +1,263 @@
+/* ButtonPanel 样式 */
+.button-panel {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 100;
+  background: rgba(20, 20, 30, 0.8);
+  backdrop-filter: blur(10px);
+  padding: 16px 12px;
+  padding-top: 40px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.panel-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 60px;
+}
+
+.panel-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateX(-4px);
+}
+
+.btn-icon {
+  font-size: 24px;
+}
+
+.btn-label {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+/* 桌面端折叠按钮 */
+.panel-collapse-btn.desktop {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.panel-collapse-btn.desktop:hover {
+  background: rgba(102, 126, 234, 0.3);
+  border-color: rgba(102, 126, 234, 0.5);
+  color: white;
+}
+
+/* 桌面端展开按钮 */
+.panel-expand-btn.desktop {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 80px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 8px 0 0 8px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: -4px 0 15px rgba(102, 126, 234, 0.3);
+  transition: all 0.2s;
+}
+
+.panel-expand-btn.desktop:hover {
+  width: 38px;
+  box-shadow: -6px 0 20px rgba(102, 126, 234, 0.4);
+}
+
+/* 移动端样式 - 优化版本 */
+.button-panel-mobile {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  gap: 6px;
+  z-index: 100;
+  background: linear-gradient(to top, rgba(15, 15, 25, 0.98) 0%, rgba(25, 25, 40, 0.95) 100%);
+  backdrop-filter: blur(20px);
+  padding: 10px 12px;
+  padding-top: 32px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 8px));
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.panel-btn-mobile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex: 1;
+  min-height: 56px;
+  max-width: 72px;
+}
+
+.panel-btn-mobile:active {
+  background: rgba(102, 126, 234, 0.25);
+  border-color: rgba(102, 126, 234, 0.4);
+  transform: scale(0.96);
+}
+
+.panel-btn-mobile .btn-icon {
+  font-size: 22px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.panel-btn-mobile .btn-label {
+  font-size: 10px;
+  opacity: 0.85;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+/* 移动端折叠按钮 */
+.panel-collapse-btn.mobile {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.panel-collapse-btn.mobile:hover {
+  background: rgba(102, 126, 234, 0.3);
+  border-color: rgba(102, 126, 234, 0.5);
+  color: white;
+}
+
+/* 移动端展开按钮 */
+.panel-expand-btn.mobile {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 28px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 14px 14px 0 0;
+  color: white;
+  font-size: 12px;
+  cursor: pointer;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 -4px 15px rgba(102, 126, 234, 0.3);
+  transition: all 0.2s;
+  padding-bottom: 4px;
+}
+
+.panel-expand-btn.mobile:hover {
+  height: 32px;
+  box-shadow: 0 -6px 20px rgba(102, 126, 234, 0.4);
+}
+
+/* 拖放目标样式 */
+.panel-btn.drop-target,
+.panel-btn-mobile.drop-target {
+  border: 2px dashed rgba(102, 126, 234, 0.5);
+  background: rgba(102, 126, 234, 0.1);
+  position: relative;
+}
+
+.panel-btn.drop-target::after,
+.panel-btn-mobile.drop-target::after {
+  content: '拖放动作到这里';
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.panel-btn.drop-target:hover::after,
+.panel-btn-mobile.drop-target:hover::after {
+  opacity: 1;
+}
+
+.panel-btn.drop-target.drag-over,
+.panel-btn-mobile.drop-target.drag-over {
+  background: rgba(102, 126, 234, 0.3);
+  border-color: rgba(102, 126, 234, 0.8);
+  transform: scale(1.15);
+  box-shadow: 0 0 30px rgba(102, 126, 234, 0.6);
+}
+
+/* 拖放提示 */
+.drop-hint {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-size: 8px;
+  padding: 2px 5px;
+  border-radius: 8px;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.4);
+}

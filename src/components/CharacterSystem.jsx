@@ -2710,6 +2710,10 @@ const CharacterSystem = ({ index = 0, position = [0, 0, 0], rotation = [0, 0, 0]
         }
         
         // 找到当前和下一个关键帧
+        if (!action.keyframes || action.keyframes.length === 0) {
+          console.warn('动作缺少关键帧:', actionName)
+          return
+        }
         let currentKeyframe = action.keyframes[0]
         let nextKeyframe = action.keyframes[action.keyframes.length - 1]
         
