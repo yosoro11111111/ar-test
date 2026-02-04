@@ -619,8 +619,7 @@ class ARSceneManager {
           const viewport = glLayer.getViewport(view)
           gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height)
           
-          // 使用WebXR的clear而不是手动clear
-          this.renderer.state.setViewport(viewport.x, viewport.y, viewport.width, viewport.height)
+          // 使用WebXR的clear
           this.renderer.clear()
           
           this.renderer.render(this.scene, this.camera)
