@@ -620,7 +620,7 @@ class ARSceneManager {
       if (frame) {
         const pose = frame.getViewerPose(this.referenceSpace)
         
-        // 只使用原生平面检测（禁用hit-test备用方案）
+        // 只使用原生平面检测
         if (!this.isPlaced && this.frameCount % 5 === 0) {
           // 从session获取平面数据（Chrome方式）
           if (this.session.planes && this.session.planes.size > 0) {
@@ -1019,10 +1019,20 @@ class ARSceneManager {
       
       if (clip) {
         console.log('▶️ Creating clip action, duration:', clip.duration)
-        this.currentAnimation = this.mixer.clipAction(clip)
+        
+        // 确保使用正确的root对象
+        const root = this.currentCharacter.humanoid?.normalizedHumanBonesRoot || this.currentCharacter.scene
+        console.log('Animation root:', root)
+        
+        // 创建动画动作
+        this.currentAnimation = this.mixer.clipAction(clip, root)
         this.currentAnimation.reset()
         this.currentAnimation.fadeIn(0.2)
         this.currentAnimation.play()
+        
+        // 确保动画循环播放
+        this.currentAnimation.setLoop(THREE.LoopRepeat, Infinity)
+        
         console.log('✅ Playing action:', action.name)
       } else {
         console.error('❌ No clip to play')
