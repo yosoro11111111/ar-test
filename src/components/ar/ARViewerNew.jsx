@@ -1050,8 +1050,12 @@ export const ARViewerNew = ({
   const [placedProps, setPlacedProps] = useState([])
   const [selectedPropId, setSelectedPropId] = useState(null)
   const [showProps, setShowProps] = useState(false)
+  
+  // 使用ref来跟踪组件挂载状态，供异步函数使用
+  const isMountedRef = useRef(true)
 
   useEffect(() => {
+    isMountedRef.current = true
     let isMounted = true
     
     const startAR = async () => {
@@ -1073,6 +1077,7 @@ export const ARViewerNew = ({
     
     return () => {
       isMounted = false
+      isMountedRef.current = false
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       arManagerRef.current?.end()
     }
@@ -1090,7 +1095,7 @@ export const ARViewerNew = ({
     // 扫描进度计时器 - 3秒后自动完成扫描
     let scanStartTime = Date.now()
     const scanTimer = setInterval(() => {
-      if (!isMounted) {
+      if (!isMountedRef.current) {
         clearInterval(scanTimer)
         return
       }
