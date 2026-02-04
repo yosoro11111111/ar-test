@@ -486,35 +486,35 @@ class ARSceneManager {
         const progress = Math.min(100, frameCount / 3)
         this.onPlaneUpdate?.([{ type: 'hit', progress }])
         
-        // 进度达到100%且没有最优位置时，使用默认位置
-        if (progress >= 100 && !this.optimalPosition && pose) {
-          // 在相机前方1.5米处放置
-          const cameraPos = pose.transform.position
-          const cameraQuat = pose.transform.orientation
+        // 进度达到100%时放置模型
+        if (progress >= 100 && pose) {
+          // 如果没有最优位置，使用默认位置
+          if (!this.optimalPosition) {
+            // 在相机前方1.5米处放置
+            const cameraPos = pose.transform.position
+            const cameraQuat = pose.transform.orientation
+            
+            // 计算前方位置（相机朝向的负Z方向）
+            const forward = new THREE.Vector3(0, 0, -1.5)
+            forward.applyQuaternion(new THREE.Quaternion(
+              cameraQuat.x, cameraQuat.y, cameraQuat.z, cameraQuat.w
+            ))
+            
+            this.optimalPosition = new THREE.Vector3(
+              cameraPos.x + forward.x,
+              cameraPos.y + forward.y - 0.5, // 稍微下方
+              cameraPos.z + forward.z
+            )
+            this.optimalScale = 1.0
+            this.onPositionUpdate?.({
+              position: this.optimalPosition,
+              scale: this.optimalScale
+            })
+          }
           
-          // 计算前方位置（相机朝向的负Z方向）
-          const forward = new THREE.Vector3(0, 0, -1.5)
-          forward.applyQuaternion(new THREE.Quaternion(
-            cameraQuat.x, cameraQuat.y, cameraQuat.z, cameraQuat.w
-          ))
-          
-          this.optimalPosition = new THREE.Vector3(
-            cameraPos.x + forward.x,
-            cameraPos.y + forward.y - 0.5, // 稍微下方
-            cameraPos.z + forward.z
-          )
-          this.optimalScale = 1.0
-          this.onPositionUpdate?.({
-            position: this.optimalPosition,
-            scale: this.optimalScale
-          })
-          
-          // 触发自动放置
-          setTimeout(() => {
-            if (!this.isPlaced) {
-              this.placeModel()
-            }
-          }, 500)
+          // 立即放置模型
+          console.log('进度100%，立即放置模型')
+          this.placeModel()
         }
       }
       
@@ -672,12 +672,10 @@ export const ARViewer = ({
         console.log('平面检测进度:', progress, '平面数:', planes.length)
       }
       
-      // 进度达到100%时自动放置
-      if (progress >= 100 && !isPlaced && arManagerRef.current.optimalPosition) {
-        console.log('进度100%，自动放置模型')
-        setTimeout(() => {
-          arManagerRef.current.placeModel()
-        }, 500)
+      // 进度达到100%时自动放置（由渲染循环处理）
+      // 这里只更新UI状态
+      if (progress >= 100 && !isPlaced) {
+        console.log('进度100%，准备放置模型')
       }
     }
     
