@@ -1,7 +1,7 @@
 // Service Worker - 提供离线支持和缓存管理
-// 版本: v4-20250204 - 强制刷新版本
+// 版本: v5-20250204-2 - 强制刷新版本
 
-const CACHE_VERSION = 'v4-20250204'
+const CACHE_VERSION = 'v5-20250204-2'
 const STATIC_CACHE = `ar-studio-static-${CACHE_VERSION}`
 const MODEL_CACHE = `ar-studio-models-${CACHE_VERSION}`
 const IMAGE_CACHE = `ar-studio-images-${CACHE_VERSION}`
