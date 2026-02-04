@@ -217,17 +217,23 @@ class ARSceneManager {
 
   setupPlaneDetection() {
     try {
+      console.log('🔍 Setting up plane detection...')
+      console.log('Session features:', this.session.enabledFeatures)
+      console.log('Session planes:', this.session.planes)
+      
       // 检查是否支持原生平面检测（Google Chrome/Android）
       let supportsPlaneDetection = false
       
       // 方法1: 检查 enabledFeatures
       if (this.session.enabledFeatures && typeof this.session.enabledFeatures.has === 'function') {
         supportsPlaneDetection = this.session.enabledFeatures.has('plane-detection')
+        console.log('Enabled features check:', supportsPlaneDetection)
       }
       
       // 方法2: 检查 featurePolicy (Chrome 90+)
       if (!supportsPlaneDetection && this.session.featurePolicy) {
         supportsPlaneDetection = true // 假设支持，通过事件监听验证
+        console.log('Feature policy check: assuming support')
       }
       
       // 方法3: 尝试直接添加事件监听器（Chrome会自动处理）
@@ -236,8 +242,10 @@ class ARSceneManager {
           this.session.addEventListener('planesdetected', () => {})
           this.session.removeEventListener('planesdetected', () => {})
           supportsPlaneDetection = true
+          console.log('Event listener check: supported')
         } catch (e) {
           supportsPlaneDetection = false
+          console.log('Event listener check: not supported')
         }
       }
       
@@ -247,9 +255,13 @@ class ARSceneManager {
         // 设置平面检测事件监听
         this.session.addEventListener('planesdetected', (event) => {
           try {
+            console.log('📦 Planes detected event:', event)
             const planes = event.data
+            console.log('Planes count:', planes ? planes.size : 0)
+            
             if (planes && planes.size > 0) {
               this.detectedPlanes = Array.from(planes).map(plane => {
+                console.log('Plane:', plane)
                 // 转换XRPlane为统一格式
                 return {
                   planeSpace: plane,
@@ -275,6 +287,7 @@ class ARSceneManager {
         // Chrome特定：尝试获取现有平面
         if (this.session.planes) {
           const existingPlanes = Array.from(this.session.planes)
+          console.log('Existing planes:', existingPlanes.length)
           if (existingPlanes.length > 0) {
             this.detectedPlanes = existingPlanes.map(plane => ({
               planeSpace: plane,
@@ -309,7 +322,14 @@ class ARSceneManager {
     if (!this.useHitTestFallback || !frame || this.isPlaced) return
     
     try {
+      if (!this.hitTestSource) {
+        console.warn('No hitTestSource available')
+        return
+      }
+      
       const hitResults = frame.getHitTestResults(this.hitTestSource)
+      console.log('Hit-test results:', hitResults.length)
+      
       if (hitResults.length > 0) {
         const hitPose = hitResults[0].getPose(this.referenceSpace)
         if (hitPose) {
@@ -318,6 +338,8 @@ class ARSceneManager {
             hitPose.transform.position.y,
             hitPose.transform.position.z
           )
+          
+          console.log('Hit position:', position.x.toFixed(2), position.y.toFixed(2), position.z.toFixed(2))
           
           // 添加采样点
           this.addHitTestSample(position, hitPose)
@@ -329,8 +351,13 @@ class ARSceneManager {
           // 检测平面
           this.detectPlanesFromSamples()
         }
+      } else {
+        // 没有hit结果，隐藏扫描环
+        this.scanRing.visible = false
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Hit-test fallback error:', e)
+    }
   }
   
   // 添加hit-test采样点
