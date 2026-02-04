@@ -734,11 +734,24 @@ class ARSceneManager {
       model.rotation.y += rotDiff * 0.08
     }
     
-    // 触发回调
-    this.onPositionUpdate?.({
-      position: model.position.clone(),
-      scale: model.scale.x
-    })
+    // 只在显著变化时触发回调
+    if (this.lastCallbackData) {
+      const posChanged = this.lastCallbackData.position.distanceTo(model.position) > 0.05
+      const scaleChanged = Math.abs(this.lastCallbackData.scale - model.scale.x) > 0.01
+      
+      if (posChanged || scaleChanged) {
+        this.lastCallbackData = {
+          position: model.position.clone(),
+          scale: model.scale.x
+        }
+        this.onPositionUpdate?.(this.lastCallbackData)
+      }
+    } else {
+      this.lastCallbackData = {
+        position: model.position.clone(),
+        scale: model.scale.x
+      }
+    }
   }
 
   updateAnimation(deltaTime) {
