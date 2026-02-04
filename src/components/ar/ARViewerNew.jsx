@@ -755,7 +755,8 @@ class ARSceneManager {
   }
 
   updateAnimation(deltaTime) {
-    if (this.mixer) {
+    // 只在有动画播放时才更新混合器
+    if (this.mixer && this.currentAnimation && this.currentAnimation.isRunning()) {
       this.mixer.update(deltaTime * 0.001)
     }
   }
