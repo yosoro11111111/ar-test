@@ -649,15 +649,11 @@ class ARSceneManager {
       if (frame) {
         const pose = frame.getViewerPose(this.referenceSpace)
         
-        // 扫描环位置更新 - 使用hit-test检测地面
-        if (!this.isPlaced) {
-          console.log('Frame', this.frameCount, '- checking hit-test...')
+        // 扫描环位置更新 - 使用hit-test检测地面（每3帧更新一次，优化性能）
+        if (!this.isPlaced && this.frameCount % 3 === 0) {
           try {
-            if (!this.hitTestSource) {
-              console.warn('No hitTestSource available')
-            } else {
+            if (this.hitTestSource) {
               const hitResults = frame.getHitTestResults(this.hitTestSource)
-              console.log('Hit results:', hitResults.length)
               if (hitResults.length > 0) {
                 const hitPose = hitResults[0].getPose(this.referenceSpace)
                 if (hitPose) {
@@ -674,19 +670,12 @@ class ARSceneManager {
                   // 保存位置用于放置
                   this.optimalPosition = position.clone()
                   this.optimalScale = 1.0
-                  
-                  console.log('✅ Scan ring position:', position.x.toFixed(2), position.y.toFixed(2), position.z.toFixed(2))
                 }
               } else {
                 this.scanRing.visible = false
-                console.log('No hit results')
               }
             }
-          } catch (e) {
-            console.error('Hit-test error:', e)
-          }
-        } else {
-          console.log('Model already placed, skipping scan ring update')
+          } catch (e) {}
         }
 
         if (pose) {
@@ -1280,23 +1269,26 @@ export const ARViewerNew = ({
       // 6. 不再自动放置，等待用户手动放置
       // 显示提示让用户对准地面
       console.log('👆 请对准地面，点击放置按钮放置模型')
-      const toast = document.createElement('div')
-      toast.style.cssText = `
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: rgba(0, 212, 255, 0.9);
-        color: #000;
-        padding: 16px 32px;
-        border-radius: 12px;
-        font-size: 16px;
-        font-weight: 600;
-        z-index: 10000;
-      `
-      toast.textContent = '👆 请对准地面，点击放置按钮'
-      document.body.appendChild(toast)
-      setTimeout(() => toast.remove(), 3000)
+      setTimeout(() => {
+        const toast = document.createElement('div')
+        toast.style.cssText = `
+          position: fixed;
+          top: 100px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: rgba(0, 212, 255, 0.95);
+          color: #000;
+          padding: 16px 32px;
+          border-radius: 12px;
+          font-size: 16px;
+          font-weight: 600;
+          z-index: 999999;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `
+        toast.textContent = '👆 请对准地面，点击放置按钮'
+        document.body.appendChild(toast)
+        setTimeout(() => toast?.remove(), 3000)
+      }, 500)
       
     } catch (error) {
       console.error('❌ AR初始化失败:', error)
