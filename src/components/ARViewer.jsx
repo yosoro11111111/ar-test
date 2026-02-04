@@ -19,6 +19,7 @@ class ARSceneManager {
     this.currentCharacter = null
     this.isModelLoaded = false
     this.isPlaced = false
+    this.hasAttemptedPlacement = false
     this.optimalPosition = null
     this.optimalScale = 1
     
@@ -333,7 +334,21 @@ class ARSceneManager {
 
   // 放置模型
   placeModel() {
-    if (!this.currentCharacter || !this.optimalPosition) return false
+    console.log('尝试放置模型:', {
+      hasCharacter: !!this.currentCharacter,
+      hasPosition: !!this.optimalPosition,
+      isPlaced: this.isPlaced
+    })
+    
+    if (!this.currentCharacter) {
+      console.warn('无法放置模型: VRM角色未加载')
+      return false
+    }
+    
+    if (!this.optimalPosition) {
+      console.warn('无法放置模型: 没有放置位置')
+      return false
+    }
     
     const model = this.currentCharacter.scene
     
@@ -486,8 +501,10 @@ class ARSceneManager {
         const progress = Math.min(100, frameCount / 3)
         this.onPlaneUpdate?.([{ type: 'hit', progress }])
         
-        // 进度达到100%时放置模型
-        if (progress >= 100 && pose) {
+        // 进度达到100%时放置模型（只执行一次）
+        if (progress >= 100 && pose && !this.hasAttemptedPlacement) {
+          this.hasAttemptedPlacement = true
+          
           // 如果没有最优位置，使用默认位置
           if (!this.optimalPosition) {
             // 在相机前方1.5米处放置
@@ -514,7 +531,8 @@ class ARSceneManager {
           
           // 立即放置模型
           console.log('进度100%，立即放置模型')
-          this.placeModel()
+          const placed = this.placeModel()
+          console.log('放置结果:', placed)
         }
       }
       
