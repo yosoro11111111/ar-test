@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { VRMLoaderPlugin } from '@pixiv/three-vrm'
-import { loadVRMAAction, getAllCategories, getAllVRMAActions } from '../../data/vrmaActions'
+import { loadVRMAAction, getAllCategories, getAllVRMActions } from '../../data/vrmaActions'
 import ARTimeline from './ARTimeline'
 import ARProps from './ARProps'
 import styles from './ARViewerNew.module.css'
@@ -979,13 +979,14 @@ export const ARViewerNew = ({
       } catch (e) {
         console.error('❌ 加载动作失败:', e)
         console.error('错误详情:', e.message, e.stack)
-        // 使用备用动作列表
+        // 使用备用动作列表 - 使用实际存在的文件
         setVrmaActions([
-          { id: 'idle', name: '待机', icon: '🧍', category: '基础', filePath: '/motion/idle.vrma' },
-          { id: 'walk', name: '行走', icon: '🚶', category: '基础', filePath: '/motion/walk.vrma' },
-          { id: 'run', name: '跑步', icon: '🏃', category: '基础', filePath: '/motion/run.vrma' },
-          { id: 'jump', name: '跳跃', icon: '⬆️', category: '基础', filePath: '/motion/jump.vrma' },
-          { id: 'wave', name: '挥手', icon: '👋', category: '基础', filePath: '/motion/wave.vrma' },
+          { id: 'idle', name: '擦汗待机', icon: '🧍', category: '基础', filePath: '/motion/Wiping Sweat Idle.vrma' },
+          { id: 'walk', name: '行走', icon: '🚶', category: '基础', filePath: '/motion/Walking From Standing.vrma' },
+          { id: 'run', name: '奔跑', icon: '🏃', category: '基础', filePath: '/motion/Zombie Running.vrma' },
+          { id: 'wave', name: '挥手', icon: '👋', category: '基础', filePath: '/motion/Waving With Both Hands.vrma' },
+          { id: 'dance', name: '街舞', icon: '💃', category: '舞蹈', filePath: '/motion/Waving The Arms Hip Hop Dance.vrma' },
+          { id: 'attack', name: '攻击', icon: '⚔️', category: '战斗', filePath: '/motion/Zombie Attack With Right Hand.vrma' },
         ])
       }
       

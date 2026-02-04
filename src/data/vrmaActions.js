@@ -185,7 +185,7 @@ export async function fetchVRMAList() {
   return json.files.map(f=>({ filename: f, filePath: `${base}${f}` }))
 }
 
-export async function getAllVRMAActions() {
+export async function getAllVRMActions() {
   const list = await fetchVRMAList()
   return list.map(({ filename, filePath })=>{
     const zh = translateName(filename.replace(/\.vrma$/i,''))

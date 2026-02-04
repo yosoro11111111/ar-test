@@ -11,7 +11,7 @@ import { useUIStore } from './stores/uiStore'
 import { useActionStore } from './stores/actionStore'
 import { useShortcut } from './hooks/useShortcut'
 import { ShortcutHelp } from './components/ui/ShortcutHelp'
-import { getAllVRMAActions } from './data/vrmaActions'
+import { getAllVRMActions } from './data/vrmaActions'
 import './App.css'
 import './styles/anime-theme.css'
 
@@ -53,7 +53,7 @@ function AppNew() {
   // 加载动作数据
   useEffect(() => {
     const loadActions = async () => {
-      const actionList = await getAllVRMAActions()
+      const actionList = await getAllVRMActions()
       setActions(actionList)
     }
     loadActions()

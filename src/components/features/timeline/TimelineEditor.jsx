@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import { useActionStore } from '../../../stores/actionStore'
-import { getAllVRMAActions } from '../../../data/vrmaActions'
+import { getAllVRMActions } from '../../../data/vrmaActions'
 import { actionPresets, downloadPreset, readPresetFromFile } from '../../../data/actionPresets'
 import RecordingManager from './RecordingManager'
 import './TimelineEditor.css'
@@ -14,7 +14,7 @@ export const TimelineEditor = ({ onClose, onExecuteAction, isMobile, onPause, on
   useEffect(() => {
     const loadActions = async () => {
       try {
-        const actionList = await getAllVRMAActions()
+        const actionList = await getAllVRMActions()
         setActions(actionList)
       } catch (error) {
         console.error('加载动作失败:', error)

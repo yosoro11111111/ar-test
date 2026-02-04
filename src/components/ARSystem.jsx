@@ -8,7 +8,7 @@ import StageEffects from './StageEffects'
 import StageEffectsPanel from './StageEffectsPanel'
 import SceneManager from './SceneManager'
 import PosePanel from './PosePanel'
-import { loadVRMAAction, getAllVRMAActions, getAllCategories } from '../data/vrmaActions'
+import { loadVRMAAction, getAllVRMActions, getAllCategories } from '../data/vrmaActions'
 import { poseBoneData } from '../data/poseBoneData'
 import { sceneTemplates, getSceneTemplate } from '../data/sceneTemplates'
 import { furnitureList, furnitureCategories, getFurnitureByCategory, searchFurniture } from '../data/furniture'
@@ -3219,7 +3219,7 @@ export const ARScene = ({ selectedFile }) => {
 
   // 加载VRMA动作列表
   useEffect(() => {
-    getAllVRMAActions().then(actions => {
+    getAllVRMActions().then(actions => {
       console.log('✅ 加载VRMA动作:', actions.length)
       setVrmaActions(actions)
     }).catch(err => {

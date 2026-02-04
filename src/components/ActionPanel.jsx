@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { getAllVRMAActions, loadVRMAAction } from '../data/vrmaActions'
+import { getAllVRMActions, loadVRMAAction } from '../data/vrmaActions'
 import './ActionPanel.css'
 
 // VRMA 分类定义
@@ -60,7 +60,7 @@ export const ActionPanel = ({
   useEffect(() => {
     let mounted = true
     if (isOpen) {
-      getAllVRMAActions().then(list => {
+      getAllVRMActions().then(list => {
         if (mounted) setLoadedList(list)
       })
     }

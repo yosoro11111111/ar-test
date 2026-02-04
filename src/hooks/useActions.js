@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import * as THREE from 'three'
-import { getAllVRMAActions, loadVRMAAction } from '../data/vrmaActions'
+import { getAllVRMActions, loadVRMAAction } from '../data/vrmaActions'
 
 /**
  * 统一动作系统Hook
@@ -30,7 +30,7 @@ export const useActions = (vrmModel, mixer) => {
   const loadActions = useCallback(async () => {
     setIsLoadingActions(true)
     try {
-      const actionList = await getAllVRMAActions()
+      const actionList = await getAllVRMActions()
       setActions(actionList)
     } catch (error) {
       console.error('加载动作列表失败:', error)
