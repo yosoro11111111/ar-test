@@ -620,17 +620,11 @@ class ARSceneManager {
       if (frame) {
         const pose = frame.getViewerPose(this.referenceSpace)
         
-        // 使用hit-test备用方案（每3帧更新一次，减少GPU负载）
-        if (this.useHitTestFallback && !this.isPlaced && this.frameCount % 3 === 0) {
-          this.updateHitTestFallback(frame)
-          this.updatePlaneVisualization()
-          this.updateCornerLines()
-        }
-        
-        // 原生平面检测更新（Chrome/Android）
-        if (!this.useHitTestFallback && !this.isPlaced) {
+        // 只使用原生平面检测（禁用hit-test备用方案）
+        if (!this.isPlaced && this.frameCount % 5 === 0) {
           // 从session获取平面数据（Chrome方式）
           if (this.session.planes && this.session.planes.size > 0) {
+            console.log('Native planes found:', this.session.planes.size)
             this.detectedPlanes = Array.from(this.session.planes).map(plane => ({
               planeSpace: plane,
               extent: plane.extent || { width: 1, height: 1 },
