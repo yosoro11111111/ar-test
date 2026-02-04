@@ -7,6 +7,7 @@ import StageEffectsPanel from './components/StageEffectsPanel'
 import SceneManager from './components/SceneManager'
 import PosePanel from './components/PosePanel'
 import AnimeSidebar from './components/AnimeSidebar'
+import UnifiedARSystem from './components/UnifiedARSystem'
 import { useGesture } from './hooks/useGesture'
 import { initMobileAdapter, vibrate } from './utils/mobileAdapter'
 import modelList from './models/modelList'
@@ -503,6 +504,9 @@ function App() {
     }
   }
 
+  // 使用新的统一AR系统
+  const [useUnifiedSystem, setUseUnifiedSystem] = useState(true)
+
   return (
     <div className="app-container cyberpunk-app" style={{ 
       width: '100vw', 
@@ -515,6 +519,11 @@ function App() {
         <LoadingScreen onComplete={() => setShowSplash(false)} isMobile={isMobile} />
       )}
       
+      {/* 使用统一AR系统 */}
+      {useUnifiedSystem && !showSplash ? (
+        <UnifiedARSystem />
+      ) : (
+        <>
       {/* 背景装饰 */}
       <div style={{
         position: 'absolute',
@@ -1267,6 +1276,8 @@ function App() {
         >
           按 H 键显示UI
         </div>
+      )}
+        </>
       )}
     </div>
   )
