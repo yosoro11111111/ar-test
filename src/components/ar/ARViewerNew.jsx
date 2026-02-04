@@ -83,10 +83,6 @@ class ARSceneManager {
       this.renderer.xr.enabled = true
       this.renderer.shadowMap.enabled = false // 关闭阴影减少计算
       this.renderer.outputColorSpace = THREE.SRGBColorSpace
-      
-      // 优化深度缓冲设置，减少Z-fighting
-      this.renderer.sortObjects = true
-      this.renderer.autoClear = false
 
       const baseLayer = new XRWebGLLayer(this.session, gl)
       await this.session.updateRenderState({ 
@@ -621,11 +617,7 @@ class ARSceneManager {
           const viewport = glLayer.getViewport(view)
           gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height)
           
-          // 清除颜色和深度缓冲
-          gl.clearColor(0, 0, 0, 0)
-          gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-          
-          // 渲染场景
+          // 使用Three.js渲染（会自动处理clear）
           this.renderer.render(this.scene, this.camera)
         }
       }
