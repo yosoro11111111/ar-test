@@ -46,13 +46,21 @@ class ARSceneManager {
   }
 
   // 启动AR会话
-  async start(canvas) {
+  async start(canvas, domOverlayRoot) {
     try {
-      // 请求AR会话 - 不使用dom-overlay以确保相机画面正常显示
-      this.session = await navigator.xr.requestSession('immersive-ar', {
+      // 请求AR会话 - 使用dom-overlay显示UI
+      const sessionOptions = {
         requiredFeatures: ['hit-test', 'local-floor'],
         optionalFeatures: ['plane-detection']
-      })
+      }
+      
+      // 如果提供了DOM覆盖层根元素，启用dom-overlay
+      if (domOverlayRoot) {
+        sessionOptions.optionalFeatures.push('dom-overlay')
+        sessionOptions.domOverlay = { root: domOverlayRoot }
+      }
+      
+      this.session = await navigator.xr.requestSession('immersive-ar', sessionOptions)
 
       // 获取WebGL上下文
       const gl = canvas.getContext('webgl2', { 
@@ -679,6 +687,7 @@ export const ARViewer = ({
   const [showMenu, setShowMenu] = useState(false)
   const [currentAction, setCurrentAction] = useState(null)
   const [isRecording, setIsRecording] = useState(false)
+  const domOverlayRef = useRef(null)
   const [vrmaActions, setVrmaActions] = useState([])
 
   useEffect(() => {
@@ -749,8 +758,8 @@ export const ARViewer = ({
     }
     
     try {
-      // 启动AR
-      await arManagerRef.current.start(canvasRef.current)
+      // 启动AR - 传递DOM覆盖层根元素
+      await arManagerRef.current.start(canvasRef.current, domOverlayRef.current)
       
       // 加载VRMA动作列表
       const actions = await arManagerRef.current.loadVRMAActions()
@@ -823,15 +832,18 @@ export const ARViewer = ({
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 10000,
-      background: 'transparent'
-    }}>
+    <div 
+      ref={domOverlayRef}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 10000,
+        background: 'transparent'
+      }}
+    >
       {/* AR画布 - WebXR会在这里渲染相机画面和3D模型 */}
       <canvas
         ref={canvasRef}
