@@ -510,7 +510,19 @@ class ARSceneManager {
   updateTracking() {
     if (!this.isTracking || !this.currentCharacter || !this.camera) return
     
+    // 降低更新频率，每3帧更新一次
+    this.trackingFrameCount = (this.trackingFrameCount || 0) + 1
+    if (this.trackingFrameCount % 3 !== 0) return
+    
     const model = this.currentCharacter.scene
+    
+    // 使用平滑插值的目标位置
+    if (!this.targetPosition) {
+      this.targetPosition = model.position.clone()
+    }
+    if (!this.targetScale) {
+      this.targetScale = model.scale.x
+    }
     
     if (this.detectedPlanes.length > 0) {
       let bestPlane = null
@@ -541,25 +553,33 @@ class ARSceneManager {
         this.placedPlane = bestPlane
         const pose = bestPlane.planeSpace
         
-        const targetX = pose.transform.position.x
-        const targetZ = pose.transform.position.z
-        const targetY = pose.transform.position.y + 0.02
-        
-        model.position.x += (targetX - model.position.x) * 0.1
-        model.position.z += (targetZ - model.position.z) * 0.1
-        model.position.y += (targetY - model.position.y) * 0.1
+        // 更新目标位置（而不是直接设置）
+        this.targetPosition.set(
+          pose.transform.position.x,
+          pose.transform.position.y + 0.02,
+          pose.transform.position.z
+        )
         
         const minDimension = Math.min(
           bestPlane.extent?.width || 2, 
           bestPlane.extent?.height || 2
         )
-        const targetScale = Math.min(1.2, Math.max(0.4, minDimension / 2))
-        const currentScale = model.scale.x
-        const newScale = currentScale + (targetScale - currentScale) * 0.05
-        model.scale.setScalar(newScale)
+        this.targetScale = Math.min(1.2, Math.max(0.4, minDimension / 2))
       }
     }
     
+    // 平滑插值到目标位置（更平滑的系数）
+    const lerpFactor = 0.03
+    model.position.x += (this.targetPosition.x - model.position.x) * lerpFactor
+    model.position.y += (this.targetPosition.y - model.position.y) * lerpFactor
+    model.position.z += (this.targetPosition.z - model.position.z) * lerpFactor
+    
+    // 平滑插值缩放
+    const currentScale = model.scale.x
+    const newScale = currentScale + (this.targetScale - currentScale) * 0.02
+    model.scale.setScalar(newScale)
+    
+    // 平滑旋转
     if (this.camera) {
       const cameraPosition = this.camera.position
       const angle = Math.atan2(
@@ -572,7 +592,8 @@ class ARSceneManager {
       while (deltaRotation > Math.PI) deltaRotation -= Math.PI * 2
       while (deltaRotation < -Math.PI) deltaRotation += Math.PI * 2
       
-      model.rotation.y += deltaRotation * 0.08
+      // 更慢的旋转速度
+      model.rotation.y += deltaRotation * 0.03
     }
   }
 
@@ -881,30 +902,52 @@ export const ARViewerNew = ({
     }
     
     try {
+      // 1. 启动AR会话
       await arManagerRef.current.start(canvasRef.current, domOverlayRef.current)
+      console.log('✅ AR会话启动成功')
       
-      // 立即加载动作
+      // 2. 加载分类
+      try {
+        const cats = getAllCategories()
+        setCategories(['全部', ...cats])
+        console.log('✅ 分类加载成功:', cats.length, '个分类')
+      } catch (e) {
+        console.error('❌ 分类加载失败:', e)
+        setCategories(['全部'])
+      }
+      
+      // 3. 加载动作列表（在模型加载前就开始）
       try {
         console.log('🎬 开始加载动作列表...')
         const actions = await getAllVRMActions()
         console.log('✅ 动作加载成功:', actions.length, '个动作')
         setVrmaActions(actions)
-        
-        // 预加载前5个动作
-        if (arManagerRef.current?.currentCharacter) {
-          arManagerRef.current.preloadActions(actions, 5)
-        }
       } catch (e) {
         console.error('❌ 加载动作失败:', e)
         console.error('错误详情:', e.message, e.stack)
+        // 使用备用动作列表
+        setVrmaActions([
+          { id: 'idle', name: '待机', icon: '🧍', category: '基础', filePath: '/motion/idle.vrma' },
+          { id: 'walk', name: '行走', icon: '🚶', category: '基础', filePath: '/motion/walk.vrma' },
+          { id: 'run', name: '跑步', icon: '🏃', category: '基础', filePath: '/motion/run.vrma' },
+          { id: 'jump', name: '跳跃', icon: '⬆️', category: '基础', filePath: '/motion/jump.vrma' },
+          { id: 'wave', name: '挥手', icon: '👋', category: '基础', filePath: '/motion/wave.vrma' },
+        ])
       }
       
-      const cats = getAllCategories()
-      setCategories(['全部', ...cats])
-      
+      // 4. 加载VRM模型
       const url = vrmUrl || `${window.location.origin}/models/Katheryne.vrm`
+      console.log('🎭 开始加载模型:', url)
       await arManagerRef.current.loadVRMModel(url)
+      console.log('✅ 模型加载成功')
       
+      // 5. 模型加载完成后预加载动作
+      if (vrmaActions.length > 0 && arManagerRef.current?.currentCharacter) {
+        console.log('🔄 开始预加载动作...')
+        arManagerRef.current.preloadActions(vrmaActions, 5)
+      }
+      
+      // 6. 放置模型
       setTimeout(() => {
         if (arManagerRef.current.optimalPosition) {
           arManagerRef.current.placeModel()
@@ -916,7 +959,8 @@ export const ARViewerNew = ({
       }, 2000)
       
     } catch (error) {
-      console.error('AR初始化失败:', error)
+      console.error('❌ AR初始化失败:', error)
+      console.error('错误堆栈:', error.stack)
     }
   }
 
@@ -1322,10 +1366,70 @@ export const ARViewerNew = ({
           placedProps={placedProps}
           selectedPropId={selectedPropId}
           onAddProp={(prop) => {
-            setPlacedProps([...placedProps, prop])
+            // 在模型附近或检测到的平面上放置道具
+            let spawnPosition = { x: 0, y: 0, z: 0 }
+            
+            if (arManagerRef.current?.currentCharacter?.scene) {
+              const modelPos = arManagerRef.current.currentCharacter.scene.position
+              // 在模型前方随机位置
+              spawnPosition = {
+                x: modelPos.x + (Math.random() - 0.5) * 1.5,
+                y: modelPos.y,
+                z: modelPos.z + 0.5 + Math.random() * 0.5
+              }
+            } else if (arManagerRef.current?.detectedPlanes?.length > 0) {
+              // 在第一个检测到的平面上
+              const plane = arManagerRef.current.detectedPlanes[0]
+              const pose = plane.planeSpace
+              if (pose) {
+                spawnPosition = {
+                  x: pose.transform.position.x + (Math.random() - 0.5) * 0.5,
+                  y: pose.transform.position.y + 0.1,
+                  z: pose.transform.position.z + (Math.random() - 0.5) * 0.5
+                }
+              }
+            }
+            
+            const newProp = {
+              ...prop,
+              position: spawnPosition
+            }
+            
+            setPlacedProps([...placedProps, newProp])
+            
             // 在场景中创建道具3D对象
             if (arManagerRef.current?.scene) {
-              const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2)
+              // 根据道具类型创建不同的几何体
+              let geometry
+              switch (prop.templateId) {
+                case 'chair':
+                  geometry = new THREE.BoxGeometry(0.3, 0.3, 0.3)
+                  break
+                case 'table':
+                  geometry = new THREE.BoxGeometry(0.5, 0.4, 0.5)
+                  break
+                case 'lamp':
+                  geometry = new THREE.CylinderGeometry(0.1, 0.15, 0.4, 8)
+                  break
+                case 'plant':
+                  geometry = new THREE.SphereGeometry(0.15, 8, 8)
+                  break
+                case 'ball':
+                  geometry = new THREE.SphereGeometry(0.1, 16, 16)
+                  break
+                case 'box':
+                  geometry = new THREE.BoxGeometry(0.25, 0.25, 0.25)
+                  break
+                case 'gift':
+                  geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2)
+                  break
+                case 'cushion':
+                  geometry = new THREE.CylinderGeometry(0.15, 0.15, 0.08, 16)
+                  break
+                default:
+                  geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2)
+              }
+              
               const material = new THREE.MeshBasicMaterial({ 
                 color: 0x4ade80,
                 transparent: true,
@@ -1333,13 +1437,21 @@ export const ARViewerNew = ({
               })
               const mesh = new THREE.Mesh(geometry, material)
               mesh.position.set(
-                prop.position.x,
-                prop.position.y + 0.1,
-                prop.position.z
+                spawnPosition.x,
+                spawnPosition.y,
+                spawnPosition.z
               )
               mesh.scale.setScalar(prop.scale)
-              mesh.userData = { propId: prop.id }
+              mesh.userData = { propId: prop.id, propTemplateId: prop.templateId }
+              
+              // 添加边框使其更明显
+              const edges = new THREE.EdgesGeometry(geometry)
+              const lineMaterial = new THREE.LineBasicMaterial({ color: 0x22c55e, linewidth: 2 })
+              const border = new THREE.LineSegments(edges, lineMaterial)
+              mesh.add(border)
+              
               arManagerRef.current.scene.add(mesh)
+              console.log('✅ 道具已创建:', prop.name, '位置:', spawnPosition)
             }
           }}
           onRemoveProp={(propId) => {
@@ -1351,11 +1463,13 @@ export const ARViewerNew = ({
               )
               if (mesh) {
                 arManagerRef.current.scene.remove(mesh)
+                console.log('🗑️ 道具已移除:', propId)
               }
             }
           }}
           onSelectProp={(prop) => {
             setSelectedPropId(prop.id)
+            console.log('📦 选中道具:', prop.name)
           }}
         />
       )}
