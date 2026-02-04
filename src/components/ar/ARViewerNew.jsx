@@ -710,6 +710,11 @@ class ARSceneManager {
           this.currentCharacter = vrm
           this.isModelLoaded = true
           
+          // 禁用VRM的lookAt功能，防止自动更新导致抖动
+          if (vrm.lookAt) {
+            vrm.lookAt.enabled = false
+          }
+          
           // 简化材质以减少GPU负担
           vrm.scene.traverse((child) => {
             if (child.isMesh) {
