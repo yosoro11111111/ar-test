@@ -6633,7 +6633,20 @@ export const ARScene = ({ selectedFile }) => {
       {isWebXRARMode && (
         <ARViewer
           vrmUrl={characters[selectedCharacterIndex]?.url}
-          onClose={() => setIsWebXRARMode(false)}
+          onClose={() => {
+            // 退出AR模式，返回到模式选择界面
+            setIsWebXRARMode(false)
+            // 恢复pendingCharacter以显示模式选择
+            if (characters[selectedCharacterIndex]) {
+              setPendingCharacter({
+                ...characters[selectedCharacterIndex],
+                url: characters[selectedCharacterIndex].url,
+                name: characters[selectedCharacterIndex].name || '角色',
+                thumbnail: characters[selectedCharacterIndex].thumbnail
+              })
+              setShowModeSelection(true)
+            }
+          }}
           onPositionChange={(position) => {
             // 更新角色位置
             const newPositions = [...characterPositions]

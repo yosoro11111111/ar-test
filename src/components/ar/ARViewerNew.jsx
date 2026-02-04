@@ -124,12 +124,12 @@ class ARSceneManager {
     this.planeVisualizers = new THREE.Group()
     this.scene.add(this.planeVisualizers)
 
-    // 使用共享几何体和材质
-    this.sharedGeometry = new THREE.RingGeometry(0.1, 0.15, 16) // 减少分段数
+    // 创建扫描环
+    this.sharedGeometry = new THREE.RingGeometry(0.1, 0.15, 16)
     this.sharedMaterial = new THREE.MeshBasicMaterial({ 
       color: 0x4ade80, 
       transparent: true, 
-      opacity: 0.6,
+      opacity: 0.8,
       side: THREE.DoubleSide
     })
     
@@ -137,6 +137,46 @@ class ARSceneManager {
     this.scanRing.rotation.x = -Math.PI / 2
     this.scanRing.visible = false
     this.scene.add(this.scanRing)
+    
+    // 创建网格纹理用于平面显示
+    this.createGridTexture()
+  }
+  
+  // 创建网格纹理
+  createGridTexture() {
+    const canvas = document.createElement('canvas')
+    canvas.width = 256
+    canvas.height = 256
+    const ctx = canvas.getContext('2d')
+    
+    // 透明背景
+    ctx.fillStyle = 'rgba(74, 222, 128, 0.1)'
+    ctx.fillRect(0, 0, 256, 256)
+    
+    // 绘制网格线
+    ctx.strokeStyle = 'rgba(74, 222, 128, 0.6)'
+    ctx.lineWidth = 3
+    
+    // 外边框
+    ctx.strokeRect(0, 0, 256, 256)
+    
+    // 内部网格
+    ctx.lineWidth = 1
+    for (let i = 0; i <= 256; i += 32) {
+      ctx.beginPath()
+      ctx.moveTo(i, 0)
+      ctx.lineTo(i, 256)
+      ctx.stroke()
+      
+      ctx.beginPath()
+      ctx.moveTo(0, i)
+      ctx.lineTo(256, i)
+      ctx.stroke()
+    }
+    
+    this.gridTexture = new THREE.CanvasTexture(canvas)
+    this.gridTexture.wrapS = THREE.RepeatWrapping
+    this.gridTexture.wrapT = THREE.RepeatWrapping
   }
 
   // 创建墙角线条
@@ -197,19 +237,39 @@ class ARSceneManager {
       this.planeVisualizers.remove(child)
     }
 
-    // 只显示前3个平面以减少渲染负担
-    this.detectedPlanes.slice(0, 3).forEach((plane) => {
-      const geometry = new THREE.PlaneGeometry(
-        plane.extent?.width || 1, 
-        plane.extent?.height || 1
-      )
+    // 显示所有检测到的平面（最多6个）
+    this.detectedPlanes.slice(0, 6).forEach((plane, index) => {
+      const width = plane.extent?.width || 1
+      const height = plane.extent?.height || 1
+      
+      // 创建平面网格
+      const geometry = new THREE.PlaneGeometry(width, height)
+      
+      // 使用网格纹理
       const material = new THREE.MeshBasicMaterial({
-        color: 0x4ade80,
+        map: this.gridTexture,
         transparent: true,
-        opacity: 0.1,
-        side: THREE.DoubleSide
+        opacity: 0.7,
+        side: THREE.DoubleSide,
+        depthWrite: false
       })
+      
+      // 调整纹理重复
+      if (this.gridTexture) {
+        this.gridTexture.repeat.set(width * 2, height * 2)
+      }
+      
       const mesh = new THREE.Mesh(geometry, material)
+      
+      // 添加边框
+      const edges = new THREE.EdgesGeometry(geometry)
+      const lineMaterial = new THREE.LineBasicMaterial({ 
+        color: 0x4ade80, 
+        linewidth: 3,
+        transparent: true,
+        opacity: 0.9
+      })
+      const border = new THREE.LineSegments(edges, lineMaterial)
       
       const pose = plane.planeSpace
       if (pose) {
@@ -224,9 +284,21 @@ class ARSceneManager {
           pose.transform.orientation.z,
           pose.transform.orientation.w
         )
+        
+        border.position.copy(mesh.position)
+        border.quaternion.copy(mesh.quaternion)
+      }
+      
+      // 添加平面索引标识
+      const isBestPlane = index === 0
+      if (isBestPlane) {
+        // 最佳平面使用更亮的颜色
+        mesh.material.color = new THREE.Color(0x22c55e)
+        lineMaterial.color = new THREE.Color(0x22c55e)
       }
       
       this.planeVisualizers.add(mesh)
+      this.planeVisualizers.add(border)
     })
   }
 
@@ -541,6 +613,30 @@ class ARSceneManager {
     return this.isTracking
   }
 
+  // 预加载动作缓存
+  actionCache = new Map()
+  
+  // 预加载常用动作
+  async preloadActions(actionsList, count = 5) {
+    if (!this.currentCharacter) return
+    
+    const actionsToPreload = actionsList.slice(0, count)
+    
+    for (const action of actionsToPreload) {
+      if (this.actionCache.has(action.id)) continue
+      
+      try {
+        const result = await loadVRMAAction(action.filePath, this.currentCharacter)
+        if (result && result.clip) {
+          this.actionCache.set(action.id, result.clip)
+          console.log('✅ 预加载动作:', action.name)
+        }
+      } catch (e) {
+        console.warn('预加载失败:', action.name)
+      }
+    }
+  }
+
   async playAction(actionId, actionsList) {
     if (!this.mixer || !this.currentCharacter) {
       console.warn('无法播放动作: 动画系统未初始化')
@@ -548,9 +644,9 @@ class ARSceneManager {
     }
 
     try {
+      // 停止当前动画
       if (this.currentAnimation) {
-        this.currentAnimation.fadeOut(0.3)
-        this.currentAnimation = null
+        this.currentAnimation.fadeOut(0.2)
       }
 
       const action = actionsList.find(a => a.id === actionId)
@@ -559,11 +655,25 @@ class ARSceneManager {
         return
       }
 
-      const result = await loadVRMAAction(action.filePath, this.currentCharacter)
+      let clip
       
-      if (result && result.clip) {
-        this.currentAnimation = this.mixer.clipAction(result.clip)
-        this.currentAnimation.fadeIn(0.3)
+      // 检查缓存
+      if (this.actionCache.has(actionId)) {
+        clip = this.actionCache.get(actionId)
+        console.log('⚡ 使用缓存动作:', action.name)
+      } else {
+        // 异步加载
+        const result = await loadVRMAAction(action.filePath, this.currentCharacter)
+        if (result && result.clip) {
+          clip = result.clip
+          // 缓存动作
+          this.actionCache.set(actionId, clip)
+        }
+      }
+      
+      if (clip) {
+        this.currentAnimation = this.mixer.clipAction(clip)
+        this.currentAnimation.fadeIn(0.2)
         this.currentAnimation.play()
       }
     } catch (error) {
@@ -705,9 +815,14 @@ export const ARViewerNew = ({
       // 延迟加载动作以减少初始内存使用
       setTimeout(async () => {
         try {
-          const { getAllVRMAActions } = await import('../../data/vrmaActions')
-          const actions = await getAllVRMAActions()
+          const { getAllVRMActions } = await import('../../data/vrmaActions')
+          const actions = await getAllVRMActions()
           setVrmaActions(actions)
+          
+          // 预加载前5个动作
+          if (arManagerRef.current?.currentCharacter) {
+            arManagerRef.current.preloadActions(actions, 5)
+          }
         } catch (e) {
           console.error('加载动作失败:', e)
         }
