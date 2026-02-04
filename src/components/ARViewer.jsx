@@ -720,8 +720,24 @@ export const ARViewer = ({
       setVrmaActions(actions.slice(0, 12)) // 只取前12个动作显示
       
       // 加载VRM模型
+      console.log('开始加载VRM模型, URL:', vrmUrl)
       if (vrmUrl) {
-        await arManagerRef.current.loadVRMModel(vrmUrl)
+        try {
+          await arManagerRef.current.loadVRMModel(vrmUrl)
+          console.log('VRM模型加载成功')
+        } catch (error) {
+          console.error('VRM模型加载失败:', error)
+        }
+      } else {
+        console.warn('没有提供VRM模型URL，尝试使用默认模型')
+        // 尝试加载默认模型
+        const defaultUrl = '/models/optimized/Katheryne.vrm'
+        try {
+          await arManagerRef.current.loadVRMModel(defaultUrl)
+          console.log('默认VRM模型加载成功')
+        } catch (error) {
+          console.error('默认VRM模型加载失败:', error)
+        }
       }
       
       // 等待平面检测完成后自动放置
