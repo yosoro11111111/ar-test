@@ -457,20 +457,41 @@ class ARSceneManager {
           this.updateCornerLines()
         }
         
-        // 每10帧更新一次扫描环
-        if (!this.isPlaced && this.frameCount % 10 === 0 && !this.useHitTestFallback) {
+        // 更新扫描环位置（使用平滑插值）
+        if (!this.isPlaced && !this.useHitTestFallback) {
           try {
-            const hitResults = frame.getHitTestResults(this.hitTestSource)
-            if (hitResults.length > 0) {
-              const hitPose = hitResults[0].getPose(this.referenceSpace)
-              if (hitPose) {
-                this.scanRing.visible = true
-                this.scanRing.position.set(
-                  hitPose.transform.position.x,
-                  hitPose.transform.position.y,
-                  hitPose.transform.position.z
-                )
+            // 每5帧检测一次hit-test，但每帧都更新位置
+            if (this.frameCount % 5 === 0) {
+              const hitResults = frame.getHitTestResults(this.hitTestSource)
+              if (hitResults.length > 0) {
+                const hitPose = hitResults[0].getPose(this.referenceSpace)
+                if (hitPose) {
+                  // 保存目标位置，使用平滑插值
+                  if (!this.scanRingTargetPos) {
+                    this.scanRingTargetPos = new THREE.Vector3()
+                  }
+                  this.scanRingTargetPos.set(
+                    hitPose.transform.position.x,
+                    hitPose.transform.position.y,
+                    hitPose.transform.position.z
+                  )
+                  this.scanRing.visible = true
+                  this.lastHitTestTime = Date.now()
+                }
               }
+            }
+            
+            // 每帧平滑移动到目标位置
+            if (this.scanRingTargetPos && this.scanRing.visible) {
+              const lerpFactor = 0.1 // 平滑系数
+              this.scanRing.position.x += (this.scanRingTargetPos.x - this.scanRing.position.x) * lerpFactor
+              this.scanRing.position.y += (this.scanRingTargetPos.y - this.scanRing.position.y) * lerpFactor
+              this.scanRing.position.z += (this.scanRingTargetPos.z - this.scanRing.position.z) * lerpFactor
+            }
+            
+            // 如果超过500ms没有hit-test结果，隐藏扫描环
+            if (this.lastHitTestTime && Date.now() - this.lastHitTestTime > 500) {
+              this.scanRing.visible = false
             }
           } catch (e) {}
         }
@@ -510,21 +531,20 @@ class ARSceneManager {
   updateTracking() {
     if (!this.isTracking || !this.currentCharacter || !this.camera) return
     
-    // 降低更新频率，每3帧更新一次
-    this.trackingFrameCount = (this.trackingFrameCount || 0) + 1
-    if (this.trackingFrameCount % 3 !== 0) return
-    
     const model = this.currentCharacter.scene
+    const camera = this.camera
     
-    // 使用平滑插值的目标位置
+    // 初始化目标位置（使用当前位置）
     if (!this.targetPosition) {
       this.targetPosition = model.position.clone()
     }
-    if (!this.targetScale) {
-      this.targetScale = model.scale.x
+    if (!this.targetRotation) {
+      this.targetRotation = model.rotation.y
     }
     
+    // ===== 策略1: 如果有检测到的平面，优先使用平面 =====
     if (this.detectedPlanes.length > 0) {
+      // 找到相机前方的最佳平面
       let bestPlane = null
       let bestScore = -1
       
@@ -538,9 +558,19 @@ class ARSceneManager {
           pose.transform.position.z
         )
         
-        const distance = planePos.distanceTo(this.camera.position)
+        // 计算平面在相机前方的距离
+        const cameraForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
+        const toPlane = planePos.clone().sub(camera.position)
+        const distance = toPlane.length()
+        
+        // 只考虑相机前方的平面（点积为负表示在前方）
+        const isInFront = toPlane.normalize().dot(cameraForward) < 0.3
+        
+        if (!isInFront) return
+        
+        // 评分：距离适中（1.5-3米）且面积大的平面更好
         const area = (plane.extent?.width || 1) * (plane.extent?.height || 1)
-        const distanceScore = 1 - Math.abs(distance - 2) / 2
+        const distanceScore = Math.max(0, 1 - Math.abs(distance - 2) / 2)
         const score = area * distanceScore
         
         if (score > bestScore) {
@@ -550,51 +580,67 @@ class ARSceneManager {
       })
       
       if (bestPlane) {
-        this.placedPlane = bestPlane
         const pose = bestPlane.planeSpace
-        
-        // 更新目标位置（而不是直接设置）
+        // 目标位置：平面上方0.02米
         this.targetPosition.set(
           pose.transform.position.x,
           pose.transform.position.y + 0.02,
           pose.transform.position.z
         )
-        
-        const minDimension = Math.min(
-          bestPlane.extent?.width || 2, 
-          bestPlane.extent?.height || 2
-        )
-        this.targetScale = Math.min(1.2, Math.max(0.4, minDimension / 2))
+        this.lastTrackedPlane = bestPlane
       }
     }
-    
-    // 平滑插值到目标位置（更平滑的系数）
-    const lerpFactor = 0.03
-    model.position.x += (this.targetPosition.x - model.position.x) * lerpFactor
-    model.position.y += (this.targetPosition.y - model.position.y) * lerpFactor
-    model.position.z += (this.targetPosition.z - model.position.z) * lerpFactor
-    
-    // 平滑插值缩放
-    const currentScale = model.scale.x
-    const newScale = currentScale + (this.targetScale - currentScale) * 0.02
-    model.scale.setScalar(newScale)
-    
-    // 平滑旋转
-    if (this.camera) {
-      const cameraPosition = this.camera.position
-      const angle = Math.atan2(
-        cameraPosition.x - model.position.x,
-        cameraPosition.z - model.position.z
-      )
-      const currentRotation = model.rotation.y
-      let deltaRotation = angle - currentRotation
+    // ===== 策略2: 没有平面时，使用hit-test在相机前方创建虚拟位置 =====
+    else {
+      // 在相机前方2米处创建目标位置
+      const cameraForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
+      const targetDistance = 2.0
       
-      while (deltaRotation > Math.PI) deltaRotation -= Math.PI * 2
-      while (deltaRotation < -Math.PI) deltaRotation += Math.PI * 2
-      
-      // 更慢的旋转速度
-      model.rotation.y += deltaRotation * 0.03
+      this.targetPosition.copy(camera.position).add(cameraForward.multiplyScalar(targetDistance))
+      // 保持Y轴在地面高度（使用模型当前高度或默认0）
+      this.targetPosition.y = model.position.y || 0
     }
+    
+    // ===== 平滑移动到目标位置（使用更小的插值系数减少抖动） =====
+    const lerpFactor = 0.015 // 更小的值 = 更平滑但响应更慢
+    
+    // 计算新位置
+    const newX = model.position.x + (this.targetPosition.x - model.position.x) * lerpFactor
+    const newY = model.position.y + (this.targetPosition.y - model.position.y) * lerpFactor
+    const newZ = model.position.z + (this.targetPosition.z - model.position.z) * lerpFactor
+    
+    // 限制移动速度，防止抖动
+    const maxMovePerFrame = 0.02 // 每帧最大移动距离
+    const moveX = Math.max(-maxMovePerFrame, Math.min(maxMovePerFrame, newX - model.position.x))
+    const moveY = Math.max(-maxMovePerFrame, Math.min(maxMovePerFrame, newY - model.position.y))
+    const moveZ = Math.max(-maxMovePerFrame, Math.min(maxMovePerFrame, newZ - model.position.z))
+    
+    model.position.x += moveX
+    model.position.y += moveY
+    model.position.z += moveZ
+    
+    // ===== 平滑旋转朝向相机 =====
+    const cameraPosition = camera.position
+    const targetAngle = Math.atan2(
+      cameraPosition.x - model.position.x,
+      cameraPosition.z - model.position.z
+    )
+    
+    // 计算最短旋转路径
+    let deltaRotation = targetAngle - model.rotation.y
+    while (deltaRotation > Math.PI) deltaRotation -= Math.PI * 2
+    while (deltaRotation < -Math.PI) deltaRotation += Math.PI * 2
+    
+    // 限制旋转速度
+    const maxRotatePerFrame = 0.02
+    const rotationStep = Math.max(-maxRotatePerFrame, Math.min(maxRotatePerFrame, deltaRotation * 0.05))
+    model.rotation.y += rotationStep
+    
+    // 触发位置更新回调
+    this.onPositionUpdate?.({
+      position: model.position.clone(),
+      scale: model.scale.x
+    })
   }
 
   updateAnimation(deltaTime) {
