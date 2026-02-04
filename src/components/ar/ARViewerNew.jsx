@@ -1039,8 +1039,11 @@ class ARSceneManager {
           this.currentAnimation.stop()
         }
         
-        // 创建动画动作 - VRMA动画应该直接应用到mixer，不需要指定root
-        this.currentAnimation = this.mixer.clipAction(clip)
+        // 创建动画动作 - 使用VRM的humanoid作为root
+        const humanoidRoot = this.currentCharacter.humanoid?.normalizedHumanBonesRoot || root
+        console.log('Humanoid root:', humanoidRoot)
+        
+        this.currentAnimation = this.mixer.clipAction(clip, humanoidRoot)
         this.currentAnimation.reset()
         this.currentAnimation.fadeIn(0.3)
         this.currentAnimation.play()
