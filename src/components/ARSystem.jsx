@@ -15,6 +15,7 @@ import { furnitureList, furnitureCategories, getFurnitureByCategory, searchFurni
 import { useGyroscope } from '../hooks/useGyroscope'
 import { useVoiceControl } from '../hooks/useVoiceControl'
 import ARViewer from './ar/ARViewerNew'
+import ModeSelection from './ModeSelection'
 
 // 导入现代化UI组件
 import ModernHeader from './ui/ModernHeader'
@@ -2961,20 +2962,21 @@ export const ARScene = ({ selectedFile }) => {
   const [characters, setCharacters] = useState([null, null, null])
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState(0)
   const [showModelSelect, setShowModelSelect] = useState(false)
+  const [showModeSelection, setShowModeSelection] = useState(false)
+  const [pendingCharacter, setPendingCharacter] = useState(null)
 
   // 将 selectedFile 加载到 characters 中
   useEffect(() => {
     if (selectedFile) {
       const url = selectedFile.localPath || URL.createObjectURL(selectedFile)
-      setCharacters(prev => {
-        const newCharacters = [...prev]
-        newCharacters[0] = {
-          url: url,
-          name: selectedFile.name || '角色1',
-          filename: selectedFile.name
-        }
-        return newCharacters
-      })
+      const newCharacter = {
+        url: url,
+        name: selectedFile.name || '角色1',
+        filename: selectedFile.name,
+        thumbnail: selectedFile.thumbnail
+      }
+      setPendingCharacter(newCharacter)
+      setShowModeSelection(true)
     }
   }, [selectedFile])
   const [characterScale, setCharacterScale] = useState([1.2, 1.2, 1.2])
@@ -6638,6 +6640,39 @@ export const ARScene = ({ selectedFile }) => {
             const newPositions = [...characterPositions]
             newPositions[selectedCharacterIndex] = position
             setCharacterPositions(newPositions)
+          }}
+        />
+      )}
+
+      {/* 模式选择界面 */}
+      {showModeSelection && pendingCharacter && (
+        <ModeSelection
+          character={pendingCharacter}
+          onSelectCamera={() => {
+            // 设置角色并进入摄像头模式
+            setCharacters(prev => {
+              const newCharacters = [...prev]
+              newCharacters[0] = pendingCharacter
+              return newCharacters
+            })
+            setIsARMode(true)
+            setShowModeSelection(false)
+            setPendingCharacter(null)
+          }}
+          onSelectAR={() => {
+            // 设置角色并进入AR模式
+            setCharacters(prev => {
+              const newCharacters = [...prev]
+              newCharacters[0] = pendingCharacter
+              return newCharacters
+            })
+            setIsWebXRARMode(true)
+            setShowModeSelection(false)
+            setPendingCharacter(null)
+          }}
+          onClose={() => {
+            setShowModeSelection(false)
+            setPendingCharacter(null)
           }}
         />
       )}
