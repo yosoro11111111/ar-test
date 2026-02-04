@@ -216,21 +216,15 @@ class ARSceneManager {
 
   setupPlaneDetection() {
     try {
-      // 检查是否支持平面检测
+      // 检查是否支持原生平面检测
       let supportsPlaneDetection = false
       
-      // enabledFeatures 是 Set
       if (this.session.enabledFeatures && typeof this.session.enabledFeatures.has === 'function') {
         supportsPlaneDetection = this.session.enabledFeatures.has('plane-detection')
       }
       
-      // optionalFeatures 可能是数组
-      if (!supportsPlaneDetection && Array.isArray(this.session.optionalFeatures)) {
-        supportsPlaneDetection = this.session.optionalFeatures.includes('plane-detection')
-      }
-      
       if (supportsPlaneDetection) {
-        console.log('✅ 设备支持平面检测')
+        console.log('✅ 设备支持原生平面检测')
         this.session.addEventListener('planesdetected', (event) => {
           const planes = event.data
           this.detectedPlanes = Array.from(planes)
@@ -244,13 +238,24 @@ class ARSceneManager {
           this.onPlaneUpdate?.(this.detectedPlanes)
         })
       } else {
-        console.log('⚠️ 设备不支持平面检测，使用hit-test备用方案')
+        console.log('⚠️ 设备不支持原生平面检测，使用智能hit-test平面检测')
         this.useHitTestFallback = true
+        // 初始化hit-test平面检测
+        this.initHitTestPlaneDetection()
       }
     } catch (error) {
       console.error('平面检测设置失败:', error)
       this.useHitTestFallback = true
+      this.initHitTestPlaneDetection()
     }
+  }
+  
+  // 智能hit-test平面检测 - 通过多帧采样检测平面
+  initHitTestPlaneDetection() {
+    // 存储采样点
+    this.hitTestSamples = []
+    this.maxSamples = 30 // 最大采样点数
+    this.planeDetectionThreshold = 0.1 // 平面检测阈值（米）
   }
   
   // 使用hit-test的备用平面检测
@@ -262,28 +267,125 @@ class ARSceneManager {
       if (hitResults.length > 0) {
         const hitPose = hitResults[0].getPose(this.referenceSpace)
         if (hitPose) {
-          // 创建一个虚拟平面
-          const virtualPlane = {
-            planeSpace: hitPose,
-            extent: { width: 1.5, height: 1.5 }
-          }
-          
-          this.detectedPlanes = [virtualPlane]
-          this.optimalPosition = new THREE.Vector3(
+          const position = new THREE.Vector3(
             hitPose.transform.position.x,
             hitPose.transform.position.y,
             hitPose.transform.position.z
           )
-          this.optimalScale = 1.0
+          
+          // 添加采样点
+          this.addHitTestSample(position, hitPose)
           
           // 更新扫描环位置
           this.scanRing.visible = true
-          this.scanRing.position.copy(this.optimalPosition)
+          this.scanRing.position.copy(position)
           
-          this.onPlaneUpdate?.(this.detectedPlanes)
+          // 检测平面
+          this.detectPlanesFromSamples()
         }
       }
     } catch (e) {}
+  }
+  
+  // 添加hit-test采样点
+  addHitTestSample(position, pose) {
+    // 检查是否与现有点太接近
+    const tooClose = this.hitTestSamples.some(sample => 
+      sample.position.distanceTo(position) < 0.05
+    )
+    
+    if (!tooClose) {
+      this.hitTestSamples.push({
+        position: position.clone(),
+        pose: pose,
+        timestamp: Date.now()
+      })
+      
+      // 限制采样点数量
+      if (this.hitTestSamples.length > this.maxSamples) {
+        this.hitTestSamples.shift()
+      }
+    }
+  }
+  
+  // 从采样点检测平面
+  detectPlanesFromSamples() {
+    if (this.hitTestSamples.length < 10) return // 需要足够采样点
+    
+    // 使用简单的聚类算法检测平面
+    const planes = []
+    const used = new Set()
+    
+    for (let i = 0; i < this.hitTestSamples.length; i++) {
+      if (used.has(i)) continue
+      
+      const sample = this.hitTestSamples[i]
+      const cluster = [sample]
+      
+      // 找到同一平面的点（Y坐标相近）
+      for (let j = i + 1; j < this.hitTestSamples.length; j++) {
+        if (used.has(j)) continue
+        
+        const other = this.hitTestSamples[j]
+        const yDiff = Math.abs(sample.position.y - other.position.y)
+        
+        if (yDiff < this.planeDetectionThreshold) {
+          cluster.push(other)
+          used.add(j)
+        }
+      }
+      
+      // 如果聚类有足够点，创建平面
+      if (cluster.length >= 5) {
+        const center = this.calculateClusterCenter(cluster)
+        const extent = this.calculateClusterExtent(cluster)
+        
+        planes.push({
+          planeSpace: cluster[0].pose,
+          extent: extent,
+          center: center,
+          samples: cluster.length
+        })
+      }
+    }
+    
+    // 更新检测到的平面
+    if (planes.length > 0) {
+      this.detectedPlanes = planes
+      this.updatePlaneVisualization()
+      
+      if (!this.isPlaced) {
+        this.calculateOptimalPlacement()
+      }
+      
+      this.onPlaneUpdate?.(this.detectedPlanes)
+    }
+  }
+  
+  // 计算聚类中心
+  calculateClusterCenter(cluster) {
+    const center = new THREE.Vector3()
+    cluster.forEach(sample => center.add(sample.position))
+    center.divideScalar(cluster.length)
+    return center
+  }
+  
+  // 计算聚类范围
+  calculateClusterExtent(cluster) {
+    let minX = Infinity, maxX = -Infinity
+    let minZ = Infinity, maxZ = -Infinity
+    
+    cluster.forEach(sample => {
+      minX = Math.min(minX, sample.position.x)
+      maxX = Math.max(maxX, sample.position.x)
+      minZ = Math.min(minZ, sample.position.z)
+      maxZ = Math.max(maxZ, sample.position.z)
+    })
+    
+    return {
+      width: Math.max(0.5, maxX - minX),
+      height: Math.max(0.5, maxZ - minZ)
+    }
   }
 
   updatePlaneVisualization() {
@@ -534,92 +636,105 @@ class ARSceneManager {
     const model = this.currentCharacter.scene
     const camera = this.camera
     
-    // 降低更新频率 - 每3帧更新一次目标位置
-    this.trackingUpdateCount = (this.trackingUpdateCount || 0) + 1
-    const shouldUpdateTarget = this.trackingUpdateCount % 3 === 0
-    
-    // 初始化目标位置
+    // 初始化
     if (!this.targetPosition) {
       this.targetPosition = model.position.clone()
+      this.lastCameraPosition = camera.position.clone()
+      this.lastCameraRotation = camera.quaternion.clone()
+      this.isMoving = false
     }
     
-    // ===== 每3帧更新一次目标位置 =====
-    if (shouldUpdateTarget) {
-      let targetPos = null
+    // 检测相机是否移动（位置或旋转变化超过阈值）
+    const cameraMoved = this.lastCameraPosition.distanceTo(camera.position) > 0.05
+    const cameraRotated = this.lastCameraRotation.angleTo(camera.quaternion) > 0.1
+    
+    // 如果相机没有显著移动，保持idle状态
+    if (!cameraMoved && !cameraRotated) {
+      return
+    }
+    
+    // 更新相机位置记录
+    this.lastCameraPosition.copy(camera.position)
+    this.lastCameraRotation.copy(camera.quaternion)
+    
+    // ===== 计算新的目标位置 =====
+    let targetPos = null
+    
+    if (this.detectedPlanes.length > 0) {
+      // 找到相机前方最近的平面
+      let bestPlane = null
+      let minDistance = Infinity
       
-      if (this.detectedPlanes.length > 0) {
-        // 找到相机前方最近的平面
-        let bestPlane = null
-        let minDistance = Infinity
+      this.detectedPlanes.forEach(plane => {
+        const pose = plane.planeSpace
+        if (!pose) return
         
-        this.detectedPlanes.forEach(plane => {
-          const pose = plane.planeSpace
-          if (!pose) return
-          
-          const planePos = new THREE.Vector3(
-            pose.transform.position.x,
-            pose.transform.position.y,
-            pose.transform.position.z
-          )
-          
-          const distance = planePos.distanceTo(camera.position)
-          
-          // 只考虑1-4米范围内的平面
-          if (distance >= 1 && distance <= 4 && distance < minDistance) {
-            minDistance = distance
-            bestPlane = plane
-          }
-        })
+        const planePos = new THREE.Vector3(
+          pose.transform.position.x,
+          pose.transform.position.y,
+          pose.transform.position.z
+        )
         
-        if (bestPlane) {
-          const pose = bestPlane.planeSpace
-          targetPos = new THREE.Vector3(
-            pose.transform.position.x,
-            pose.transform.position.y + 0.02,
-            pose.transform.position.z
-          )
+        const distance = planePos.distanceTo(camera.position)
+        
+        // 只考虑1-4米范围内的平面
+        if (distance >= 1 && distance <= 4 && distance < minDistance) {
+          minDistance = distance
+          bestPlane = plane
         }
-      }
+      })
       
-      // 如果没有找到合适的平面，使用相机前方固定距离
-      if (!targetPos) {
-        const cameraForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
-        targetPos = camera.position.clone().add(cameraForward.multiplyScalar(2.0))
-        targetPos.y = model.position.y || 0.02
-      }
-      
-      // 只有当新位置与当前目标位置距离超过阈值时才更新
-      if (!this.targetPosition || this.targetPosition.distanceTo(targetPos) > 0.1) {
-        this.targetPosition = targetPos
+      if (bestPlane) {
+        const pose = bestPlane.planeSpace
+        targetPos = new THREE.Vector3(
+          pose.transform.position.x,
+          pose.transform.position.y + 0.02,
+          pose.transform.position.z
+        )
       }
     }
     
-    // ===== 每帧平滑移动（但使用较小的插值系数） =====
-    if (this.targetPosition) {
+    // 如果没有找到合适的平面，使用相机前方固定距离
+    if (!targetPos) {
+      const cameraForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
+      targetPos = camera.position.clone().add(cameraForward.multiplyScalar(2.0))
+      targetPos.y = model.position.y || 0.02
+    }
+    
+    // ===== 只有当目标位置显著变化时才更新 =====
+    const targetChanged = this.targetPosition.distanceTo(targetPos) > 0.15
+    
+    if (targetChanged) {
+      this.targetPosition.copy(targetPos)
+      this.isMoving = true
+    }
+    
+    // ===== 平滑移动到目标位置 =====
+    if (this.isMoving) {
       const distanceToTarget = model.position.distanceTo(this.targetPosition)
       
-      // 只有当距离超过阈值时才移动
-      if (distanceToTarget > 0.02) {
-        // 使用较小的lerp系数，更平滑
-        const lerpFactor = Math.min(0.05, distanceToTarget * 0.02)
+      if (distanceToTarget > 0.03) {
+        // 使用lerp平滑移动
+        const lerpFactor = 0.1
         model.position.lerp(this.targetPosition, lerpFactor)
+      } else {
+        // 到达目标，停止移动
+        this.isMoving = false
       }
     }
     
     // ===== 平滑旋转（人物面向相机） =====
-    // 计算从模型指向相机的角度
     const dx = camera.position.x - model.position.x
     const dz = camera.position.z - model.position.z
     const targetRotation = Math.atan2(dx, dz)
     
-    // 平滑旋转
     let rotDiff = targetRotation - model.rotation.y
     while (rotDiff > Math.PI) rotDiff -= Math.PI * 2
     while (rotDiff < -Math.PI) rotDiff += Math.PI * 2
     
     // 只有当角度差超过阈值时才旋转
-    if (Math.abs(rotDiff) > 0.03) {
-      model.rotation.y += rotDiff * 0.03
+    if (Math.abs(rotDiff) > 0.1) {
+      model.rotation.y += rotDiff * 0.08
     }
     
     // 触发回调
@@ -1489,11 +1604,55 @@ export const ARViewerNew = ({
                   geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2)
               }
               
-              const material = new THREE.MeshBasicMaterial({ 
-                color: 0x4ade80,
+              // 根据道具类型设置不同颜色和材质
+              let color, secondaryColor
+              switch (prop.templateId) {
+                case 'chair':
+                  color = 0x8B4513 // 棕色（木头）
+                  secondaryColor = 0xA0522D
+                  break
+                case 'table':
+                  color = 0xDEB887 // 米色（木头）
+                  secondaryColor = 0xF5DEB3
+                  break
+                case 'lamp':
+                  color = 0xFFD700 // 金色
+                  secondaryColor = 0xFFA500
+                  break
+                case 'plant':
+                  color = 0x228B22 // 绿色
+                  secondaryColor = 0x32CD32
+                  break
+                case 'ball':
+                  color = 0xFF6347 // 红色
+                  secondaryColor = 0xFF4500
+                  break
+                case 'box':
+                  color = 0x8B7355 // 棕色（纸箱）
+                  secondaryColor = 0xA0826D
+                  break
+                case 'gift':
+                  color = 0xFF69B4 // 粉色
+                  secondaryColor = 0xFF1493
+                  break
+                case 'cushion':
+                  color = 0x4169E1 // 蓝色
+                  secondaryColor = 0x6495ED
+                  break
+                default:
+                  color = 0x808080 // 灰色
+                  secondaryColor = 0xA9A9A9
+              }
+              
+              // 使用StandardMaterial代替BasicMaterial，更有质感
+              const material = new THREE.MeshStandardMaterial({ 
+                color: color,
+                roughness: 0.7,
+                metalness: 0.1,
                 transparent: true,
-                opacity: 0.8
+                opacity: 0.9
               })
+              
               const mesh = new THREE.Mesh(geometry, material)
               mesh.position.set(
                 spawnPosition.x,
@@ -1501,13 +1660,19 @@ export const ARViewerNew = ({
                 spawnPosition.z
               )
               mesh.scale.setScalar(prop.scale)
+              mesh.castShadow = false
+              mesh.receiveShadow = false
               mesh.userData = { propId: prop.id, propTemplateId: prop.templateId }
               
               // 添加边框使其更明显
               const edges = new THREE.EdgesGeometry(geometry)
-              const lineMaterial = new THREE.LineBasicMaterial({ color: 0x22c55e, linewidth: 2 })
+              const lineMaterial = new THREE.LineBasicMaterial({ color: secondaryColor, linewidth: 2 })
               const border = new THREE.LineSegments(edges, lineMaterial)
               mesh.add(border)
+              
+              // 添加简单的动画效果
+              mesh.userData.originalY = spawnPosition.y
+              mesh.userData.floatOffset = Math.random() * Math.PI * 2
               
               arManagerRef.current.scene.add(mesh)
               console.log('✅ 道具已创建:', prop.name, '位置:', spawnPosition)
