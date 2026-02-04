@@ -14,7 +14,7 @@ import { sceneTemplates, getSceneTemplate } from '../data/sceneTemplates'
 import { furnitureList, furnitureCategories, getFurnitureByCategory, searchFurniture } from '../data/furniture'
 import { useGyroscope } from '../hooks/useGyroscope'
 import { useVoiceControl } from '../hooks/useVoiceControl'
-import { WebXRAR } from './WebXRAR'
+import ARViewer from './ARViewer'
 
 // ==================== 分步引导组件 ====================
 const TutorialGuide = ({ isMobile, onClose }) => {
@@ -6785,18 +6785,17 @@ export const ARScene = ({ selectedFile }) => {
         currentPose={currentAction}
       />
 
-      {/* WebXR AR 模式 */}
+      {/* AR Viewer 模式 */}
       {isWebXRARMode && (
-        <WebXRAR
-          character={characters[selectedCharacterIndex]}
+        <ARViewer
+          vrmUrl={characters[selectedCharacterIndex]?.url}
+          onClose={() => setIsWebXRARMode(false)}
           onPositionChange={(position) => {
             // 更新角色位置
             const newPositions = [...characterPositions]
             newPositions[selectedCharacterIndex] = position
             setCharacterPositions(newPositions)
           }}
-          onClose={() => setIsWebXRARMode(false)}
-          isMobile={isMobile}
         />
       )}
 
