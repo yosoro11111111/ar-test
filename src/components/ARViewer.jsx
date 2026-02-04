@@ -302,9 +302,13 @@ class ARSceneManager {
           // 创建动画混合器
           this.mixer = new THREE.AnimationMixer(vrm.scene)
           
-          // 默认隐藏
+          // 默认隐藏，等待放置
           vrm.scene.visible = false
           this.scene.add(vrm.scene)
+          
+          // 设置默认位置和缩放
+          vrm.scene.position.set(0, 0, -1.5) // 在相机前方1.5米
+          vrm.scene.scale.setScalar(1.0)
           
           this.onModelLoaded?.(vrm)
           resolve(vrm)
@@ -776,10 +780,20 @@ export const ARViewer = ({
       
       // 等待平面检测完成后自动放置
       setTimeout(() => {
+        console.log('尝试自动放置模型...')
         if (arManagerRef.current.optimalPosition) {
+          console.log('使用检测到的位置放置模型')
           arManagerRef.current.placeModel()
+        } else {
+          console.log('没有检测到位置，使用默认位置')
+          // 使用默认位置放置
+          if (arManagerRef.current.currentCharacter) {
+            arManagerRef.current.optimalPosition = new THREE.Vector3(0, 0, -1.5)
+            arManagerRef.current.optimalScale = 1.0
+            arManagerRef.current.placeModel()
+          }
         }
-      }, 3000)
+      }, 2000)
       
     } catch (error) {
       console.error('AR初始化失败:', error)
