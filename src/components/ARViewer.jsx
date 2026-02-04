@@ -468,6 +468,7 @@ class ARSceneManager {
   render() {
     let lastTime = 0
     let hitTestCount = 0
+    let frameCount = 0
     
     const loop = (time, frame) => {
       if (!this.session) return
@@ -475,53 +476,65 @@ class ARSceneManager {
       // 计算时间差
       const deltaTime = (time - lastTime) / 1000
       lastTime = time
+      
+      // 累积帧数来更新进度（即使没有Hit Test）
+      frameCount++
+      if (!this.isPlaced && frameCount % 30 === 0) {
+        const progress = Math.min(100, frameCount / 3)
+        this.onPlaneUpdate?.([{ type: 'hit', progress }])
+      }
 
       const pose = frame.getViewerPose(this.referenceSpace)
       
       if (pose) {
         // Hit Test
-        const hitResults = frame.getHitTestResults(this.hitTestSource)
-        
-        // 更新扫描可视化
-        if (!this.isPlaced && hitResults.length > 0) {
-          const hitPose = hitResults[0].getPose(this.referenceSpace)
-          if (hitPose) {
-            this.scanRing.visible = true
-            this.scanLine.visible = true
-            
-            this.scanRing.position.set(
-              hitPose.transform.position.x,
-              hitPose.transform.position.y,
-              hitPose.transform.position.z
-            )
-            this.scanLine.position.copy(this.scanRing.position)
-            
-            // 动画
-            this.scanRing.rotation.z = time * 0.002
-            const pulse = 1 + Math.sin(time * 0.008) * 0.2
-            this.scanLine.scale.set(pulse, pulse, pulse)
-            
-            // 累积Hit Test成功次数来更新进度
-            hitTestCount++
-            if (hitTestCount % 10 === 0) {
-              const progress = Math.min(100, hitTestCount / 5)
-              this.onPlaneUpdate?.([{ type: 'hit', progress }])
-            }
-            
-            // 如果没有放置模型，使用Hit Test位置作为放置位置
-            if (!this.isPlaced && !this.optimalPosition && hitTestCount > 30) {
-              this.optimalPosition = new THREE.Vector3(
+        let hitPose = null
+        try {
+          const hitResults = frame.getHitTestResults(this.hitTestSource)
+          
+          // 更新扫描可视化
+          if (!this.isPlaced && hitResults.length > 0) {
+            hitPose = hitResults[0].getPose(this.referenceSpace)
+            if (hitPose) {
+              this.scanRing.visible = true
+              this.scanLine.visible = true
+              
+              this.scanRing.position.set(
                 hitPose.transform.position.x,
                 hitPose.transform.position.y,
                 hitPose.transform.position.z
               )
-              this.optimalScale = 1.0
-              this.onPositionUpdate?.({
-                position: this.optimalPosition,
-                scale: this.optimalScale
-              })
+              this.scanLine.position.copy(this.scanRing.position)
+              
+              // 动画
+              this.scanRing.rotation.z = time * 0.002
+              const pulse = 1 + Math.sin(time * 0.008) * 0.2
+              this.scanLine.scale.set(pulse, pulse, pulse)
+              
+              // 累积Hit Test成功次数来更新进度
+              hitTestCount++
+              if (hitTestCount % 10 === 0) {
+                const progress = Math.min(100, hitTestCount / 5)
+                this.onPlaneUpdate?.([{ type: 'hit', progress }])
+              }
+              
+              // 如果没有放置模型，使用Hit Test位置作为放置位置
+              if (!this.isPlaced && !this.optimalPosition && hitTestCount > 30) {
+                this.optimalPosition = new THREE.Vector3(
+                  hitPose.transform.position.x,
+                  hitPose.transform.position.y,
+                  hitPose.transform.position.z
+                )
+                this.optimalScale = 1.0
+                this.onPositionUpdate?.({
+                  position: this.optimalPosition,
+                  scale: this.optimalScale
+                })
+              }
             }
           }
+        } catch (e) {
+          // Hit Test可能失败，忽略错误
         }
 
         // 更新相机
@@ -591,6 +604,7 @@ export const ARViewer = ({
   const [scanProgress, setScanProgress] = useState(0)
   const [isModelLoaded, setIsModelLoaded] = useState(false)
   const [isPlaced, setIsPlaced] = useState(false)
+  const [isScanning, setIsScanning] = useState(true)
   const [detectedPlanes, setDetectedPlanes] = useState([])
   const [showMenu, setShowMenu] = useState(false)
   const [currentAction, setCurrentAction] = useState(null)
@@ -615,10 +629,14 @@ export const ARViewer = ({
       // 支持平面检测和Hit Test两种进度更新
       if (planes.length > 0 && planes[0].type === 'hit') {
         // Hit Test进度
-        setScanProgress(Math.min(100, planes[0].progress))
+        const progress = Math.min(100, planes[0].progress)
+        setScanProgress(progress)
+        console.log('扫描进度:', progress)
       } else {
         // 平面检测进度
-        setScanProgress(Math.min(100, planes.length * 20))
+        const progress = Math.min(100, planes.length * 20)
+        setScanProgress(progress)
+        console.log('平面检测进度:', progress, '平面数:', planes.length)
       }
     }
     
@@ -629,6 +647,7 @@ export const ARViewer = ({
     arManagerRef.current.onModelPlaced = () => {
       setIsPlaced(true)
       setIsStarting(false)
+      setIsScanning(false)
     }
     
     arManagerRef.current.onPositionUpdate = (data) => {
@@ -772,7 +791,7 @@ export const ARViewer = ({
       </div>
 
       {/* 扫描进度 */}
-      {isStarting && !isPlaced && (
+      {isScanning && !isPlaced && (
         <div style={{
           position: 'absolute',
           top: '50%',
@@ -798,8 +817,8 @@ export const ARViewer = ({
             }} />
           </div>
           <p style={{ color: 'white', fontSize: '14px', margin: 0 }}>
-            {detectedPlanes.length > 0 
-              ? `已检测到 ${detectedPlanes.length} 个平面` 
+            {scanProgress > 0 
+              ? `扫描进度 ${Math.round(scanProgress)}%` 
               : '正在扫描地面...'}
           </p>
         </div>
