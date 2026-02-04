@@ -583,12 +583,9 @@ class ARSceneManager {
               }
             }
             
-            // 每帧平滑移动到目标位置
+            // 扫描环直接设置位置，不使用平滑移动
             if (this.scanRingTargetPos && this.scanRing.visible) {
-              const lerpFactor = 0.1 // 平滑系数
-              this.scanRing.position.x += (this.scanRingTargetPos.x - this.scanRing.position.x) * lerpFactor
-              this.scanRing.position.y += (this.scanRingTargetPos.y - this.scanRing.position.y) * lerpFactor
-              this.scanRing.position.z += (this.scanRingTargetPos.z - this.scanRing.position.z) * lerpFactor
+              this.scanRing.position.copy(this.scanRingTargetPos)
             }
             
             // 如果超过500ms没有hit-test结果，隐藏扫描环
@@ -876,24 +873,9 @@ class ARSceneManager {
   }
 
   playPlacementAnimation() {
-    if (!this.currentCharacter) return
-    
-    const model = this.currentCharacter.scene
-    const targetY = model.position.y
-    
-    model.position.y = targetY + 0.5
-    
-    const animate = () => {
-      if (!this.currentCharacter) return
-      const dy = targetY - model.position.y
-      if (Math.abs(dy) < 0.01) {
-        model.position.y = targetY
-        return
-      }
-      model.position.y += dy * 0.1
-      requestAnimationFrame(animate)
-    }
-    animate()
+    // 禁用下落动画，避免与跟随模式冲突
+    // 模型直接显示在目标位置
+    console.log('✅ 模型已放置')
   }
 
   toggleTracking() {
