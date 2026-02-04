@@ -811,58 +811,45 @@ class ARSceneManager {
   }
 
   async playAction(actionId, actionsList) {
-    console.log('🎬 尝试播放动作:', actionId, '可用动作数:', actionsList?.length)
-    
     if (!this.mixer || !this.currentCharacter) {
-      console.warn('❌ 无法播放动作: 动画系统未初始化', { mixer: !!this.mixer, character: !!this.currentCharacter })
+      console.warn('无法播放动作: 动画系统未初始化')
       return
     }
 
     try {
       // 停止当前动画
       if (this.currentAnimation) {
-        console.log('⏹️ 停止当前动画')
         this.currentAnimation.fadeOut(0.2)
       }
 
       const action = actionsList.find(a => a.id === actionId)
       if (!action) {
-        console.warn('❌ 未找到动作:', actionId, '可用动作:', actionsList?.slice(0, 3).map(a => a.id))
+        console.warn('未找到动作:', actionId)
         return
       }
-
-      console.log('✅ 找到动作:', action.name, '文件路径:', action.filePath)
 
       let clip
       
       // 检查缓存
       if (this.actionCache.has(actionId)) {
         clip = this.actionCache.get(actionId)
-        console.log('⚡ 使用缓存动作:', action.name)
       } else {
         // 异步加载
-        console.log('📥 开始加载动作文件:', action.filePath)
         const result = await loadVRMAAction(action.filePath, this.currentCharacter)
-        console.log('📥 动作加载结果:', result ? '成功' : '失败')
         if (result && result.clip) {
           clip = result.clip
-          // 缓存动作
           this.actionCache.set(actionId, clip)
-          console.log('✅ 动作已缓存:', action.name)
         }
       }
       
       if (clip) {
-        console.log('▶️ 开始播放动作:', action.name)
         this.currentAnimation = this.mixer.clipAction(clip)
         this.currentAnimation.fadeIn(0.2)
         this.currentAnimation.play()
-        console.log('✅ 动作播放成功:', action.name)
-      } else {
-        console.warn('❌ 没有可用的动画剪辑:', action.name)
+        console.log('✅ 播放动作:', action.name)
       }
     } catch (error) {
-      console.error('❌ 播放动作失败:', error)
+      console.error('播放动作失败:', error)
     }
   }
 
