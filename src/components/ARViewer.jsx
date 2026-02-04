@@ -467,6 +467,7 @@ class ARSceneManager {
   // 渲染循环
   render() {
     let lastTime = 0
+    let hitTestCount = 0
     
     const loop = (time, frame) => {
       if (!this.session) return
@@ -499,6 +500,27 @@ class ARSceneManager {
             this.scanRing.rotation.z = time * 0.002
             const pulse = 1 + Math.sin(time * 0.008) * 0.2
             this.scanLine.scale.set(pulse, pulse, pulse)
+            
+            // 累积Hit Test成功次数来更新进度
+            hitTestCount++
+            if (hitTestCount % 10 === 0) {
+              const progress = Math.min(100, hitTestCount / 5)
+              this.onPlaneUpdate?.([{ type: 'hit', progress }])
+            }
+            
+            // 如果没有放置模型，使用Hit Test位置作为放置位置
+            if (!this.isPlaced && !this.optimalPosition && hitTestCount > 30) {
+              this.optimalPosition = new THREE.Vector3(
+                hitPose.transform.position.x,
+                hitPose.transform.position.y,
+                hitPose.transform.position.z
+              )
+              this.optimalScale = 1.0
+              this.onPositionUpdate?.({
+                position: this.optimalPosition,
+                scale: this.optimalScale
+              })
+            }
           }
         }
 
@@ -517,7 +539,7 @@ class ARSceneManager {
         // 更新动画
         this.updateAnimation(deltaTime)
 
-        // 绑定帧缓冲
+        // 绑定帧缓冲 - 必须在渲染前绑定
         const glLayer = this.session.renderState.baseLayer
         const gl = this.renderer.getContext()
         gl.bindFramebuffer(gl.FRAMEBUFFER, glLayer.framebuffer)
@@ -525,9 +547,11 @@ class ARSceneManager {
         // 设置视口
         const viewport = glLayer.getViewport(view)
         gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height)
+        
+        // 渲染场景 - 必须在绑定帧缓冲后
+        this.renderer.render(this.scene, this.camera)
       }
 
-      this.renderer.render(this.scene, this.camera)
       this.session.requestAnimationFrame(loop)
     }
 
@@ -588,7 +612,14 @@ export const ARViewer = ({
     // 设置回调
     arManagerRef.current.onPlaneUpdate = (planes) => {
       setDetectedPlanes(planes)
-      setScanProgress(Math.min(100, planes.length * 20))
+      // 支持平面检测和Hit Test两种进度更新
+      if (planes.length > 0 && planes[0].type === 'hit') {
+        // Hit Test进度
+        setScanProgress(Math.min(100, planes[0].progress))
+      } else {
+        // 平面检测进度
+        setScanProgress(Math.min(100, planes.length * 20))
+      }
     }
     
     arManagerRef.current.onModelLoaded = () => {
