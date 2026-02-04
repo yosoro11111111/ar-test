@@ -75,13 +75,18 @@ class ARSceneManager {
       })
 
       this.renderer = new THREE.WebGLRenderer({
-        canvas, context: gl, alpha: true, antialias: false
+        canvas, context: gl, alpha: true, antialias: false,
+        powerPreference: 'low-power'
       })
       this.renderer.setSize(window.innerWidth, window.innerHeight)
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)) // 限制像素比
       this.renderer.xr.enabled = true
       this.renderer.shadowMap.enabled = false // 关闭阴影减少计算
       this.renderer.outputColorSpace = THREE.SRGBColorSpace
+      
+      // 优化深度缓冲设置，减少Z-fighting
+      this.renderer.sortObjects = true
+      this.renderer.autoClear = false
 
       const baseLayer = new XRWebGLLayer(this.session, gl)
       await this.session.updateRenderState({ 
@@ -614,8 +619,9 @@ class ARSceneManager {
           const viewport = glLayer.getViewport(view)
           gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height)
           
-          gl.clearColor(0, 0, 0, 0)
-          gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+          // 使用WebXR的clear而不是手动clear
+          this.renderer.state.setViewport(viewport.x, viewport.y, viewport.width, viewport.height)
+          this.renderer.clear()
           
           this.renderer.render(this.scene, this.camera)
         }
