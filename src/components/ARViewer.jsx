@@ -623,6 +623,10 @@ class ARSceneManager {
         const viewport = glLayer.getViewport(view)
         gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height)
         
+        // 清除缓冲区 - 重要！否则会出现黑屏
+        gl.clearColor(0, 0, 0, 0)
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+        
         // 渲染场景 - 必须在绑定帧缓冲后
         this.renderer.render(this.scene, this.camera)
       }
