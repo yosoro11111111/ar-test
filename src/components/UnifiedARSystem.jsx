@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react'
 import * as THREE from 'three'
 import { useARCore, useActions, useTimeline, useRecording, useCharacters } from '../hooks'
+import { SharedActionPanel, RecordingControls } from './shared'
 import ARSystem from './ARSystem'
 import ARViewer from './ARViewer'
 
@@ -12,9 +13,21 @@ export const UnifiedARSystem = () => {
   // 当前模式状态
   const [mode, setMode] = useState('camera') // 'camera' | 'ar'
   const [isTransitioning, setIsTransitioning] = useState(false)
+  const [showActionPanel, setShowActionPanel] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   
   // 画布引用
   const canvasRef = useRef(null)
+  
+  // 检测移动端
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
   
   // 角色管理
   const {
@@ -99,6 +112,21 @@ export const UnifiedARSystem = () => {
       setIsTransitioning(false)
     }
   }, [mode, isTransitioning, getCurrentCharacter])
+  
+  // 处理动作选择
+  const handleActionSelect = useCallback((action) => {
+    playAction(action.id)
+    setShowActionPanel(false)
+  }, [playAction])
+  
+  // 获取分类
+  const categories = React.useMemo(() => {
+    const cats = new Set()
+    actions.forEach(a => {
+      if (a.category) cats.add(a.category)
+    })
+    return Array.from(cats)
+  }, [actions])
   
   // 渲染摄像头模式
   const renderCameraMode = () => {
@@ -202,6 +230,72 @@ export const UnifiedARSystem = () => {
     <div style={{ width: '100%', height: '100vh', position: 'relative' }}>
       {/* 模式选择器 */}
       <ModeSelector />
+      
+      {/* 录制控制 - 右上角 */}
+      <div style={{
+        position: 'fixed',
+        top: 80,
+        right: 20,
+        zIndex: 1000
+      }}>
+        <RecordingControls
+          isRecording={isRecording}
+          recordingProgress={recordingProgress}
+          onStartRecording={startRecording}
+          onStopRecording={stopRecording}
+          onScreenshot={takeScreenshot}
+          isMobile={isMobile}
+        />
+      </div>
+      
+      {/* 动作面板按钮 - 左下角 */}
+      <button
+        onClick={() => setShowActionPanel(!showActionPanel)}
+        style={{
+          position: 'fixed',
+          bottom: 20,
+          left: 20,
+          zIndex: 1000,
+          padding: '12px 20px',
+          background: showActionPanel 
+            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+            : 'rgba(0,0,0,0.7)',
+          border: 'none',
+          borderRadius: '24px',
+          color: 'white',
+          fontSize: '14px',
+          cursor: 'pointer',
+          backdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}
+      >
+        🎭 动作面板
+      </button>
+      
+      {/* 动作面板 */}
+      {showActionPanel && (
+        <div style={{
+          position: 'fixed',
+          bottom: 80,
+          left: 20,
+          zIndex: 1000,
+          width: isMobile ? 'calc(100vw - 40px)' : '400px',
+          maxHeight: '70vh'
+        }}>
+          <SharedActionPanel
+            actions={actions}
+            categories={categories}
+            currentAction={currentAction}
+            favorites={favorites}
+            onActionSelect={handleActionSelect}
+            onFavoriteToggle={toggleFavorite}
+            isLoading={isLoadingActions}
+            isMobile={isMobile}
+          />
+        </div>
+      )}
       
       {/* 模式内容 */}
       {mode === 'camera' ? renderCameraMode() : renderARMode()}
