@@ -24,7 +24,6 @@ class ARSceneManager {
     this.optimalPosition = null
     this.optimalScale = 1
     this.isTracking = false
-    this.trackingOffset = new THREE.Vector3(0, 0, -1.5)
     this.mixer = null
     this.currentAnimation = null
     this.vrmaActions = []
@@ -37,12 +36,7 @@ class ARSceneManager {
     this.onModelLoaded = null
     this.onModelPlaced = null
     this.onPositionUpdate = null
-    this.gestureState = {
-      isPinching: false,
-      isDragging: false,
-      lastDistance: 0,
-      lastPosition: null
-    }
+    this.placedPlane = null // 记录模型放置的平面
   }
 
   async isSupported() {
@@ -94,6 +88,7 @@ class ARSceneManager {
       
       this.setupLighting()
       this.createGroundVisualization()
+      this.createScanLineEffect() // 添加条状扫描线
       
       this.camera = new THREE.PerspectiveCamera(
         75, window.innerWidth / window.innerHeight, 0.1, 1000
@@ -144,18 +139,32 @@ class ARSceneManager {
     this.scanRing.rotation.x = -Math.PI / 2
     this.scanRing.visible = false
     this.scene.add(this.scanRing)
+  }
 
-    this.scanLine = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.3, 0.01),
-      new THREE.MeshBasicMaterial({ 
-        color: 0x4ade80, 
-        transparent: true, 
-        opacity: 0.6 
-      })
-    )
-    this.scanLine.rotation.x = -Math.PI / 2
-    this.scanLine.visible = false
-    this.scene.add(this.scanLine)
+  // 创建条状扫描线效果
+  createScanLineEffect() {
+    this.scanLines = []
+    const lineCount = 5
+    
+    for (let i = 0; i < lineCount; i++) {
+      const line = new THREE.Mesh(
+        new THREE.PlaneGeometry(2, 0.02),
+        new THREE.MeshBasicMaterial({
+          color: 0x4ade80,
+          transparent: true,
+          opacity: 0.3 + (i * 0.1),
+          side: THREE.DoubleSide
+        })
+      )
+      line.rotation.x = -Math.PI / 2
+      line.visible = false
+      line.userData = { 
+        offset: i * 0.3,
+        speed: 0.5 + (i * 0.1)
+      }
+      this.scene.add(line)
+      this.scanLines.push(line)
+    }
   }
 
   setupPlaneDetection() {
@@ -185,7 +194,7 @@ class ARSceneManager {
       const material = new THREE.MeshBasicMaterial({
         color: 0x4ade80,
         transparent: true,
-        opacity: 0.2,
+        opacity: 0.15,
         side: THREE.DoubleSide
       })
       const mesh = new THREE.Mesh(geometry, material)
@@ -207,6 +216,7 @@ class ARSceneManager {
       
       this.planeVisualizers.add(mesh)
 
+      // 添加线框边框
       const edges = new THREE.EdgesGeometry(geometry)
       const lineMaterial = new THREE.LineBasicMaterial({ color: 0x4ade80, linewidth: 2 })
       const wireframe = new THREE.LineSegments(edges, lineMaterial)
@@ -244,6 +254,8 @@ class ARSceneManager {
       )
       this.optimalScale = Math.min(1.2, Math.max(0.5, minDimension / 2))
       
+      this.placedPlane = bestPlane // 保存放置的平面
+      
       this.onPositionUpdate?.({
         position: this.optimalPosition,
         scale: this.optimalScale
@@ -274,6 +286,11 @@ class ARSceneManager {
       if (frame) {
         const pose = frame.getViewerPose(this.referenceSpace)
         
+        // 更新扫描线动画
+        if (!this.isPlaced) {
+          this.updateScanLines(time)
+        }
+        
         if (!this.isPlaced && this.frameCount % 3 === 0) {
           try {
             const hitResults = frame.getHitTestResults(this.hitTestSource)
@@ -281,16 +298,12 @@ class ARSceneManager {
               const hitPose = hitResults[0].getPose(this.referenceSpace)
               if (hitPose) {
                 this.scanRing.visible = true
-                this.scanLine.visible = true
                 this.scanRing.position.set(
                   hitPose.transform.position.x,
                   hitPose.transform.position.y,
                   hitPose.transform.position.z
                 )
-                this.scanLine.position.copy(this.scanRing.position)
                 this.scanRing.rotation.z = time * 0.002
-                const pulse = 1 + Math.sin(time * 0.008) * 0.2
-                this.scanLine.scale.set(pulse, pulse, pulse)
               }
             }
           } catch (e) {}
@@ -305,7 +318,6 @@ class ARSceneManager {
             this.camera.scale
           )
 
-          this.updateModelPosition()
           this.updateTracking()
           this.updateAnimation(deltaTime)
 
@@ -329,24 +341,44 @@ class ARSceneManager {
     this.session.requestAnimationFrame(loop)
   }
 
-  updateModelPosition() {
-    if (!this.currentCharacter) return
+  // 更新扫描线动画
+  updateScanLines(time) {
+    if (!this.scanLines) return
+    
+    this.scanLines.forEach((line, index) => {
+      line.visible = true
+      const offset = (time * 0.001 * line.userData.speed + line.userData.offset) % 3 - 1.5
+      line.position.set(0, 0, offset)
+      
+      // 淡入淡出效果
+      const opacity = 0.3 + Math.sin(time * 0.003 + index) * 0.2
+      line.material.opacity = Math.max(0.1, opacity)
+    })
   }
 
+  // 跟随功能：模型保持在放置的平面上，但面向相机
   updateTracking() {
-    if (!this.isTracking || !this.currentCharacter || !this.camera) return
+    if (!this.isTracking || !this.currentCharacter || !this.camera || !this.placedPlane) return
     
     const model = this.currentCharacter.scene
-    const cameraPosition = this.camera.position.clone()
-    const cameraDirection = new THREE.Vector3(0, 0, -1)
-    cameraDirection.applyQuaternion(this.camera.quaternion)
+    const planePose = this.placedPlane.planeSpace
     
-    const targetPosition = cameraPosition.clone().add(
-      cameraDirection.multiplyScalar(1.5)
-    )
-    
-    model.position.lerp(targetPosition, 0.1)
-    model.lookAt(cameraPosition.x, model.position.y, cameraPosition.z)
+    if (planePose) {
+      // 保持在平面上，但更新Y位置（防止漂移）
+      const planeY = planePose.transform.position.y
+      model.position.y = planeY + 0.02
+      
+      // 让模型面向相机
+      const cameraPosition = this.camera.position
+      const angle = Math.atan2(
+        cameraPosition.x - model.position.x,
+        cameraPosition.z - model.position.z
+      )
+      // 平滑旋转
+      const currentRotation = model.rotation.y
+      const targetRotation = angle
+      model.rotation.y += (targetRotation - currentRotation) * 0.05
+    }
   }
 
   updateAnimation(deltaTime) {
@@ -423,10 +455,13 @@ class ARSceneManager {
     model.visible = true
     this.isPlaced = true
     
-    this.playPlacementAnimation()
-    
+    // 隐藏扫描线
+    if (this.scanLines) {
+      this.scanLines.forEach(line => line.visible = false)
+    }
     this.scanRing.visible = false
-    this.scanLine.visible = false
+    
+    this.playPlacementAnimation()
     
     this.onModelPlaced?.({
       position: model.position,
@@ -460,7 +495,7 @@ class ARSceneManager {
 
   toggleTracking() {
     this.isTracking = !this.isTracking
-    console.log('跟踪模式:', this.isTracking ? '开启' : '关闭')
+    console.log('跟随模式:', this.isTracking ? '开启' : '关闭')
     return this.isTracking
   }
 
@@ -481,15 +516,27 @@ class ARSceneManager {
     }
 
     try {
+      // 停止当前动画
       if (this.currentAnimation) {
-        this.currentAnimation.fadeOut(0.2)
+        this.currentAnimation.fadeOut(0.3)
+        this.currentAnimation = null
       }
 
-      const clip = await loadVRMAAction(actionId, this.currentCharacter)
-      if (clip) {
-        this.currentAnimation = this.mixer.clipAction(clip)
-        this.currentAnimation.fadeIn(0.2)
+      // 找到动作文件路径
+      const action = this.vrmaActions.find(a => a.id === actionId)
+      if (!action) {
+        console.warn('未找到动作:', actionId)
+        return
+      }
+
+      // 加载并播放动画
+      const result = await loadVRMAAction(action.filePath, this.currentCharacter)
+      
+      if (result && result.clip) {
+        this.currentAnimation = this.mixer.clipAction(result.clip)
+        this.currentAnimation.fadeIn(0.3)
         this.currentAnimation.play()
+        console.log('✅ 播放动作:', action.name)
       }
     } catch (error) {
       console.error('播放动作失败:', error)
@@ -512,6 +559,7 @@ class ARSceneManager {
     this.mixer = null
     this.currentAnimation = null
     this.isRendering = false
+    this.placedPlane = null
   }
 }
 
@@ -556,8 +604,6 @@ export const ARViewerNew = ({
     }
   })
   const [modelScale, setModelScale] = useState(1.0)
-  const [showEffects, setShowEffects] = useState(false)
-  const [currentEffect, setCurrentEffect] = useState(null)
 
   useEffect(() => {
     initAR()
@@ -576,7 +622,7 @@ export const ARViewerNew = ({
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       arManagerRef.current?.end()
     }
-  }, [])
+  }, [vrmUrl]) // 添加vrmUrl依赖
 
   const initAR = async () => {
     if (!canvasRef.current) return
@@ -612,7 +658,9 @@ export const ARViewerNew = ({
       const cats = getAllCategories()
       setCategories(['全部', ...cats])
       
+      // 使用传入的vrmUrl，如果没有则使用默认
       const url = vrmUrl || `${window.location.origin}/models/Katheryne.vrm`
+      console.log('加载VRM模型:', url)
       await arManagerRef.current.loadVRMModel(url)
       
       setTimeout(() => {
@@ -710,6 +758,7 @@ export const ARViewerNew = ({
           <p className={styles.scanText}>
             {scanProgress > 0 ? `扫描进度 ${Math.round(scanProgress)}%` : '正在扫描地面...'}
           </p>
+          <p className={styles.scanHint}>移动设备以扫描地面</p>
         </div>
       )}
 
@@ -789,6 +838,7 @@ export const ARViewerNew = ({
           <button
             className={`${styles.mainButton} ${isTracking ? styles.active : ''}`}
             onClick={handleToggleTracking}
+            title="让模型保持在平面上并面向你"
           >
             <span>🎯</span>
             <span>跟随</span>
