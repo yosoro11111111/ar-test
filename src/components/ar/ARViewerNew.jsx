@@ -600,6 +600,24 @@ class ARSceneManager {
           this.updateCornerLines()
         }
         
+        // 原生平面检测更新（Chrome/Android）
+        if (!this.useHitTestFallback && !this.isPlaced) {
+          // 从session获取平面数据（Chrome方式）
+          if (this.session.planes && this.session.planes.size > 0) {
+            this.detectedPlanes = Array.from(this.session.planes).map(plane => ({
+              planeSpace: plane,
+              extent: plane.extent || { width: 1, height: 1 },
+              center: plane.center || { x: 0, y: 0, z: 0 }
+            }))
+            this.updatePlaneVisualization()
+            this.updateCornerLines()
+            
+            if (this.detectedPlanes.length > 0) {
+              this.calculateOptimalPlacement()
+            }
+          }
+        }
+        
         // 更新扫描环位置（使用平滑插值）
         if (!this.isPlaced && !this.useHitTestFallback) {
           try {
@@ -919,47 +937,65 @@ class ARSceneManager {
   }
 
   async playAction(actionId, actionsList) {
-    if (!this.mixer || !this.currentCharacter) {
-      console.warn('无法播放动作: 动画系统未初始化')
+    console.log('🎬 playAction called:', actionId)
+    
+    if (!this.mixer) {
+      console.error('❌ Mixer not initialized')
+      return
+    }
+    if (!this.currentCharacter) {
+      console.error('❌ Character not loaded')
       return
     }
 
     try {
       // 停止当前动画
       if (this.currentAnimation) {
+        console.log('⏹️ Stopping current animation')
         this.currentAnimation.fadeOut(0.2)
         this.currentAnimation.stop()
       }
 
       const action = actionsList.find(a => a.id === actionId)
       if (!action) {
-        console.warn('未找到动作:', actionId)
+        console.error('❌ Action not found:', actionId)
         return
       }
+      console.log('🎯 Found action:', action.name, 'path:', action.filePath)
 
       let clip
       
       // 检查缓存
       if (this.actionCache.has(actionId)) {
+        console.log('📦 Using cached clip')
         clip = this.actionCache.get(actionId)
       } else {
         // 异步加载
+        console.log('📥 Loading action from:', action.filePath)
         const result = await loadVRMAAction(action.filePath, this.currentCharacter)
+        console.log('📥 Load result:', result)
         if (result && result.clip) {
           clip = result.clip
           this.actionCache.set(actionId, clip)
+          console.log('✅ Clip cached')
+        } else {
+          console.error('❌ No clip in load result')
         }
       }
       
       if (clip) {
+        console.log('▶️ Creating clip action, duration:', clip.duration)
         this.currentAnimation = this.mixer.clipAction(clip)
         this.currentAnimation.reset()
         this.currentAnimation.fadeIn(0.2)
         this.currentAnimation.play()
-        console.log('✅ 播放动作:', action.name)
+        console.log('✅ Playing action:', action.name)
+      } else {
+        console.error('❌ No clip to play')
       }
     } catch (error) {
-      console.error('播放动作失败:', error)
+      console.error('❌ playAction failed:', error)
+      console.error('Stack:', error.stack)
     }
   }
 
