@@ -2,11 +2,10 @@ import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { VRMLoaderPlugin } from '@pixiv/three-vrm'
-import { VRMAnimationLoaderPlugin, createVRMAnimationClip } from '@pixiv/three-vrm-animation'
-import { getAllVRMAActions, loadVRMAAction, getAllCategories } from '../../data/vrmaActions'
+import { loadVRMAAction, getAllCategories } from '../../data/vrmaActions'
 import styles from './ARViewerNew.module.css'
 
-// AR 场景管理器类
+// 内存优化的AR场景管理器类
 class ARSceneManager {
   constructor() {
     this.session = null
@@ -20,23 +19,26 @@ class ARSceneManager {
     this.currentCharacter = null
     this.isModelLoaded = false
     this.isPlaced = false
-    this.hasAttemptedPlacement = false
     this.optimalPosition = null
     this.optimalScale = 1
     this.isTracking = false
     this.mixer = null
     this.currentAnimation = null
-    this.vrmaActions = []
     this.isRendering = false
     this.frameCount = 0
     this.lastFrameTime = 0
-    this.targetFPS = 60
+    this.targetFPS = 30 // 降低FPS以减少GPU负载
     this.frameInterval = 1000 / this.targetFPS
     this.onPlaneUpdate = null
     this.onModelLoaded = null
     this.onModelPlaced = null
     this.onPositionUpdate = null
-    this.placedPlane = null // 记录模型放置的平面
+    this.placedPlane = null
+    this.mediaRecorder = null
+    // 缓存几何体和材质以减少内存分配
+    this.sharedGeometry = null
+    this.sharedMaterial = null
+    this.cornerLines = null
   }
 
   async isSupported() {
@@ -63,24 +65,25 @@ class ARSceneManager {
       this.session = await navigator.xr.requestSession('immersive-ar', sessionOptions)
 
       const gl = canvas.getContext('webgl2', { 
-        xrCompatible: true, alpha: true, antialias: true 
+        xrCompatible: true, alpha: true, antialias: false, // 关闭抗锯齿减少GPU负载
+        powerPreference: 'low-power' // 优先使用低功耗模式
       }) || canvas.getContext('webgl', { 
-        xrCompatible: true, alpha: true, antialias: true 
+        xrCompatible: true, alpha: true, antialias: false,
+        powerPreference: 'low-power'
       })
 
       this.renderer = new THREE.WebGLRenderer({
-        canvas, context: gl, alpha: true, antialias: true
+        canvas, context: gl, alpha: true, antialias: false
       })
       this.renderer.setSize(window.innerWidth, window.innerHeight)
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5)) // 限制像素比
       this.renderer.xr.enabled = true
-      this.renderer.shadowMap.enabled = true
-      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+      this.renderer.shadowMap.enabled = false // 关闭阴影减少计算
       this.renderer.outputColorSpace = THREE.SRGBColorSpace
 
       const baseLayer = new XRWebGLLayer(this.session, gl)
       await this.session.updateRenderState({ 
-        baseLayer, depthNear: 0.1, depthFar: 1000 
+        baseLayer, depthNear: 0.1, depthFar: 100 
       })
 
       this.scene = new THREE.Scene()
@@ -88,10 +91,10 @@ class ARSceneManager {
       
       this.setupLighting()
       this.createGroundVisualization()
-      this.createScanLineEffect() // 添加条状扫描线
+      this.createCornerLines() // 添加墙角线条
       
       this.camera = new THREE.PerspectiveCamera(
-        75, window.innerWidth / window.innerHeight, 0.1, 1000
+        75, window.innerWidth / window.innerHeight, 0.1, 100
       )
 
       this.referenceSpace = await this.session.requestReferenceSpace('local-floor')
@@ -112,59 +115,61 @@ class ARSceneManager {
   }
 
   setupLighting() {
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
+    // 简化光照，只使用环境光
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8)
     this.scene.add(ambientLight)
-
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1)
-    dirLight.position.set(5, 10, 7)
-    dirLight.castShadow = true
-    dirLight.shadow.mapSize.width = 1024
-    dirLight.shadow.mapSize.height = 1024
-    this.scene.add(dirLight)
   }
 
   createGroundVisualization() {
     this.planeVisualizers = new THREE.Group()
     this.scene.add(this.planeVisualizers)
 
-    this.scanRing = new THREE.Mesh(
-      new THREE.RingGeometry(0.1, 0.15, 32),
-      new THREE.MeshBasicMaterial({ 
-        color: 0x4ade80, 
-        transparent: true, 
-        opacity: 0.8,
-        side: THREE.DoubleSide
-      })
-    )
+    // 使用共享几何体和材质
+    this.sharedGeometry = new THREE.RingGeometry(0.1, 0.15, 16) // 减少分段数
+    this.sharedMaterial = new THREE.MeshBasicMaterial({ 
+      color: 0x4ade80, 
+      transparent: true, 
+      opacity: 0.6,
+      side: THREE.DoubleSide
+    })
+    
+    this.scanRing = new THREE.Mesh(this.sharedGeometry, this.sharedMaterial)
     this.scanRing.rotation.x = -Math.PI / 2
     this.scanRing.visible = false
     this.scene.add(this.scanRing)
   }
 
-  // 创建条状扫描线效果
-  createScanLineEffect() {
-    this.scanLines = []
-    const lineCount = 5
+  // 创建墙角线条
+  createCornerLines() {
+    this.cornerLines = new THREE.Group()
     
-    for (let i = 0; i < lineCount; i++) {
-      const line = new THREE.Mesh(
-        new THREE.PlaneGeometry(2, 0.02),
-        new THREE.MeshBasicMaterial({
-          color: 0x4ade80,
-          transparent: true,
-          opacity: 0.3 + (i * 0.1),
-          side: THREE.DoubleSide
-        })
-      )
-      line.rotation.x = -Math.PI / 2
+    // 创建简单的墙角线条（L形）
+    const lineMaterial = new THREE.LineBasicMaterial({ 
+      color: 0x00ffff, 
+      transparent: true, 
+      opacity: 0.4,
+      linewidth: 1
+    })
+    
+    // 创建几个墙角标记
+    for (let i = 0; i < 4; i++) {
+      const points = []
+      // L形线条
+      points.push(new THREE.Vector3(0, 0, 0))
+      points.push(new THREE.Vector3(0.3, 0, 0))
+      points.push(new THREE.Vector3(0, 0, 0))
+      points.push(new THREE.Vector3(0, 0.3, 0))
+      points.push(new THREE.Vector3(0, 0, 0))
+      points.push(new THREE.Vector3(0, 0, 0.3))
+      
+      const geometry = new THREE.BufferGeometry().setFromPoints(points)
+      const line = new THREE.LineSegments(geometry, lineMaterial)
       line.visible = false
-      line.userData = { 
-        offset: i * 0.3,
-        speed: 0.5 + (i * 0.1)
-      }
-      this.scene.add(line)
-      this.scanLines.push(line)
+      line.userData = { id: i }
+      this.cornerLines.add(line)
     }
+    
+    this.scene.add(this.cornerLines)
   }
 
   setupPlaneDetection() {
@@ -172,6 +177,7 @@ class ARSceneManager {
       const planes = event.data
       this.detectedPlanes = Array.from(planes)
       this.updatePlaneVisualization()
+      this.updateCornerLines() // 更新墙角线条位置
       
       if (!this.isPlaced && this.detectedPlanes.length > 0) {
         this.calculateOptimalPlacement()
@@ -182,11 +188,17 @@ class ARSceneManager {
   }
 
   updatePlaneVisualization() {
+    // 清理旧的视觉化对象
     while(this.planeVisualizers.children.length > 0) {
-      this.planeVisualizers.remove(this.planeVisualizers.children[0])
+      const child = this.planeVisualizers.children[0]
+      if (child.geometry && child.geometry !== this.sharedGeometry) {
+        child.geometry.dispose()
+      }
+      this.planeVisualizers.remove(child)
     }
 
-    this.detectedPlanes.forEach((plane) => {
+    // 只显示前3个平面以减少渲染负担
+    this.detectedPlanes.slice(0, 3).forEach((plane) => {
       const geometry = new THREE.PlaneGeometry(
         plane.extent?.width || 1, 
         plane.extent?.height || 1
@@ -194,7 +206,7 @@ class ARSceneManager {
       const material = new THREE.MeshBasicMaterial({
         color: 0x4ade80,
         transparent: true,
-        opacity: 0.15,
+        opacity: 0.1,
         side: THREE.DoubleSide
       })
       const mesh = new THREE.Mesh(geometry, material)
@@ -215,14 +227,34 @@ class ARSceneManager {
       }
       
       this.planeVisualizers.add(mesh)
+    })
+  }
 
-      // 添加线框边框
-      const edges = new THREE.EdgesGeometry(geometry)
-      const lineMaterial = new THREE.LineBasicMaterial({ color: 0x4ade80, linewidth: 2 })
-      const wireframe = new THREE.LineSegments(edges, lineMaterial)
-      wireframe.position.copy(mesh.position)
-      wireframe.quaternion.copy(mesh.quaternion)
-      this.planeVisualizers.add(wireframe)
+  // 更新墙角线条位置
+  updateCornerLines() {
+    if (!this.detectedPlanes.length) return
+    
+    // 在检测到的平面边缘显示墙角线条
+    this.detectedPlanes.slice(0, 4).forEach((plane, index) => {
+      const line = this.cornerLines.children[index]
+      if (!line) return
+      
+      const pose = plane.planeSpace
+      if (pose) {
+        line.visible = true
+        line.position.set(
+          pose.transform.position.x,
+          pose.transform.position.y,
+          pose.transform.position.z
+        )
+        
+        // 根据平面大小调整线条
+        const scale = Math.min(
+          (plane.extent?.width || 1) * 0.5,
+          (plane.extent?.height || 1) * 0.5
+        )
+        line.scale.setScalar(Math.max(0.5, Math.min(2, scale)))
+      }
     })
   }
 
@@ -254,7 +286,7 @@ class ARSceneManager {
       )
       this.optimalScale = Math.min(1.2, Math.max(0.5, minDimension / 2))
       
-      this.placedPlane = bestPlane // 保存放置的平面
+      this.placedPlane = bestPlane
       
       this.onPositionUpdate?.({
         position: this.optimalPosition,
@@ -273,6 +305,7 @@ class ARSceneManager {
         return
       }
 
+      // FPS限制
       if (time - this.lastFrameTime < this.frameInterval) {
         this.session.requestAnimationFrame(loop)
         return
@@ -286,12 +319,8 @@ class ARSceneManager {
       if (frame) {
         const pose = frame.getViewerPose(this.referenceSpace)
         
-        // 更新扫描线动画
-        if (!this.isPlaced) {
-          this.updateScanLines(time)
-        }
-        
-        if (!this.isPlaced && this.frameCount % 3 === 0) {
+        // 每10帧更新一次扫描环
+        if (!this.isPlaced && this.frameCount % 10 === 0) {
           try {
             const hitResults = frame.getHitTestResults(this.hitTestSource)
             if (hitResults.length > 0) {
@@ -303,7 +332,6 @@ class ARSceneManager {
                   hitPose.transform.position.y,
                   hitPose.transform.position.z
                 )
-                this.scanRing.rotation.z = time * 0.002
               }
             }
           } catch (e) {}
@@ -341,30 +369,12 @@ class ARSceneManager {
     this.session.requestAnimationFrame(loop)
   }
 
-  // 更新扫描线动画
-  updateScanLines(time) {
-    if (!this.scanLines) return
-    
-    this.scanLines.forEach((line, index) => {
-      line.visible = true
-      const offset = (time * 0.001 * line.userData.speed + line.userData.offset) % 3 - 1.5
-      line.position.set(0, 0, offset)
-      
-      // 淡入淡出效果
-      const opacity = 0.3 + Math.sin(time * 0.003 + index) * 0.2
-      line.material.opacity = Math.max(0.1, opacity)
-    })
-  }
-
-  // 跟随功能：模型保持在检测到的最佳平面上，并面向相机
-  updateTracking(frame) {
+  updateTracking() {
     if (!this.isTracking || !this.currentCharacter || !this.camera) return
     
     const model = this.currentCharacter.scene
     
-    // 如果检测到新的平面，更新到最佳平面
     if (this.detectedPlanes.length > 0) {
-      // 找到离相机最近且面积最大的平面
       let bestPlane = null
       let bestScore = -1
       
@@ -378,11 +388,8 @@ class ARSceneManager {
           pose.transform.position.z
         )
         
-        // 计算距离相机的距离
         const distance = planePos.distanceTo(this.camera.position)
         const area = (plane.extent?.width || 1) * (plane.extent?.height || 1)
-        
-        // 评分：面积越大越好，距离1.5-3米最佳
         const distanceScore = 1 - Math.abs(distance - 2) / 2
         const score = area * distanceScore
         
@@ -396,17 +403,14 @@ class ARSceneManager {
         this.placedPlane = bestPlane
         const pose = bestPlane.planeSpace
         
-        // 更新模型位置到平面中心
         const targetX = pose.transform.position.x
         const targetZ = pose.transform.position.z
         const targetY = pose.transform.position.y + 0.02
         
-        // 平滑移动
         model.position.x += (targetX - model.position.x) * 0.1
         model.position.z += (targetZ - model.position.z) * 0.1
         model.position.y += (targetY - model.position.y) * 0.1
         
-        // 根据平面大小调整模型缩放
         const minDimension = Math.min(
           bestPlane.extent?.width || 2, 
           bestPlane.extent?.height || 2
@@ -418,18 +422,15 @@ class ARSceneManager {
       }
     }
     
-    // 让模型始终面向相机
     if (this.camera) {
       const cameraPosition = this.camera.position
       const angle = Math.atan2(
         cameraPosition.x - model.position.x,
         cameraPosition.z - model.position.z
       )
-      // 平滑旋转
       const currentRotation = model.rotation.y
       let deltaRotation = angle - currentRotation
       
-      // 处理角度环绕
       while (deltaRotation > Math.PI) deltaRotation -= Math.PI * 2
       while (deltaRotation < -Math.PI) deltaRotation += Math.PI * 2
       
@@ -455,10 +456,11 @@ class ARSceneManager {
           this.currentCharacter = vrm
           this.isModelLoaded = true
           
+          // 简化材质以减少GPU负担
           vrm.scene.traverse((child) => {
             if (child.isMesh) {
-              child.castShadow = true
-              child.receiveShadow = true
+              child.castShadow = false
+              child.receiveShadow = false
             }
           })
           
@@ -472,9 +474,7 @@ class ARSceneManager {
           this.onModelLoaded?.(vrm)
           resolve(vrm)
         },
-        (progress) => {
-          console.log('加载进度:', (progress.loaded / progress.total * 100) + '%')
-        },
+        undefined,
         (error) => {
           console.error('加载失败:', error)
           reject(error)
@@ -484,15 +484,7 @@ class ARSceneManager {
   }
 
   placeModel() {
-    if (!this.currentCharacter) {
-      console.warn('无法放置模型: VRM角色未加载')
-      return false
-    }
-    
-    if (!this.optimalPosition) {
-      console.warn('无法放置模型: 没有放置位置')
-      return false
-    }
+    if (!this.currentCharacter || !this.optimalPosition) return false
     
     const model = this.currentCharacter.scene
     
@@ -510,11 +502,6 @@ class ARSceneManager {
     
     model.visible = true
     this.isPlaced = true
-    
-    // 隐藏扫描线
-    if (this.scanLines) {
-      this.scanLines.forEach(line => line.visible = false)
-    }
     this.scanRing.visible = false
     
     this.playPlacementAnimation()
@@ -551,18 +538,7 @@ class ARSceneManager {
 
   toggleTracking() {
     this.isTracking = !this.isTracking
-    console.log('跟随模式:', this.isTracking ? '开启' : '关闭')
     return this.isTracking
-  }
-
-  async loadVRMAActions() {
-    try {
-      this.vrmaActions = await getAllVRMAActions()
-      return this.vrmaActions
-    } catch (error) {
-      console.error('加载VRMA动作失败:', error)
-      return []
-    }
   }
 
   async playAction(actionId, actionsList) {
@@ -572,46 +548,51 @@ class ARSceneManager {
     }
 
     try {
-      // 停止当前动画
       if (this.currentAnimation) {
         this.currentAnimation.fadeOut(0.3)
         this.currentAnimation = null
       }
 
-      // 找到动作文件路径
       const action = actionsList.find(a => a.id === actionId)
       if (!action) {
         console.warn('未找到动作:', actionId)
         return
       }
 
-      console.log('🎬 准备播放动作:', action.name, '文件:', action.filePath)
-
-      // 加载并播放动画
       const result = await loadVRMAAction(action.filePath, this.currentCharacter)
       
       if (result && result.clip) {
         this.currentAnimation = this.mixer.clipAction(result.clip)
         this.currentAnimation.fadeIn(0.3)
         this.currentAnimation.play()
-        console.log('✅ 播放动作成功:', action.name)
-      } else {
-        console.warn('❌ 动画剪辑加载失败:', action.name)
       }
     } catch (error) {
-      console.error('❌ 播放动作失败:', error)
+      console.error('播放动作失败:', error)
     }
   }
 
   async end() {
+    // 清理所有资源
     if (this.session) {
       await this.session.end()
       this.session = null
     }
+    
     if (this.renderer) {
       this.renderer.dispose()
       this.renderer = null
     }
+    
+    // 清理几何体和材质
+    if (this.sharedGeometry) {
+      this.sharedGeometry.dispose()
+      this.sharedGeometry = null
+    }
+    if (this.sharedMaterial) {
+      this.sharedMaterial.dispose()
+      this.sharedMaterial = null
+    }
+    
     this.detectedPlanes = []
     this.isPlaced = false
     this.isModelLoaded = false
@@ -620,6 +601,7 @@ class ARSceneManager {
     this.currentAnimation = null
     this.isRendering = false
     this.placedPlane = null
+    this.mediaRecorder = null
   }
 }
 
@@ -690,7 +672,7 @@ export const ARViewerNew = ({
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       arManagerRef.current?.end()
     }
-  }, []) // 只在挂载时运行一次
+  }, [])
 
   const initAR = async () => {
     if (!canvasRef.current) return
@@ -720,15 +702,21 @@ export const ARViewerNew = ({
     try {
       await arManagerRef.current.start(canvasRef.current, domOverlayRef.current)
       
-      const actions = await arManagerRef.current.loadVRMAActions()
-      setVrmaActions(actions)
+      // 延迟加载动作以减少初始内存使用
+      setTimeout(async () => {
+        try {
+          const { getAllVRMAActions } = await import('../../data/vrmaActions')
+          const actions = await getAllVRMAActions()
+          setVrmaActions(actions)
+        } catch (e) {
+          console.error('加载动作失败:', e)
+        }
+      }, 3000)
       
       const cats = getAllCategories()
       setCategories(['全部', ...cats])
       
-      // 使用传入的vrmUrl，如果没有则使用默认
       const url = vrmUrl || `${window.location.origin}/models/Katheryne.vrm`
-      console.log('加载VRM模型:', url)
       await arManagerRef.current.loadVRMModel(url)
       
       setTimeout(() => {
@@ -799,7 +787,6 @@ export const ARViewerNew = ({
           <button 
             className={styles.toolButton} 
             onClick={() => {
-              // 截图功能
               if (canvasRef.current) {
                 try {
                   const dataUrl = canvasRef.current.toDataURL('image/png')
@@ -807,7 +794,6 @@ export const ARViewerNew = ({
                   link.download = `ar-screenshot-${Date.now()}.png`
                   link.href = dataUrl
                   link.click()
-                  console.log('✅ 截图已保存')
                 } catch (err) {
                   console.error('截图失败:', err)
                 }
@@ -824,9 +810,6 @@ export const ARViewerNew = ({
               setIsRecording(newRecordingState)
               
               if (newRecordingState) {
-                // 开始录制
-                console.log('🎬 开始录制')
-                // 使用 MediaRecorder API 录制 canvas
                 if (canvasRef.current && canvasRef.current.captureStream) {
                   const stream = canvasRef.current.captureStream(30)
                   const mediaRecorder = new MediaRecorder(stream, {
@@ -845,15 +828,12 @@ export const ARViewerNew = ({
                     link.download = `ar-recording-${Date.now()}.webm`
                     link.href = url
                     link.click()
-                    console.log('✅ 录制已保存')
                   }
                   
                   mediaRecorder.start()
                   arManagerRef.current.mediaRecorder = mediaRecorder
                 }
               } else {
-                // 停止录制
-                console.log('⏹️ 停止录制')
                 if (arManagerRef.current?.mediaRecorder) {
                   arManagerRef.current.mediaRecorder.stop()
                 }
@@ -891,10 +871,8 @@ export const ARViewerNew = ({
 
       {/* 底部菜单 */}
       <div className={styles.bottomMenu}>
-        {/* 展开的动作面板 */}
         {showMenu && (
           <div className={styles.actionPanel}>
-            {/* 搜索框 */}
             <div className={styles.searchBox}>
               <span className={styles.searchIcon}>🔍</span>
               <input
@@ -914,7 +892,6 @@ export const ARViewerNew = ({
               )}
             </div>
 
-            {/* 分类标签 */}
             <div className={styles.categoryList}>
               {categories.map((cat) => (
                 <button
@@ -927,7 +904,6 @@ export const ARViewerNew = ({
               ))}
             </div>
             
-            {/* 动作轮播 */}
             <div className={styles.actionCarousel}>
               {filteredActions.slice(0, 20).map(action => (
                 <button
@@ -952,7 +928,6 @@ export const ARViewerNew = ({
           </div>
         )}
 
-        {/* 主菜单按钮 */}
         <div className={styles.mainButtons}>
           <button
             className={`${styles.mainButton} ${showMenu ? styles.active : ''}`}
