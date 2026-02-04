@@ -815,12 +815,15 @@ export const ARViewer = ({
       right: 0,
       bottom: 0,
       zIndex: 10000,
-      background: 'black'
+      background: 'transparent'
     }}>
-      {/* AR画布 */}
+      {/* AR画布 - WebXR会在这里渲染相机画面和3D模型 */}
       <canvas
         ref={canvasRef}
         style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
           width: '100%',
           height: '100%',
           display: 'block'
