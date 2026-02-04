@@ -1,12 +1,9 @@
-// Service Worker - 提供离线支持和缓存管理
-// 版本: v5-20250204-2 - 强制刷新版本
-
-const CACHE_VERSION = 'v5-20250204-2'
+const CACHE_VERSION = 'v5-20250204-3'
 const STATIC_CACHE = `ar-studio-static-${CACHE_VERSION}`
 const MODEL_CACHE = `ar-studio-models-${CACHE_VERSION}`
 const IMAGE_CACHE = `ar-studio-images-${CACHE_VERSION}`
 
-// 静态资源列表
+// Static assets list
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -16,131 +13,110 @@ const STATIC_ASSETS = [
   '/src/index.css'
 ]
 
-// 模型资源列表（按需缓存）
+// Model assets list
 const MODEL_ASSETS = [
-  // 常用模型预缓存
   '/models/RaidenShogun.vrm',
   '/models/Zhongli.vrm',
   '/models/HuTao.vrm',
   '/models/KamisatoAyaka.vrm'
 ]
 
-// 安装时预缓存关键资源
+// Install event
 self.addEventListener('install', (event) => {
-  console.log('[SW] Service Worker 安装中... 版本:', CACHE_VERSION)
+  console.log('[SW] Installing... Version:', CACHE_VERSION)
   
   event.waitUntil(
     Promise.all([
-      // 缓存静态资源
       caches.open(STATIC_CACHE).then(cache => {
-        console.log('[SW] 缓存静态资源')
+        console.log('[SW] Caching static assets')
         return cache.addAll(STATIC_ASSETS)
       }),
-      // 缓存常用模型
       caches.open(MODEL_CACHE).then(cache => {
-        console.log('[SW] 缓存常用模型')
+        console.log('[SW] Caching models')
         return cache.addAll(MODEL_ASSETS).catch(err => {
-          console.warn('[SW] 部分模型缓存失败:', err)
+          console.warn('[SW] Some models failed to cache:', err)
         })
       })
     ])
     .then(() => {
-      console.log('[SW] 预缓存完成')
-      // 强制跳过等待，立即激活
+      console.log('[SW] Pre-cache complete')
       return self.skipWaiting()
     })
   )
 })
 
-// 激活时清理旧缓存
+// Activate event
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Service Worker 激活中...')
+  console.log('[SW] Activating...')
   
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
-          // 删除所有旧版本缓存（不匹配当前版本）
           if (!cacheName.includes(CACHE_VERSION)) {
-            console.log('[SW] 删除旧缓存:', cacheName)
+            console.log('[SW] Deleting old cache:', cacheName)
             return caches.delete(cacheName)
           }
         })
       )
     }).then(() => {
-      console.log('[SW] 激活完成')
-      // 立即接管所有客户端
+      console.log('[SW] Activation complete')
       return self.clients.claim()
     })
   )
 })
 
-// 拦截请求并提供缓存
+// Fetch event
 self.addEventListener('fetch', (event) => {
   const { request } = event
   const url = new URL(request.url)
   
-  // 跳过非GET请求
   if (request.method !== 'GET') {
     return
   }
   
-  // 策略1: 静态资源 - 网络优先，强制刷新
+  // Static assets - network first with cache update
   if (isStaticAsset(url)) {
     event.respondWith(networkFirstWithCacheUpdate(request, STATIC_CACHE))
     return
   }
   
-  // 策略2: 模型文件 - 网络优先，缓存回退
+  // Model files - network first
   if (isModelFile(url)) {
     event.respondWith(networkFirst(request, MODEL_CACHE))
     return
   }
   
-  // 策略3: 图片资源 - 缓存优先，网络更新
+  // Images - stale while revalidate
   if (isImageFile(url)) {
     event.respondWith(staleWhileRevalidate(request, IMAGE_CACHE))
     return
   }
   
-  // 策略4: API请求 - 网络优先
-  if (isAPIRequest(url)) {
-    event.respondWith(networkFirst(request, null))
-    return
-  }
-  
-  // 默认策略: 网络优先
+  // Default - network first
   event.respondWith(networkFirst(request, null))
 })
 
-// 判断是否为静态资源
+// Helper functions
 function isStaticAsset(url) {
-  const staticExtensions = ['.js', '.css', '.html', '.json', '.woff', '.woff2']
-  return staticExtensions.some(ext => url.pathname.endsWith(ext))
+  const exts = ['.js', '.css', '.html', '.json', '.woff', '.woff2']
+  return exts.some(ext => url.pathname.endsWith(ext))
 }
 
-// 判断是否为模型文件
 function isModelFile(url) {
   return url.pathname.endsWith('.vrm') || 
          url.pathname.endsWith('.gltf') || 
          url.pathname.endsWith('.glb')
 }
 
-// 判断是否为图片文件
 function isImageFile(url) {
-  const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg']
-  return imageExtensions.some(ext => url.pathname.endsWith(ext))
+  const exts = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg']
+  return exts.some(ext => url.pathname.endsWith(ext))
 }
 
-// 判断是否为API请求
-function isAPIRequest(url) {
-  return url.pathname.startsWith('/api/')
-}
-
-// 网络优先策略（带缓存更新）- 用于静态资源强制刷新
+// Network first with cache update
 async function networkFirstWithCacheUpdate(request, cacheName) {
   try {
-    // 添加时间戳防止浏览器缓存
     const fetchRequest = new Request(request.url + '?_=' + Date.now(), {
       method: request.method,
       headers: request.headers,
@@ -158,22 +134,19 @@ async function networkFirstWithCacheUpdate(request, cacheName) {
     
     return networkResponse
   } catch (error) {
-    // 网络失败时使用缓存
     if (cacheName) {
       const cache = await caches.open(cacheName)
       const cached = await cache.match(request)
-      
       if (cached) {
-        console.log('[SW] 使用缓存:', request.url)
+        console.log('[SW] Using cache:', request.url)
         return cached
       }
     }
-    
     throw error
   }
 }
 
-// 网络优先策略
+// Network first
 async function networkFirst(request, cacheName) {
   try {
     const networkResponse = await fetch(request)
@@ -188,23 +161,19 @@ async function networkFirst(request, cacheName) {
     if (cacheName) {
       const cache = await caches.open(cacheName)
       const cached = await cache.match(request)
-      
       if (cached) {
-        console.log('[SW] 使用缓存:', request.url)
         return cached
       }
     }
-    
     throw error
   }
 }
 
-// 陈旧时重新验证策略
+// Stale while revalidate
 async function staleWhileRevalidate(request, cacheName) {
   const cache = await caches.open(cacheName)
   const cached = await cache.match(request)
   
-  // 后台更新缓存
   const fetchPromise = fetch(request).then(response => {
     if (response.ok) {
       cache.put(request, response.clone())
@@ -212,159 +181,23 @@ async function staleWhileRevalidate(request, cacheName) {
     return response
   }).catch(() => cached)
   
-  // 立即返回缓存（如果有）
   return cached || fetchPromise
 }
 
-// 后台同步 - 用于离线操作同步
-self.addEventListener('sync', (event) => {
-  if (event.tag === 'sync-models') {
-    event.waitUntil(syncModels())
-  }
-})
-
-// 同步模型缓存
-async function syncModels() {
-  console.log('[SW] 同步模型缓存...')
-  const cache = await caches.open(MODEL_CACHE)
-  
-  // 检查并更新模型缓存
-  for (const modelUrl of MODEL_ASSETS) {
-    try {
-      const cached = await cache.match(modelUrl)
-      if (!cached) {
-        console.log('[SW] 缓存缺失的模型:', modelUrl)
-        const response = await fetch(modelUrl)
-        if (response.ok) {
-          await cache.put(modelUrl, response)
-        }
-      }
-    } catch (error) {
-      console.error('[SW] 同步模型失败:', modelUrl, error)
-    }
-  }
-}
-
-// 推送通知支持
-self.addEventListener('push', (event) => {
-  const options = {
-    body: event.data?.text() || 'AR Studio 有新消息',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/badge-72x72.png',
-    vibrate: [100, 50, 100],
-    data: {
-      url: '/'
-    },
-    actions: [
-      {
-        action: 'open',
-        title: '打开应用'
-      },
-      {
-        action: 'close',
-        title: '关闭'
-      }
-    ]
-  }
-  
-  event.waitUntil(
-    self.registration.showNotification('AR Character Studio', options)
-  )
-})
-
-// 通知点击处理
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close()
-  
-  if (event.action === 'open' || !event.action) {
-    event.waitUntil(
-      clients.openWindow(event.notification.data?.url || '/')
-    )
-  }
-})
-
-// 消息处理 - 与主页面通信
+// Message handling
 self.addEventListener('message', (event) => {
-  const { type, payload } = event.data
+  const { type } = event.data
   
   switch (type) {
     case 'SKIP_WAITING':
       self.skipWaiting()
       break
-      
-    case 'GET_CACHE_SIZE':
-      getCacheSize().then(size => {
-        event.ports[0].postMessage({ size })
-      })
-      break
-      
-    case 'CLEAR_MODEL_CACHE':
-      caches.delete(MODEL_CACHE).then(() => {
-        event.ports[0].postMessage({ success: true })
-      })
-      break
-      
-    case 'CACHE_MODEL':
-      cacheModel(payload.url).then(success => {
-        event.ports[0].postMessage({ success })
-      })
-      break
-      
     case 'CLEAR_ALL_CACHES':
-      clearAllCaches().then(() => {
-        event.ports[0].postMessage({ success: true })
+      caches.keys().then(names => {
+        Promise.all(names.map(name => caches.delete(name)))
       })
       break
   }
 })
 
-// 获取缓存大小
-async function getCacheSize() {
-  let totalSize = 0
-  const cacheNames = [STATIC_CACHE, MODEL_CACHE, IMAGE_CACHE]
-  
-  for (const name of cacheNames) {
-    const cache = await caches.open(name)
-    const requests = await cache.keys()
-    
-    for (const request of requests) {
-      const response = await cache.match(request)
-      if (response) {
-        const blob = await response.blob()
-        totalSize += blob.size
-      }
-    }
-  }
-  
-  return {
-    bytes: totalSize,
-    mb: (totalSize / 1024 / 1024).toFixed(2)
-  }
-}
-
-// 清除所有缓存
-async function clearAllCaches() {
-  const cacheNames = await caches.keys()
-  return Promise.all(
-    cacheNames.map(cacheName => caches.delete(cacheName))
-  )
-}
-
-// 缓存指定模型
-async function cacheModel(url) {
-  try {
-    const cache = await caches.open(MODEL_CACHE)
-    const response = await fetch(url)
-    
-    if (response.ok) {
-      await cache.put(url, response)
-      return true
-    }
-    return false
-  } catch (error) {
-    console.error('[SW] 缓存模型失败:', url, error)
-    return false
-  }
-}
-
-console.log('[SW] Service Worker 脚本已加载 版本:', CACHE_VERSION)
+console.log('[SW] Service Worker loaded. Version:', CACHE_VERSION)
