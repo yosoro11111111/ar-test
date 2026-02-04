@@ -16,6 +16,11 @@ import { useGyroscope } from '../hooks/useGyroscope'
 import { useVoiceControl } from '../hooks/useVoiceControl'
 import ARViewer from './ARViewer'
 
+// 导入现代化UI组件
+import ModernHeader from './ui/ModernHeader'
+import ModernActionBar from './ui/ModernActionBar'
+import styles from './styles/ARSystem.module.css'
+
 // ==================== 分步引导组件 ====================
 const TutorialGuide = ({ isMobile, onClose }) => {
   const [currentStep, setCurrentStep] = useState(0)
@@ -2956,6 +2961,22 @@ export const ARScene = ({ selectedFile }) => {
   const [characters, setCharacters] = useState([null, null, null])
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState(0)
   const [showModelSelect, setShowModelSelect] = useState(false)
+
+  // 将 selectedFile 加载到 characters 中
+  useEffect(() => {
+    if (selectedFile) {
+      const url = selectedFile.localPath || URL.createObjectURL(selectedFile)
+      setCharacters(prev => {
+        const newCharacters = [...prev]
+        newCharacters[0] = {
+          url: url,
+          name: selectedFile.name || '角色1',
+          filename: selectedFile.name
+        }
+        return newCharacters
+      })
+    }
+  }, [selectedFile])
   const [characterScale, setCharacterScale] = useState([1.2, 1.2, 1.2])
   const [actionIntensity, setActionIntensity] = useState([1.0, 1.0, 1.0])
   const [settingsTargetIndex, setSettingsTargetIndex] = useState(0)
@@ -4307,199 +4328,21 @@ export const ARScene = ({ selectedFile }) => {
         </div>
       )}
       
-      {/* 全新顶部状态栏 - AR模式下更透明 */}
-      <div style={{
-        position: 'fixed',
-        top: isMobile ? '8px' : '16px',
-        left: isMobile ? '8px' : '16px',
-        right: isMobile ? '8px' : '16px',
-        height: isMobile ? '60px' : '70px',
-        background: isARMode 
-          ? 'linear-gradient(135deg, rgba(26, 26, 46, 0.4) 0%, rgba(22, 33, 62, 0.5) 100%)'
-          : 'linear-gradient(135deg, rgba(26, 26, 46, 0.85) 0%, rgba(22, 33, 62, 0.9) 100%)',
-        backdropFilter: 'blur(20px) saturate(180%)',
-        borderRadius: isMobile ? '16px' : '20px',
-        border: '1px solid rgba(255, 255, 255, 0.15)',
-        zIndex: 1000,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: isMobile ? '0 12px' : '0 20px',
-        boxShadow: isARMode 
-          ? '0 4px 16px rgba(0, 0, 0, 0.2)'
-          : '0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-      }}>
-        {/* 左侧：Logo和标题 */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: isMobile ? '8px' : '12px'
-        }}>
-          <div style={{
-            width: isMobile ? '36px' : '44px',
-            height: isMobile ? '36px' : '44px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, #00d4ff 0%, #ff6b9d 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: isMobile ? '20px' : '24px',
-            boxShadow: '0 4px 20px rgba(0, 212, 255, 0.4)',
-            animation: 'glow 2s ease-in-out infinite alternate'
-          }}>🎭</div>
-          <div>
-            <div style={{
-              fontSize: isMobile ? '16px' : '18px',
-              fontWeight: 'bold',
-              background: 'linear-gradient(135deg, #fff 0%, #a0a0a0 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent'
-            }}>AR乐园</div>
-            <div style={{
-              fontSize: isMobile ? '10px' : '11px',
-              color: 'rgba(255,255,255,0.5)',
-              letterSpacing: '1px'
-            }}>AR CAMERA</div>
-          </div>
-        </div>
-        
-        {/* 中间：版本号显示 */}
-
-        {/* 版本号显示 */}
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '2px',
-          padding: isMobile ? '4px 8px' : '6px 12px',
-          background: 'rgba(0,0,0,0.3)',
-          borderRadius: '8px',
-          border: '1px solid rgba(255,255,255,0.1)'
-        }}>
-          <div style={{
-            fontSize: isMobile ? '9px' : '11px',
-            color: 'rgba(255,255,255,0.6)',
-            fontWeight: '600',
-            letterSpacing: '1px'
-          }}>
-            v2.0.0
-          </div>
-          <div style={{
-            fontSize: isMobile ? '8px' : '10px',
-            color: 'rgba(255,255,255,0.4)',
-          }}>
-            by yosoro
-          </div>
-        </div>
-
-        {/* 右侧：快捷操作 */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: isMobile ? '6px' : '10px'
-        }}>
-          <button
-            onClick={() => setShowHelp(true)}
-            style={{
-              width: isMobile ? '32px' : '40px',
-              height: isMobile ? '32px' : '40px',
-              borderRadius: '10px',
-              background: 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: isMobile ? '14px' : '18px',
-              cursor: 'pointer',
-              color: 'white',
-              transition: 'all 0.3s ease'
-            }}
-          >❓</button>
-
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            style={{
-              width: isMobile ? '32px' : '40px',
-              height: isMobile ? '32px' : '40px',
-              borderRadius: '10px',
-              background: showSettings
-                ? 'linear-gradient(135deg, #ff6b9d 0%, #c44569 100%)'
-                : 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: isMobile ? '14px' : '18px',
-              cursor: 'pointer',
-              color: 'white',
-              transition: 'all 0.3s ease'
-            }}
-          >⚙️</button>
-
-          {/* 切换摄像头按钮 - 仅在AR模式显示 */}
-          {isARMode && (
-            <button
-              onClick={toggleCamera}
-              style={{
-                width: isMobile ? '32px' : '40px',
-                height: isMobile ? '32px' : '40px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: isMobile ? '14px' : '18px',
-                cursor: 'pointer',
-                color: 'white',
-                transition: 'all 0.3s ease'
-              }}
-              title={`当前: ${cameraFacingMode === 'environment' ? '后置' : '前置'}摄像头`}
-            >🔄</button>
-          )}
-
-          <button
-            onClick={() => setIsARMode(!isARMode)}
-            style={{
-              width: isMobile ? '32px' : '40px',
-              height: isMobile ? '32px' : '40px',
-              borderRadius: '10px',
-              background: isARMode
-                ? 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)'
-                : 'rgba(255,255,255,0.1)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: isMobile ? '14px' : '18px',
-              cursor: 'pointer',
-              color: 'white',
-              transition: 'all 0.3s ease'
-            }}
-            title="AR模式（绿幕）"
-          >{isARMode ? '📷' : '🎥'}</button>
-
-          {/* WebXR AR 按钮 */}
-          <button
-            onClick={() => setIsWebXRARMode(true)}
-            style={{
-              width: isMobile ? '32px' : '40px',
-              height: isMobile ? '32px' : '40px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: isMobile ? '14px' : '18px',
-              cursor: 'pointer',
-              color: 'white',
-              transition: 'all 0.3s ease'
-            }}
-            title="WebXR AR（真实世界）"
-          >🥽</button>
-        </div>
-      </div>
+      {/* 现代化顶部状态栏 */}
+      <ModernHeader
+        isMobile={isMobile}
+        isARMode={isARMode}
+        isRecording={isRecording}
+        recordingTime={recordingTime}
+        showSettings={showSettings}
+        cameraFacingMode={cameraFacingMode}
+        onHelp={() => setShowHelp(true)}
+        onSettings={() => setShowSettings(!showSettings)}
+        onToggleCamera={toggleCamera}
+        onToggleAR={() => setIsARMode(!isARMode)}
+        onEnterWebXR={() => setIsWebXRARMode(true)}
+        onToggleRecording={isRecording ? stopRecording : startRecording}
+      />
 
       {/* 设置面板 - 仅在编辑模式显示 */}
       {showSettings && isEditMode && (

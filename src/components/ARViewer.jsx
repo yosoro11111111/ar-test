@@ -479,14 +479,26 @@ class ARSceneManager {
     }
   }
 
+  // 启动渲染循环
+  startRenderLoop() {
+    if (!this.session || this.isRendering) return
+    this.render()
+  }
+
   // 渲染循环
   render() {
+    if (this.isRendering) return
+    this.isRendering = true
+    
     let lastTime = 0
     let hitTestCount = 0
     let frameCount = 0
     
     const loop = (time, frame) => {
-      if (!this.session) return
+      if (!this.session) {
+        this.isRendering = false
+        return
+      }
       
       // 计算时间差
       const deltaTime = (time - lastTime) / 1000
@@ -663,7 +675,24 @@ export const ARViewer = ({
 
   useEffect(() => {
     initAR()
+    
+    // 监听页面可见性变化，处理切出浏览器后返回的情况
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('页面重新可见，恢复AR会话')
+        // 重新启动渲染循环
+        if (arManagerRef.current?.session && !arManagerRef.current.isRendering) {
+          arManagerRef.current.startRenderLoop()
+        }
+      } else {
+        console.log('页面不可见，暂停渲染')
+      }
+    }
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
       arManagerRef.current?.end()
     }
   }, [])
@@ -805,7 +834,8 @@ export const ARViewer = ({
         justifyContent: 'space-between',
         alignItems: 'center',
         background: 'linear-gradient(to bottom, rgba(0,0,0,0.6), transparent)',
-        pointerEvents: 'none'
+        pointerEvents: 'auto',
+        zIndex: 10001
       }}>
         <button
           onClick={handleClose}
