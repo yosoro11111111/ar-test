@@ -504,8 +504,8 @@ function App() {
     }
   }
 
-  // 使用新的统一AR系统
-  const [useUnifiedSystem, setUseUnifiedSystem] = useState(true)
+  // 使用新的统一AR系统 - 默认关闭，使用原有系统
+  const [useUnifiedSystem, setUseUnifiedSystem] = useState(false)
 
   return (
     <div className="app-container cyberpunk-app" style={{ 
@@ -519,7 +519,7 @@ function App() {
         <LoadingScreen onComplete={() => setShowSplash(false)} isMobile={isMobile} />
       )}
       
-      {/* 使用统一AR系统 */}
+      {/* 使用统一AR系统（可选） */}
       {useUnifiedSystem && !showSplash ? (
         <UnifiedARSystem />
       ) : (
