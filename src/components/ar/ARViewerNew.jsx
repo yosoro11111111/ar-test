@@ -649,68 +649,35 @@ class ARSceneManager {
       if (frame) {
         const pose = frame.getViewerPose(this.referenceSpace)
         
-        // 只使用原生平面检测 - 每帧检查session.planes
+        // 扫描环位置更新 - 使用hit-test检测地面
         if (!this.isPlaced && this.frameCount % 3 === 0) {
-          // 从session获取平面数据（Chrome方式）
-          if (this.session.planes) {
-            const planeCount = this.session.planes.size
-            if (planeCount > 0) {
-              console.log('Native planes found:', planeCount)
-              this.detectedPlanes = Array.from(this.session.planes).map(plane => ({
-                planeSpace: plane,
-                extent: plane.extent || { width: 1, height: 1 },
-                center: plane.center || { x: 0, y: 0, z: 0 }
-              }))
-              this.updatePlaneVisualization()
-              this.updateCornerLines()
-              
-              if (this.detectedPlanes.length > 0) {
-                this.calculateOptimalPlacement()
+          try {
+            const hitResults = frame.getHitTestResults(this.hitTestSource)
+            if (hitResults.length > 0) {
+              const hitPose = hitResults[0].getPose(this.referenceSpace)
+              if (hitPose) {
+                const position = new THREE.Vector3(
+                  hitPose.transform.position.x,
+                  hitPose.transform.position.y,
+                  hitPose.transform.position.z
+                )
+                
+                // 更新扫描环位置
+                this.scanRing.visible = true
+                this.scanRing.position.copy(position)
+                
+                // 保存位置用于放置
+                this.optimalPosition = position.clone()
+                this.optimalScale = 1.0
+                
+                console.log('Scan ring position:', position.x.toFixed(2), position.y.toFixed(2), position.z.toFixed(2))
               }
             } else {
-              // 没有平面时，尝试使用hit-test获取地面位置用于放置
-              this.updateScanRingFromHitTest(frame)
-            }
-          } else {
-            // session.planes不存在，使用hit-test
-            this.updateScanRingFromHitTest(frame)
-          }
-        }
-        
-        // 更新扫描环位置（使用平滑插值）
-        if (!this.isPlaced && !this.useHitTestFallback) {
-          try {
-            // 每5帧检测一次hit-test，但每帧都更新位置
-            if (this.frameCount % 5 === 0) {
-              const hitResults = frame.getHitTestResults(this.hitTestSource)
-              if (hitResults.length > 0) {
-                const hitPose = hitResults[0].getPose(this.referenceSpace)
-                if (hitPose) {
-                  // 保存目标位置，使用平滑插值
-                  if (!this.scanRingTargetPos) {
-                    this.scanRingTargetPos = new THREE.Vector3()
-                  }
-                  this.scanRingTargetPos.set(
-                    hitPose.transform.position.x,
-                    hitPose.transform.position.y,
-                    hitPose.transform.position.z
-                  )
-                  this.scanRing.visible = true
-                  this.lastHitTestTime = Date.now()
-                }
-              }
-            }
-            
-            // 扫描环直接设置位置，不使用平滑移动
-            if (this.scanRingTargetPos && this.scanRing.visible) {
-              this.scanRing.position.copy(this.scanRingTargetPos)
-            }
-            
-            // 如果超过500ms没有hit-test结果，隐藏扫描环
-            if (this.lastHitTestTime && Date.now() - this.lastHitTestTime > 500) {
               this.scanRing.visible = false
             }
-          } catch (e) {}
+          } catch (e) {
+            console.error('Hit-test error:', e)
+          }
         }
 
         if (pose) {
@@ -896,6 +863,10 @@ class ARSceneManager {
           const vrm = gltf.userData.vrm
           this.currentCharacter = vrm
           this.isModelLoaded = true
+          
+          console.log('VRM loaded:', vrm)
+          console.log('VRM humanoid:', vrm.humanoid)
+          console.log('VRM scene:', vrm.scene)
           
           // 禁用VRM的lookAt功能，防止自动更新导致抖动
           if (vrm.lookAt) {
