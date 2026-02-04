@@ -650,34 +650,43 @@ class ARSceneManager {
         const pose = frame.getViewerPose(this.referenceSpace)
         
         // 扫描环位置更新 - 使用hit-test检测地面
-        if (!this.isPlaced && this.frameCount % 3 === 0) {
+        if (!this.isPlaced) {
+          console.log('Frame', this.frameCount, '- checking hit-test...')
           try {
-            const hitResults = frame.getHitTestResults(this.hitTestSource)
-            if (hitResults.length > 0) {
-              const hitPose = hitResults[0].getPose(this.referenceSpace)
-              if (hitPose) {
-                const position = new THREE.Vector3(
-                  hitPose.transform.position.x,
-                  hitPose.transform.position.y,
-                  hitPose.transform.position.z
-                )
-                
-                // 更新扫描环位置
-                this.scanRing.visible = true
-                this.scanRing.position.copy(position)
-                
-                // 保存位置用于放置
-                this.optimalPosition = position.clone()
-                this.optimalScale = 1.0
-                
-                console.log('Scan ring position:', position.x.toFixed(2), position.y.toFixed(2), position.z.toFixed(2))
-              }
+            if (!this.hitTestSource) {
+              console.warn('No hitTestSource available')
             } else {
-              this.scanRing.visible = false
+              const hitResults = frame.getHitTestResults(this.hitTestSource)
+              console.log('Hit results:', hitResults.length)
+              if (hitResults.length > 0) {
+                const hitPose = hitResults[0].getPose(this.referenceSpace)
+                if (hitPose) {
+                  const position = new THREE.Vector3(
+                    hitPose.transform.position.x,
+                    hitPose.transform.position.y,
+                    hitPose.transform.position.z
+                  )
+                  
+                  // 更新扫描环位置
+                  this.scanRing.visible = true
+                  this.scanRing.position.copy(position)
+                  
+                  // 保存位置用于放置
+                  this.optimalPosition = position.clone()
+                  this.optimalScale = 1.0
+                  
+                  console.log('✅ Scan ring position:', position.x.toFixed(2), position.y.toFixed(2), position.z.toFixed(2))
+                }
+              } else {
+                this.scanRing.visible = false
+                console.log('No hit results')
+              }
             }
           } catch (e) {
             console.error('Hit-test error:', e)
           }
+        } else {
+          console.log('Model already placed, skipping scan ring update')
         }
 
         if (pose) {
