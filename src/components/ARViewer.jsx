@@ -477,6 +477,9 @@ class ARSceneManager {
       const deltaTime = (time - lastTime) / 1000
       lastTime = time
       
+      // 获取相机姿态
+      const pose = frame.getViewerPose(this.referenceSpace)
+      
       // 累积帧数来更新进度（即使没有Hit Test）
       frameCount++
       if (!this.isPlaced && frameCount % 30 === 0) {
@@ -514,8 +517,6 @@ class ARSceneManager {
           }, 500)
         }
       }
-
-      const pose = frame.getViewerPose(this.referenceSpace)
       
       if (pose) {
         // Hit Test
