@@ -48,11 +48,10 @@ class ARSceneManager {
   // 启动AR会话
   async start(canvas) {
     try {
-      // 请求AR会话
+      // 请求AR会话 - 不使用dom-overlay以确保相机画面正常显示
       this.session = await navigator.xr.requestSession('immersive-ar', {
         requiredFeatures: ['hit-test', 'local-floor'],
-        optionalFeatures: ['dom-overlay', 'plane-detection'],
-        domOverlay: { root: document.body }
+        optionalFeatures: ['plane-detection']
       })
 
       // 获取WebGL上下文
