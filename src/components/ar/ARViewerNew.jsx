@@ -1078,9 +1078,30 @@ export const ARViewerNew = ({
     
     arManagerRef.current.onPlaneUpdate = (planes) => {
       setDetectedPlanes(planes)
-      const progress = Math.min(100, planes.length * 20)
-      setScanProgress(progress)
     }
+    
+    // 扫描进度计时器 - 3秒后自动完成扫描
+    let scanStartTime = Date.now()
+    const scanTimer = setInterval(() => {
+      if (!isMounted) {
+        clearInterval(scanTimer)
+        return
+      }
+      
+      const elapsed = Date.now() - scanStartTime
+      const timeProgress = Math.min(100, (elapsed / 3000) * 100)
+      
+      // 取平面检测进度和时间进度的最大值
+      const planeProgress = Math.min(100, arManagerRef.current.detectedPlanes?.length * 20 || 0)
+      const finalProgress = Math.max(timeProgress, planeProgress)
+      setScanProgress(finalProgress)
+      
+      // 3秒后自动完成扫描
+      if (elapsed >= 3000) {
+        clearInterval(scanTimer)
+        setScanProgress(100)
+      }
+    }, 100)
     
     arManagerRef.current.onModelLoaded = () => {
       setIsModelLoaded(true)
