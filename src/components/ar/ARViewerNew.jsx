@@ -624,12 +624,69 @@ class ARSceneManager {
   }
 
   updateTracking() {
-    // 完全禁用所有自动更新，模型放置后完全固定
-    // 不更新位置，不更新旋转
+    // 恢复跟踪功能：模型会跟随相机移动，但使用性能优化
     if (!this.isTracking || !this.currentCharacter || !this.camera) return
     
-    // 跟踪模式已禁用，不做任何更新
-    // 模型位置完全由 placeModel() 设置，之后不再改变
+    const model = this.currentCharacter.scene
+    const camera = this.camera
+    
+    // 初始化跟踪状态
+    if (!this.targetPosition) {
+      this.targetPosition = model.position.clone()
+      this.lastCameraPosition = camera.position.clone()
+      this.isMoving = false
+    }
+    
+    // 检测相机是否显著移动（超过0.5米）
+    const cameraMoved = this.lastCameraPosition.distanceTo(camera.position) > 0.5
+    
+    if (!cameraMoved) {
+      return // 相机移动不大，不更新
+    }
+    
+    // 更新相机位置记录
+    this.lastCameraPosition.copy(camera.position)
+    
+    // 计算新的目标位置（相机前方2米）
+    const cameraForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
+    const targetPos = camera.position.clone().add(cameraForward.multiplyScalar(2.0))
+    targetPos.y = model.position.y // 保持Y轴不变
+    
+    // 只有当目标位置显著变化时才更新
+    const targetChanged = this.targetPosition.distanceTo(targetPos) > 0.3
+    
+    if (targetChanged) {
+      this.targetPosition.copy(targetPos)
+      this.isMoving = true
+    }
+    
+    // 平滑移动到目标位置
+    if (this.isMoving) {
+      const distanceToTarget = model.position.distanceTo(this.targetPosition)
+      
+      if (distanceToTarget > 0.05) {
+        // 使用lerp平滑移动
+        const lerpFactor = 0.05 // 较慢的移动速度，更平滑
+        model.position.lerp(this.targetPosition, lerpFactor)
+      } else {
+        // 到达目标，停止移动
+        this.isMoving = false
+      }
+    }
+    
+    // 更新旋转（人物面向相机）
+    const dx = camera.position.x - model.position.x
+    const dz = camera.position.z - model.position.z
+    const targetRotation = Math.atan2(dx, dz)
+    
+    let rotDiff = targetRotation - model.rotation.y
+    while (rotDiff > Math.PI) rotDiff -= Math.PI * 2
+    while (rotDiff < -Math.PI) rotDiff += Math.PI * 2
+    
+    // 平滑旋转
+    if (Math.abs(rotDiff) > 0.05) {
+      model.rotation.y += rotDiff * 0.05
+    }
   }
 
   updateAnimation(deltaTime) {
@@ -1075,6 +1132,28 @@ export const ARViewerNew = ({
 
   const handleAction = async (action) => {
     setCurrentAction(action.id)
+    
+    // 显示动作播放提示
+    const toast = document.createElement('div')
+    toast.style.cssText = `
+      position: fixed;
+      bottom: 120px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 212, 255, 0.9);
+      color: #000;
+      padding: 12px 24px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      z-index: 10000;
+      animation: fadeInOut 2s ease;
+    `
+    toast.textContent = `正在播放: ${action.name}`
+    document.body.appendChild(toast)
+    
+    setTimeout(() => toast.remove(), 2000)
+    
     await arManagerRef.current?.playAction(action.id, vrmaActions)
     
     const newRecent = [action, ...recentActions.filter(a => a.id !== action.id)].slice(0, 10)
@@ -1133,7 +1212,25 @@ export const ARViewerNew = ({
                 link.download = `ar-screenshot-${Date.now()}.png`
                 link.href = dataUrl
                 link.click()
-                console.log('✅ 截图已保存')
+                
+                // 显示截图成功提示
+                const toast = document.createElement('div')
+                toast.style.cssText = `
+                  position: fixed;
+                  top: 80px;
+                  left: 50%;
+                  transform: translateX(-50%);
+                  background: rgba(74, 222, 128, 0.9);
+                  color: #000;
+                  padding: 12px 24px;
+                  border-radius: 20px;
+                  font-size: 14px;
+                  font-weight: 600;
+                  z-index: 10000;
+                `
+                toast.textContent = '✅ 截图已保存'
+                document.body.appendChild(toast)
+                setTimeout(() => toast.remove(), 2000)
               } else {
                 console.warn('截图失败，请重试')
                 // 备用方案：尝试使用canvas直接截图
@@ -1145,6 +1242,25 @@ export const ARViewerNew = ({
                     link.download = `ar-screenshot-${Date.now()}.png`
                     link.href = dataUrl
                     link.click()
+                    
+                    // 显示截图成功提示
+                    const toast = document.createElement('div')
+                    toast.style.cssText = `
+                      position: fixed;
+                      top: 80px;
+                      left: 50%;
+                      transform: translateX(-50%);
+                      background: rgba(74, 222, 128, 0.9);
+                      color: #000;
+                      padding: 12px 24px;
+                      border-radius: 20px;
+                      font-size: 14px;
+                      font-weight: 600;
+                      z-index: 10000;
+                    `
+                    toast.textContent = '✅ 截图已保存'
+                    document.body.appendChild(toast)
+                    setTimeout(() => toast.remove(), 2000)
                   }
                 } catch (e) {
                   console.error('备用截图也失败:', e)
