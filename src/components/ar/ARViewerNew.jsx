@@ -360,6 +360,35 @@ class ARSceneManager {
     }
   }
   
+  // 仅用于扫描环位置的hit-test更新（不用于平面检测）
+  updateScanRingFromHitTest(frame) {
+    if (!this.hitTestSource) return
+    
+    try {
+      const hitResults = frame.getHitTestResults(this.hitTestSource)
+      if (hitResults.length > 0) {
+        const hitPose = hitResults[0].getPose(this.referenceSpace)
+        if (hitPose) {
+          const position = new THREE.Vector3(
+            hitPose.transform.position.x,
+            hitPose.transform.position.y,
+            hitPose.transform.position.z
+          )
+          
+          // 更新扫描环位置
+          this.scanRing.visible = true
+          this.scanRing.position.copy(position)
+          
+          // 保存位置用于放置
+          this.optimalPosition = position.clone()
+          this.optimalScale = 1.0
+        }
+      } else {
+        this.scanRing.visible = false
+      }
+    } catch (e) {}
+  }
+  
   // 添加hit-test采样点
   addHitTestSample(position, pose) {
     // 检查是否与现有点太接近
@@ -620,22 +649,31 @@ class ARSceneManager {
       if (frame) {
         const pose = frame.getViewerPose(this.referenceSpace)
         
-        // 只使用原生平面检测
-        if (!this.isPlaced && this.frameCount % 5 === 0) {
+        // 只使用原生平面检测 - 每帧检查session.planes
+        if (!this.isPlaced && this.frameCount % 3 === 0) {
           // 从session获取平面数据（Chrome方式）
-          if (this.session.planes && this.session.planes.size > 0) {
-            console.log('Native planes found:', this.session.planes.size)
-            this.detectedPlanes = Array.from(this.session.planes).map(plane => ({
-              planeSpace: plane,
-              extent: plane.extent || { width: 1, height: 1 },
-              center: plane.center || { x: 0, y: 0, z: 0 }
-            }))
-            this.updatePlaneVisualization()
-            this.updateCornerLines()
-            
-            if (this.detectedPlanes.length > 0) {
-              this.calculateOptimalPlacement()
+          if (this.session.planes) {
+            const planeCount = this.session.planes.size
+            if (planeCount > 0) {
+              console.log('Native planes found:', planeCount)
+              this.detectedPlanes = Array.from(this.session.planes).map(plane => ({
+                planeSpace: plane,
+                extent: plane.extent || { width: 1, height: 1 },
+                center: plane.center || { x: 0, y: 0, z: 0 }
+              }))
+              this.updatePlaneVisualization()
+              this.updateCornerLines()
+              
+              if (this.detectedPlanes.length > 0) {
+                this.calculateOptimalPlacement()
+              }
+            } else {
+              // 没有平面时，尝试使用hit-test获取地面位置用于放置
+              this.updateScanRingFromHitTest(frame)
             }
+          } else {
+            // session.planes不存在，使用hit-test
+            this.updateScanRingFromHitTest(frame)
           }
         }
         
@@ -1020,20 +1058,27 @@ class ARSceneManager {
       if (clip) {
         console.log('▶️ Creating clip action, duration:', clip.duration)
         
-        // 确保使用正确的root对象
-        const root = this.currentCharacter.humanoid?.normalizedHumanBonesRoot || this.currentCharacter.scene
+        // 使用VRM的scene作为根对象
+        const root = this.currentCharacter.scene
         console.log('Animation root:', root)
+        console.log('VRM humanoid:', this.currentCharacter.humanoid)
         
-        // 创建动画动作
-        this.currentAnimation = this.mixer.clipAction(clip, root)
+        // 停止之前的动画
+        if (this.currentAnimation) {
+          this.currentAnimation.stop()
+        }
+        
+        // 创建动画动作 - VRMA动画应该直接应用到mixer，不需要指定root
+        this.currentAnimation = this.mixer.clipAction(clip)
         this.currentAnimation.reset()
-        this.currentAnimation.fadeIn(0.2)
+        this.currentAnimation.fadeIn(0.3)
         this.currentAnimation.play()
         
         // 确保动画循环播放
         this.currentAnimation.setLoop(THREE.LoopRepeat, Infinity)
         
         console.log('✅ Playing action:', action.name)
+        console.log('Animation action:', this.currentAnimation)
       } else {
         console.error('❌ No clip to play')
       }
