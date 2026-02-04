@@ -1,9 +1,10 @@
 // Service Worker - 提供离线支持和缓存管理
+// 版本: v4-20250204 - 强制刷新版本
 
-const CACHE_NAME = 'ar-studio-v3'
-const STATIC_CACHE = 'ar-studio-static-v3'
-const MODEL_CACHE = 'ar-studio-models-v3'
-const IMAGE_CACHE = 'ar-studio-images-v3'
+const CACHE_VERSION = 'v4-20250204'
+const STATIC_CACHE = `ar-studio-static-${CACHE_VERSION}`
+const MODEL_CACHE = `ar-studio-models-${CACHE_VERSION}`
+const IMAGE_CACHE = `ar-studio-images-${CACHE_VERSION}`
 
 // 静态资源列表
 const STATIC_ASSETS = [
@@ -26,7 +27,7 @@ const MODEL_ASSETS = [
 
 // 安装时预缓存关键资源
 self.addEventListener('install', (event) => {
-  console.log('[SW] Service Worker 安装中...')
+  console.log('[SW] Service Worker 安装中... 版本:', CACHE_VERSION)
   
   event.waitUntil(
     Promise.all([
@@ -45,6 +46,7 @@ self.addEventListener('install', (event) => {
     ])
     .then(() => {
       console.log('[SW] 预缓存完成')
+      // 强制跳过等待，立即激活
       return self.skipWaiting()
     })
   )
@@ -58,10 +60,8 @@ self.addEventListener('activate', (event) => {
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
-          // 删除旧版本缓存
-          if (cacheName !== STATIC_CACHE && 
-              cacheName !== MODEL_CACHE && 
-              cacheName !== IMAGE_CACHE) {
+          // 删除所有旧版本缓存（不匹配当前版本）
+          if (!cacheName.includes(CACHE_VERSION)) {
             console.log('[SW] 删除旧缓存:', cacheName)
             return caches.delete(cacheName)
           }
@@ -69,6 +69,7 @@ self.addEventListener('activate', (event) => {
       )
     }).then(() => {
       console.log('[SW] 激活完成')
+      // 立即接管所有客户端
       return self.clients.claim()
     })
   )
@@ -84,9 +85,9 @@ self.addEventListener('fetch', (event) => {
     return
   }
   
-  // 策略1: 静态资源 - 缓存优先，网络回退
+  // 策略1: 静态资源 - 网络优先，强制刷新
   if (isStaticAsset(url)) {
-    event.respondWith(cacheFirst(request, STATIC_CACHE))
+    event.respondWith(networkFirstWithCacheUpdate(request, STATIC_CACHE))
     return
   }
   
@@ -136,26 +137,39 @@ function isAPIRequest(url) {
   return url.pathname.startsWith('/api/')
 }
 
-// 缓存优先策略
-async function cacheFirst(request, cacheName) {
-  const cache = await caches.open(cacheName)
-  const cached = await cache.match(request)
-  
-  if (cached) {
-    return cached
-  }
-  
+// 网络优先策略（带缓存更新）- 用于静态资源强制刷新
+async function networkFirstWithCacheUpdate(request, cacheName) {
   try {
-    const response = await fetch(request)
-    if (response.ok) {
-      cache.put(request, response.clone())
-    }
-    return response
-  } catch (error) {
-    return new Response('离线模式 - 资源不可用', { 
-      status: 503,
-      statusText: 'Service Unavailable'
+    // 添加时间戳防止浏览器缓存
+    const fetchRequest = new Request(request.url + '?_=' + Date.now(), {
+      method: request.method,
+      headers: request.headers,
+      mode: request.mode,
+      credentials: request.credentials,
+      redirect: request.redirect
     })
+    
+    const networkResponse = await fetch(fetchRequest)
+    
+    if (networkResponse.ok && cacheName) {
+      const cache = await caches.open(cacheName)
+      cache.put(request, networkResponse.clone())
+    }
+    
+    return networkResponse
+  } catch (error) {
+    // 网络失败时使用缓存
+    if (cacheName) {
+      const cache = await caches.open(cacheName)
+      const cached = await cache.match(request)
+      
+      if (cached) {
+        console.log('[SW] 使用缓存:', request.url)
+        return cached
+      }
+    }
+    
+    throw error
   }
 }
 
@@ -295,6 +309,12 @@ self.addEventListener('message', (event) => {
         event.ports[0].postMessage({ success })
       })
       break
+      
+    case 'CLEAR_ALL_CACHES':
+      clearAllCaches().then(() => {
+        event.ports[0].postMessage({ success: true })
+      })
+      break
   }
 })
 
@@ -322,6 +342,14 @@ async function getCacheSize() {
   }
 }
 
+// 清除所有缓存
+async function clearAllCaches() {
+  const cacheNames = await caches.keys()
+  return Promise.all(
+    cacheNames.map(cacheName => caches.delete(cacheName))
+  )
+}
+
 // 缓存指定模型
 async function cacheModel(url) {
   try {
@@ -339,4 +367,4 @@ async function cacheModel(url) {
   }
 }
 
-console.log('[SW] Service Worker 脚本已加载')
+console.log('[SW] Service Worker 脚本已加载 版本:', CACHE_VERSION)
