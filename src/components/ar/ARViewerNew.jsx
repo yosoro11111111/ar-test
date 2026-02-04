@@ -3,6 +3,7 @@ import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { loadVRMAAction, getAllCategories } from '../../data/vrmaActions'
+import ARTimeline from './ARTimeline'
 import styles from './ARViewerNew.module.css'
 
 // 内存优化的AR场景管理器类
@@ -756,6 +757,8 @@ export const ARViewerNew = ({
     }
   })
   const [modelScale, setModelScale] = useState(1.0)
+  const [showTimeline, setShowTimeline] = useState(false)
+  const [isTimelinePlaying, setIsTimelinePlaying] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -1077,6 +1080,14 @@ export const ARViewerNew = ({
             <span>{isPlaced ? '✓' : '📍'}</span>
             <span>{isPlaced ? '已放置' : '放置'}</span>
           </button>
+
+          <button
+            className={`${styles.mainButton} ${showTimeline ? styles.active : ''}`}
+            onClick={() => setShowTimeline(!showTimeline)}
+          >
+            <span>⏱️</span>
+            <span>时间轴</span>
+          </button>
         </div>
       </div>
 
@@ -1150,6 +1161,17 @@ export const ARViewerNew = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* 时间轴 */}
+      {showTimeline && (
+        <ARTimeline
+          actions={vrmaActions}
+          onPlayAction={handleAction}
+          currentAction={currentAction}
+          isPlaying={isTimelinePlaying}
+          onPlayStateChange={setIsTimelinePlaying}
+        />
       )}
     </div>
   )
