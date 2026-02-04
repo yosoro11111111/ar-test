@@ -356,19 +356,70 @@ class ARSceneManager {
     })
   }
 
-  // 跟随功能：模型保持在放置的平面上，但面向相机
-  updateTracking() {
-    if (!this.isTracking || !this.currentCharacter || !this.camera || !this.placedPlane) return
+  // 跟随功能：模型保持在检测到的最佳平面上，并面向相机
+  updateTracking(frame) {
+    if (!this.isTracking || !this.currentCharacter || !this.camera) return
     
     const model = this.currentCharacter.scene
-    const planePose = this.placedPlane.planeSpace
     
-    if (planePose) {
-      // 保持在平面上，但更新Y位置（防止漂移）
-      const planeY = planePose.transform.position.y
-      model.position.y = planeY + 0.02
+    // 如果检测到新的平面，更新到最佳平面
+    if (this.detectedPlanes.length > 0) {
+      // 找到离相机最近且面积最大的平面
+      let bestPlane = null
+      let bestScore = -1
       
-      // 让模型面向相机
+      this.detectedPlanes.forEach(plane => {
+        const pose = plane.planeSpace
+        if (!pose) return
+        
+        const planePos = new THREE.Vector3(
+          pose.transform.position.x,
+          pose.transform.position.y,
+          pose.transform.position.z
+        )
+        
+        // 计算距离相机的距离
+        const distance = planePos.distanceTo(this.camera.position)
+        const area = (plane.extent?.width || 1) * (plane.extent?.height || 1)
+        
+        // 评分：面积越大越好，距离1.5-3米最佳
+        const distanceScore = 1 - Math.abs(distance - 2) / 2
+        const score = area * distanceScore
+        
+        if (score > bestScore) {
+          bestScore = score
+          bestPlane = plane
+        }
+      })
+      
+      if (bestPlane) {
+        this.placedPlane = bestPlane
+        const pose = bestPlane.planeSpace
+        
+        // 更新模型位置到平面中心
+        const targetX = pose.transform.position.x
+        const targetZ = pose.transform.position.z
+        const targetY = pose.transform.position.y + 0.02
+        
+        // 平滑移动
+        model.position.x += (targetX - model.position.x) * 0.1
+        model.position.z += (targetZ - model.position.z) * 0.1
+        model.position.y += (targetY - model.position.y) * 0.1
+        
+        // 根据平面大小调整模型缩放
+        const minDimension = Math.min(
+          bestPlane.extent?.width || 2, 
+          bestPlane.extent?.height || 2
+        )
+        const targetScale = Math.min(1.2, Math.max(0.4, minDimension / 2))
+        const currentScale = model.scale.x
+        const newScale = currentScale + (targetScale - currentScale) * 0.05
+        model.scale.setScalar(newScale)
+      }
+    }
+    
+    // 让模型始终面向相机
+    if (this.camera) {
       const cameraPosition = this.camera.position
       const angle = Math.atan2(
         cameraPosition.x - model.position.x,
@@ -376,8 +427,13 @@ class ARSceneManager {
       )
       // 平滑旋转
       const currentRotation = model.rotation.y
-      const targetRotation = angle
-      model.rotation.y += (targetRotation - currentRotation) * 0.05
+      let deltaRotation = angle - currentRotation
+      
+      // 处理角度环绕
+      while (deltaRotation > Math.PI) deltaRotation -= Math.PI * 2
+      while (deltaRotation < -Math.PI) deltaRotation += Math.PI * 2
+      
+      model.rotation.y += deltaRotation * 0.08
     }
   }
 
@@ -509,7 +565,7 @@ class ARSceneManager {
     }
   }
 
-  async playAction(actionId) {
+  async playAction(actionId, actionsList) {
     if (!this.mixer || !this.currentCharacter) {
       console.warn('无法播放动作: 动画系统未初始化')
       return
@@ -523,11 +579,13 @@ class ARSceneManager {
       }
 
       // 找到动作文件路径
-      const action = this.vrmaActions.find(a => a.id === actionId)
+      const action = actionsList.find(a => a.id === actionId)
       if (!action) {
         console.warn('未找到动作:', actionId)
         return
       }
+
+      console.log('🎬 准备播放动作:', action.name, '文件:', action.filePath)
 
       // 加载并播放动画
       const result = await loadVRMAAction(action.filePath, this.currentCharacter)
@@ -536,10 +594,12 @@ class ARSceneManager {
         this.currentAnimation = this.mixer.clipAction(result.clip)
         this.currentAnimation.fadeIn(0.3)
         this.currentAnimation.play()
-        console.log('✅ 播放动作:', action.name)
+        console.log('✅ 播放动作成功:', action.name)
+      } else {
+        console.warn('❌ 动画剪辑加载失败:', action.name)
       }
     } catch (error) {
-      console.error('播放动作失败:', error)
+      console.error('❌ 播放动作失败:', error)
     }
   }
 
@@ -688,7 +748,7 @@ export const ARViewerNew = ({
 
   const handleAction = async (action) => {
     setCurrentAction(action.id)
-    await arManagerRef.current?.playAction(action.id)
+    await arManagerRef.current?.playAction(action.id, vrmaActions)
     
     const newRecent = [action, ...recentActions.filter(a => a.id !== action.id)].slice(0, 10)
     setRecentActions(newRecent)
@@ -736,12 +796,71 @@ export const ARViewerNew = ({
         </button>
         
         <div className={styles.headerActions}>
-          <button className={styles.toolButton} onClick={onScreenshot}>
+          <button 
+            className={styles.toolButton} 
+            onClick={() => {
+              // 截图功能
+              if (canvasRef.current) {
+                try {
+                  const dataUrl = canvasRef.current.toDataURL('image/png')
+                  const link = document.createElement('a')
+                  link.download = `ar-screenshot-${Date.now()}.png`
+                  link.href = dataUrl
+                  link.click()
+                  console.log('✅ 截图已保存')
+                } catch (err) {
+                  console.error('截图失败:', err)
+                }
+              }
+              onScreenshot?.()
+            }}
+          >
             📷
           </button>
           <button 
             className={`${styles.toolButton} ${isRecording ? styles.recording : ''}`}
-            onClick={() => setIsRecording(!isRecording)}
+            onClick={() => {
+              const newRecordingState = !isRecording
+              setIsRecording(newRecordingState)
+              
+              if (newRecordingState) {
+                // 开始录制
+                console.log('🎬 开始录制')
+                // 使用 MediaRecorder API 录制 canvas
+                if (canvasRef.current && canvasRef.current.captureStream) {
+                  const stream = canvasRef.current.captureStream(30)
+                  const mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'video/webm;codecs=vp9'
+                  })
+                  const chunks = []
+                  
+                  mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) chunks.push(e.data)
+                  }
+                  
+                  mediaRecorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: 'video/webm' })
+                    const url = URL.createObjectURL(blob)
+                    const link = document.createElement('a')
+                    link.download = `ar-recording-${Date.now()}.webm`
+                    link.href = url
+                    link.click()
+                    console.log('✅ 录制已保存')
+                  }
+                  
+                  mediaRecorder.start()
+                  arManagerRef.current.mediaRecorder = mediaRecorder
+                }
+              } else {
+                // 停止录制
+                console.log('⏹️ 停止录制')
+                if (arManagerRef.current?.mediaRecorder) {
+                  arManagerRef.current.mediaRecorder.stop()
+                }
+              }
+              
+              onRecord?.(newRecordingState)
+            }}
           >
             {isRecording ? '⏹️' : '📹'}
           </button>
@@ -876,6 +995,70 @@ export const ARViewerNew = ({
         <div className={styles.recordingIndicator}>
           <div className={styles.recordingDot} />
           <span>录制中</span>
+        </div>
+      )}
+
+      {/* 设置面板 */}
+      {showSettings && (
+        <div className={styles.settingsOverlay} onClick={() => setShowSettings(false)}>
+          <div className={styles.settingsPanel} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.settingsHeader}>
+              <h3 className={styles.settingsTitle}>AR设置</h3>
+              <button className={styles.closeSettings} onClick={() => setShowSettings(false)}>
+                ✕
+              </button>
+            </div>
+            
+            <div className={styles.settingsSection}>
+              <h4 className={styles.settingsSectionTitle}>模型</h4>
+              <div className={styles.settingItem}>
+                <span className={styles.settingLabel}>模型缩放</span>
+                <div className={styles.settingControl}>
+                  <input
+                    type="range"
+                    className={styles.slider}
+                    min="0.3"
+                    max="2"
+                    step="0.1"
+                    value={modelScale}
+                    onChange={(e) => {
+                      const scale = parseFloat(e.target.value)
+                      setModelScale(scale)
+                      if (arManagerRef.current?.currentCharacter) {
+                        arManagerRef.current.currentCharacter.scene.scale.setScalar(scale)
+                      }
+                    }}
+                  />
+                  <span className={styles.settingValue}>{modelScale.toFixed(1)}x</span>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.settingsSection}>
+              <h4 className={styles.settingsSectionTitle}>跟踪</h4>
+              <div className={styles.settingItem}>
+                <span className={styles.settingLabel}>自动跟随</span>
+                <button
+                  className={`${styles.toggle} ${isTracking ? styles.active : ''}`}
+                  onClick={handleToggleTracking}
+                >
+                  <div className={styles.toggleKnob}></div>
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.settingsSection}>
+              <h4 className={styles.settingsSectionTitle}>信息</h4>
+              <div className={styles.settingItem}>
+                <span className={styles.settingLabel}>检测到的平面</span>
+                <span className={styles.settingValue}>{detectedPlanes.length}</span>
+              </div>
+              <div className={styles.settingItem}>
+                <span className={styles.settingLabel}>模型已放置</span>
+                <span className={styles.settingValue}>{isPlaced ? '是' : '否'}</span>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
