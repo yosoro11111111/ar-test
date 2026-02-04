@@ -1111,6 +1111,7 @@ export const ARViewerNew = ({
   const [isPlaced, setIsPlaced] = useState(false)
   const [isScanning, setIsScanning] = useState(true)
   const [detectedPlanes, setDetectedPlanes] = useState([])
+  const [guideText, setGuideText] = useState('')
   const [showMenu, setShowMenu] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [currentAction, setCurrentAction] = useState(null)
@@ -1267,28 +1268,10 @@ export const ARViewerNew = ({
       }
       
       // 6. 不再自动放置，等待用户手动放置
-      // 显示提示让用户对准地面
+      // 使用React状态显示提示
       console.log('👆 请对准地面，点击放置按钮放置模型')
-      setTimeout(() => {
-        const toast = document.createElement('div')
-        toast.style.cssText = `
-          position: fixed;
-          top: 100px;
-          left: 50%;
-          transform: translateX(-50%);
-          background: rgba(0, 212, 255, 0.95);
-          color: #000;
-          padding: 16px 32px;
-          border-radius: 12px;
-          font-size: 16px;
-          font-weight: 600;
-          z-index: 999999;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        `
-        toast.textContent = '👆 请对准地面，点击放置按钮'
-        document.body.appendChild(toast)
-        setTimeout(() => toast?.remove(), 3000)
-      }, 500)
+      setGuideText('👆 请对准地面，点击放置按钮')
+      setTimeout(() => setGuideText(''), 3000)
       
     } catch (error) {
       console.error('❌ AR初始化失败:', error)
@@ -1360,6 +1343,27 @@ export const ARViewerNew = ({
   return (
     <div ref={domOverlayRef} className={styles.container}>
       <canvas ref={canvasRef} className={styles.canvas} />
+      
+      {/* 引导提示 */}
+      {guideText && (
+        <div style={{
+          position: 'fixed',
+          top: '100px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(0, 212, 255, 0.95)',
+          color: '#000',
+          padding: '16px 32px',
+          borderRadius: '12px',
+          fontSize: '16px',
+          fontWeight: 600,
+          zIndex: 999999,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          pointerEvents: 'none'
+        }}>
+          {guideText}
+        </div>
+      )}
       
       {/* 顶部工具栏 */}
       <div className={styles.header}>
@@ -1741,29 +1745,19 @@ export const ARViewerNew = ({
               if (arManagerRef.current) {
                 // 使用当前扫描环位置放置
                 if (arManagerRef.current.optimalPosition) {
+                  // 先设置状态为未放置，让扫描环重新显示
+                  setIsPlaced(false)
                   arManagerRef.current.isPlaced = false
-                  arManagerRef.current.placeModel()
-                  console.log('✅ 模型已放置到:', arManagerRef.current.optimalPosition)
+                  // 等待一帧让扫描环更新位置
+                  setTimeout(() => {
+                    arManagerRef.current.placeModel()
+                    setIsPlaced(true)
+                    console.log('✅ 模型已放置到:', arManagerRef.current.optimalPosition)
+                  }, 100)
                 } else {
                   console.warn('⚠️ 没有可用的放置位置，请先对准地面')
-                  // 显示提示
-                  const toast = document.createElement('div')
-                  toast.style.cssText = `
-                    position: fixed;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    background: rgba(239, 68, 68, 0.9);
-                    color: #fff;
-                    padding: 16px 32px;
-                    border-radius: 12px;
-                    font-size: 16px;
-                    font-weight: 600;
-                    z-index: 10000;
-                  `
-                  toast.textContent = '⚠️ 请对准地面移动手机'
-                  document.body.appendChild(toast)
-                  setTimeout(() => toast.remove(), 2000)
+                  setGuideText('⚠️ 请对准地面移动手机')
+                  setTimeout(() => setGuideText(''), 2000)
                 }
               }
             }}
