@@ -629,26 +629,12 @@ class ARSceneManager {
   }
 
   updateTracking() {
-    // 完全禁用自动跟随，模型放置后固定位置
-    // 只在需要时更新旋转（人物面向相机）
+    // 完全禁用所有自动更新，模型放置后完全固定
+    // 不更新位置，不更新旋转
     if (!this.isTracking || !this.currentCharacter || !this.camera) return
     
-    const model = this.currentCharacter.scene
-    const camera = this.camera
-    
-    // 只更新旋转，不更新位置
-    const dx = camera.position.x - model.position.x
-    const dz = camera.position.z - model.position.z
-    const targetRotation = Math.atan2(dx, dz)
-    
-    let rotDiff = targetRotation - model.rotation.y
-    while (rotDiff > Math.PI) rotDiff -= Math.PI * 2
-    while (rotDiff < -Math.PI) rotDiff += Math.PI * 2
-    
-    // 只有当角度差超过阈值时才旋转
-    if (Math.abs(rotDiff) > 0.1) {
-      model.rotation.y += rotDiff * 0.08
-    }
+    // 跟踪模式已禁用，不做任何更新
+    // 模型位置完全由 placeModel() 设置，之后不再改变
   }
 
   updateAnimation(deltaTime) {
