@@ -633,99 +633,14 @@ class ARSceneManager {
   }
 
   updateTracking() {
+    // 完全禁用自动跟随，模型放置后固定位置
+    // 只在需要时更新旋转（人物面向相机）
     if (!this.isTracking || !this.currentCharacter || !this.camera) return
     
     const model = this.currentCharacter.scene
     const camera = this.camera
     
-    // 初始化
-    if (!this.targetPosition) {
-      this.targetPosition = model.position.clone()
-      this.lastCameraPosition = camera.position.clone()
-      this.lastCameraRotation = camera.quaternion.clone()
-      this.isMoving = false
-    }
-    
-    // 检测相机是否移动（位置或旋转变化超过阈值）
-    const cameraMoved = this.lastCameraPosition.distanceTo(camera.position) > 0.05
-    const cameraRotated = this.lastCameraRotation.angleTo(camera.quaternion) > 0.1
-    
-    // 如果相机没有显著移动，保持idle状态
-    if (!cameraMoved && !cameraRotated) {
-      return
-    }
-    
-    // 更新相机位置记录
-    this.lastCameraPosition.copy(camera.position)
-    this.lastCameraRotation.copy(camera.quaternion)
-    
-    // ===== 计算新的目标位置 =====
-    let targetPos = null
-    
-    if (this.detectedPlanes.length > 0) {
-      // 找到相机前方最近的平面
-      let bestPlane = null
-      let minDistance = Infinity
-      
-      this.detectedPlanes.forEach(plane => {
-        const pose = plane.planeSpace
-        if (!pose) return
-        
-        const planePos = new THREE.Vector3(
-          pose.transform.position.x,
-          pose.transform.position.y,
-          pose.transform.position.z
-        )
-        
-        const distance = planePos.distanceTo(camera.position)
-        
-        // 只考虑1-4米范围内的平面
-        if (distance >= 1 && distance <= 4 && distance < minDistance) {
-          minDistance = distance
-          bestPlane = plane
-        }
-      })
-      
-      if (bestPlane) {
-        const pose = bestPlane.planeSpace
-        targetPos = new THREE.Vector3(
-          pose.transform.position.x,
-          pose.transform.position.y + 0.02,
-          pose.transform.position.z
-        )
-      }
-    }
-    
-    // 如果没有找到合适的平面，使用相机前方固定距离
-    if (!targetPos) {
-      const cameraForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
-      targetPos = camera.position.clone().add(cameraForward.multiplyScalar(2.0))
-      targetPos.y = model.position.y || 0.02
-    }
-    
-    // ===== 只有当目标位置显著变化时才更新 =====
-    const targetChanged = this.targetPosition.distanceTo(targetPos) > 0.15
-    
-    if (targetChanged) {
-      this.targetPosition.copy(targetPos)
-      this.isMoving = true
-    }
-    
-    // ===== 平滑移动到目标位置 =====
-    if (this.isMoving) {
-      const distanceToTarget = model.position.distanceTo(this.targetPosition)
-      
-      if (distanceToTarget > 0.03) {
-        // 使用lerp平滑移动
-        const lerpFactor = 0.1
-        model.position.lerp(this.targetPosition, lerpFactor)
-      } else {
-        // 到达目标，停止移动
-        this.isMoving = false
-      }
-    }
-    
-    // ===== 平滑旋转（人物面向相机） =====
+    // 只更新旋转，不更新位置
     const dx = camera.position.x - model.position.x
     const dz = camera.position.z - model.position.z
     const targetRotation = Math.atan2(dx, dz)
@@ -738,30 +653,11 @@ class ARSceneManager {
     if (Math.abs(rotDiff) > 0.1) {
       model.rotation.y += rotDiff * 0.08
     }
-    
-    // 只在显著变化时触发回调
-    if (this.lastCallbackData) {
-      const posChanged = this.lastCallbackData.position.distanceTo(model.position) > 0.05
-      const scaleChanged = Math.abs(this.lastCallbackData.scale - model.scale.x) > 0.01
-      
-      if (posChanged || scaleChanged) {
-        this.lastCallbackData = {
-          position: model.position.clone(),
-          scale: model.scale.x
-        }
-        this.onPositionUpdate?.(this.lastCallbackData)
-      }
-    } else {
-      this.lastCallbackData = {
-        position: model.position.clone(),
-        scale: model.scale.x
-      }
-    }
   }
 
   updateAnimation(deltaTime) {
-    // 只在有动画播放时才更新混合器
-    if (this.mixer && this.currentAnimation && this.currentAnimation.isRunning()) {
+    // 更新动画混合器
+    if (this.mixer) {
       this.mixer.update(deltaTime * 0.001)
     }
   }
