@@ -603,6 +603,60 @@ class ARSceneManager {
     }
   }
 
+  // 截图功能 - 在渲染循环中调用
+  captureScreenshot() {
+    if (!this.renderer || !this.session) {
+      console.warn('无法截图: 渲染器或会话未就绪')
+      return null
+    }
+
+    try {
+      const gl = this.renderer.getContext()
+      const baseLayer = this.session.renderState.baseLayer
+      
+      if (!baseLayer) {
+        console.warn('无法截图: 没有baseLayer')
+        return null
+      }
+
+      const framebuffer = baseLayer.framebuffer
+      const width = gl.drawingBufferWidth
+      const height = gl.drawingBufferHeight
+
+      // 读取像素数据
+      const pixels = new Uint8Array(width * height * 4)
+      gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer)
+      gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+
+      // 创建canvas并绘制
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      const imageData = ctx.createImageData(width, height)
+
+      // 翻转Y轴（WebGL坐标系与Canvas不同）
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const srcIdx = ((height - 1 - y) * width + x) * 4
+          const dstIdx = (y * width + x) * 4
+          imageData.data[dstIdx] = pixels[srcIdx]
+          imageData.data[dstIdx + 1] = pixels[srcIdx + 1]
+          imageData.data[dstIdx + 2] = pixels[srcIdx + 2]
+          imageData.data[dstIdx + 3] = pixels[srcIdx + 3]
+        }
+      }
+
+      ctx.putImageData(imageData, 0, 0)
+      
+      console.log('✅ 截图捕获成功')
+      return canvas.toDataURL('image/png')
+    } catch (error) {
+      console.error('截图失败:', error)
+      return null
+    }
+  }
+
   async loadVRMModel(url) {
     return new Promise((resolve, reject) => {
       const loader = new GLTFLoader()
@@ -1017,56 +1071,29 @@ export const ARViewerNew = ({
           <button 
             className={styles.toolButton} 
             onClick={() => {
-              // 使用WebXR的session进行截图
-              try {
-                const session = arManagerRef.current?.session
-                const gl = arManagerRef.current?.renderer?.getContext()
-                
-                if (session && gl) {
-                  // 获取当前帧
-                  const baseLayer = session.renderState.baseLayer
-                  if (baseLayer) {
-                    const framebuffer = baseLayer.framebuffer
-                    const width = gl.drawingBufferWidth
-                    const height = gl.drawingBufferHeight
-                    
-                    // 读取像素数据
-                    const pixels = new Uint8Array(width * height * 4)
-                    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer)
-                    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
-                    
-                    // 创建canvas并绘制
-                    const canvas = document.createElement('canvas')
-                    canvas.width = width
-                    canvas.height = height
-                    const ctx = canvas.getContext('2d')
-                    const imageData = ctx.createImageData(width, height)
-                    
-                    // 翻转Y轴（WebGL坐标系与Canvas不同）
-                    for (let y = 0; y < height; y++) {
-                      for (let x = 0; x < width; x++) {
-                        const srcIdx = ((height - 1 - y) * width + x) * 4
-                        const dstIdx = (y * width + x) * 4
-                        imageData.data[dstIdx] = pixels[srcIdx]
-                        imageData.data[dstIdx + 1] = pixels[srcIdx + 1]
-                        imageData.data[dstIdx + 2] = pixels[srcIdx + 2]
-                        imageData.data[dstIdx + 3] = pixels[srcIdx + 3]
-                      }
-                    }
-                    
-                    ctx.putImageData(imageData, 0, 0)
-                    
-                    // 下载
+              // 使用ARManager的截图功能
+              const dataUrl = arManagerRef.current?.captureScreenshot()
+              if (dataUrl) {
+                const link = document.createElement('a')
+                link.download = `ar-screenshot-${Date.now()}.png`
+                link.href = dataUrl
+                link.click()
+                console.log('✅ 截图已保存')
+              } else {
+                console.warn('截图失败，请重试')
+                // 备用方案：尝试使用canvas直接截图
+                try {
+                  const canvas = canvasRef.current
+                  if (canvas) {
                     const dataUrl = canvas.toDataURL('image/png')
                     const link = document.createElement('a')
                     link.download = `ar-screenshot-${Date.now()}.png`
                     link.href = dataUrl
                     link.click()
-                    console.log('✅ 截图已保存')
                   }
+                } catch (e) {
+                  console.error('备用截图也失败:', e)
                 }
-              } catch (err) {
-                console.error('截图失败:', err)
               }
               onScreenshot?.()
             }}
