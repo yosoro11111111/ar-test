@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react'
-import * as THREE from 'three'
-import { useARCore, useActions, useTimeline, useRecording, useCharacters } from '../hooks'
+import { useActions, useTimeline, useRecording, useCharacters } from '../hooks'
 import { SharedActionPanel, RecordingControls } from './shared'
 import ARSystem from './ARSystem'
 import ARViewer from './ARViewer'

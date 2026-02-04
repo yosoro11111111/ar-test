@@ -119,7 +119,7 @@ export const useTimeline = (actions, playAction) => {
   }, [pausePlayback])
 
   // 跳转到指定时间
-  seekTo = useCallback((time) => {
+  const seekTo = useCallback((time) => {
     setCurrentTime(Math.max(0, Math.min(time, duration)))
   }, [duration])
 
