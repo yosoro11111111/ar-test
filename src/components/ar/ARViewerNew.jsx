@@ -215,25 +215,40 @@ class ARSceneManager {
   }
 
   setupPlaneDetection() {
-    // 检查是否支持平面检测
-    const supportsPlaneDetection = this.session.enabledFeatures?.has('plane-detection') || 
-                                   this.session.optionalFeatures?.includes('plane-detection')
-    
-    if (supportsPlaneDetection) {
-      this.session.addEventListener('planesdetected', (event) => {
-        const planes = event.data
-        this.detectedPlanes = Array.from(planes)
-        this.updatePlaneVisualization()
-        this.updateCornerLines()
-        
-        if (!this.isPlaced && this.detectedPlanes.length > 0) {
-          this.calculateOptimalPlacement()
-        }
-        
-        this.onPlaneUpdate?.(this.detectedPlanes)
-      })
-    } else {
-      console.log('设备不支持平面检测，使用hit-test备用方案')
+    try {
+      // 检查是否支持平面检测
+      let supportsPlaneDetection = false
+      
+      // enabledFeatures 是 Set
+      if (this.session.enabledFeatures && typeof this.session.enabledFeatures.has === 'function') {
+        supportsPlaneDetection = this.session.enabledFeatures.has('plane-detection')
+      }
+      
+      // optionalFeatures 可能是数组
+      if (!supportsPlaneDetection && Array.isArray(this.session.optionalFeatures)) {
+        supportsPlaneDetection = this.session.optionalFeatures.includes('plane-detection')
+      }
+      
+      if (supportsPlaneDetection) {
+        console.log('✅ 设备支持平面检测')
+        this.session.addEventListener('planesdetected', (event) => {
+          const planes = event.data
+          this.detectedPlanes = Array.from(planes)
+          this.updatePlaneVisualization()
+          this.updateCornerLines()
+          
+          if (!this.isPlaced && this.detectedPlanes.length > 0) {
+            this.calculateOptimalPlacement()
+          }
+          
+          this.onPlaneUpdate?.(this.detectedPlanes)
+        })
+      } else {
+        console.log('⚠️ 设备不支持平面检测，使用hit-test备用方案')
+        this.useHitTestFallback = true
+      }
+    } catch (error) {
+      console.error('平面检测设置失败:', error)
       this.useHitTestFallback = true
     }
   }
@@ -870,7 +885,9 @@ export const ARViewerNew = ({
       
       // 立即加载动作
       try {
+        console.log('🎬 开始加载动作列表...')
         const actions = await getAllVRMActions()
+        console.log('✅ 动作加载成功:', actions.length, '个动作')
         setVrmaActions(actions)
         
         // 预加载前5个动作
@@ -878,7 +895,8 @@ export const ARViewerNew = ({
           arManagerRef.current.preloadActions(actions, 5)
         }
       } catch (e) {
-        console.error('加载动作失败:', e)
+        console.error('❌ 加载动作失败:', e)
+        console.error('错误详情:', e.message, e.stack)
       }
       
       const cats = getAllCategories()
@@ -1133,25 +1151,31 @@ export const ARViewerNew = ({
             </div>
             
             <div className={styles.actionCarousel}>
-              {filteredActions.slice(0, 20).map(action => (
-                <button
-                  key={action.id}
-                  className={`${styles.actionCard} ${currentAction === action.id ? styles.active : ''}`}
-                  onClick={() => handleAction(action)}
-                >
-                  <span className={styles.actionIcon}>{action.icon}</span>
-                  <span className={styles.actionName}>{action.name}</span>
-                  <button 
-                    className={`${styles.favoriteBtn} ${favorites.includes(action.id) ? styles.favorited : ''}`}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      toggleFavorite(action)
-                    }}
+              {filteredActions.length === 0 ? (
+                <div style={{ color: 'rgba(255,255,255,0.5)', padding: '20px', textAlign: 'center' }}>
+                  暂无动作数据 (vrmaActions: {vrmaActions.length})
+                </div>
+              ) : (
+                filteredActions.slice(0, 20).map(action => (
+                  <button
+                    key={action.id}
+                    className={`${styles.actionCard} ${currentAction === action.id ? styles.active : ''}`}
+                    onClick={() => handleAction(action)}
                   >
-                    {favorites.includes(action.id) ? '★' : '☆'}
+                    <span className={styles.actionIcon}>{action.icon}</span>
+                    <span className={styles.actionName}>{action.name}</span>
+                    <button 
+                      className={`${styles.favoriteBtn} ${favorites.includes(action.id) ? styles.favorited : ''}`}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleFavorite(action)
+                      }}
+                    >
+                      {favorites.includes(action.id) ? '★' : '☆'}
+                    </button>
                   </button>
-                </button>
-              ))}
+                ))
+              )}
             </div>
           </div>
         )}
