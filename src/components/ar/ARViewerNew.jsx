@@ -880,6 +880,17 @@ class ARSceneManager {
 
   toggleTracking() {
     this.isTracking = !this.isTracking
+    
+    // 初始化跟踪状态
+    if (this.isTracking && this.currentCharacter) {
+      this.targetPosition = this.currentCharacter.scene.position.clone()
+      this.lastCameraPosition = this.camera.position.clone()
+      this.isMoving = false
+      console.log('✅ 跟踪已开启')
+    } else {
+      console.log('⏹️ 跟踪已关闭')
+    }
+    
     return this.isTracking
   }
 
@@ -1357,9 +1368,29 @@ export const ARViewerNew = ({
                     arManagerRef.current.recordStream = stream
                   }).catch(err => {
                     console.error('获取屏幕流失败:', err)
+                    // 显示错误提示
+                    const toast = document.createElement('div')
+                    toast.style.cssText = `
+                      position: fixed;
+                      top: 80px;
+                      left: 50%;
+                      transform: translateX(-50%);
+                      background: rgba(239, 68, 68, 0.9);
+                      color: #fff;
+                      padding: 12px 24px;
+                      border-radius: 20px;
+                      font-size: 14px;
+                      font-weight: 600;
+                      z-index: 10000;
+                    `
+                    toast.textContent = '❌ 录制需要屏幕录制权限'
+                    document.body.appendChild(toast)
+                    setTimeout(() => toast.remove(), 3000)
+                    setIsRecording(false)
                   })
                 } catch (err) {
                   console.error('录制启动失败:', err)
+                  setIsRecording(false)
                 }
               } else {
                 // 停止录制
@@ -1495,11 +1526,16 @@ export const ARViewerNew = ({
 
           <button
             className={`${styles.mainButton} ${isPlaced ? styles.placed : ''}`}
-            onClick={() => arManagerRef.current?.placeModel()}
-            disabled={isPlaced}
+            onClick={() => {
+              // 允许重新放置模型
+              if (arManagerRef.current) {
+                arManagerRef.current.isPlaced = false
+                arManagerRef.current.placeModel()
+              }
+            }}
           >
-            <span>{isPlaced ? '✓' : '📍'}</span>
-            <span>{isPlaced ? '已放置' : '放置'}</span>
+            <span>{isPlaced ? '📍' : '📍'}</span>
+            <span>{isPlaced ? '重新放置' : '放置'}</span>
           </button>
 
           <button
