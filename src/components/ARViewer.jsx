@@ -81,6 +81,7 @@ class ARSceneManager {
 
       // 创建场景
       this.scene = new THREE.Scene()
+      this.scene.background = null // AR模式下背景为null，显示相机画面
       
       // 设置灯光
       this.setupLighting()
@@ -731,7 +732,7 @@ export const ARViewer = ({
       } else {
         console.warn('没有提供VRM模型URL，尝试使用默认模型')
         // 尝试加载默认模型
-        const defaultUrl = '/models/optimized/Katheryne.vrm'
+        const defaultUrl = '/models/Katheryne.vrm'
         try {
           await arManagerRef.current.loadVRMModel(defaultUrl)
           console.log('默认VRM模型加载成功')
