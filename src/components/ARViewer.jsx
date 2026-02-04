@@ -763,8 +763,9 @@ export const ARViewer = ({
         }
       } else {
         console.warn('没有提供VRM模型URL，尝试使用默认模型')
-        // 尝试加载默认模型
-        const defaultUrl = '/models/Katheryne.vrm'
+        // 尝试加载默认模型 - 使用完整URL
+        const defaultUrl = `${window.location.origin}/models/Katheryne.vrm`
+        console.log('尝试加载默认模型:', defaultUrl)
         try {
           await arManagerRef.current.loadVRMModel(defaultUrl)
           console.log('默认VRM模型加载成功')
