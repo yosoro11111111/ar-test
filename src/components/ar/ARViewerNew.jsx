@@ -827,45 +827,66 @@ class ARSceneManager {
   }
 
   async playAction(actionId, actionsList) {
-    if (!this.mixer || !this.currentCharacter) {
-      console.warn('无法播放动作: 动画系统未初始化')
+    console.log('🎬 playAction 被调用:', actionId)
+    
+    if (!this.mixer) {
+      console.warn('❌ 无法播放动作: mixer 未初始化')
+      return
+    }
+    if (!this.currentCharacter) {
+      console.warn('❌ 无法播放动作: currentCharacter 未初始化')
       return
     }
 
     try {
       // 停止当前动画
       if (this.currentAnimation) {
+        console.log('⏹️ 停止当前动画')
         this.currentAnimation.fadeOut(0.2)
+        this.currentAnimation.stop()
       }
 
       const action = actionsList.find(a => a.id === actionId)
       if (!action) {
-        console.warn('未找到动作:', actionId)
+        console.warn('❌ 未找到动作:', actionId)
         return
       }
+      
+      console.log('🎯 找到动作:', action.name, '文件:', action.filePath)
 
       let clip
       
       // 检查缓存
       if (this.actionCache.has(actionId)) {
+        console.log('📦 使用缓存的动作')
         clip = this.actionCache.get(actionId)
       } else {
         // 异步加载
+        console.log('📥 加载动作文件:', action.filePath)
         const result = await loadVRMAAction(action.filePath, this.currentCharacter)
+        console.log('📥 加载结果:', result)
         if (result && result.clip) {
           clip = result.clip
           this.actionCache.set(actionId, clip)
+          console.log('✅ 动作已缓存')
+        } else {
+          console.warn('❌ 加载动作失败，没有 clip')
         }
       }
       
       if (clip) {
+        console.log('▶️ 创建动画 action')
         this.currentAnimation = this.mixer.clipAction(clip)
+        this.currentAnimation.reset()
         this.currentAnimation.fadeIn(0.2)
         this.currentAnimation.play()
-        console.log('✅ 播放动作:', action.name)
+        console.log('✅ 播放动作成功:', action.name)
+      } else {
+        console.warn('❌ 没有 clip 可播放')
       }
     } catch (error) {
-      console.error('播放动作失败:', error)
+      console.error('❌ 播放动作失败:', error)
+      console.error('错误堆栈:', error.stack)
     }
   }
 
