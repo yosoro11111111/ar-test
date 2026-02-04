@@ -2,6 +2,8 @@ import React, { useRef, useEffect, useState, useCallback } from 'react'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { VRMLoaderPlugin } from '@pixiv/three-vrm'
+import { VRMAnimationLoaderPlugin, createVRMAnimationClip } from '@pixiv/three-vrm-animation'
+import { getAllVRMAActions, loadVRMAAction } from '../data/vrmaActions'
 
 // AR 场景管理器
 class ARSceneManager {
@@ -19,6 +21,11 @@ class ARSceneManager {
     this.isPlaced = false
     this.optimalPosition = null
     this.optimalScale = 1
+    
+    // 动画相关
+    this.mixer = null
+    this.currentAnimation = null
+    this.vrmaActions = []
     
     // 回调
     this.onPlaneUpdate = null
@@ -291,6 +298,9 @@ class ARSceneManager {
             }
           })
           
+          // 创建动画混合器
+          this.mixer = new THREE.AnimationMixer(vrm.scene)
+          
           // 默认隐藏
           vrm.scene.visible = false
           this.scene.add(vrm.scene)
@@ -307,6 +317,18 @@ class ARSceneManager {
         }
       )
     })
+  }
+
+  // 加载VRMA动作列表
+  async loadVRMAActions() {
+    try {
+      this.vrmaActions = await getAllVRMAActions()
+      console.log('VRMA动作加载完成:', this.vrmaActions.length)
+      return this.vrmaActions
+    } catch (error) {
+      console.error('加载VRMA动作失败:', error)
+      return []
+    }
   }
 
   // 放置模型
@@ -379,16 +401,45 @@ class ARSceneManager {
     animate()
   }
 
-  // 播放动作
-  playAction(actionName) {
-    if (!this.currentCharacter) return
+  // 播放VRMA动作
+  async playAction(actionId) {
+    if (!this.currentCharacter || !this.mixer) return
     
-    // 这里应该集成实际的VRMA动作播放
-    console.log('播放动作:', actionName)
+    // 查找动作
+    const action = this.vrmaActions.find(a => a.id === actionId)
+    if (!action) {
+      console.warn('未找到动作:', actionId)
+      return
+    }
     
-    // 简化的动作触发
-    if (this.currentCharacter.humanoid) {
-      // 可以在这里设置骨骼姿态
+    try {
+      // 停止当前动画
+      if (this.currentAnimation) {
+        this.currentAnimation.fadeOut(0.3)
+      }
+      
+      // 加载VRMA动画
+      const { clip } = await loadVRMAAction(action.filePath, this.currentCharacter)
+      
+      if (clip) {
+        // 创建动画动作
+        const animationAction = this.mixer.clipAction(clip)
+        animationAction.reset()
+        animationAction.fadeIn(0.3)
+        animationAction.play()
+        
+        this.currentAnimation = animationAction
+        console.log('播放动作:', action.name)
+      }
+    } catch (error) {
+      console.error('播放动作失败:', error)
+    }
+  }
+
+  // 更新动画
+  updateAnimation(deltaTime) {
+    if (this.mixer) {
+      this.mixer.update(deltaTime)
     }
   }
 
@@ -415,8 +466,14 @@ class ARSceneManager {
 
   // 渲染循环
   render() {
+    let lastTime = 0
+    
     const loop = (time, frame) => {
       if (!this.session) return
+      
+      // 计算时间差
+      const deltaTime = (time - lastTime) / 1000
+      lastTime = time
 
       const pose = frame.getViewerPose(this.referenceSpace)
       
@@ -457,6 +514,9 @@ class ARSceneManager {
         // 更新模型位置
         this.updateModelPosition()
 
+        // 更新动画
+        this.updateAnimation(deltaTime)
+
         // 绑定帧缓冲
         const glLayer = this.session.renderState.baseLayer
         const gl = this.renderer.getContext()
@@ -488,6 +548,8 @@ class ARSceneManager {
     this.isPlaced = false
     this.isModelLoaded = false
     this.currentCharacter = null
+    this.mixer = null
+    this.currentAnimation = null
   }
 }
 
@@ -509,16 +571,7 @@ export const ARViewer = ({
   const [showMenu, setShowMenu] = useState(false)
   const [currentAction, setCurrentAction] = useState(null)
   const [isRecording, setIsRecording] = useState(false)
-  
-  // 动作列表
-  const actions = [
-    { id: 'idle', name: '待机', icon: '😌' },
-    { id: 'wave', name: '挥手', icon: '👋' },
-    { id: 'jump', name: '跳跃', icon: '⬆️' },
-    { id: 'dance', name: '跳舞', icon: '💃' },
-    { id: 'bow', name: '鞠躬', icon: '🙇' },
-    { id: 'walk', name: '行走', icon: '🚶' }
-  ]
+  const [vrmaActions, setVrmaActions] = useState([])
 
   useEffect(() => {
     initAR()
@@ -555,6 +608,10 @@ export const ARViewer = ({
       // 启动AR
       await arManagerRef.current.start(canvasRef.current)
       
+      // 加载VRMA动作列表
+      const actions = await arManagerRef.current.loadVRMAActions()
+      setVrmaActions(actions.slice(0, 12)) // 只取前12个动作显示
+      
       // 加载VRM模型
       if (vrmUrl) {
         await arManagerRef.current.loadVRMModel(vrmUrl)
@@ -572,9 +629,9 @@ export const ARViewer = ({
     }
   }
 
-  const handleAction = (actionId) => {
+  const handleAction = async (actionId) => {
     setCurrentAction(actionId)
-    arManagerRef.current?.playAction(actionId)
+    await arManagerRef.current?.playAction(actionId)
   }
 
   const handleScreenshot = () => {
@@ -728,42 +785,52 @@ export const ARViewer = ({
         pointerEvents: 'none'
       }}>
         {/* 动作面板 */}
-        {showMenu && (
+        {showMenu && vrmaActions.length > 0 && (
           <div style={{
             background: 'rgba(0,0,0,0.7)',
             borderRadius: '16px',
             padding: '16px',
             marginBottom: '16px',
             backdropFilter: 'blur(10px)',
-            pointerEvents: 'auto'
+            pointerEvents: 'auto',
+            maxHeight: '200px',
+            overflowY: 'auto'
           }}>
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(6, 1fr)',
-              gap: '12px'
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '10px'
             }}>
-              {actions.map(action => (
+              {vrmaActions.map(action => (
                 <button
                   key={action.id}
                   onClick={() => handleAction(action.id)}
                   style={{
-                    padding: '12px 8px',
+                    padding: '10px 6px',
                     background: currentAction === action.id
                       ? 'rgba(74, 222, 128, 0.3)'
                       : 'rgba(255,255,255,0.1)',
                     border: `1px solid ${currentAction === action.id ? '#4ade80' : 'rgba(255,255,255,0.2)'}`,
-                    borderRadius: '12px',
+                    borderRadius: '10px',
                     color: 'white',
-                    fontSize: '12px',
+                    fontSize: '11px',
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '4px'
+                    gap: '4px',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
                   }}
+                  title={action.name}
                 >
-                  <span style={{ fontSize: '24px' }}>{action.icon}</span>
-                  <span>{action.name}</span>
+                  <span style={{ fontSize: '20px' }}>{action.icon}</span>
+                  <span style={{ 
+                    maxWidth: '100%', 
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>{action.name}</span>
                 </button>
               ))}
             </div>
@@ -796,7 +863,7 @@ export const ARViewer = ({
             }}
           >
             <span>🎭</span>
-            <span>动作</span>
+            <span>动作 ({vrmaActions.length})</span>
           </button>
 
           <button

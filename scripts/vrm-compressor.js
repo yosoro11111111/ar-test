@@ -361,3 +361,86 @@ async function main() {
   
   console.log('========================================');
   console.log('VRM高级压缩工具');
+  console.log('========================================');
+  console.log('');
+  console.log(`输入: ${inputPath}`);
+  console.log(`输出: ${outputPath}`);
+  console.log('');
+  console.log('配置:');
+  console.log(`  最大纹理尺寸: ${config.texture.maxSize}`);
+  console.log(`  纹理质量: ${config.texture.quality}`);
+  console.log(`  输出格式: ${config.texture.format}`);
+  console.log(`  网格简化: ${config.mesh.simplify ? '启用' : '禁用'}`);
+  console.log('');
+  
+  try {
+    // 读取文件
+    if (!fs.existsSync(inputPath)) {
+      throw new Error(`文件不存在: ${inputPath}`);
+    }
+    
+    const originalBuffer = fs.readFileSync(inputPath);
+    const originalSize = originalBuffer.length;
+    
+    console.log(`原始大小: ${(originalSize / 1024 / 1024).toFixed(2)} MB`);
+    console.log('');
+    
+    // 解析GLB
+    console.log('正在解析VRM文件...');
+    const { json, bin, version } = parseGLB(originalBuffer);
+    console.log(`GLB版本: ${version}`);
+    console.log(`JSON大小: ${JSON.stringify(json).length} bytes`);
+    console.log(`BIN大小: ${bin ? bin.length : 0} bytes`);
+    console.log('');
+    
+    // 统计信息
+    console.log('模型信息:');
+    console.log(`  节点数: ${json.nodes?.length || 0}`);
+    console.log(`  网格数: ${json.meshes?.length || 0}`);
+    console.log(`  材质数: ${json.materials?.length || 0}`);
+    console.log(`  纹理数: ${json.images?.length || 0}`);
+    console.log(`  动画数: ${json.animations?.length || 0}`);
+    console.log('');
+    
+    // 优化
+    console.log('正在优化...');
+    const { json: optimizedJson, bin: optimizedBin, stats } = await optimizeVRM(json, bin, config);
+    console.log('');
+    
+    // 构建输出
+    console.log('正在构建优化后的文件...');
+    const outputBuffer = buildGLB(optimizedJson, optimizedBin);
+    
+    // 写入文件
+    fs.writeFileSync(outputPath, outputBuffer);
+    
+    // 显示结果
+    const optimizedSize = outputBuffer.length;
+    const reduction = ((1 - optimizedSize / originalSize) * 100).toFixed(1);
+    
+    console.log('');
+    console.log('========================================');
+    console.log('压缩完成!');
+    console.log('========================================');
+    console.log('');
+    console.log(`原始大小: ${(originalSize / 1024 / 1024).toFixed(2)} MB`);
+    console.log(`优化后大小: ${(optimizedSize / 1024 / 1024).toFixed(2)} MB`);
+    console.log(`压缩率: ${reduction}%`);
+    console.log(`节省空间: ${((originalSize - optimizedSize) / 1024 / 1024).toFixed(2)} MB`);
+    console.log('');
+    console.log('优化详情:');
+    console.log(`  JSON大小: ${stats.originalJsonSize} -> ${stats.optimizedJsonSize} bytes`);
+    console.log(`  纹理处理: ${stats.texturesProcessed} 个`);
+    console.log(`  材质优化: ${stats.materialsOptimized} 个`);
+    console.log(`  网格优化: ${stats.meshesOptimized} 个`);
+    console.log('');
+    console.log(`输出文件: ${outputPath}`);
+    
+  } catch (error) {
+    console.error('错误:', error.message);
+    console.error(error.stack);
+    process.exit(1);
+  }
+}
+
+main();
