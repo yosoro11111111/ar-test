@@ -1277,16 +1277,26 @@ export const ARViewerNew = ({
         arManagerRef.current.preloadActions(vrmaActions, 5)
       }
       
-      // 6. 放置模型
-      setTimeout(() => {
-        if (arManagerRef.current.optimalPosition) {
-          arManagerRef.current.placeModel()
-        } else {
-          arManagerRef.current.optimalPosition = new THREE.Vector3(0, 0, -1.5)
-          arManagerRef.current.optimalScale = 1.0
-          arManagerRef.current.placeModel()
-        }
-      }, 2000)
+      // 6. 不再自动放置，等待用户手动放置
+      // 显示提示让用户对准地面
+      console.log('👆 请对准地面，点击放置按钮放置模型')
+      const toast = document.createElement('div')
+      toast.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 212, 255, 0.9);
+        color: #000;
+        padding: 16px 32px;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        z-index: 10000;
+      `
+      toast.textContent = '👆 请对准地面，点击放置按钮'
+      document.body.appendChild(toast)
+      setTimeout(() => toast.remove(), 3000)
       
     } catch (error) {
       console.error('❌ AR初始化失败:', error)
