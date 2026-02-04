@@ -217,35 +217,80 @@ class ARSceneManager {
 
   setupPlaneDetection() {
     try {
-      // 检查是否支持原生平面检测
+      // 检查是否支持原生平面检测（Google Chrome/Android）
       let supportsPlaneDetection = false
       
+      // 方法1: 检查 enabledFeatures
       if (this.session.enabledFeatures && typeof this.session.enabledFeatures.has === 'function') {
         supportsPlaneDetection = this.session.enabledFeatures.has('plane-detection')
       }
       
+      // 方法2: 检查 featurePolicy (Chrome 90+)
+      if (!supportsPlaneDetection && this.session.featurePolicy) {
+        supportsPlaneDetection = true // 假设支持，通过事件监听验证
+      }
+      
+      // 方法3: 尝试直接添加事件监听器（Chrome会自动处理）
+      if (!supportsPlaneDetection) {
+        try {
+          this.session.addEventListener('planesdetected', () => {})
+          this.session.removeEventListener('planesdetected', () => {})
+          supportsPlaneDetection = true
+        } catch (e) {
+          supportsPlaneDetection = false
+        }
+      }
+      
       if (supportsPlaneDetection) {
-        console.log('✅ 设备支持原生平面检测')
+        console.log('✅ Device supports native plane detection')
+        
+        // 设置平面检测事件监听
         this.session.addEventListener('planesdetected', (event) => {
-          const planes = event.data
-          this.detectedPlanes = Array.from(planes)
-          this.updatePlaneVisualization()
-          this.updateCornerLines()
-          
-          if (!this.isPlaced && this.detectedPlanes.length > 0) {
-            this.calculateOptimalPlacement()
+          try {
+            const planes = event.data
+            if (planes && planes.size > 0) {
+              this.detectedPlanes = Array.from(planes).map(plane => {
+                // 转换XRPlane为统一格式
+                return {
+                  planeSpace: plane,
+                  extent: plane.extent || { width: 1, height: 1 },
+                  center: plane.center || { x: 0, y: 0, z: 0 }
+                }
+              })
+              
+              this.updatePlaneVisualization()
+              this.updateCornerLines()
+              
+              if (!this.isPlaced && this.detectedPlanes.length > 0) {
+                this.calculateOptimalPlacement()
+              }
+              
+              this.onPlaneUpdate?.(this.detectedPlanes)
+            }
+          } catch (err) {
+            console.warn('Plane detection event error:', err)
           }
-          
-          this.onPlaneUpdate?.(this.detectedPlanes)
         })
+        
+        // Chrome特定：尝试获取现有平面
+        if (this.session.planes) {
+          const existingPlanes = Array.from(this.session.planes)
+          if (existingPlanes.length > 0) {
+            this.detectedPlanes = existingPlanes.map(plane => ({
+              planeSpace: plane,
+              extent: plane.extent || { width: 1, height: 1 },
+              center: plane.center || { x: 0, y: 0, z: 0 }
+            }))
+            this.updatePlaneVisualization()
+          }
+        }
       } else {
-        console.log('⚠️ 设备不支持原生平面检测，使用智能hit-test平面检测')
+        console.log('⚠️ Native plane detection not supported, using hit-test fallback')
         this.useHitTestFallback = true
-        // 初始化hit-test平面检测
         this.initHitTestPlaneDetection()
       }
     } catch (error) {
-      console.error('平面检测设置失败:', error)
+      console.error('Plane detection setup failed:', error)
       this.useHitTestFallback = true
       this.initHitTestPlaneDetection()
     }
