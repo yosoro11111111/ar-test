@@ -1,9 +1,9 @@
 // Service Worker - 提供离线支持和缓存管理
 
-const CACHE_NAME = 'ar-studio-v2'
-const STATIC_CACHE = 'ar-studio-static-v2'
-const MODEL_CACHE = 'ar-studio-models-v2'
-const IMAGE_CACHE = 'ar-studio-images-v2'
+const CACHE_NAME = 'ar-studio-v3'
+const STATIC_CACHE = 'ar-studio-static-v3'
+const MODEL_CACHE = 'ar-studio-models-v3'
+const IMAGE_CACHE = 'ar-studio-images-v3'
 
 // 静态资源列表
 const STATIC_ASSETS = [
