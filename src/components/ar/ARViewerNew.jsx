@@ -534,19 +534,18 @@ class ARSceneManager {
     const model = this.currentCharacter.scene
     const camera = this.camera
     
-    // 初始化目标位置（使用当前位置）
+    // 初始化目标位置
     if (!this.targetPosition) {
       this.targetPosition = model.position.clone()
     }
-    if (!this.targetRotation) {
-      this.targetRotation = model.rotation.y
-    }
     
-    // ===== 策略1: 如果有检测到的平面，优先使用平面 =====
+    // ===== 找到最佳跟踪位置 =====
+    let targetPos = null
+    
     if (this.detectedPlanes.length > 0) {
-      // 找到相机前方的最佳平面
+      // 找到相机前方最近的平面
       let bestPlane = null
-      let bestScore = -1
+      let minDistance = Infinity
       
       this.detectedPlanes.forEach(plane => {
         const pose = plane.planeSpace
@@ -558,85 +557,58 @@ class ARSceneManager {
           pose.transform.position.z
         )
         
-        // 计算平面在相机前方的距离
-        const cameraForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
-        const toPlane = planePos.clone().sub(camera.position)
-        const distance = toPlane.length()
+        const distance = planePos.distanceTo(camera.position)
         
-        // 只考虑相机前方的平面（点积为负表示在前方）
-        const isInFront = toPlane.normalize().dot(cameraForward) < 0.3
-        
-        if (!isInFront) return
-        
-        // 评分：距离适中（1.5-3米）且面积大的平面更好
-        const area = (plane.extent?.width || 1) * (plane.extent?.height || 1)
-        const distanceScore = Math.max(0, 1 - Math.abs(distance - 2) / 2)
-        const score = area * distanceScore
-        
-        if (score > bestScore) {
-          bestScore = score
+        // 只考虑1-4米范围内的平面
+        if (distance >= 1 && distance <= 4 && distance < minDistance) {
+          minDistance = distance
           bestPlane = plane
         }
       })
       
       if (bestPlane) {
         const pose = bestPlane.planeSpace
-        // 目标位置：平面上方0.02米
-        this.targetPosition.set(
+        targetPos = new THREE.Vector3(
           pose.transform.position.x,
           pose.transform.position.y + 0.02,
           pose.transform.position.z
         )
-        this.lastTrackedPlane = bestPlane
       }
     }
-    // ===== 策略2: 没有平面时，使用hit-test在相机前方创建虚拟位置 =====
-    else {
-      // 在相机前方2米处创建目标位置
+    
+    // 如果没有找到合适的平面，使用相机前方固定距离
+    if (!targetPos) {
       const cameraForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
-      const targetDistance = 2.0
-      
-      this.targetPosition.copy(camera.position).add(cameraForward.multiplyScalar(targetDistance))
-      // 保持Y轴在地面高度（使用模型当前高度或默认0）
-      this.targetPosition.y = model.position.y || 0
+      targetPos = camera.position.clone().add(cameraForward.multiplyScalar(2.0))
+      targetPos.y = model.position.y || 0.02
     }
     
-    // ===== 平滑移动到目标位置（使用更小的插值系数减少抖动） =====
-    const lerpFactor = 0.015 // 更小的值 = 更平滑但响应更慢
+    // ===== 平滑移动（使用较大的插值系数，更快的响应） =====
+    const lerpFactor = 0.08
     
-    // 计算新位置
-    const newX = model.position.x + (this.targetPosition.x - model.position.x) * lerpFactor
-    const newY = model.position.y + (this.targetPosition.y - model.position.y) * lerpFactor
-    const newZ = model.position.z + (this.targetPosition.z - model.position.z) * lerpFactor
+    // 只有当距离超过阈值时才移动（减少微小抖动）
+    const distanceToTarget = model.position.distanceTo(targetPos)
+    if (distanceToTarget > 0.05) {
+      model.position.lerp(targetPos, lerpFactor)
+    }
     
-    // 限制移动速度，防止抖动
-    const maxMovePerFrame = 0.02 // 每帧最大移动距离
-    const moveX = Math.max(-maxMovePerFrame, Math.min(maxMovePerFrame, newX - model.position.x))
-    const moveY = Math.max(-maxMovePerFrame, Math.min(maxMovePerFrame, newY - model.position.y))
-    const moveZ = Math.max(-maxMovePerFrame, Math.min(maxMovePerFrame, newZ - model.position.z))
+    // ===== 平滑旋转（人物面向相机） =====
+    // 计算从模型指向相机的角度
+    const dx = camera.position.x - model.position.x
+    const dz = camera.position.z - model.position.z
+    const targetRotation = Math.atan2(dx, dz)
     
-    model.position.x += moveX
-    model.position.y += moveY
-    model.position.z += moveZ
+    // 平滑旋转
+    let rotDiff = targetRotation - model.rotation.y
+    while (rotDiff > Math.PI) rotDiff -= Math.PI * 2
+    while (rotDiff < -Math.PI) rotDiff += Math.PI * 2
     
-    // ===== 平滑旋转朝向相机 =====
-    const cameraPosition = camera.position
-    const targetAngle = Math.atan2(
-      cameraPosition.x - model.position.x,
-      cameraPosition.z - model.position.z
-    )
+    // 只有当角度差超过阈值时才旋转
+    if (Math.abs(rotDiff) > 0.05) {
+      model.rotation.y += rotDiff * 0.05
+    }
     
-    // 计算最短旋转路径
-    let deltaRotation = targetAngle - model.rotation.y
-    while (deltaRotation > Math.PI) deltaRotation -= Math.PI * 2
-    while (deltaRotation < -Math.PI) deltaRotation += Math.PI * 2
-    
-    // 限制旋转速度
-    const maxRotatePerFrame = 0.02
-    const rotationStep = Math.max(-maxRotatePerFrame, Math.min(maxRotatePerFrame, deltaRotation * 0.05))
-    model.rotation.y += rotationStep
-    
-    // 触发位置更新回调
+    // 触发回调
     this.onPositionUpdate?.({
       position: model.position.clone(),
       scale: model.scale.x
