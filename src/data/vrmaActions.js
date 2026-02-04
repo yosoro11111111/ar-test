@@ -258,7 +258,7 @@ export function clearVRMACache() {
 
 export default {
   fetchVRMAList,
-  getAllVRMAActions,
+  getAllVRMActions,
   loadVRMAAction,
   clearVRMACache
 }
