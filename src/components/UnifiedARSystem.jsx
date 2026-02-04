@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react'
 import { useActions, useTimeline, useRecording, useCharacters } from '../hooks'
 import { SharedActionPanel, RecordingControls } from './shared'
 import ARSystem from './ARSystem'
-import ARViewer from './ARViewer'
+import ARViewer from './ar/ARViewerNew'
 
 /**
  * 统一AR系统入口组件
