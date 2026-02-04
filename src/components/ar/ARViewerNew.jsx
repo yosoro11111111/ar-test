@@ -1737,8 +1737,32 @@ export const ARViewerNew = ({
             onClick={() => {
               // 允许重新放置模型
               if (arManagerRef.current) {
-                arManagerRef.current.isPlaced = false
-                arManagerRef.current.placeModel()
+                // 使用当前扫描环位置放置
+                if (arManagerRef.current.optimalPosition) {
+                  arManagerRef.current.isPlaced = false
+                  arManagerRef.current.placeModel()
+                  console.log('✅ 模型已放置到:', arManagerRef.current.optimalPosition)
+                } else {
+                  console.warn('⚠️ 没有可用的放置位置，请先对准地面')
+                  // 显示提示
+                  const toast = document.createElement('div')
+                  toast.style.cssText = `
+                    position: fixed;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    background: rgba(239, 68, 68, 0.9);
+                    color: #fff;
+                    padding: 16px 32px;
+                    border-radius: 12px;
+                    font-size: 16px;
+                    font-weight: 600;
+                    z-index: 10000;
+                  `
+                  toast.textContent = '⚠️ 请对准地面移动手机'
+                  document.body.appendChild(toast)
+                  setTimeout(() => toast.remove(), 2000)
+                }
               }
             }}
           >
