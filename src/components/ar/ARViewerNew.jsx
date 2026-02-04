@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
 import { VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { loadVRMAAction, getAllCategories } from '../../data/vrmaActions'
 import ARTimeline from './ARTimeline'
+import ARProps from './ARProps'
 import styles from './ARViewerNew.module.css'
 
 // 内存优化的AR场景管理器类
@@ -214,18 +215,60 @@ class ARSceneManager {
   }
 
   setupPlaneDetection() {
-    this.session.addEventListener('planesdetected', (event) => {
-      const planes = event.data
-      this.detectedPlanes = Array.from(planes)
-      this.updatePlaneVisualization()
-      this.updateCornerLines() // 更新墙角线条位置
-      
-      if (!this.isPlaced && this.detectedPlanes.length > 0) {
-        this.calculateOptimalPlacement()
+    // 检查是否支持平面检测
+    const supportsPlaneDetection = this.session.enabledFeatures?.has('plane-detection') || 
+                                   this.session.optionalFeatures?.includes('plane-detection')
+    
+    if (supportsPlaneDetection) {
+      this.session.addEventListener('planesdetected', (event) => {
+        const planes = event.data
+        this.detectedPlanes = Array.from(planes)
+        this.updatePlaneVisualization()
+        this.updateCornerLines()
+        
+        if (!this.isPlaced && this.detectedPlanes.length > 0) {
+          this.calculateOptimalPlacement()
+        }
+        
+        this.onPlaneUpdate?.(this.detectedPlanes)
+      })
+    } else {
+      console.log('设备不支持平面检测，使用hit-test备用方案')
+      this.useHitTestFallback = true
+    }
+  }
+  
+  // 使用hit-test的备用平面检测
+  updateHitTestFallback(frame) {
+    if (!this.useHitTestFallback || !frame || this.isPlaced) return
+    
+    try {
+      const hitResults = frame.getHitTestResults(this.hitTestSource)
+      if (hitResults.length > 0) {
+        const hitPose = hitResults[0].getPose(this.referenceSpace)
+        if (hitPose) {
+          // 创建一个虚拟平面
+          const virtualPlane = {
+            planeSpace: hitPose,
+            extent: { width: 1.5, height: 1.5 }
+          }
+          
+          this.detectedPlanes = [virtualPlane]
+          this.optimalPosition = new THREE.Vector3(
+            hitPose.transform.position.x,
+            hitPose.transform.position.y,
+            hitPose.transform.position.z
+          )
+          this.optimalScale = 1.0
+          
+          // 更新扫描环位置
+          this.scanRing.visible = true
+          this.scanRing.position.copy(this.optimalPosition)
+          
+          this.onPlaneUpdate?.(this.detectedPlanes)
+        }
       }
-      
-      this.onPlaneUpdate?.(this.detectedPlanes)
-    })
+    } catch (e) {}
   }
 
   updatePlaneVisualization() {
@@ -392,8 +435,15 @@ class ARSceneManager {
       if (frame) {
         const pose = frame.getViewerPose(this.referenceSpace)
         
+        // 使用hit-test备用方案
+        if (this.useHitTestFallback && !this.isPlaced) {
+          this.updateHitTestFallback(frame)
+          this.updatePlaneVisualization()
+          this.updateCornerLines()
+        }
+        
         // 每10帧更新一次扫描环
-        if (!this.isPlaced && this.frameCount % 10 === 0) {
+        if (!this.isPlaced && this.frameCount % 10 === 0 && !this.useHitTestFallback) {
           try {
             const hitResults = frame.getHitTestResults(this.hitTestSource)
             if (hitResults.length > 0) {
@@ -759,6 +809,9 @@ export const ARViewerNew = ({
   const [modelScale, setModelScale] = useState(1.0)
   const [showTimeline, setShowTimeline] = useState(false)
   const [isTimelinePlaying, setIsTimelinePlaying] = useState(false)
+  const [placedProps, setPlacedProps] = useState([])
+  const [selectedPropId, setSelectedPropId] = useState(null)
+  const [showProps, setShowProps] = useState(false)
 
   useEffect(() => {
     let isMounted = true
@@ -815,21 +868,18 @@ export const ARViewerNew = ({
     try {
       await arManagerRef.current.start(canvasRef.current, domOverlayRef.current)
       
-      // 延迟加载动作以减少初始内存使用
-      setTimeout(async () => {
-        try {
-          const { getAllVRMActions } = await import('../../data/vrmaActions')
-          const actions = await getAllVRMActions()
-          setVrmaActions(actions)
-          
-          // 预加载前5个动作
-          if (arManagerRef.current?.currentCharacter) {
-            arManagerRef.current.preloadActions(actions, 5)
-          }
-        } catch (e) {
-          console.error('加载动作失败:', e)
+      // 立即加载动作
+      try {
+        const actions = await getAllVRMActions()
+        setVrmaActions(actions)
+        
+        // 预加载前5个动作
+        if (arManagerRef.current?.currentCharacter) {
+          arManagerRef.current.preloadActions(actions, 5)
         }
-      }, 3000)
+      } catch (e) {
+        console.error('加载动作失败:', e)
+      }
       
       const cats = getAllCategories()
       setCategories(['全部', ...cats])
@@ -905,16 +955,56 @@ export const ARViewerNew = ({
           <button 
             className={styles.toolButton} 
             onClick={() => {
-              if (canvasRef.current) {
-                try {
-                  const dataUrl = canvasRef.current.toDataURL('image/png')
-                  const link = document.createElement('a')
-                  link.download = `ar-screenshot-${Date.now()}.png`
-                  link.href = dataUrl
-                  link.click()
-                } catch (err) {
-                  console.error('截图失败:', err)
+              // 使用WebXR的session进行截图
+              try {
+                const session = arManagerRef.current?.session
+                const gl = arManagerRef.current?.renderer?.getContext()
+                
+                if (session && gl) {
+                  // 获取当前帧
+                  const baseLayer = session.renderState.baseLayer
+                  if (baseLayer) {
+                    const framebuffer = baseLayer.framebuffer
+                    const width = gl.drawingBufferWidth
+                    const height = gl.drawingBufferHeight
+                    
+                    // 读取像素数据
+                    const pixels = new Uint8Array(width * height * 4)
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer)
+                    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+                    
+                    // 创建canvas并绘制
+                    const canvas = document.createElement('canvas')
+                    canvas.width = width
+                    canvas.height = height
+                    const ctx = canvas.getContext('2d')
+                    const imageData = ctx.createImageData(width, height)
+                    
+                    // 翻转Y轴（WebGL坐标系与Canvas不同）
+                    for (let y = 0; y < height; y++) {
+                      for (let x = 0; x < width; x++) {
+                        const srcIdx = ((height - 1 - y) * width + x) * 4
+                        const dstIdx = (y * width + x) * 4
+                        imageData.data[dstIdx] = pixels[srcIdx]
+                        imageData.data[dstIdx + 1] = pixels[srcIdx + 1]
+                        imageData.data[dstIdx + 2] = pixels[srcIdx + 2]
+                        imageData.data[dstIdx + 3] = pixels[srcIdx + 3]
+                      }
+                    }
+                    
+                    ctx.putImageData(imageData, 0, 0)
+                    
+                    // 下载
+                    const dataUrl = canvas.toDataURL('image/png')
+                    const link = document.createElement('a')
+                    link.download = `ar-screenshot-${Date.now()}.png`
+                    link.href = dataUrl
+                    link.click()
+                    console.log('✅ 截图已保存')
+                  }
                 }
+              } catch (err) {
+                console.error('截图失败:', err)
               }
               onScreenshot?.()
             }}
@@ -928,32 +1018,52 @@ export const ARViewerNew = ({
               setIsRecording(newRecordingState)
               
               if (newRecordingState) {
-                if (canvasRef.current && canvasRef.current.captureStream) {
-                  const stream = canvasRef.current.captureStream(30)
-                  const mediaRecorder = new MediaRecorder(stream, {
-                    mimeType: 'video/webm;codecs=vp9'
+                // 使用屏幕录制API
+                try {
+                  navigator.mediaDevices.getDisplayMedia({
+                    video: { 
+                      displaySurface: 'browser',
+                      width: { ideal: 1920 },
+                      height: { ideal: 1080 }
+                    },
+                    audio: false
+                  }).then(stream => {
+                    const mediaRecorder = new MediaRecorder(stream, {
+                      mimeType: 'video/webm;codecs=vp9'
+                    })
+                    const chunks = []
+                    
+                    mediaRecorder.ondataavailable = (e) => {
+                      if (e.data.size > 0) chunks.push(e.data)
+                    }
+                    
+                    mediaRecorder.onstop = () => {
+                      const blob = new Blob(chunks, { type: 'video/webm' })
+                      const url = URL.createObjectURL(blob)
+                      const link = document.createElement('a')
+                      link.download = `ar-recording-${Date.now()}.webm`
+                      link.href = url
+                      link.click()
+                      console.log('✅ 录制已保存')
+                    }
+                    
+                    mediaRecorder.start()
+                    arManagerRef.current.mediaRecorder = mediaRecorder
+                    arManagerRef.current.recordStream = stream
+                  }).catch(err => {
+                    console.error('获取屏幕流失败:', err)
                   })
-                  const chunks = []
-                  
-                  mediaRecorder.ondataavailable = (e) => {
-                    if (e.data.size > 0) chunks.push(e.data)
-                  }
-                  
-                  mediaRecorder.onstop = () => {
-                    const blob = new Blob(chunks, { type: 'video/webm' })
-                    const url = URL.createObjectURL(blob)
-                    const link = document.createElement('a')
-                    link.download = `ar-recording-${Date.now()}.webm`
-                    link.href = url
-                    link.click()
-                  }
-                  
-                  mediaRecorder.start()
-                  arManagerRef.current.mediaRecorder = mediaRecorder
+                } catch (err) {
+                  console.error('录制启动失败:', err)
                 }
               } else {
+                // 停止录制
                 if (arManagerRef.current?.mediaRecorder) {
                   arManagerRef.current.mediaRecorder.stop()
+                }
+                // 停止屏幕流
+                if (arManagerRef.current?.recordStream) {
+                  arManagerRef.current.recordStream.getTracks().forEach(track => track.stop())
                 }
               }
               
@@ -1088,6 +1198,14 @@ export const ARViewerNew = ({
             <span>⏱️</span>
             <span>时间轴</span>
           </button>
+
+          <button
+            className={`${styles.mainButton} ${showProps ? styles.active : ''}`}
+            onClick={() => setShowProps(!showProps)}
+          >
+            <span>📦</span>
+            <span>道具</span>
+          </button>
         </div>
       </div>
 
@@ -1171,6 +1289,50 @@ export const ARViewerNew = ({
           currentAction={currentAction}
           isPlaying={isTimelinePlaying}
           onPlayStateChange={setIsTimelinePlaying}
+        />
+      )}
+
+      {/* 道具系统 */}
+      {showProps && (
+        <ARProps
+          placedProps={placedProps}
+          selectedPropId={selectedPropId}
+          onAddProp={(prop) => {
+            setPlacedProps([...placedProps, prop])
+            // 在场景中创建道具3D对象
+            if (arManagerRef.current?.scene) {
+              const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2)
+              const material = new THREE.MeshBasicMaterial({ 
+                color: 0x4ade80,
+                transparent: true,
+                opacity: 0.8
+              })
+              const mesh = new THREE.Mesh(geometry, material)
+              mesh.position.set(
+                prop.position.x,
+                prop.position.y + 0.1,
+                prop.position.z
+              )
+              mesh.scale.setScalar(prop.scale)
+              mesh.userData = { propId: prop.id }
+              arManagerRef.current.scene.add(mesh)
+            }
+          }}
+          onRemoveProp={(propId) => {
+            setPlacedProps(placedProps.filter(p => p.id !== propId))
+            // 从场景中移除
+            if (arManagerRef.current?.scene) {
+              const mesh = arManagerRef.current.scene.children.find(
+                c => c.userData?.propId === propId
+              )
+              if (mesh) {
+                arManagerRef.current.scene.remove(mesh)
+              }
+            }
+          }}
+          onSelectProp={(prop) => {
+            setSelectedPropId(prop.id)
+          }}
         />
       )}
     </div>
