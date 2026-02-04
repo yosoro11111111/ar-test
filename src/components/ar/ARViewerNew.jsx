@@ -759,53 +759,66 @@ class ARSceneManager {
     }
   }
 
-  // 截图功能 - 在渲染循环中调用
+  // 截图功能 - 使用Three.js渲染器直接截图
   captureScreenshot() {
-    if (!this.renderer || !this.session) {
-      console.warn('无法截图: 渲染器或会话未就绪')
+    if (!this.renderer || !this.scene || !this.camera) {
+      console.warn('无法截图: 渲染器、场景或相机未就绪')
       return null
     }
 
     try {
-      const gl = this.renderer.getContext()
-      const baseLayer = this.session.renderState.baseLayer
+      // 方法1: 使用Three.js渲染器直接截图（最可靠）
+      const originalRenderTarget = this.renderer.getRenderTarget()
       
-      if (!baseLayer) {
-        console.warn('无法截图: 没有baseLayer')
-        return null
-      }
-
-      const framebuffer = baseLayer.framebuffer
-      const width = gl.drawingBufferWidth
-      const height = gl.drawingBufferHeight
-
-      // 读取像素数据
-      const pixels = new Uint8Array(width * height * 4)
-      gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer)
-      gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
-
-      // 创建canvas并绘制
+      // 创建一个新的渲染目标
+      const renderTarget = new THREE.WebGLRenderTarget(
+        this.renderer.domElement.width,
+        this.renderer.domElement.height,
+        { preserveDrawingBuffer: true }
+      )
+      
+      // 渲染到目标
+      this.renderer.setRenderTarget(renderTarget)
+      this.renderer.render(this.scene, this.camera)
+      
+      // 读取像素
+      const buffer = new Uint8Array(
+        this.renderer.domElement.width * this.renderer.domElement.height * 4
+      )
+      this.renderer.readRenderTargetPixels(
+        renderTarget,
+        0,
+        0,
+        this.renderer.domElement.width,
+        this.renderer.domElement.height,
+        buffer
+      )
+      
+      // 创建canvas
       const canvas = document.createElement('canvas')
-      canvas.width = width
-      canvas.height = height
+      canvas.width = this.renderer.domElement.width
+      canvas.height = this.renderer.domElement.height
       const ctx = canvas.getContext('2d')
-      const imageData = ctx.createImageData(width, height)
-
-      // 翻转Y轴（WebGL坐标系与Canvas不同）
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const srcIdx = ((height - 1 - y) * width + x) * 4
-          const dstIdx = (y * width + x) * 4
-          imageData.data[dstIdx] = pixels[srcIdx]
-          imageData.data[dstIdx + 1] = pixels[srcIdx + 1]
-          imageData.data[dstIdx + 2] = pixels[srcIdx + 2]
-          imageData.data[dstIdx + 3] = pixels[srcIdx + 3]
+      const imageData = ctx.createImageData(canvas.width, canvas.height)
+      
+      // 复制像素数据（需要翻转Y轴）
+      for (let y = 0; y < canvas.height; y++) {
+        for (let x = 0; x < canvas.width; x++) {
+          const srcIdx = ((canvas.height - 1 - y) * canvas.width + x) * 4
+          const dstIdx = (y * canvas.width + x) * 4
+          imageData.data[dstIdx] = buffer[srcIdx]
+          imageData.data[dstIdx + 1] = buffer[srcIdx + 1]
+          imageData.data[dstIdx + 2] = buffer[srcIdx + 2]
+          imageData.data[dstIdx + 3] = buffer[srcIdx + 3]
         }
       }
-
+      
       ctx.putImageData(imageData, 0, 0)
       
-      console.log('✅ 截图捕获成功')
+      // 恢复原始渲染目标
+      this.renderer.setRenderTarget(originalRenderTarget)
+      
+      console.log('✅ 截图捕获成功:', canvas.width, 'x', canvas.height)
       return canvas.toDataURL('image/png')
     } catch (error) {
       console.error('截图失败:', error)
@@ -1370,76 +1383,176 @@ export const ARViewerNew = ({
               setIsRecording(newRecordingState)
               
               if (newRecordingState) {
-                // 使用屏幕录制API
+                // 方法1: 尝试使用Canvas录制（适用于AR场景）
                 try {
-                  navigator.mediaDevices.getDisplayMedia({
-                    video: { 
-                      displaySurface: 'browser',
-                      width: { ideal: 1920 },
-                      height: { ideal: 1080 }
-                    },
-                    audio: false
-                  }).then(stream => {
-                    const mediaRecorder = new MediaRecorder(stream, {
-                      mimeType: 'video/webm;codecs=vp9'
-                    })
-                    const chunks = []
-                    
-                    mediaRecorder.ondataavailable = (e) => {
-                      if (e.data.size > 0) chunks.push(e.data)
+                  const canvas = canvasRef.current
+                  if (!canvas) {
+                    throw new Error('Canvas not found')
+                  }
+                  
+                  // 检查浏览器是否支持Canvas录制
+                  let mimeType = 'video/webm;codecs=vp9'
+                  if (!MediaRecorder.isTypeSupported(mimeType)) {
+                    console.warn('VP9 not supported, trying VP8')
+                    mimeType = 'video/webm;codecs=vp8'
+                  }
+                  
+                  // 获取Canvas的MediaStream
+                  const stream = canvas.captureStream(30) // 30fps
+                  
+                  const mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: mimeType,
+                    videoBitsPerSecond: 5000000 // 5Mbps
+                  })
+                  
+                  const chunks = []
+                  
+                  mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) {
+                      chunks.push(e.data)
+                      console.log('📹 Recording chunk:', e.data.size, 'bytes')
+                    }
+                  }
+                  
+                  mediaRecorder.onstop = () => {
+                    console.log('📹 Recording stopped, chunks:', chunks.length)
+                    if (chunks.length === 0) {
+                      console.error('No recording data')
+                      return
                     }
                     
-                    mediaRecorder.onstop = () => {
-                      const blob = new Blob(chunks, { type: 'video/webm' })
-                      const url = URL.createObjectURL(blob)
-                      const link = document.createElement('a')
-                      link.download = `ar-recording-${Date.now()}.webm`
-                      link.href = url
-                      link.click()
-                      console.log('✅ 录制已保存')
-                    }
+                    const blob = new Blob(chunks, { type: 'video/webm' })
+                    const url = URL.createObjectURL(blob)
+                    const link = document.createElement('a')
+                    link.download = `ar-recording-${Date.now()}.webm`
+                    link.href = url
+                    link.click()
                     
-                    mediaRecorder.start()
-                    arManagerRef.current.mediaRecorder = mediaRecorder
-                    arManagerRef.current.recordStream = stream
-                  }).catch(err => {
-                    console.error('获取屏幕流失败:', err)
-                    // 显示错误提示
+                    // 显示保存成功提示
                     const toast = document.createElement('div')
                     toast.style.cssText = `
                       position: fixed;
                       top: 80px;
                       left: 50%;
                       transform: translateX(-50%);
-                      background: rgba(239, 68, 68, 0.9);
-                      color: #fff;
+                      background: rgba(74, 222, 128, 0.9);
+                      color: #000;
                       padding: 12px 24px;
                       border-radius: 20px;
                       font-size: 14px;
                       font-weight: 600;
                       z-index: 10000;
                     `
-                    toast.textContent = '❌ 录制需要屏幕录制权限'
+                    toast.textContent = `✅ 录制已保存 (${(blob.size / 1024 / 1024).toFixed(1)}MB)`
                     document.body.appendChild(toast)
                     setTimeout(() => toast.remove(), 3000)
+                    
+                    console.log('✅ Recording saved:', (blob.size / 1024 / 1024).toFixed(2), 'MB')
+                  }
+                  
+                  mediaRecorder.onerror = (e) => {
+                    console.error('MediaRecorder error:', e)
                     setIsRecording(false)
-                  })
+                  }
+                  
+                  // 开始录制，每100ms收集一次数据
+                  mediaRecorder.start(100)
+                  arManagerRef.current.mediaRecorder = mediaRecorder
+                  
+                  // 显示录制中提示
+                  const toast = document.createElement('div')
+                  toast.style.cssText = `
+                    position: fixed;
+                    top: 80px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(239, 68, 68, 0.9);
+                    color: #fff;
+                    padding: 12px 24px;
+                    border-radius: 20px;
+                    font-size: 14px;
+                    font-weight: 600;
+                    z-index: 10000;
+                  `
+                  toast.textContent = '🔴 录制中... 再次点击停止'
+                  toast.id = 'recording-toast'
+                  document.body.appendChild(toast)
+                  
+                  console.log('📹 Canvas recording started')
                 } catch (err) {
-                  console.error('录制启动失败:', err)
-                  setIsRecording(false)
+                  console.error('Canvas recording failed:', err)
+                  
+                  // 方法2: 回退到屏幕录制
+                  tryScreenRecording()
                 }
               } else {
                 // 停止录制
                 if (arManagerRef.current?.mediaRecorder) {
                   arManagerRef.current.mediaRecorder.stop()
                 }
-                // 停止屏幕流
-                if (arManagerRef.current?.recordStream) {
-                  arManagerRef.current.recordStream.getTracks().forEach(track => track.stop())
-                }
+                
+                // 移除录制中提示
+                const toast = document.getElementById('recording-toast')
+                if (toast) toast.remove()
               }
               
               onRecord?.(newRecordingState)
+              
+              // 屏幕录制备用方案
+              function tryScreenRecording() {
+                console.log('Trying screen recording fallback...')
+                navigator.mediaDevices.getDisplayMedia({
+                  video: { 
+                    displaySurface: 'browser',
+                    width: { ideal: 1920 },
+                    height: { ideal: 1080 }
+                  },
+                  audio: false
+                }).then(stream => {
+                  const mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'video/webm;codecs=vp9'
+                  })
+                  const chunks = []
+                  
+                  mediaRecorder.ondataavailable = (e) => {
+                    if (e.data.size > 0) chunks.push(e.data)
+                  }
+                  
+                  mediaRecorder.onstop = () => {
+                    const blob = new Blob(chunks, { type: 'video/webm' })
+                    const url = URL.createObjectURL(blob)
+                    const link = document.createElement('a')
+                    link.download = `ar-recording-${Date.now()}.webm`
+                    link.href = url
+                    link.click()
+                    console.log('✅ Screen recording saved')
+                  }
+                  
+                  mediaRecorder.start()
+                  arManagerRef.current.mediaRecorder = mediaRecorder
+                  arManagerRef.current.recordStream = stream
+                }).catch(err => {
+                  console.error('Screen recording failed:', err)
+                  const toast = document.createElement('div')
+                  toast.style.cssText = `
+                    position: fixed;
+                    top: 80px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: rgba(239, 68, 68, 0.9);
+                    color: #fff;
+                    padding: 12px 24px;
+                    border-radius: 20px;
+                    font-size: 14px;
+                    font-weight: 600;
+                    z-index: 10000;
+                  `
+                  toast.textContent = '❌ 录制功能不可用'
+                  document.body.appendChild(toast)
+                  setTimeout(() => toast.remove(), 3000)
+                  setIsRecording(false)
+                })
+              }
             }}
           >
             {isRecording ? '⏹️' : '📹'}
