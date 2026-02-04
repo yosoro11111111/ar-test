@@ -482,6 +482,37 @@ class ARSceneManager {
       if (!this.isPlaced && frameCount % 30 === 0) {
         const progress = Math.min(100, frameCount / 3)
         this.onPlaneUpdate?.([{ type: 'hit', progress }])
+        
+        // 进度达到100%且没有最优位置时，使用默认位置
+        if (progress >= 100 && !this.optimalPosition && pose) {
+          // 在相机前方1.5米处放置
+          const cameraPos = pose.transform.position
+          const cameraQuat = pose.transform.orientation
+          
+          // 计算前方位置（相机朝向的负Z方向）
+          const forward = new THREE.Vector3(0, 0, -1.5)
+          forward.applyQuaternion(new THREE.Quaternion(
+            cameraQuat.x, cameraQuat.y, cameraQuat.z, cameraQuat.w
+          ))
+          
+          this.optimalPosition = new THREE.Vector3(
+            cameraPos.x + forward.x,
+            cameraPos.y + forward.y - 0.5, // 稍微下方
+            cameraPos.z + forward.z
+          )
+          this.optimalScale = 1.0
+          this.onPositionUpdate?.({
+            position: this.optimalPosition,
+            scale: this.optimalScale
+          })
+          
+          // 触发自动放置
+          setTimeout(() => {
+            if (!this.isPlaced) {
+              this.placeModel()
+            }
+          }, 500)
+        }
       }
 
       const pose = frame.getViewerPose(this.referenceSpace)
@@ -627,16 +658,25 @@ export const ARViewer = ({
     arManagerRef.current.onPlaneUpdate = (planes) => {
       setDetectedPlanes(planes)
       // 支持平面检测和Hit Test两种进度更新
+      let progress = 0
       if (planes.length > 0 && planes[0].type === 'hit') {
         // Hit Test进度
-        const progress = Math.min(100, planes[0].progress)
+        progress = Math.min(100, planes[0].progress)
         setScanProgress(progress)
         console.log('扫描进度:', progress)
       } else {
         // 平面检测进度
-        const progress = Math.min(100, planes.length * 20)
+        progress = Math.min(100, planes.length * 20)
         setScanProgress(progress)
         console.log('平面检测进度:', progress, '平面数:', planes.length)
+      }
+      
+      // 进度达到100%时自动放置
+      if (progress >= 100 && !isPlaced && arManagerRef.current.optimalPosition) {
+        console.log('进度100%，自动放置模型')
+        setTimeout(() => {
+          arManagerRef.current.placeModel()
+        }, 500)
       }
     }
     
