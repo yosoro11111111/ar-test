@@ -606,7 +606,14 @@ export const ARViewerNew = ({
   const [modelScale, setModelScale] = useState(1.0)
 
   useEffect(() => {
-    initAR()
+    let isMounted = true
+    
+    const startAR = async () => {
+      if (!isMounted) return
+      await initAR()
+    }
+    
+    startAR()
     
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -619,10 +626,11 @@ export const ARViewerNew = ({
     document.addEventListener('visibilitychange', handleVisibilityChange)
     
     return () => {
+      isMounted = false
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       arManagerRef.current?.end()
     }
-  }, [vrmUrl]) // 添加vrmUrl依赖
+  }, []) // 只在挂载时运行一次
 
   const initAR = async () => {
     if (!canvasRef.current) return

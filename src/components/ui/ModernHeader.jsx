@@ -16,7 +16,6 @@ export const ModernHeader = ({
   onSettings,
   onToggleCamera,
   onToggleAR,
-  onEnterWebXR,
   onToggleRecording
 }) => {
   return (
@@ -76,15 +75,6 @@ export const ModernHeader = ({
           title={isARMode ? '退出AR模式' : '进入AR模式'}
         >
           {isARMode ? '📷' : '🎥'}
-        </button>
-
-        {/* WebXR AR按钮 */}
-        <button 
-          className={`${styles.toolButton} ${styles.arButton}`}
-          onClick={onEnterWebXR}
-          title="WebXR AR"
-        >
-          🥽
         </button>
 
         {/* 录制按钮 */}

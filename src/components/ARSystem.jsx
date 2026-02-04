@@ -4342,7 +4342,6 @@ export const ARScene = ({ selectedFile }) => {
         onSettings={() => setShowSettings(!showSettings)}
         onToggleCamera={toggleCamera}
         onToggleAR={() => setIsARMode(!isARMode)}
-        onEnterWebXR={() => setIsWebXRARMode(true)}
         onToggleRecording={isRecording ? stopRecording : startRecording}
       />
 
