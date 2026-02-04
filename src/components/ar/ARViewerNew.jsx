@@ -614,14 +614,18 @@ class ARSceneManager {
 
           const glLayer = this.session.renderState.baseLayer
           const gl = this.renderer.getContext()
+          
+          // 绑定WebXR framebuffer
           gl.bindFramebuffer(gl.FRAMEBUFFER, glLayer.framebuffer)
           
           const viewport = glLayer.getViewport(view)
           gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height)
           
-          // 使用WebXR的clear
-          this.renderer.clear()
+          // 清除颜色和深度缓冲
+          gl.clearColor(0, 0, 0, 0)
+          gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
           
+          // 渲染场景
           this.renderer.render(this.scene, this.camera)
         }
       }
