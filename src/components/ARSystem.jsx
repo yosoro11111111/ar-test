@@ -14,7 +14,7 @@ import { sceneTemplates, getSceneTemplate } from '../data/sceneTemplates'
 import { furnitureList, furnitureCategories, getFurnitureByCategory, searchFurniture } from '../data/furniture'
 import { useGyroscope } from '../hooks/useGyroscope'
 import { useVoiceControl } from '../hooks/useVoiceControl'
-import ARViewer from './ARViewer'
+import ARViewer from './ar/ARViewerNew'
 
 // 导入现代化UI组件
 import ModernHeader from './ui/ModernHeader'
