@@ -37,6 +37,7 @@ class ARSceneManager {
     this.onPositionUpdate = null
     this.placedPlane = null
     this.mediaRecorder = null
+    this.isFollowing = false // 跟随模式
     // 缓存几何体和材质以减少内存分配
     this.sharedGeometry = null
     this.sharedMaterial = null
@@ -141,8 +142,29 @@ class ARSceneManager {
     this.scanRing.visible = false
     this.scene.add(this.scanRing)
     
+    // 创建AR网格地面
+    this.createARGrid()
+    
     // 创建网格纹理用于平面显示
     this.createGridTexture()
+  }
+  
+  // 创建AR网格地面
+  createARGrid() {
+    // 创建网格辅助线
+    const gridHelper = new THREE.GridHelper(10, 20, 0x00d4ff, 0x00d4ff)
+    gridHelper.material.opacity = 0.3
+    gridHelper.material.transparent = true
+    gridHelper.position.y = 0.01
+    gridHelper.visible = false
+    this.scene.add(gridHelper)
+    this.arGrid = gridHelper
+    
+    // 创建坐标轴
+    const axesHelper = new THREE.AxesHelper(0.5)
+    axesHelper.visible = false
+    this.scene.add(axesHelper)
+    this.arAxes = axesHelper
   }
   
   // 创建网格纹理
@@ -647,10 +669,12 @@ class ARSceneManager {
       this.frameCount++
 
       if (frame) {
+        this.frame = frame // 保存frame引用
         const pose = frame.getViewerPose(this.referenceSpace)
         
         // 扫描环位置更新 - 使用hit-test检测地面（每3帧更新一次，优化性能）
-        if (!this.isPlaced && this.frameCount % 3 === 0) {
+        // 扫描环始终显示（放置后也显示，方便重新放置）
+        if (this.frameCount % 3 === 0) {
           try {
             if (this.hitTestSource) {
               const hitResults = frame.getHitTestResults(this.hitTestSource)
@@ -667,12 +691,24 @@ class ARSceneManager {
                   this.scanRing.visible = true
                   this.scanRing.position.copy(position)
                   
+                  // 更新AR网格位置
+                  if (this.arGrid) {
+                    this.arGrid.visible = true
+                    this.arGrid.position.set(position.x, position.y + 0.01, position.z)
+                  }
+                  if (this.arAxes) {
+                    this.arAxes.visible = true
+                    this.arAxes.position.copy(position)
+                  }
+                  
                   // 保存位置用于放置
                   this.optimalPosition = position.clone()
                   this.optimalScale = 1.0
                 }
               } else {
                 this.scanRing.visible = false
+                if (this.arGrid) this.arGrid.visible = false
+                if (this.arAxes) this.arAxes.visible = false
               }
             }
           } catch (e) {}
@@ -688,6 +724,7 @@ class ARSceneManager {
           )
 
           this.updateTracking()
+          this.updateFollowing() // 更新跟随
           this.updateAnimation(deltaTime)
 
           const glLayer = this.session.renderState.baseLayer
@@ -781,6 +818,32 @@ class ARSceneManager {
     if (this.mixer) {
       this.mixer.update(deltaTime * 0.001)
     }
+  }
+
+  // 跟随模式 - 模型随摄像头移动
+  updateFollowing() {
+    if (!this.isFollowing || !this.isPlaced || !this.currentCharacter || !this.camera) return
+    
+    try {
+      const hitResults = this.frame?.getHitTestResults(this.hitTestSource)
+      if (hitResults && hitResults.length > 0) {
+        const hitPose = hitResults[0].getPose(this.referenceSpace)
+        if (hitPose) {
+          const newPosition = new THREE.Vector3(
+            hitPose.transform.position.x,
+            hitPose.transform.position.y,
+            hitPose.transform.position.z
+          )
+          
+          const model = this.currentCharacter.scene
+          // 平滑移动到新的地面位置
+          model.position.x += (newPosition.x - model.position.x) * 0.1
+          model.position.z += (newPosition.z - model.position.z) * 0.1
+          // Y轴保持相对高度
+          model.position.y = newPosition.y + 0.02
+        }
+      }
+    } catch (e) {}
   }
 
   // 截图功能 - 使用Three.js渲染器直接截图
@@ -1117,6 +1180,7 @@ export const ARViewerNew = ({
   const [currentAction, setCurrentAction] = useState(null)
   const [isRecording, setIsRecording] = useState(false)
   const [isTracking, setIsTracking] = useState(false)
+  const [isFollowing, setIsFollowing] = useState(false)
   const [vrmaActions, setVrmaActions] = useState([])
   const [categories, setCategories] = useState([])
   const [selectedCategory, setSelectedCategory] = useState('全部')
@@ -1780,6 +1844,22 @@ export const ARViewerNew = ({
           >
             <span>📦</span>
             <span>道具</span>
+          </button>
+
+          <button
+            className={`${styles.mainButton} ${isFollowing ? styles.active : ''}`}
+            onClick={() => {
+              const newFollowing = !isFollowing
+              setIsFollowing(newFollowing)
+              if (arManagerRef.current) {
+                arManagerRef.current.isFollowing = newFollowing
+              }
+              setGuideText(newFollowing ? '🔒 跟随模式已开启' : '🔓 跟随模式已关闭')
+              setTimeout(() => setGuideText(''), 1500)
+            }}
+          >
+            <span>{isFollowing ? '🔒' : '🔓'}</span>
+            <span>{isFollowing ? '跟随中' : '跟随'}</span>
           </button>
         </div>
       </div>
