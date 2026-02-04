@@ -33,6 +33,10 @@ class ARSceneManager {
     this.onModelLoaded = null
     this.onModelPlaced = null
     this.onPositionUpdate = null
+    
+    // 跟踪相关
+    this.isTracking = false
+    this.trackingOffset = new THREE.Vector3(0, 0, -1.5) // 默认在相机前方1.5米
   }
 
   // 检查支持
@@ -400,6 +404,36 @@ class ARSceneManager {
     return true
   }
 
+  // 切换跟踪模式
+  toggleTracking() {
+    this.isTracking = !this.isTracking
+    console.log('跟踪模式:', this.isTracking ? '开启' : '关闭')
+    return this.isTracking
+  }
+
+  // 更新模型位置（跟踪相机）
+  updateTracking() {
+    if (!this.isTracking || !this.currentCharacter || !this.camera) return
+    
+    const model = this.currentCharacter.scene
+    
+    // 计算相机前方的位置
+    const cameraPosition = this.camera.position.clone()
+    const cameraDirection = new THREE.Vector3(0, 0, -1)
+    cameraDirection.applyQuaternion(this.camera.quaternion)
+    
+    // 在相机前方固定距离放置模型
+    const targetPosition = cameraPosition.clone().add(
+      cameraDirection.multiplyScalar(1.5)
+    )
+    
+    // 平滑移动模型
+    model.position.lerp(targetPosition, 0.1)
+    
+    // 让模型面向相机
+    model.lookAt(cameraPosition.x, model.position.y, cameraPosition.z)
+  }
+
   // 播放放置动画
   playPlacementAnimation() {
     if (!this.currentCharacter) return
@@ -622,6 +656,9 @@ class ARSceneManager {
         
         // 更新模型位置
         this.updateModelPosition()
+        
+        // 更新跟踪（如果开启）
+        this.updateTracking()
 
         // 更新动画
         this.updateAnimation(deltaTime)
@@ -961,62 +998,89 @@ export const ARViewer = ({
         </div>
       )}
 
-      {/* 底部菜单 */}
+      {/* 底部菜单 - 现代化设计 */}
       <div style={{
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0,
-        padding: '20px',
-        background: 'linear-gradient(to top, rgba(0,0,0,0.8), transparent)',
+        padding: '16px 20px calc(16px + env(safe-area-inset-bottom))',
+        background: 'linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.7) 60%, transparent 100%)',
         pointerEvents: 'none'
       }}>
-        {/* 动作面板 */}
+        {/* 展开的动作面板 - 横向滚动 */}
         {showMenu && vrmaActions.length > 0 && (
           <div style={{
-            background: 'rgba(0,0,0,0.7)',
-            borderRadius: '16px',
-            padding: '16px',
             marginBottom: '16px',
-            backdropFilter: 'blur(10px)',
-            pointerEvents: 'auto',
-            maxHeight: '200px',
-            overflowY: 'auto'
+            pointerEvents: 'auto'
           }}>
+            {/* 分类标签 */}
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(4, 1fr)',
-              gap: '10px'
+              display: 'flex',
+              gap: '8px',
+              overflowX: 'auto',
+              marginBottom: '12px',
+              paddingBottom: '8px',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
             }}>
-              {vrmaActions.map(action => (
+              {['全部', '舞蹈', '表情', '战斗', '运动'].map((cat, idx) => (
+                <button
+                  key={cat}
+                  style={{
+                    flexShrink: 0,
+                    padding: '6px 14px',
+                    background: idx === 0 ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'rgba(255,255,255,0.1)',
+                    border: 'none',
+                    borderRadius: '20px',
+                    color: 'white',
+                    fontSize: '12px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            
+            {/* 动作轮播 */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              overflowX: 'auto',
+              padding: '4px',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
+            }}>
+              {vrmaActions.slice(0, 12).map(action => (
                 <button
                   key={action.id}
                   onClick={() => handleAction(action.id)}
                   style={{
-                    padding: '10px 6px',
-                    background: currentAction === action.id
-                      ? 'rgba(74, 222, 128, 0.3)'
-                      : 'rgba(255,255,255,0.1)',
-                    border: `1px solid ${currentAction === action.id ? '#4ade80' : 'rgba(255,255,255,0.2)'}`,
-                    borderRadius: '10px',
-                    color: 'white',
-                    fontSize: '11px',
-                    cursor: 'pointer',
+                    flexShrink: 0,
+                    width: '72px',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '4px',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis'
+                    gap: '6px',
+                    padding: '10px 8px',
+                    background: currentAction === action.id
+                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                      : 'rgba(255,255,255,0.1)',
+                    border: `1px solid ${currentAction === action.id ? 'transparent' : 'rgba(255,255,255,0.15)'}`,
+                    borderRadius: '12px',
+                    color: 'white',
+                    fontSize: '11px',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease'
                   }}
-                  title={action.name}
                 >
-                  <span style={{ fontSize: '20px' }}>{action.icon}</span>
+                  <span style={{ fontSize: '28px' }}>{action.icon}</span>
                   <span style={{ 
                     maxWidth: '100%', 
                     overflow: 'hidden',
-                    textOverflow: 'ellipsis'
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
                   }}>{action.name}</span>
                 </button>
               ))}
@@ -1028,48 +1092,73 @@ export const ARViewer = ({
         <div style={{
           display: 'flex',
           justifyContent: 'center',
-          gap: '20px',
+          gap: '16px',
           pointerEvents: 'auto'
         }}>
           <button
             onClick={() => setShowMenu(!showMenu)}
             style={{
-              padding: '14px 28px',
+              padding: '12px 24px',
               background: showMenu 
-                ? 'rgba(74, 222, 128, 0.3)' 
-                : 'rgba(255,255,255,0.2)',
-              border: `1px solid ${showMenu ? '#4ade80' : 'rgba(255,255,255,0.3)'}`,
-              borderRadius: '28px',
+                ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                : 'rgba(255,255,255,0.1)',
+              border: `1px solid ${showMenu ? 'transparent' : 'rgba(255,255,255,0.2)'}`,
+              borderRadius: '24px',
               color: 'white',
-              fontSize: '16px',
+              fontSize: '14px',
               cursor: 'pointer',
               backdropFilter: 'blur(10px)',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px'
+              gap: '6px',
+              transition: 'all 0.2s ease'
             }}
           >
             <span>🎭</span>
-            <span>动作 ({vrmaActions.length})</span>
+            <span>动作</span>
+          </button>
+
+          <button
+            onClick={() => arManagerRef.current?.toggleTracking?.()}
+            style={{
+              padding: '12px 24px',
+              background: 'rgba(255,255,255,0.1)',
+              border: '1px solid rgba(255,255,255,0.2)',
+              borderRadius: '24px',
+              color: 'white',
+              fontSize: '14px',
+              cursor: 'pointer',
+              backdropFilter: 'blur(10px)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <span>🎯</span>
+            <span>跟随</span>
           </button>
 
           <button
             onClick={() => arManagerRef.current?.placeModel()}
             disabled={isPlaced}
             style={{
-              padding: '14px 28px',
+              padding: '12px 24px',
               background: isPlaced 
                 ? 'rgba(74, 222, 128, 0.3)' 
-                : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                : 'linear-gradient(135deg, #00d4ff 0%, #0099cc 100%)',
               border: 'none',
-              borderRadius: '28px',
+              borderRadius: '24px',
               color: 'white',
-              fontSize: '16px',
+              fontSize: '14px',
               cursor: isPlaced ? 'default' : 'pointer',
-              opacity: isPlaced ? 0.6 : 1
+              opacity: isPlaced ? 0.6 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
             }}
           >
-            <span>{isPlaced ? '✓ 已放置' : '🎯 放置'}</span>
+            <span>{isPlaced ? '✓' : '📍'}</span>
+            <span>{isPlaced ? '已放置' : '放置'}</span>
           </button>
         </div>
       </div>
