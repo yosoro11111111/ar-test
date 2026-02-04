@@ -534,62 +534,76 @@ class ARSceneManager {
     const model = this.currentCharacter.scene
     const camera = this.camera
     
+    // 降低更新频率 - 每3帧更新一次目标位置
+    this.trackingUpdateCount = (this.trackingUpdateCount || 0) + 1
+    const shouldUpdateTarget = this.trackingUpdateCount % 3 === 0
+    
     // 初始化目标位置
     if (!this.targetPosition) {
       this.targetPosition = model.position.clone()
     }
     
-    // ===== 找到最佳跟踪位置 =====
-    let targetPos = null
-    
-    if (this.detectedPlanes.length > 0) {
-      // 找到相机前方最近的平面
-      let bestPlane = null
-      let minDistance = Infinity
+    // ===== 每3帧更新一次目标位置 =====
+    if (shouldUpdateTarget) {
+      let targetPos = null
       
-      this.detectedPlanes.forEach(plane => {
-        const pose = plane.planeSpace
-        if (!pose) return
+      if (this.detectedPlanes.length > 0) {
+        // 找到相机前方最近的平面
+        let bestPlane = null
+        let minDistance = Infinity
         
-        const planePos = new THREE.Vector3(
-          pose.transform.position.x,
-          pose.transform.position.y,
-          pose.transform.position.z
-        )
+        this.detectedPlanes.forEach(plane => {
+          const pose = plane.planeSpace
+          if (!pose) return
+          
+          const planePos = new THREE.Vector3(
+            pose.transform.position.x,
+            pose.transform.position.y,
+            pose.transform.position.z
+          )
+          
+          const distance = planePos.distanceTo(camera.position)
+          
+          // 只考虑1-4米范围内的平面
+          if (distance >= 1 && distance <= 4 && distance < minDistance) {
+            minDistance = distance
+            bestPlane = plane
+          }
+        })
         
-        const distance = planePos.distanceTo(camera.position)
-        
-        // 只考虑1-4米范围内的平面
-        if (distance >= 1 && distance <= 4 && distance < minDistance) {
-          minDistance = distance
-          bestPlane = plane
+        if (bestPlane) {
+          const pose = bestPlane.planeSpace
+          targetPos = new THREE.Vector3(
+            pose.transform.position.x,
+            pose.transform.position.y + 0.02,
+            pose.transform.position.z
+          )
         }
-      })
+      }
       
-      if (bestPlane) {
-        const pose = bestPlane.planeSpace
-        targetPos = new THREE.Vector3(
-          pose.transform.position.x,
-          pose.transform.position.y + 0.02,
-          pose.transform.position.z
-        )
+      // 如果没有找到合适的平面，使用相机前方固定距离
+      if (!targetPos) {
+        const cameraForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
+        targetPos = camera.position.clone().add(cameraForward.multiplyScalar(2.0))
+        targetPos.y = model.position.y || 0.02
+      }
+      
+      // 只有当新位置与当前目标位置距离超过阈值时才更新
+      if (!this.targetPosition || this.targetPosition.distanceTo(targetPos) > 0.1) {
+        this.targetPosition = targetPos
       }
     }
     
-    // 如果没有找到合适的平面，使用相机前方固定距离
-    if (!targetPos) {
-      const cameraForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion)
-      targetPos = camera.position.clone().add(cameraForward.multiplyScalar(2.0))
-      targetPos.y = model.position.y || 0.02
-    }
-    
-    // ===== 平滑移动（使用较大的插值系数，更快的响应） =====
-    const lerpFactor = 0.08
-    
-    // 只有当距离超过阈值时才移动（减少微小抖动）
-    const distanceToTarget = model.position.distanceTo(targetPos)
-    if (distanceToTarget > 0.05) {
-      model.position.lerp(targetPos, lerpFactor)
+    // ===== 每帧平滑移动（但使用较小的插值系数） =====
+    if (this.targetPosition) {
+      const distanceToTarget = model.position.distanceTo(this.targetPosition)
+      
+      // 只有当距离超过阈值时才移动
+      if (distanceToTarget > 0.02) {
+        // 使用较小的lerp系数，更平滑
+        const lerpFactor = Math.min(0.05, distanceToTarget * 0.02)
+        model.position.lerp(this.targetPosition, lerpFactor)
+      }
     }
     
     // ===== 平滑旋转（人物面向相机） =====
@@ -604,8 +618,8 @@ class ARSceneManager {
     while (rotDiff < -Math.PI) rotDiff += Math.PI * 2
     
     // 只有当角度差超过阈值时才旋转
-    if (Math.abs(rotDiff) > 0.05) {
-      model.rotation.y += rotDiff * 0.05
+    if (Math.abs(rotDiff) > 0.03) {
+      model.rotation.y += rotDiff * 0.03
     }
     
     // 触发回调
