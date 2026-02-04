@@ -29,7 +29,7 @@ class ARSceneManager {
     this.isRendering = false
     this.frameCount = 0
     this.lastFrameTime = 0
-    this.targetFPS = 30 // 降低FPS以减少GPU负载
+    this.targetFPS = 60 // 匹配设备刷新率（60Hz手机）
     this.frameInterval = 1000 / this.targetFPS
     this.onPlaneUpdate = null
     this.onModelLoaded = null
@@ -539,13 +539,8 @@ class ARSceneManager {
         return
       }
 
-      // FPS限制
-      if (time - this.lastFrameTime < this.frameInterval) {
-        this.session.requestAnimationFrame(loop)
-        return
-      }
-      this.lastFrameTime = time
-
+      // 移除FPS限制，让WebXR自己控制帧率
+      // 这可以避免60Hz设备上的闪烁问题
       const deltaTime = time - (this.lastTime || time)
       this.lastTime = time
       this.frameCount++
