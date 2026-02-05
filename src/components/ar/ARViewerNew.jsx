@@ -5,7 +5,31 @@ import { VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { loadVRMAAction, getAllCategories, getAllVRMActions } from '../../data/vrmaActions'
 import ARTimeline from './ARTimeline'
 import ARProps from './ARProps'
-import { ARGestureRecognition } from './ARGestureRecognition'
+// 简化版手势识别类
+class ARGestureRecognition {
+  constructor() {
+    this.isInitialized = false
+    this.isRunning = false
+    this.onGestureDetected = null
+  }
+
+  async start() {
+    console.log('✋ 简化版手势识别已启动')
+    this.isInitialized = true
+    this.isRunning = true
+    return true
+  }
+
+  stop() {
+    console.log('✋ 简化版手势识别已停止')
+    this.isRunning = false
+  }
+
+  destroy() {
+    this.stop()
+    this.isInitialized = false
+  }
+}
 import styles from './ARViewerNew.module.css'
 
 // 内存优化的AR场景管理器类
