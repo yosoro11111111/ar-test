@@ -30,37 +30,58 @@ export function ARSceneCapture() {
 
   // 启动摄像头
   useEffect(() => {
+    console.log('🎬 [ARSceneCapture] 组件挂载，开始初始化')
     startCamera()
-    return () => stopCamera()
+    return () => {
+      console.log('🧹 [ARSceneCapture] 组件卸载，清理资源')
+      stopCamera()
+    }
   }, [])
 
   const startCamera = async () => {
+    console.log('📷 [ARSceneCapture] startCamera() 开始调用')
     try {
+      console.log('📷 [ARSceneCapture] 请求摄像头权限...')
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment', width: 1280, height: 720 },
         audio: false
       })
       
+      console.log('✅ [ARSceneCapture] 摄像头权限获取成功')
+      console.log('📊 [ARSceneCapture] 视频轨道:', stream.getVideoTracks().length, '个')
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream
+        console.log('✅ [ARSceneCapture] 视频流已绑定到video元素')
+      } else {
+        console.warn('⚠️ [ARSceneCapture] videoRef.current 为null')
       }
       
       // 开始模拟平面检测
+      console.log('🔍 [ARSceneCapture] 开始平面检测')
       startPlaneDetection()
     } catch (error) {
-      console.error('启动摄像头失败:', error)
+      console.error('❌ [ARSceneCapture] 启动摄像头失败:', error)
+      console.error('❌ [ARSceneCapture] 错误详情:', error.message)
       alert('无法访问摄像头，请检查权限设置')
     }
   }
 
   const stopCamera = () => {
+    console.log('🛑 [ARSceneCapture] stopCamera() 开始调用')
     if (videoRef.current && videoRef.current.srcObject) {
-      videoRef.current.srcObject.getTracks().forEach(track => track.stop())
+      const tracks = videoRef.current.srcObject.getTracks()
+      console.log('🛑 [ARSceneCapture] 停止', tracks.length, '个媒体轨道')
+      tracks.forEach(track => track.stop())
+      console.log('✅ [ARSceneCapture] 摄像头已停止')
+    } else {
+      console.warn('⚠️ [ARSceneCapture] 没有活动的摄像头流需要停止')
     }
   }
 
   // 模拟平面检测（实际应用中使用WebXR的plane-detection）
   const startPlaneDetection = () => {
+    console.log('🔍 [ARSceneCapture] startPlaneDetection() 开始调用')
     // 模拟检测到平面
     const mockPlanes = [
       {
@@ -80,64 +101,84 @@ export function ARSceneCapture() {
       }
     ]
     
+    console.log('✅ [ARSceneCapture] 初始平面检测完成，发现', mockPlanes.length, '个平面')
+    console.log('📊 [ARSceneCapture] 平面详情:', mockPlanes.map(p => `${p.name}(${p.type})`).join(', '))
+    
     setDetectedPlanes(mockPlanes)
   }
 
   // 开始采集场景数据
   const startCapture = () => {
+    console.log('📸 [ARSceneCapture] startCapture() 开始调用')
+    console.log('📸 [ARSceneCapture] 当前已检测平面数:', detectedPlanes.length)
+    
     setIsCapturing(true)
     setCaptureProgress(0)
+    
+    console.log('⏱️ [ARSceneCapture] 开始采集计时器')
     
     // 模拟采集过程
     let progress = 0
     const interval = setInterval(() => {
       progress += 10
       setCaptureProgress(progress)
+      console.log('⏱️ [ARSceneCapture] 采集进度:', progress + '%')
       
       // 模拟检测到更多平面
       if (progress === 30) {
-        setDetectedPlanes(prev => [
-          ...prev,
-          {
-            id: 'plane_wall_1',
-            type: 'wall',
-            name: '墙面1',
-            position: { x: 0, y: 1.5, z: -3 },
-            rotation: { x: 0, y: 0, z: 0 },
-            size: { width: 4, height: 3 },
-            polygon: [
-              { x: -2, y: 0, z: 0 },
-              { x: 2, y: 0, z: 0 },
-              { x: 2, y: 3, z: 0 },
-              { x: -2, y: 3, z: 0 }
-            ],
-            color: '#d94a4a'
-          }
-        ])
+        console.log('🔍 [ARSceneCapture] 进度30%，检测到新平面: 墙面1')
+        setDetectedPlanes(prev => {
+          const newPlanes = [
+            ...prev,
+            {
+              id: 'plane_wall_1',
+              type: 'wall',
+              name: '墙面1',
+              position: { x: 0, y: 1.5, z: -3 },
+              rotation: { x: 0, y: 0, z: 0 },
+              size: { width: 4, height: 3 },
+              polygon: [
+                { x: -2, y: 0, z: 0 },
+                { x: 2, y: 0, z: 0 },
+                { x: 2, y: 3, z: 0 },
+                { x: -2, y: 3, z: 0 }
+              ],
+              color: '#d94a4a'
+            }
+          ]
+          console.log('📊 [ARSceneCapture] 当前平面总数:', newPlanes.length)
+          return newPlanes
+        })
       }
       
       if (progress === 60) {
-        setDetectedPlanes(prev => [
-          ...prev,
-          {
-            id: 'plane_wall_2',
-            type: 'wall',
-            name: '墙面2',
-            position: { x: 3, y: 1.5, z: 0 },
-            rotation: { x: 0, y: -Math.PI / 2, z: 0 },
-            size: { width: 4, height: 3 },
-            polygon: [
-              { x: 0, y: 0, z: -2 },
-              { x: 0, y: 0, z: 2 },
-              { x: 0, y: 3, z: 2 },
-              { x: 0, y: 3, z: -2 }
-            ],
-            color: '#d94a4a'
-          }
-        ])
+        console.log('🔍 [ARSceneCapture] 进度60%，检测到新平面: 墙面2')
+        setDetectedPlanes(prev => {
+          const newPlanes = [
+            ...prev,
+            {
+              id: 'plane_wall_2',
+              type: 'wall',
+              name: '墙面2',
+              position: { x: 3, y: 1.5, z: 0 },
+              rotation: { x: 0, y: -Math.PI / 2, z: 0 },
+              size: { width: 4, height: 3 },
+              polygon: [
+                { x: 0, y: 0, z: -2 },
+                { x: 0, y: 0, z: 2 },
+                { x: 0, y: 3, z: 2 },
+                { x: 0, y: 3, z: -2 }
+              ],
+              color: '#d94a4a'
+            }
+          ]
+          console.log('📊 [ARSceneCapture] 当前平面总数:', newPlanes.length)
+          return newPlanes
+        })
       }
       
       if (progress >= 100) {
+        console.log('✅ [ARSceneCapture] 采集进度100%，完成采集')
         clearInterval(interval)
         finishCapture()
       }
@@ -146,10 +187,16 @@ export function ARSceneCapture() {
 
   // 完成采集
   const finishCapture = async () => {
+    console.log('🏁 [ARSceneCapture] finishCapture() 开始调用')
+    console.log('📊 [ARSceneCapture] 最终检测到的平面数:', detectedPlanes.length)
+    
     // 生成缩略图
+    console.log('🖼️ [ARSceneCapture] 开始生成缩略图')
     const thumbnail = await generateThumbnail()
+    console.log('✅ [ARSceneCapture] 缩略图生成完成:', thumbnail ? '成功' : '失败')
     
     // 保存场景数据
+    console.log('💾 [ARSceneCapture] 开始构建场景数据对象')
     const sceneData = {
       version: '1.0.0',
       metadata: {
@@ -181,16 +228,24 @@ export function ARSceneCapture() {
       }
     }
     
+    console.log('📦 [ARSceneCapture] 场景数据构建完成:')
+    console.log('   - 版本:', sceneData.version)
+    console.log('   - 平面数:', sceneData.environment.planes.length)
+    console.log('   - 创建时间:', sceneData.metadata.createdAt)
+    
     sceneDataRef.current = sceneData
     setCapturedData(sceneData)
     setIsCapturing(false)
     setShowPreview(true)
+    console.log('✅ [ARSceneCapture] 采集完成，显示预览界面')
   }
 
   // 生成缩略图
   const generateThumbnail = () => {
+    console.log('🖼️ [ARSceneCapture] generateThumbnail() 开始调用')
     return new Promise((resolve) => {
       if (!videoRef.current) {
+        console.warn('⚠️ [ARSceneCapture] videoRef.current 为null，无法生成缩略图')
         resolve(null)
         return
       }
@@ -218,6 +273,9 @@ export function ARSceneCapture() {
 
   // 保存场景
   const saveScene = (sceneName) => {
+    console.log('💾 [ARSceneCapture] saveScene() 开始调用')
+    console.log('💾 [ARSceneCapture] 场景名称:', sceneName)
+    
     const sceneData = {
       ...sceneDataRef.current,
       metadata: {
@@ -228,17 +286,24 @@ export function ARSceneCapture() {
     
     // 生成场景ID
     const sceneId = `scene_${Date.now()}`
+    console.log('🆔 [ARSceneCapture] 生成场景ID:', sceneId)
     
     // 保存到本地存储
+    console.log('💾 [ARSceneCapture] 保存到localStorage...')
     const scenes = JSON.parse(localStorage.getItem('ar-director-scenes') || '[]')
+    console.log('📊 [ARSceneCapture] 当前已有场景数:', scenes.length)
+    
     scenes.push({
       id: sceneId,
       ...sceneData.metadata,
       environment: sceneData.environment
     })
     localStorage.setItem('ar-director-scenes', JSON.stringify(scenes))
+    console.log('✅ [ARSceneCapture] 场景保存成功')
+    console.log('📊 [ARSceneCapture] 保存后场景总数:', scenes.length)
     
     // 跳转到时间轴编辑器
+    console.log('🚀 [ARSceneCapture] 跳转到时间轴编辑器:', `/ar-director/edit/${sceneId}`)
     navigate(`/ar-director/edit/${sceneId}`)
   }
 

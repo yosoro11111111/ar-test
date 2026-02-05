@@ -41,23 +41,35 @@ export function ARTimelineEditorPage() {
 
   // 初始化Three.js场景
   useEffect(() => {
+    console.log('🎬 [TimelineEditor] 组件挂载，开始初始化')
+    console.log('🎬 [TimelineEditor] 项目ID:', projectId)
     initThreeJS()
     loadProject()
     
     return () => {
+      console.log('🧹 [TimelineEditor] 组件卸载，清理资源')
       cleanup()
     }
   }, [])
 
   const initThreeJS = () => {
-    if (!canvasRef.current) return
+    console.log('🎨 [TimelineEditor] initThreeJS() 开始调用')
+    
+    if (!canvasRef.current) {
+      console.error('❌ [TimelineEditor] canvasRef.current 为null')
+      return
+    }
+    
+    console.log('🎨 [TimelineEditor] Canvas尺寸:', canvasRef.current.clientWidth, 'x', canvasRef.current.clientHeight)
     
     // 场景
+    console.log('🎨 [TimelineEditor] 创建Three.js场景')
     const scene = new THREE.Scene()
     scene.background = new THREE.Color(0x1a1a2e)
     sceneRef.current = scene
     
     // 相机
+    console.log('🎨 [TimelineEditor] 创建相机')
     const camera = new THREE.PerspectiveCamera(
       60,
       canvasRef.current.clientWidth / canvasRef.current.clientHeight,
@@ -66,8 +78,10 @@ export function ARTimelineEditorPage() {
     )
     camera.position.set(0, 1.6, 0)
     cameraRef.current = camera
+    console.log('🎨 [TimelineEditor] 相机位置:', camera.position)
     
     // 渲染器
+    console.log('🎨 [TimelineEditor] 创建WebGL渲染器')
     const renderer = new THREE.WebGLRenderer({
       canvas: canvasRef.current,
       antialias: true,
@@ -76,8 +90,10 @@ export function ARTimelineEditorPage() {
     renderer.setSize(canvasRef.current.clientWidth, canvasRef.current.clientHeight)
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     rendererRef.current = renderer
+    console.log('🎨 [TimelineEditor] 渲染器像素比:', renderer.getPixelRatio())
     
     // 灯光
+    console.log('🎨 [TimelineEditor] 添加灯光')
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
     scene.add(ambientLight)
     
@@ -86,14 +102,18 @@ export function ARTimelineEditorPage() {
     scene.add(directionalLight)
     
     // 网格
+    console.log('🎨 [TimelineEditor] 添加网格辅助线')
     const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222)
     scene.add(gridHelper)
     
     // 角色管理器
+    console.log('🎨 [TimelineEditor] 初始化MultiCharacterManager')
     characterManagerRef.current = new MultiCharacterManager(scene)
     
     // 开始渲染循环
+    console.log('🎨 [TimelineEditor] 启动渲染循环')
     startRenderLoop()
+    console.log('✅ [TimelineEditor] Three.js初始化完成')
   }
 
   const startRenderLoop = () => {
@@ -112,18 +132,32 @@ export function ARTimelineEditorPage() {
   }
 
   const loadProject = async () => {
+    console.log('📂 [TimelineEditor] loadProject() 开始调用')
+    
     try {
       setIsLoading(true)
+      console.log('⏳ [TimelineEditor] 设置加载状态为true')
       
       // 从本地存储加载项目
+      console.log('📂 [TimelineEditor] 从localStorage加载项目数据')
       const projects = JSON.parse(localStorage.getItem('ar-director-projects') || '[]')
+      console.log('📊 [TimelineEditor] 找到', projects.length, '个项目')
+      
       const currentProject = projects.find(p => p.id === projectId)
+      console.log(currentProject ? '✅ [TimelineEditor] 找到当前项目' : '⚠️ [TimelineEditor] 未找到项目，将创建新项目')
       
       // 加载场景数据（平面信息）
+      console.log('📂 [TimelineEditor] 从localStorage加载场景数据')
       const scenes = JSON.parse(localStorage.getItem('ar-director-scenes') || '[]')
+      console.log('📊 [TimelineEditor] 找到', scenes.length, '个场景')
+      
       const currentScene = scenes.find(s => s.id === projectId)
+      console.log(currentScene ? '✅ [TimelineEditor] 找到场景数据' : '⚠️ [TimelineEditor] 未找到场景数据')
       
       if (currentScene && currentScene.environment) {
+        console.log('🎯 [TimelineEditor] 加载场景平面数据')
+        console.log('📊 [TimelineEditor] 场景平面数:', currentScene.environment.planes?.length || 0)
+        
         // 加载场景平面数据
         setScenePlanes(currentScene.environment.planes || [])
         // 在3D场景中显示平面
@@ -131,12 +165,16 @@ export function ARTimelineEditorPage() {
       }
       
       if (currentProject) {
+        console.log('✅ [TimelineEditor] 加载现有项目:', currentProject.name)
         setProject(currentProject)
         setDuration(currentProject.duration || 30)
+        console.log('📊 [TimelineEditor] 项目时长:', currentProject.duration || 30, '秒')
         
         // 加载角色
-        if (currentProject.characters) {
+        if (currentProject.characters && currentProject.characters.length > 0) {
+          console.log('👥 [TimelineEditor] 加载', currentProject.characters.length, '个角色')
           for (const charData of currentProject.characters) {
+            console.log('👤 [TimelineEditor] 加载角色:', charData.name)
             await addCharacter(charData.vrmUrl, {
               name: charData.name,
               position: charData.initialPosition,
@@ -144,24 +182,33 @@ export function ARTimelineEditorPage() {
               scale: charData.initialScale
             })
           }
+        } else {
+          console.log('⚠️ [TimelineEditor] 项目中没有角色')
         }
         
         // 加载轨道
-        if (currentProject.tracks) {
+        if (currentProject.tracks && currentProject.tracks.length > 0) {
+          console.log('🎬 [TimelineEditor] 加载', currentProject.tracks.length, '个轨道')
           setTracks(currentProject.tracks)
+        } else {
+          console.log('⚠️ [TimelineEditor] 项目中没有轨道')
         }
       } else {
         // 新项目
-        setProject({
+        console.log('🆕 [TimelineEditor] 创建新项目')
+        const newProject = {
           id: projectId || `project_${Date.now()}`,
           name: '新项目',
           duration: 30,
           characters: [],
           tracks: []
-        })
+        }
+        setProject(newProject)
+        console.log('🆕 [TimelineEditor] 新项目ID:', newProject.id)
         
         // 如果没有场景数据，创建默认地面
         if (!currentScene) {
+          console.log('🎯 [TimelineEditor] 创建默认地面')
           const defaultPlanes = [{
             id: 'default_floor',
             type: 'floor',
@@ -175,25 +222,40 @@ export function ARTimelineEditorPage() {
           visualizePlanes(defaultPlanes)
         }
       }
+      
+      console.log('✅ [TimelineEditor] 项目加载完成')
     } catch (error) {
-      console.error('加载项目失败:', error)
+      console.error('❌ [TimelineEditor] 加载项目失败:', error)
+      console.error('❌ [TimelineEditor] 错误堆栈:', error.stack)
     } finally {
       setIsLoading(false)
+      console.log('⏳ [TimelineEditor] 设置加载状态为false')
     }
   }
   
   // 可视化场景平面
   const visualizePlanes = (planes) => {
-    if (!sceneRef.current) return
+    console.log('🎯 [TimelineEditor] visualizePlanes() 开始调用')
+    console.log('📊 [TimelineEditor] 需要可视化的平面数:', planes.length)
+    
+    if (!sceneRef.current) {
+      console.warn('⚠️ [TimelineEditor] sceneRef.current 为null，无法可视化平面')
+      return
+    }
     
     // 清除旧的平面显示
-    planeMeshesRef.current.forEach(mesh => {
+    console.log('🧹 [TimelineEditor] 清除旧的平面显示，数量:', planeMeshesRef.current.length)
+    planeMeshesRef.current.forEach((mesh, index) => {
       sceneRef.current.remove(mesh)
+      console.log('🧹 [TimelineEditor] 移除平面mesh #', index)
     })
     planeMeshesRef.current = []
     
     // 创建新的平面显示
-    planes.forEach(plane => {
+    console.log('🎨 [TimelineEditor] 创建新的平面显示')
+    planes.forEach((plane, index) => {
+      console.log(`🎨 [TimelineEditor] 创建平面 #${index}:`, plane.name, `(类型: ${plane.type})`)
+      
       const geometry = new THREE.PlaneGeometry(plane.size.width, plane.size.height)
       const material = new THREE.MeshBasicMaterial({
         color: plane.color || '#4a90d9',
@@ -206,6 +268,9 @@ export function ARTimelineEditorPage() {
       mesh.position.set(plane.position.x, plane.position.y, plane.position.z)
       mesh.rotation.set(plane.rotation.x, plane.rotation.y, plane.rotation.z)
       
+      console.log(`📍 [TimelineEditor] 平面位置:`, plane.position)
+      console.log(`📐 [TimelineEditor] 平面尺寸:`, plane.size)
+      
       // 添加边框
       const edges = new THREE.EdgesGeometry(geometry)
       const lineMaterial = new THREE.LineBasicMaterial({ 
@@ -217,18 +282,28 @@ export function ARTimelineEditorPage() {
       
       sceneRef.current.add(mesh)
       planeMeshesRef.current.push(mesh)
-      
-      // 添加平面标签
-      // 这里可以添加文字标签显示平面名称
+      console.log(`✅ [TimelineEditor] 平面 #${index} 添加到场景`)
     })
+    
+    console.log('✅ [TimelineEditor] 平面可视化完成，总数:', planeMeshesRef.current.length)
   }
 
   const addCharacter = async (vrmUrl, options = {}) => {
-    if (!characterManagerRef.current) return
+    console.log('👤 [TimelineEditor] addCharacter() 开始调用')
+    console.log('👤 [TimelineEditor] VRM URL:', vrmUrl?.substring(0, 50) + '...')
+    console.log('👤 [TimelineEditor] 选项:', options)
+    
+    if (!characterManagerRef.current) {
+      console.error('❌ [TimelineEditor] characterManagerRef.current 为null')
+      return
+    }
     
     try {
       // 如果没有指定位置，自动放置到第一个地面平面上
       if (!options.position && scenePlanes.length > 0) {
+        console.log('🎯 [TimelineEditor] 未指定位置，尝试自动放置到地面')
+        console.log('📊 [TimelineEditor] 可用平面数:', scenePlanes.length)
+        
         const floorPlane = scenePlanes.find(p => p.type === 'floor')
         if (floorPlane) {
           // 放置到平面中心，稍微抬高一点（避免穿模）
@@ -237,16 +312,32 @@ export function ARTimelineEditorPage() {
             y: floorPlane.position.y + 0.01, // 稍微抬高
             z: floorPlane.position.z
           }
-          console.log('🎯 自动放置到地面:', floorPlane.name)
+          console.log('🎯 [TimelineEditor] 自动放置到地面:', floorPlane.name)
+          console.log('📍 [TimelineEditor] 放置位置:', options.position)
+        } else {
+          console.warn('⚠️ [TimelineEditor] 未找到地面平面')
         }
+      } else if (options.position) {
+        console.log('📍 [TimelineEditor] 使用指定位置:', options.position)
+      } else {
+        console.warn('⚠️ [TimelineEditor] 没有可用平面且未指定位置')
       }
       
+      console.log('⏳ [TimelineEditor] 开始加载VRM模型...')
       const characterId = await characterManagerRef.current.addCharacter(vrmUrl, options)
+      console.log('✅ [TimelineEditor] 角色加载成功，ID:', characterId)
       
       const character = characterManagerRef.current.getCharacter(characterId)
-      setCharacters(prev => [...prev, character])
+      console.log('👤 [TimelineEditor] 角色信息:', character?.name)
+      
+      setCharacters(prev => {
+        const newChars = [...prev, character]
+        console.log('📊 [TimelineEditor] 角色列表更新，总数:', newChars.length)
+        return newChars
+      })
       
       // 自动创建动作轨道
+      console.log('🎬 [TimelineEditor] 创建动作轨道')
       const actionTrack = {
         id: `track_${Date.now()}_action`,
         characterId,
@@ -254,16 +345,23 @@ export function ARTimelineEditorPage() {
         clips: []
       }
       
-      setTracks(prev => [...prev, actionTrack])
+      setTracks(prev => {
+        const newTracks = [...prev, actionTrack]
+        console.log('📊 [TimelineEditor] 轨道列表更新，总数:', newTracks.length)
+        return newTracks
+      })
       
       // 选中第一个角色
       if (!selectedCharacterId) {
+        console.log('👆 [TimelineEditor] 自动选中新角色')
         setSelectedCharacterId(characterId)
       }
       
+      console.log('✅ [TimelineEditor] addCharacter() 完成')
       return characterId
     } catch (error) {
-      console.error('添加角色失败:', error)
+      console.error('❌ [TimelineEditor] 添加角色失败:', error)
+      console.error('❌ [TimelineEditor] 错误堆栈:', error.stack)
       alert('添加角色失败: ' + error.message)
     }
   }
