@@ -54,12 +54,6 @@ export function ARDirectorHome() {
     navigate('/ar-director/tutorial')
   }
 
-  // 进入AI Director模式
-  const startAIDirector = () => {
-    console.log('🤖 [ARDirectorHome] 进入AI Director模式')
-    navigate('/ar-director/ai-director')
-  }
-
   return (
     <div className={styles.container}>
       {/* 顶部导航 */}
@@ -82,34 +76,19 @@ export function ARDirectorHome() {
           </div>
         </div>
 
-        {/* 模式选择按钮 */}
-        <div className={styles.modeSection}>
-          {/* AR录制按钮 */}
+        {/* 大大的AR录制按钮 */}
+        <div className={styles.recordSection}>
           <button 
-            className={styles.modeButton}
+            className={styles.recordButton}
             onClick={startSceneCapture}
             title="开始采集AR场景"
           >
-            <div className={styles.modeButtonInner}>
-              <span className={styles.modeIcon}>📹</span>
-              <span className={styles.modeText}>AR录制</span>
-              <span className={styles.modeSubtext}>手动创作模式</span>
+            <div className={styles.recordButtonInner}>
+              <span className={styles.recordIcon}>📹</span>
+              <span className={styles.recordText}>AR录制</span>
+              <span className={styles.recordSubtext}>点击开始创作</span>
             </div>
-            <div className={styles.modePulse}></div>
-          </button>
-
-          {/* AI Director按钮 */}
-          <button 
-            className={`${styles.modeButton} ${styles.aiButton}`}
-            onClick={startAIDirector}
-            title="AI智能导演模式"
-          >
-            <div className={styles.modeButtonInner}>
-              <span className={styles.modeIcon}>🤖</span>
-              <span className={styles.modeText}>AI导演</span>
-              <span className={styles.modeSubtext}>智能一键生成</span>
-            </div>
-            <div className={`${styles.modePulse} ${styles.aiPulse}`}></div>
+            <div className={styles.recordPulse}></div>
           </button>
         </div>
 

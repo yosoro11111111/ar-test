@@ -333,98 +333,142 @@ export function ARSceneCapture() {
 
   // 渲染3D平面预览
   const renderPlanePreview = () => {
-    if (!canvasRef.current || detectedPlanes.length === 0) return
+    console.log('🎨 [ARSceneCapture] renderPlanePreview() 开始调用')
     
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-    
-    // 清空画布
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    
-    // 绘制背景
-    ctx.fillStyle = '#1a1a2e'
-    ctx.fillRect(0, 0, canvas.width, canvas.height)
-    
-    // 绘制网格
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
-    ctx.lineWidth = 1
-    for (let i = 0; i < canvas.width; i += 40) {
-      ctx.beginPath()
-      ctx.moveTo(i, 0)
-      ctx.lineTo(i, canvas.height)
-      ctx.stroke()
-    }
-    for (let i = 0; i < canvas.height; i += 40) {
-      ctx.beginPath()
-      ctx.moveTo(0, i)
-      ctx.lineTo(canvas.width, i)
-      ctx.stroke()
-    }
-    
-    // 绘制检测到的平面
-    const centerX = canvas.width / 2
-    const centerY = canvas.height / 2
-    const scale = 40 // 1米 = 40像素
-    
-    detectedPlanes.forEach(plane => {
+    try {
+      if (!canvasRef.current) {
+        console.warn('⚠️ [ARSceneCapture] canvasRef.current 为null')
+        return
+      }
+      
+      if (detectedPlanes.length === 0) {
+        console.warn('⚠️ [ARSceneCapture] 没有检测到平面')
+        return
+      }
+      
+      const canvas = canvasRef.current
+      
+      // 检查canvas尺寸
+      if (canvas.width === 0 || canvas.height === 0) {
+        console.warn('⚠️ [ARSceneCapture] canvas尺寸为0，使用默认尺寸')
+        canvas.width = 320
+        canvas.height = 240
+      }
+      
+      console.log('🎨 [ARSceneCapture] canvas尺寸:', canvas.width, 'x', canvas.height)
+      
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        console.error('❌ [ARSceneCapture] 无法获取canvas 2D上下文')
+        return
+      }
+      
+      // 保存上下文状态
       ctx.save()
       
-      // 绘制平面
-      ctx.fillStyle = plane.color + '40' // 25%透明度
-      ctx.strokeStyle = plane.color
-      ctx.lineWidth = 2
+      // 清空画布
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
       
-      ctx.beginPath()
-      if (plane.polygon && plane.polygon.length > 0) {
-        const first = plane.polygon[0]
-        ctx.moveTo(
-          centerX + first.x * scale,
-          centerY - first.z * scale
+      // 绘制背景
+      ctx.fillStyle = '#1a1a2e'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      
+      // 绘制网格
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
+      ctx.lineWidth = 1
+      for (let i = 0; i < canvas.width; i += 40) {
+        ctx.beginPath()
+        ctx.moveTo(i, 0)
+        ctx.lineTo(i, canvas.height)
+        ctx.stroke()
+      }
+      for (let i = 0; i < canvas.height; i += 40) {
+        ctx.beginPath()
+        ctx.moveTo(0, i)
+        ctx.lineTo(canvas.width, i)
+        ctx.stroke()
+      }
+      
+      // 绘制检测到的平面
+      const centerX = canvas.width / 2
+      const centerY = canvas.height / 2
+      const scale = 40 // 1米 = 40像素
+      
+      detectedPlanes.forEach(plane => {
+        ctx.save()
+        
+        // 绘制平面
+        ctx.fillStyle = plane.color + '40' // 25%透明度
+        ctx.strokeStyle = plane.color
+        ctx.lineWidth = 2
+        
+        ctx.beginPath()
+        if (plane.polygon && plane.polygon.length > 0) {
+          const first = plane.polygon[0]
+          ctx.moveTo(
+            centerX + first.x * scale,
+            centerY - first.z * scale
+          )
+          
+          for (let i = 1; i < plane.polygon.length; i++) {
+            const point = plane.polygon[i]
+            ctx.lineTo(
+              centerX + point.x * scale,
+              centerY - point.z * scale
+            )
+          }
+        }
+        ctx.closePath()
+        ctx.fill()
+        ctx.stroke()
+        
+        // 绘制平面名称
+        ctx.fillStyle = '#fff'
+        ctx.font = '12px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText(
+          plane.name,
+          centerX + plane.position.x * scale,
+          centerY - plane.position.z * scale
         )
         
-        for (let i = 1; i < plane.polygon.length; i++) {
-          const point = plane.polygon[i]
-          ctx.lineTo(
-            centerX + point.x * scale,
-            centerY - point.z * scale
-          )
-        }
-      }
-      ctx.closePath()
+        ctx.restore()
+      })
+      
+      // 绘制相机位置
+      ctx.fillStyle = '#fff'
+      ctx.beginPath()
+      ctx.arc(centerX, centerY, 6, 0, Math.PI * 2)
       ctx.fill()
+      
+      // 绘制相机朝向
+      ctx.strokeStyle = '#fff'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(centerX, centerY)
+      ctx.lineTo(centerX, centerY - 30)
       ctx.stroke()
       
-      // 绘制平面名称
-      ctx.fillStyle = '#fff'
-      ctx.font = '12px sans-serif'
-      ctx.textAlign = 'center'
-      ctx.fillText(
-        plane.name,
-        centerX + plane.position.x * scale,
-        centerY - plane.position.z * scale
-      )
-      
+      // 恢复上下文状态
       ctx.restore()
-    })
-    
-    // 绘制相机位置
-    ctx.fillStyle = '#fff'
-    ctx.beginPath()
-    ctx.arc(centerX, centerY, 6, 0, Math.PI * 2)
-    ctx.fill()
-    
-    // 绘制相机朝向
-    ctx.strokeStyle = '#fff'
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.moveTo(centerX, centerY)
-    ctx.lineTo(centerX, centerY - 30)
-    ctx.stroke()
+      
+      console.log('✅ [ARSceneCapture] renderPlanePreview() 完成')
+    } catch (error) {
+      console.error('❌ [ARSceneCapture] renderPlanePreview() 出错:', error)
+    }
   }
 
   // 当平面变化时重绘
   useEffect(() => {
-    renderPlanePreview()
+    console.log('🎨 [ARSceneCapture] detectedPlanes变化，触发重绘')
+    console.log('📊 [ARSceneCapture] 当前平面数:', detectedPlanes.length)
+    
+    // 延迟执行，确保canvas已经渲染
+    const timer = setTimeout(() => {
+      renderPlanePreview()
+    }, 100)
+    
+    return () => clearTimeout(timer)
   }, [detectedPlanes])
 
   return (
