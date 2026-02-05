@@ -35,7 +35,13 @@ export function ARDirectorHome() {
 
   // 打开项目
   const openProject = (projectId) => {
-    navigate(`/ar-director/edit/${projectId}`)
+    if (projectId) {
+      navigate(`/ar-director/edit/${projectId}`)
+    } else {
+      // 新项目
+      const newProjectId = `project_${Date.now()}`
+      navigate(`/ar-director/edit/${newProjectId}`)
+    }
   }
 
   // 打开场景库

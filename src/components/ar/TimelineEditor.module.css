@@ -1,0 +1,373 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #1a1a2e;
+  color: white;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+/* 工具栏 */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.playbackControls {
+  display: flex;
+  gap: 8px;
+}
+
+.playBtn, .stopBtn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-size: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.playBtn:hover, .stopBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+}
+
+.timeDisplay {
+  font-family: 'Courier New', monospace;
+  font-size: 18px;
+  font-weight: 600;
+  color: #667eea;
+}
+
+.zoomControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.zoomControls button {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.zoomControls button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.zoomControls span {
+  font-size: 14px;
+  min-width: 50px;
+  text-align: center;
+}
+
+/* 时间刻度 */
+.timeRuler {
+  position: relative;
+  height: 30px;
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.timeMark {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  padding-top: 8px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* 轨道容器 */
+.tracksContainer {
+  flex: 1;
+  position: relative;
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+/* 播放头 */
+.playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #ff4757;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.playheadLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background: #ff4757;
+  transform: translateX(-50%);
+}
+
+.playheadHandle {
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  background: #ff4757;
+  border-radius: 50%;
+  transform: translateX(-50%);
+}
+
+/* 角色区域 */
+.characterSection {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.characterHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.characterHeader:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.characterHeader.selected {
+  background: rgba(102, 126, 234, 0.2);
+}
+
+.characterColor {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.characterName {
+  flex: 1;
+  font-weight: 600;
+}
+
+.addTrackBtn {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.addTrackBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 轨道 */
+.track {
+  display: flex;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.trackHeader {
+  width: 120px;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.trackIcon {
+  font-size: 16px;
+}
+
+.trackName {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.trackContent {
+  flex: 1;
+  position: relative;
+  min-height: 50px;
+  padding: 8px;
+}
+
+/* 网格背景 */
+.trackGrid {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.gridLine {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* 剪辑片段 */
+.clip {
+  position: absolute;
+  top: 8px;
+  height: 34px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 6px;
+  cursor: grab;
+  user-select: none;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.clip:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.clip:active {
+  cursor: grabbing;
+}
+
+.actionClip {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.clipContent {
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.clipName {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clipDuration {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+/* 调整手柄 */
+.resizeHandleLeft,
+.resizeHandleRight {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  background: rgba(255, 255, 255, 0.3);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.resizeHandleLeft {
+  left: 0;
+}
+
+.resizeHandleRight {
+  right: 0;
+}
+
+.clip:hover .resizeHandleLeft,
+.clip:hover .resizeHandleRight {
+  opacity: 1;
+}
+
+/* 删除按钮 */
+.deleteClipBtn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: rgba(255, 71, 87, 0.8);
+  border-radius: 50%;
+  color: white;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.clip:hover .deleteClipBtn {
+  opacity: 1;
+}
+
+.deleteClipBtn:hover {
+  background: rgba(255, 71, 87, 1);
+}
+
+/* 添加剪辑按钮 */
+.addClipBtn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 6px 12px;
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  background: transparent;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  opacity: 0;
+}
+
+.trackContent:hover .addClipBtn {
+  opacity: 1;
+}
+
+.addClipBtn:hover {
+  border-color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* 滚动条样式 */
+.tracksContainer::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.tracksContainer::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.tracksContainer::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.tracksContainer::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
