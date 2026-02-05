@@ -395,6 +395,110 @@ export function ARMMDDirector() {
     alert('项目已保存')
   }
   
+  // 导出GIF/视频
+  const handleExportMedia = async (type) => {
+    if (!rendererRef.current || !sceneRef.current || !cameraRef.current) {
+      alert('预览窗口未打开，请先打开预览')
+      return
+    }
+    
+    const canvas = rendererRef.current.domElement
+    const frames = []
+    const fps = 30
+    const duration = Math.min(project.duration, 10) // 最多导出10秒
+    const totalFrames = duration * fps
+    
+    alert(`开始导出${type === 'gif' ? 'GIF' : '视频'}，共${duration}秒...`)
+    
+    // 暂停播放
+    const wasPlaying = isPlaying
+    setIsPlaying(false)
+    
+    // 逐帧渲染
+    for (let i = 0; i < totalFrames; i++) {
+      const time = i / fps
+      updateSceneAtTime(time)
+      rendererRef.current.render(sceneRef.current, cameraRef.current)
+      
+      // 捕获帧
+      const dataUrl = canvas.toDataURL('image/png')
+      frames.push(dataUrl)
+      
+      // 更新进度
+      if (i % 10 === 0) {
+        console.log(`导出进度: ${Math.round((i / totalFrames) * 100)}%`)
+      }
+    }
+    
+    if (type === 'gif') {
+      // 导出GIF
+      exportGIF(frames, fps)
+    } else {
+      // 导出视频
+      exportVideo(frames, fps)
+    }
+    
+    // 恢复播放状态
+    if (wasPlaying) {
+      setIsPlaying(true)
+    }
+  }
+  
+  // 导出GIF
+  const exportGIF = (frames, fps) => {
+    // 使用gif.js库导出GIF（需要添加库）
+    alert('GIF导出功能需要添加gif.js库，当前使用图片序列代替')
+    
+    // 下载第一帧作为示例
+    const link = document.createElement('a')
+    link.download = `${project.name}_frame1.png`
+    link.href = frames[0]
+    link.click()
+  }
+  
+  // 导出视频
+  const exportVideo = async (frames, fps) => {
+    try {
+      // 使用MediaRecorder录制canvas
+      const canvas = rendererRef.current.domElement
+      const stream = canvas.captureStream(fps)
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'video/webm;codecs=vp9'
+      })
+      
+      const chunks = []
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunks.push(e.data)
+        }
+      }
+      
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.download = `${project.name}.webm`
+        link.href = url
+        link.click()
+        URL.revokeObjectURL(url)
+        alert('视频导出成功！')
+      }
+      
+      // 开始录制
+      mediaRecorder.start()
+      
+      // 播放动画并录制
+      const duration = frames.length / fps * 1000
+      setTimeout(() => {
+        mediaRecorder.stop()
+      }, duration)
+      
+    } catch (error) {
+      console.error('视频导出失败:', error)
+      alert('视频导出失败: ' + error.message)
+    }
+  }
+  
   const cleanup = () => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current)
@@ -530,6 +634,7 @@ export function ARMMDDirector() {
         <SettingsModal
           project={project}
           onClose={() => setShowSettingsModal(false)}
+          onExport={handleExportMedia}
         />
       )}
     </div>
