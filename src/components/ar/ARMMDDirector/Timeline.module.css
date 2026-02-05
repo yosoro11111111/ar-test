@@ -1,4 +1,4 @@
-/* 时间轴样式 - 支持拖拽和缩放 */
+/* 时间轴样式 - 每个角色3条子轨道 */
 
 .timelineContainer {
   background: #15151a;
@@ -130,7 +130,7 @@
 .tracksContainer {
   flex: 1;
   overflow-y: auto;
-  max-height: 350px;
+  max-height: 400px;
   position: relative;
   padding: 8px 0;
   cursor: pointer;
@@ -145,39 +145,77 @@
   font-size: 13px;
 }
 
-.track {
+/* 角色轨道 */
+.characterTrack {
   display: flex;
-  height: 44px;
-  margin-bottom: 4px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid #2a2a35;
+  padding-bottom: 8px;
 }
 
-.trackHeader {
+.characterHeader {
   width: 200px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0 12px;
+  padding: 8px 12px;
   background: #1e1e26;
   border-right: 1px solid #2a2a35;
   flex-shrink: 0;
 }
 
 .trackColor {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
 }
 
 .trackName {
   flex: 1;
-  font-size: 12px;
-  color: #e0e0e0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.trackAddBtn {
+/* 子轨道容器 */
+.subTracks {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 单条子轨道 */
+.subTrack {
+  display: flex;
+  height: 36px;
+}
+
+.subTrackHeader {
+  width: 120px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  background: #1a1a20;
+  border-right: 1px solid #2a2a35;
+  flex-shrink: 0;
+}
+
+.subTrackIcon {
+  font-size: 14px;
+}
+
+.subTrackName {
+  flex: 1;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.subTrackAddBtn {
   width: 20px;
   height: 20px;
   border: none;
@@ -192,12 +230,13 @@
   transition: all 0.2s;
 }
 
-.trackAddBtn:hover {
+.subTrackAddBtn:hover {
   background: #667eea;
   color: #fff;
 }
 
-.trackLane {
+/* 子轨道内容区 */
+.subTrackLane {
   flex: 1;
   position: relative;
   background: #0a0a0f;
@@ -206,52 +245,84 @@
   overflow: hidden;
 }
 
-.clip {
+/* 格子 */
+.cell {
   position: absolute;
   top: 4px;
-  height: 36px;
+  height: 28px;
   border-radius: 6px;
   display: flex;
   align-items: center;
   padding: 0 8px;
   cursor: grab;
   overflow: hidden;
-  white-space: nowrap;
-  font-size: 11px;
   user-select: none;
-  border: 2px solid transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
   transition: border-color 0.2s, box-shadow 0.2s;
+  min-width: 50px;
 }
 
-.clip:active {
-  cursor: grabbing;
-}
-
-.clip:hover {
-  border-color: rgba(255, 255, 255, 0.3);
+.cell:hover {
+  border-color: rgba(255, 255, 255, 0.5);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-.clip.action {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
+.cell.dragging {
+  cursor: grabbing;
+  opacity: 0.8;
+  z-index: 10;
 }
 
-.clip.scene {
-  background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
-  color: #000;
-}
-
-.clip.effect {
-  background: linear-gradient(135deg, #f472b6 0%, #ec4899 100%);
-  color: #fff;
-}
-
-.clipName {
-  font-weight: 500;
+.cellContent {
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.cellName {
+  font-size: 11px;
+  font-weight: 500;
+  color: #fff;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex: 1;
+}
+
+.cellDuration {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.7);
+  flex-shrink: 0;
+}
+
+.cellDeleteBtn {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s;
+}
+
+.cell:hover .cellDeleteBtn {
+  opacity: 1;
+}
+
+.cellDeleteBtn:hover {
+  background: rgba(239, 68, 68, 0.5);
+  color: #fff;
 }
 
 /* 缩放手柄 */
@@ -260,14 +331,14 @@
   right: 0;
   top: 0;
   bottom: 0;
-  width: 8px;
+  width: 6px;
   cursor: ew-resize;
   background: rgba(255, 255, 255, 0.2);
   opacity: 0;
   transition: opacity 0.2s;
 }
 
-.clip:hover .resizeHandle {
+.cell:hover .resizeHandle {
   opacity: 1;
 }
 
@@ -275,6 +346,7 @@
   background: rgba(255, 255, 255, 0.4);
 }
 
+/* 播放头 */
 .playhead {
   position: absolute;
   top: 0;
@@ -323,17 +395,30 @@
     font-size: 12px;
   }
 
-  .trackHeader {
+  .characterHeader {
     width: 120px;
-    padding: 0 8px;
+    padding: 6px 8px;
   }
 
   .trackName {
     font-size: 11px;
   }
 
-  .clip {
-    height: 32px;
+  .subTrackHeader {
+    width: 80px;
+    padding: 0 6px;
+  }
+
+  .subTrackName {
+    font-size: 10px;
+  }
+
+  .cell {
+    height: 24px;
+    top: 3px;
+  }
+
+  .cellName {
     font-size: 10px;
   }
 }

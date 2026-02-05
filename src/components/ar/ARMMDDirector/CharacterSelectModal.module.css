@@ -157,8 +157,8 @@
   overflow-y: auto;
   padding: 0 24px 16px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 24px;
 }
 
 .characterCard {
@@ -169,7 +169,7 @@
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   border: 2px solid transparent;
-  min-width: 160px;
+  min-width: 180px;
 }
 
 .characterCard:hover {
@@ -391,20 +391,25 @@
 
   .characterGrid {
     padding: 0 20px 12px;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .characterCard {
+    min-width: auto;
   }
 
   .characterAvatar {
-    font-size: 24px;
+    font-size: 28px;
+    width: 50%;
   }
 
   .characterName {
-    font-size: 11px;
+    font-size: 12px;
   }
 
   .characterNo {
-    font-size: 9px;
+    font-size: 10px;
   }
 
   .footer {
