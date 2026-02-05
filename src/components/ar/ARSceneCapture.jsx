@@ -19,6 +19,15 @@ export function ARSceneCapture() {
   const [capturedData, setCapturedData] = useState(null)
   const [showPreview, setShowPreview] = useState(false)
   
+  // 使用ref同步存储平面数据，确保finishCapture能获取最新值
+  const detectedPlanesRef = useRef([])
+  
+  // 同步更新ref
+  useEffect(() => {
+    detectedPlanesRef.current = detectedPlanes
+    console.log('🔄 [ARSceneCapture] 同步detectedPlanes到ref，数量:', detectedPlanes.length)
+  }, [detectedPlanes])
+  
   // 场景数据
   const sceneDataRef = useRef({
     planes: [],
@@ -188,7 +197,11 @@ export function ARSceneCapture() {
   // 完成采集
   const finishCapture = async () => {
     console.log('🏁 [ARSceneCapture] finishCapture() 开始调用')
-    console.log('📊 [ARSceneCapture] 最终检测到的平面数:', detectedPlanes.length)
+    console.log('📊 [ARSceneCapture] 最终检测到的平面数 (state):', detectedPlanes.length)
+    console.log('📊 [ARSceneCapture] 最终检测到的平面数 (ref):', detectedPlanesRef.current.length)
+    
+    // 使用ref获取最新的平面数据
+    const finalPlanes = detectedPlanesRef.current
     
     // 生成缩略图
     console.log('🖼️ [ARSceneCapture] 开始生成缩略图')
@@ -205,7 +218,7 @@ export function ARSceneCapture() {
         thumbnail
       },
       environment: {
-        planes: detectedPlanes.map(plane => ({
+        planes: finalPlanes.map(plane => ({
           id: plane.id,
           type: plane.type,
           name: plane.name,
@@ -458,18 +471,22 @@ export function ARSceneCapture() {
     }
   }
 
-  // 当平面变化时重绘
+  // 当平面变化时重绘（只在预览界面显示时）
   useEffect(() => {
-    console.log('🎨 [ARSceneCapture] detectedPlanes变化，触发重绘')
+    console.log('🎨 [ARSceneCapture] detectedPlanes变化，触发重绘检查')
     console.log('📊 [ARSceneCapture] 当前平面数:', detectedPlanes.length)
+    console.log('📊 [ARSceneCapture] showPreview:', showPreview)
     
-    // 延迟执行，确保canvas已经渲染
-    const timer = setTimeout(() => {
-      renderPlanePreview()
-    }, 100)
-    
-    return () => clearTimeout(timer)
-  }, [detectedPlanes])
+    // 只有在预览界面显示且检测到平面时才绘制
+    if (showPreview && detectedPlanes.length > 0) {
+      // 延迟执行，确保canvas已经渲染
+      const timer = setTimeout(() => {
+        renderPlanePreview()
+      }, 200)
+      
+      return () => clearTimeout(timer)
+    }
+  }, [detectedPlanes, showPreview])
 
   return (
     <div className={styles.container}>
