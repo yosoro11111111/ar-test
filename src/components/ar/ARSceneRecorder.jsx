@@ -257,16 +257,22 @@ export function ARSceneRecorder() {
 
   // 保存视频到存储
   const saveVideoToStorage = async (sceneId, blob) => {
-    // 使用IndexedDB存储大文件
-    const db = await openDB('AR-Director', 1, {
-      upgrade(db) {
-        if (!db.objectStoreNames.contains('scenes')) {
-          db.createObjectStore('scenes')
+    try {
+      // 使用IndexedDB存储大文件
+      const db = await openDB('AR-Director-V2', 1, {
+        upgrade(db) {
+          if (!db.objectStoreNames.contains('scenes')) {
+            db.createObjectStore('scenes')
+          }
         }
-      }
-    })
-    
-    await db.put('scenes', blob, `${sceneId}_video`)
+      })
+      
+      await db.put('scenes', blob, `${sceneId}_video`)
+    } catch (error) {
+      console.error('IndexedDB保存失败:', error)
+      // 降级到localStorage存储元数据，不存储视频blob
+      throw new Error('视频存储失败，可能是存储空间不足')
+    }
   }
 
   // 重新录制
