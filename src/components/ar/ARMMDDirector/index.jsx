@@ -6,6 +6,8 @@ import { MultiCharacterManager } from '../MultiCharacterManager.js'
 import { CharacterSelectModal } from './CharacterSelectModal'
 import { ActionSelectModal } from './ActionSelectModal'
 import { SceneMapModal } from './SceneMapModal'
+import { EffectSelectModal } from './EffectSelectModal'
+import { SettingsModal } from './SettingsModal'
 import { Timeline } from './Timeline'
 import { actions as vrmaActions } from '../../../data/actions250.js'
 import { loadVRMAAction } from '../../../data/vrmaActions.js'
@@ -40,6 +42,8 @@ export function ARMMDDirector() {
   const [showCharacterModal, setShowCharacterModal] = useState(false)
   const [showActionModal, setShowActionModal] = useState(false)
   const [showSceneModal, setShowSceneModal] = useState(false)
+  const [showEffectModal, setShowEffectModal] = useState(false)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [actionTarget, setActionTarget] = useState(null) // { characterId, trackId }
   
   // 项目数据
@@ -364,7 +368,7 @@ export function ARMMDDirector() {
           <button className={styles.iconBtn} onClick={saveProject} title="保存">
             💾
           </button>
-          <button className={styles.iconBtn} title="设置">
+          <button className={styles.iconBtn} onClick={() => setShowSettingsModal(true)} title="设置">
             ⚙️
           </button>
         </div>
@@ -489,7 +493,10 @@ export function ARMMDDirector() {
           <span>动作</span>
         </button>
         
-        <button className={styles.toolbarBtn}>
+        <button 
+          className={styles.toolbarBtn}
+          onClick={() => setShowEffectModal(true)}
+        >
           <span>✨</span>
           <span>特效</span>
         </button>
@@ -541,6 +548,45 @@ export function ARMMDDirector() {
         <SceneMapModal
           onSelect={addScenesToTimeline}
           onClose={() => setShowSceneModal(false)}
+        />
+      )}
+      
+      {showEffectModal && (
+        <EffectSelectModal
+          onSelect={(effect) => {
+            // 添加特效到时间轴
+            const newClip = {
+              id: `clip_effect_${Date.now()}`,
+              type: 'effect',
+              effectId: effect.id,
+              effectName: effect.name,
+              startTime: currentTime,
+              duration: 5
+            }
+            setProject(prev => ({
+              ...prev,
+              tracks: [
+                ...prev.tracks,
+                {
+                  id: `track_effect_${Date.now()}`,
+                  type: 'effect',
+                  name: effect.name,
+                  clips: [newClip]
+                }
+              ]
+            }))
+          }}
+          onClose={() => setShowEffectModal(false)}
+        />
+      )}
+      
+      {showSettingsModal && (
+        <SettingsModal
+          project={project}
+          onClose={() => setShowSettingsModal(false)}
+          onExport={(type) => {
+            alert(`${type === 'gif' ? 'GIF' : '视频'}导出功能开发中...`)
+          }}
         />
       )}
     </div>

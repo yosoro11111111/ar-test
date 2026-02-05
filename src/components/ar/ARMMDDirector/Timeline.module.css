@@ -81,7 +81,7 @@
 .tracksContainer {
   flex: 1;
   overflow-y: auto;
-  max-height: 200px;
+  max-height: 350px;
   position: relative;
   padding: 8px 0;
 }
