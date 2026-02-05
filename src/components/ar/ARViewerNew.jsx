@@ -841,7 +841,10 @@ class ARSceneManager {
   updateAnimation(deltaTime) {
     // 更新动画混合器
     if (this.mixer) {
-      this.mixer.update(deltaTime * 0.001)
+      // 使用固定时间步长，确保动画流畅
+      const fixedDelta = 16.666 * 0.001 // 60fps
+      this.mixer.update(fixedDelta)
+      console.log('🎬 动画更新:', fixedDelta)
     }
   }
 
