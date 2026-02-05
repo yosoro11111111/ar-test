@@ -126,9 +126,14 @@ export function ARMMDDirector() {
       antialias: true,
       preserveDrawingBuffer: true
     })
-    renderer.setSize(canvasRef.current.clientWidth, canvasRef.current.clientHeight)
+    // 使用固定尺寸或容器尺寸
+    const canvasWidth = canvasRef.current.clientWidth || 960
+    const canvasHeight = canvasRef.current.clientHeight || 540
+    renderer.setSize(canvasWidth, canvasHeight)
     renderer.shadowMap.enabled = true
     rendererRef.current = renderer
+    
+    console.log('Renderer size:', canvasWidth, canvasHeight)
     
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
     scene.add(ambientLight)
