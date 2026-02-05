@@ -1090,21 +1090,14 @@ class ARSceneManager {
       if (clip) {
         console.log('▶️ Creating clip action, duration:', clip.duration)
         
-        // 使用VRM的scene作为根对象
-        const root = this.currentCharacter.scene
-        console.log('Animation root:', root)
-        console.log('VRM humanoid:', this.currentCharacter.humanoid)
-        
         // 停止之前的动画
         if (this.currentAnimation) {
+          this.currentAnimation.fadeOut(0.2)
           this.currentAnimation.stop()
         }
         
-        // 创建动画动作 - 使用VRM的humanoid作为root
-        const humanoidRoot = this.currentCharacter.humanoid?.normalizedHumanBonesRoot || root
-        console.log('Humanoid root:', humanoidRoot)
-        
-        this.currentAnimation = this.mixer.clipAction(clip, humanoidRoot)
+        // 创建动画动作 - 使用VRM的scene作为root
+        this.currentAnimation = this.mixer.clipAction(clip, this.currentCharacter.scene)
         this.currentAnimation.reset()
         this.currentAnimation.fadeIn(0.3)
         this.currentAnimation.play()
@@ -1113,7 +1106,6 @@ class ARSceneManager {
         this.currentAnimation.setLoop(THREE.LoopRepeat, Infinity)
         
         console.log('✅ Playing action:', action.name)
-        console.log('Animation action:', this.currentAnimation)
       } else {
         console.error('❌ No clip to play')
       }
@@ -1181,6 +1173,7 @@ export const ARViewerNew = ({
   const [isRecording, setIsRecording] = useState(false)
   const [isTracking, setIsTracking] = useState(false)
   const [isFollowing, setIsFollowing] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const [vrmaActions, setVrmaActions] = useState([])
   const [categories, setCategories] = useState([])
   const [selectedCategory, setSelectedCategory] = useState('全部')
@@ -1786,51 +1779,6 @@ export const ARViewerNew = ({
           </button>
 
           <button
-            className={`${styles.mainButton} ${isTracking ? styles.active : ''}`}
-            onClick={handleToggleTracking}
-            title="让模型保持在平面上并面向你"
-          >
-            <span>🎯</span>
-            <span>跟随</span>
-          </button>
-
-          <button
-            className={`${styles.mainButton} ${showSettings ? styles.active : ''}`}
-            onClick={() => setShowSettings(!showSettings)}
-          >
-            <span>⚙️</span>
-            <span>设置</span>
-          </button>
-
-          <button
-            className={`${styles.mainButton} ${isPlaced ? styles.placed : ''}`}
-            onClick={() => {
-              // 允许重新放置模型
-              if (arManagerRef.current) {
-                // 使用当前扫描环位置放置
-                if (arManagerRef.current.optimalPosition) {
-                  // 先设置状态为未放置，让扫描环重新显示
-                  setIsPlaced(false)
-                  arManagerRef.current.isPlaced = false
-                  // 等待一帧让扫描环更新位置
-                  setTimeout(() => {
-                    arManagerRef.current.placeModel()
-                    setIsPlaced(true)
-                    console.log('✅ 模型已放置到:', arManagerRef.current.optimalPosition)
-                  }, 100)
-                } else {
-                  console.warn('⚠️ 没有可用的放置位置，请先对准地面')
-                  setGuideText('⚠️ 请对准地面移动手机')
-                  setTimeout(() => setGuideText(''), 2000)
-                }
-              }
-            }}
-          >
-            <span>{isPlaced ? '📍' : '📍'}</span>
-            <span>{isPlaced ? '重新放置' : '放置'}</span>
-          </button>
-
-          <button
             className={`${styles.mainButton} ${showTimeline ? styles.active : ''}`}
             onClick={() => setShowTimeline(!showTimeline)}
           >
@@ -1847,21 +1795,105 @@ export const ARViewerNew = ({
           </button>
 
           <button
-            className={`${styles.mainButton} ${isFollowing ? styles.active : ''}`}
+            className={`${styles.mainButton} ${isPlaced ? styles.placed : ''}`}
             onClick={() => {
-              const newFollowing = !isFollowing
-              setIsFollowing(newFollowing)
               if (arManagerRef.current) {
-                arManagerRef.current.isFollowing = newFollowing
+                if (arManagerRef.current.optimalPosition) {
+                  setIsPlaced(false)
+                  arManagerRef.current.isPlaced = false
+                  setTimeout(() => {
+                    arManagerRef.current.placeModel()
+                    setIsPlaced(true)
+                  }, 100)
+                } else {
+                  setGuideText('⚠️ 请对准地面移动手机')
+                  setTimeout(() => setGuideText(''), 2000)
+                }
               }
-              setGuideText(newFollowing ? '🔒 跟随模式已开启' : '🔓 跟随模式已关闭')
-              setTimeout(() => setGuideText(''), 1500)
             }}
           >
-            <span>{isFollowing ? '🔒' : '🔓'}</span>
-            <span>{isFollowing ? '跟随中' : '跟随'}</span>
+            <span>📍</span>
+            <span>{isPlaced ? '重新放置' : '放置'}</span>
+          </button>
+
+          <button
+            className={`${styles.mainButton} ${showSettings ? styles.active : ''}`}
+            onClick={() => setShowSettings(!showSettings)}
+          >
+            <span>⚙️</span>
+            <span>设置</span>
           </button>
         </div>
+      </div>
+
+      {/* 右侧可折叠工具栏 */}
+      <div className={styles.rightToolbar}>
+        <button
+          className={styles.toolButton}
+          onClick={() => {
+            if (arManagerRef.current) {
+              arManagerRef.current.takeScreenshot()
+            }
+          }}
+          title="截图"
+        >
+          📷
+        </button>
+        <button
+          className={`${styles.toolButton} ${isRecording ? styles.recording : ''}`}
+          onClick={() => {
+            if (arManagerRef.current) {
+              const newRecording = !isRecording
+              setIsRecording(newRecording)
+              if (newRecording) {
+                arManagerRef.current.startRecording()
+              } else {
+                arManagerRef.current.stopRecording()
+              }
+            }
+          }}
+          title={isRecording ? '停止录制' : '开始录制'}
+        >
+          {isRecording ? '⏹️' : '📹'}
+        </button>
+        <button
+          className={styles.toolButton}
+          onClick={() => {
+            if (arManagerRef.current?.session) {
+              // 切换手电筒
+              const session = arManagerRef.current.session
+              if (session.requestLightProbe) {
+                setGuideText('🔦 手电筒功能开发中')
+                setTimeout(() => setGuideText(''), 1500)
+              }
+            }
+          }}
+          title="手电筒"
+        >
+          🔦
+        </button>
+        <button
+          className={styles.toolButton}
+          onClick={() => {
+            if (arManagerRef.current) {
+              arManagerRef.current.resetCamera()
+              setGuideText('🔄 视角已重置')
+              setTimeout(() => setGuideText(''), 1500)
+            }
+          }}
+          title="重置视角"
+        >
+          🔄
+        </button>
+        <button
+          className={styles.toolButton}
+          onClick={() => {
+            setShowHelp(!showHelp)
+          }}
+          title="帮助"
+        >
+          ❓
+        </button>
       </div>
 
       {/* 录制指示器 */}
