@@ -122,6 +122,32 @@
 }
 
 /* 场景平面列表 */
+.sceneInfoCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  margin-bottom: 12px;
+}
+
+.sceneThumbnail {
+  width: 100%;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sceneName {
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.9);
+}
+
 .planesList {
   margin-bottom: 12px;
 }
@@ -358,6 +384,57 @@
 
 .closeModalBtn:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+/* 角色库弹窗 */
+.characterLibraryList {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.characterLibraryItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.characterLibraryItem:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.05);
+}
+
+.characterLibraryThumb {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.characterLibraryName {
+  font-size: 14px;
+  text-align: center;
+}
+
+.emptyState {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 40px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.emptyState p {
+  margin: 8px 0;
 }
 
 /* 响应式设计 */

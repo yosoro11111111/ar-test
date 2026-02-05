@@ -253,9 +253,9 @@ export function ARSceneCapture() {
     console.log('✅ [ARSceneCapture] 采集完成，显示预览界面')
   }
 
-  // 生成缩略图
+  // 生成高清缩略图
   const generateThumbnail = () => {
-    console.log('🖼️ [ARSceneCapture] generateThumbnail() 开始调用')
+    console.log('🖼️ [ARSceneCapture] generateThumbnail() 开始调用 (高清模式)')
     return new Promise((resolve) => {
       if (!videoRef.current) {
         console.warn('⚠️ [ARSceneCapture] videoRef.current 为null，无法生成缩略图')
@@ -264,21 +264,32 @@ export function ARSceneCapture() {
       }
       
       const canvas = document.createElement('canvas')
-      canvas.width = 320
-      canvas.height = 180
+      // 高清分辨率 1280x720
+      canvas.width = 1280
+      canvas.height = 720
       const ctx = canvas.getContext('2d')
+      
+      // 使用高质量缩放
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
+      
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height)
       
-      // 绘制检测到的平面示意
+      // 绘制检测到的平面示意（高清比例）
       ctx.strokeStyle = '#4a90d9'
-      ctx.lineWidth = 2
+      ctx.lineWidth = 4
       ctx.beginPath()
-      ctx.moveTo(80, 120)
-      ctx.lineTo(240, 120)
-      ctx.lineTo(260, 140)
-      ctx.lineTo(60, 140)
+      ctx.moveTo(320, 480)
+      ctx.lineTo(960, 480)
+      ctx.lineTo(1040, 560)
+      ctx.lineTo(240, 560)
       ctx.closePath()
       ctx.stroke()
+      
+      // 添加文字标识
+      ctx.font = 'bold 24px sans-serif'
+      ctx.fillStyle = '#4a90d9'
+      ctx.fillText(`检测到 ${detectedPlanesRef.current.length} 个平面`, 40, 40)
       
       resolve(canvas.toDataURL('image/jpeg', 0.8))
     })
@@ -612,9 +623,28 @@ export function ARSceneCapture() {
         ) : (
           /* 预览界面 */
           <div className={styles.previewSection}>
-            <h2 className={styles.previewTitle}>场景采集完成</h2>
+            <h2 className={styles.previewTitle}>✅ 场景采集完成</h2>
             
-            {/* 3D平面预览 */}
+            {/* 真实场景缩略图 */}
+            <div className={styles.preview3D}>
+              {capturedData?.metadata?.thumbnail ? (
+                <img 
+                  src={capturedData.metadata.thumbnail} 
+                  alt="场景缩略图"
+                  className={styles.previewImage}
+                />
+              ) : (
+                <canvas 
+                  ref={canvasRef}
+                  width={320}
+                  height={240}
+                  className={styles.previewCanvas}
+                />
+              )}
+              <p className={styles.previewLabel}>📷 采集的场景</p>
+            </div>
+
+            {/* 3D平面布局预览 */}
             <div className={styles.preview3D}>
               <canvas 
                 ref={canvasRef}
@@ -622,7 +652,7 @@ export function ARSceneCapture() {
                 height={240}
                 className={styles.previewCanvas}
               />
-              <p className={styles.previewLabel}>检测到的平面布局</p>
+              <p className={styles.previewLabel}>📐 检测到的平面布局</p>
             </div>
 
             {/* 场景信息 */}

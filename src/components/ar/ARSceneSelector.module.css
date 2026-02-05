@@ -1,0 +1,324 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 顶部导航 */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.backBtn {
+  padding: 8px 16px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.backBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.headerSpacer {
+  width: 60px;
+}
+
+/* 主内容 */
+.main {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sceneCount {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: normal;
+}
+
+/* 新建场景按钮 */
+.newSceneBtn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px;
+  border: 2px dashed rgba(102, 126, 234, 0.5);
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 16px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.newSceneBtn:hover {
+  border-color: rgba(102, 126, 234, 0.8);
+  background: rgba(102, 126, 234, 0.2);
+  transform: translateY(-2px);
+}
+
+.newSceneIcon {
+  font-size: 40px;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(102, 126, 234, 0.3);
+  border-radius: 12px;
+}
+
+.newSceneText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.newSceneMain {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.newSceneSub {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* 场景网格 */
+.scenesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+}
+
+.sceneCard {
+  position: relative;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.sceneCard:hover {
+  transform: translateY(-4px);
+  border-color: rgba(102, 126, 234, 0.5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.sceneThumbnailWrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  overflow: hidden;
+}
+
+.sceneThumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.sceneCard:hover .sceneThumbnail {
+  transform: scale(1.05);
+}
+
+.scenePlaceholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 40px;
+}
+
+.sceneOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.sceneCard:hover .sceneOverlay {
+  opacity: 1;
+}
+
+.importText {
+  padding: 8px 16px;
+  background: rgba(102, 126, 234, 0.9);
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.sceneInfo {
+  padding: 12px;
+}
+
+.sceneName {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sceneDate {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-bottom: 4px;
+}
+
+.sceneStats {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.deleteBtn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: rgba(255, 71, 87, 0.8);
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sceneCard:hover .deleteBtn {
+  opacity: 1;
+}
+
+.deleteBtn:hover {
+  background: rgba(255, 71, 87, 1);
+  transform: scale(1.1);
+}
+
+/* 空状态 */
+.emptyState {
+  text-align: center;
+  padding: 48px 24px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+}
+
+.emptyIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.emptyText {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 8px;
+}
+
+.emptySub {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* 加载状态 */
+.loading {
+  text-align: center;
+  padding: 48px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* 退出按钮 */
+.exitBtn {
+  width: 100%;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.exitBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* 响应式设计 */
+@media (max-width: 640px) {
+  .main {
+    padding: 16px;
+  }
+
+  .scenesGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .newSceneBtn {
+    padding: 16px;
+  }
+
+  .newSceneIcon {
+    width: 48px;
+    height: 48px;
+    font-size: 32px;
+  }
+
+  .newSceneMain {
+    font-size: 16px;
+  }
+
+  .newSceneSub {
+    font-size: 12px;
+  }
+}

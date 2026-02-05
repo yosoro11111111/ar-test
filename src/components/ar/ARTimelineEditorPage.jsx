@@ -34,9 +34,11 @@ export function ARTimelineEditorPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [showActionLibrary, setShowActionLibrary] = useState(false)
   const [actionLibraryTarget, setActionLibraryTarget] = useState(null)
+  const [showCharacterLibrary, setShowCharacterLibrary] = useState(false)
 
   // 场景平面数据
   const [scenePlanes, setScenePlanes] = useState([])
+  const [sceneInfo, setSceneInfo] = useState(null) // 存储场景信息（名称、缩略图等）
   const planeMeshesRef = useRef([])
 
   // 初始化Three.js场景
@@ -162,6 +164,13 @@ export function ARTimelineEditorPage() {
         setScenePlanes(currentScene.environment.planes || [])
         // 在3D场景中显示平面
         visualizePlanes(currentScene.environment.planes || [])
+        
+        // 加载场景信息（名称、缩略图）
+        setSceneInfo({
+          name: currentScene.name || '未命名场景',
+          thumbnail: currentScene.thumbnail,
+          createdAt: currentScene.createdAt
+        })
       }
       
       if (currentProject) {
@@ -595,16 +604,27 @@ export function ARTimelineEditorPage() {
       <div className={styles.main}>
         {/* 左侧工具栏 */}
         <aside className={styles.sidebar}>
-          {/* 场景平面 */}
+          {/* 场景信息 */}
           <div className={styles.toolSection}>
-            <h3>📐 场景平面</h3>
+            <h3>📐 场景信息</h3>
+            {sceneInfo && (
+              <div className={styles.sceneInfoCard}>
+                {sceneInfo.thumbnail && (
+                  <img 
+                    src={sceneInfo.thumbnail} 
+                    alt={sceneInfo.name}
+                    className={styles.sceneThumbnail}
+                  />
+                )}
+                <span className={styles.sceneName}>{sceneInfo.name}</span>
+              </div>
+            )}
             <div className={styles.planesList}>
               {scenePlanes.map(plane => (
                 <div 
                   key={plane.id}
                   className={styles.planeItem}
                   onClick={() => {
-                    // 如果有选中的角色，将角色放置到这个平面
                     if (selectedCharacterId) {
                       placeCharacterOnPlane(selectedCharacterId, plane.id)
                     }
@@ -632,10 +652,7 @@ export function ARTimelineEditorPage() {
             <h3>角色</h3>
             <button 
               className={styles.toolBtn}
-              onClick={() => {
-                const url = prompt('请输入VRM模型URL:')
-                if (url) addCharacter(url)
-              }}
+              onClick={() => setShowCharacterLibrary(true)}
             >
               <span>👤</span>
               <span>添加角色</span>
@@ -715,6 +732,50 @@ export function ARTimelineEditorPage() {
           onSelectCharacter={setSelectedCharacterId}
         />
       </div>
+
+      {/* 角色库弹窗 */}
+      {showCharacterLibrary && (
+        <div className={styles.modalOverlay} onClick={() => setShowCharacterLibrary(false)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <h3>选择角色</h3>
+            <div className={styles.characterLibraryList}>
+              {(() => {
+                const savedCharacters = JSON.parse(localStorage.getItem('savedCharacters') || '[]')
+                return savedCharacters.length > 0 ? (
+                  savedCharacters.map(char => (
+                    <div 
+                      key={char.id}
+                      className={styles.characterLibraryItem}
+                      onClick={() => {
+                        addCharacter(char.modelUrl, { name: char.name })
+                        setShowCharacterLibrary(false)
+                      }}
+                    >
+                      <img 
+                        src={char.thumbnail || '/default-character.png'} 
+                        alt={char.name}
+                        className={styles.characterLibraryThumb}
+                      />
+                      <span className={styles.characterLibraryName}>{char.name}</span>
+                    </div>
+                  ))
+                ) : (
+                  <div className={styles.emptyState}>
+                    <p>暂无保存的角色</p>
+                    <p>请先在人物库中创建角色</p>
+                  </div>
+                )
+              })()}
+            </div>
+            <button 
+              className={styles.closeModalBtn}
+              onClick={() => setShowCharacterLibrary(false)}
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 动作库弹窗 */}
       {showActionLibrary && (

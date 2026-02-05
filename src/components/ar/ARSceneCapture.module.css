@@ -306,6 +306,15 @@
 .previewCanvas {
   border-radius: 12px;
   background: #1a1a2e;
+  max-width: 100%;
+  height: auto;
+}
+
+.previewImage {
+  border-radius: 12px;
+  max-width: 100%;
+  height: auto;
+  display: block;
 }
 
 .previewLabel {
