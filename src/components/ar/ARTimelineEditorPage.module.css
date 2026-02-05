@@ -121,6 +121,49 @@
   font-size: 20px;
 }
 
+/* 场景平面列表 */
+.planesList {
+  margin-bottom: 12px;
+}
+
+.planeItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.planeItem:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.planeColor {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.planeName {
+  flex: 1;
+  font-size: 13px;
+}
+
+.planeType {
+  font-size: 12px;
+}
+
+.planeHint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  font-style: italic;
+  margin-top: 8px;
+}
+
 /* 角色列表 */
 .characterList {
   margin-top: 12px;

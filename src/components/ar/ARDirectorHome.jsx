@@ -28,9 +28,9 @@ export function ARDirectorHome() {
     }
   }
 
-  // 开始新的场景录制
-  const startSceneRecording = () => {
-    navigate('/ar-director/record')
+  // 开始新的场景采集
+  const startSceneCapture = () => {
+    navigate('/ar-director/capture')
   }
 
   // 打开项目
@@ -80,8 +80,8 @@ export function ARDirectorHome() {
         <div className={styles.recordSection}>
           <button 
             className={styles.recordButton}
-            onClick={startSceneRecording}
-            title="开始录制AR场景"
+            onClick={startSceneCapture}
+            title="开始采集AR场景"
           >
             <div className={styles.recordButtonInner}>
               <span className={styles.recordIcon}>📹</span>

@@ -35,6 +35,10 @@ export function ARTimelineEditorPage() {
   const [showActionLibrary, setShowActionLibrary] = useState(false)
   const [actionLibraryTarget, setActionLibraryTarget] = useState(null)
 
+  // 场景平面数据
+  const [scenePlanes, setScenePlanes] = useState([])
+  const planeMeshesRef = useRef([])
+
   // 初始化Three.js场景
   useEffect(() => {
     initThreeJS()
@@ -115,6 +119,17 @@ export function ARTimelineEditorPage() {
       const projects = JSON.parse(localStorage.getItem('ar-director-projects') || '[]')
       const currentProject = projects.find(p => p.id === projectId)
       
+      // 加载场景数据（平面信息）
+      const scenes = JSON.parse(localStorage.getItem('ar-director-scenes') || '[]')
+      const currentScene = scenes.find(s => s.id === projectId)
+      
+      if (currentScene && currentScene.environment) {
+        // 加载场景平面数据
+        setScenePlanes(currentScene.environment.planes || [])
+        // 在3D场景中显示平面
+        visualizePlanes(currentScene.environment.planes || [])
+      }
+      
       if (currentProject) {
         setProject(currentProject)
         setDuration(currentProject.duration || 30)
@@ -144,6 +159,21 @@ export function ARTimelineEditorPage() {
           characters: [],
           tracks: []
         })
+        
+        // 如果没有场景数据，创建默认地面
+        if (!currentScene) {
+          const defaultPlanes = [{
+            id: 'default_floor',
+            type: 'floor',
+            name: '地面',
+            position: { x: 0, y: 0, z: 0 },
+            rotation: { x: -Math.PI / 2, y: 0, z: 0 },
+            size: { width: 10, height: 10 },
+            color: '#4a90d9'
+          }]
+          setScenePlanes(defaultPlanes)
+          visualizePlanes(defaultPlanes)
+        }
       }
     } catch (error) {
       console.error('加载项目失败:', error)
@@ -151,11 +181,66 @@ export function ARTimelineEditorPage() {
       setIsLoading(false)
     }
   }
+  
+  // 可视化场景平面
+  const visualizePlanes = (planes) => {
+    if (!sceneRef.current) return
+    
+    // 清除旧的平面显示
+    planeMeshesRef.current.forEach(mesh => {
+      sceneRef.current.remove(mesh)
+    })
+    planeMeshesRef.current = []
+    
+    // 创建新的平面显示
+    planes.forEach(plane => {
+      const geometry = new THREE.PlaneGeometry(plane.size.width, plane.size.height)
+      const material = new THREE.MeshBasicMaterial({
+        color: plane.color || '#4a90d9',
+        transparent: true,
+        opacity: 0.3,
+        side: THREE.DoubleSide
+      })
+      
+      const mesh = new THREE.Mesh(geometry, material)
+      mesh.position.set(plane.position.x, plane.position.y, plane.position.z)
+      mesh.rotation.set(plane.rotation.x, plane.rotation.y, plane.rotation.z)
+      
+      // 添加边框
+      const edges = new THREE.EdgesGeometry(geometry)
+      const lineMaterial = new THREE.LineBasicMaterial({ 
+        color: plane.color || '#4a90d9',
+        linewidth: 2 
+      })
+      const wireframe = new THREE.LineSegments(edges, lineMaterial)
+      mesh.add(wireframe)
+      
+      sceneRef.current.add(mesh)
+      planeMeshesRef.current.push(mesh)
+      
+      // 添加平面标签
+      // 这里可以添加文字标签显示平面名称
+    })
+  }
 
   const addCharacter = async (vrmUrl, options = {}) => {
     if (!characterManagerRef.current) return
     
     try {
+      // 如果没有指定位置，自动放置到第一个地面平面上
+      if (!options.position && scenePlanes.length > 0) {
+        const floorPlane = scenePlanes.find(p => p.type === 'floor')
+        if (floorPlane) {
+          // 放置到平面中心，稍微抬高一点（避免穿模）
+          options.position = {
+            x: floorPlane.position.x,
+            y: floorPlane.position.y + 0.01, // 稍微抬高
+            z: floorPlane.position.z
+          }
+          console.log('🎯 自动放置到地面:', floorPlane.name)
+        }
+      }
+      
       const characterId = await characterManagerRef.current.addCharacter(vrmUrl, options)
       
       const character = characterManagerRef.current.getCharacter(characterId)
@@ -181,6 +266,29 @@ export function ARTimelineEditorPage() {
       console.error('添加角色失败:', error)
       alert('添加角色失败: ' + error.message)
     }
+  }
+  
+  // 将角色放置到指定平面
+  const placeCharacterOnPlane = (characterId, planeId) => {
+    const plane = scenePlanes.find(p => p.id === planeId)
+    if (!plane || !characterManagerRef.current) return
+    
+    const position = {
+      x: plane.position.x,
+      y: plane.position.y + 0.01,
+      z: plane.position.z
+    }
+    
+    characterManagerRef.current.setCharacterPosition(characterId, position)
+    
+    // 更新本地状态
+    setCharacters(prev => prev.map(char => 
+      char.id === characterId 
+        ? { ...char, position }
+        : char
+    ))
+    
+    console.log(`✅ 角色已放置到 ${plane.name}`)
   }
 
   const removeCharacter = (characterId) => {
@@ -389,6 +497,39 @@ export function ARTimelineEditorPage() {
       <div className={styles.main}>
         {/* 左侧工具栏 */}
         <aside className={styles.sidebar}>
+          {/* 场景平面 */}
+          <div className={styles.toolSection}>
+            <h3>📐 场景平面</h3>
+            <div className={styles.planesList}>
+              {scenePlanes.map(plane => (
+                <div 
+                  key={plane.id}
+                  className={styles.planeItem}
+                  onClick={() => {
+                    // 如果有选中的角色，将角色放置到这个平面
+                    if (selectedCharacterId) {
+                      placeCharacterOnPlane(selectedCharacterId, plane.id)
+                    }
+                  }}
+                >
+                  <div 
+                    className={styles.planeColor}
+                    style={{ backgroundColor: plane.color }}
+                  />
+                  <span className={styles.planeName}>{plane.name}</span>
+                  <span className={styles.planeType}>
+                    {plane.type === 'floor' ? '🟦' : '🟥'}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className={styles.planeHint}>
+              {selectedCharacterId 
+                ? '点击平面可将角色放置到该位置' 
+                : '先选择角色，再点击平面放置'}
+            </p>
+          </div>
+
           <div className={styles.toolSection}>
             <h3>角色</h3>
             <button 
