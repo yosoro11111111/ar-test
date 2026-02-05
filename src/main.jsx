@@ -6,6 +6,7 @@ import { ARDirectorHome } from './components/ar/ARDirectorHome.jsx'
 import { ARSceneCapture } from './components/ar/ARSceneCapture.jsx'
 import { ARTimelineEditorPage } from './components/ar/ARTimelineEditorPage.jsx'
 import { ARExportPage } from './components/ar/ARExportPage.jsx'
+import { AIDirectorPage } from './components/ar/AIDirectorPage.jsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -18,6 +19,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/ar-director/edit/:projectId" element={<ARTimelineEditorPage />} />
         <Route path="/ar-director/edit/new" element={<ARTimelineEditorPage />} />
         <Route path="/ar-director/export/:projectId" element={<ARExportPage />} />
+        <Route path="/ar-director/ai-director" element={<AIDirectorPage />} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>,
