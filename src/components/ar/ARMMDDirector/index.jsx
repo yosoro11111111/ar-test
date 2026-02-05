@@ -295,6 +295,9 @@ export function ARMMDDirector() {
   // 当前播放的动作缓存，避免重复加载
   const currentActionsRef = useRef({})
   
+  // 当前场景缓存，避免重复加载背景
+  const currentSceneRef = useRef(null)
+  
   // 更新时间轴
   const updateSceneAtTime = (time) => {
     project.tracks.forEach(track => {
@@ -304,6 +307,21 @@ export function ARMMDDirector() {
         
         // 应用场景
         const activeScene = track.scene.find(s => time >= s.startTime && time <= s.startTime + s.duration)
+        
+        // 应用背景（只在场景变化时更新）
+        if (activeScene?.sceneId && activeScene.sceneId !== currentSceneRef.current) {
+          currentSceneRef.current = activeScene.sceneId
+          if (activeScene.sceneData?.imageUrl && sceneRef.current) {
+            const textureLoader = new THREE.TextureLoader()
+            textureLoader.load(activeScene.sceneData.imageUrl, (texture) => {
+              if (sceneRef.current) {
+                sceneRef.current.background = texture
+                console.log('Background updated:', activeScene.name)
+              }
+            })
+          }
+        }
+        
         if (activeScene?.position) {
           character.vrm.scene.position.set(
             activeScene.position.x,
