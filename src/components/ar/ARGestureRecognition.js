@@ -1,5 +1,5 @@
-// AR手势识别模块 - 简化版
-// 使用CDN加载MediaPipe Hands
+// AR手势识别模块
+// 使用动态导入加载MediaPipe Hands
 
 export class ARGestureRecognition {
   constructor() {
@@ -14,46 +14,28 @@ export class ARGestureRecognition {
     this.gestureHistory = []
     this.lastGestureTime = 0
     this.gestureCooldown = 1000
-    this.scriptLoaded = false
+    this.Hands = null
+    this.Camera = null
   }
 
-  // 动态加载MediaPipe脚本
-  async loadMediaPipeScripts() {
-    if (this.scriptLoaded) return true
+  // 动态导入MediaPipe
+  async loadMediaPipe() {
+    if (this.Hands && this.Camera) return true
 
-    return new Promise((resolve, reject) => {
-      // 检查是否已经加载
-      if (window.Hands && window.Camera) {
-        this.scriptLoaded = true
-        resolve(true)
-        return
-      }
-
-      // 加载Hands脚本
-      const handsScript = document.createElement('script')
-      handsScript.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js'
-      handsScript.crossOrigin = 'anonymous'
-      handsScript.async = true
+    try {
+      // 使用动态导入
+      const handsModule = await import('@mediapipe/hands')
+      const cameraModule = await import('@mediapipe/camera_utils')
       
-      handsScript.onload = () => {
-        console.log('✅ MediaPipe Hands 脚本加载成功')
-        // 加载CameraUtils脚本
-        const cameraScript = document.createElement('script')
-        cameraScript.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js'
-        cameraScript.crossOrigin = 'anonymous'
-        cameraScript.async = true
-        
-        cameraScript.onload = () => {
-          console.log('✅ MediaPipe CameraUtils 脚本加载成功')
-          this.scriptLoaded = true
-          resolve(true)
-        }
-        cameraScript.onerror = () => reject(new Error('Failed to load camera utils'))
-        document.head.appendChild(cameraScript)
-      }
-      handsScript.onerror = () => reject(new Error('Failed to load MediaPipe Hands'))
-      document.head.appendChild(handsScript)
-    })
+      this.Hands = handsModule.Hands
+      this.Camera = cameraModule.Camera
+      
+      console.log('✅ MediaPipe 模块加载成功')
+      return true
+    } catch (error) {
+      console.error('❌ MediaPipe 模块加载失败:', error)
+      return false
+    }
   }
 
   // 初始化手势识别
@@ -61,12 +43,10 @@ export class ARGestureRecognition {
     if (this.isInitialized) return true
 
     try {
-      // 加载MediaPipe脚本
-      await this.loadMediaPipeScripts()
-
-      // 等待全局对象可用
-      if (!window.Hands || !window.Camera) {
-        throw new Error('MediaPipe not loaded')
+      // 加载MediaPipe模块
+      const loaded = await this.loadMediaPipe()
+      if (!loaded) {
+        throw new Error('MediaPipe 加载失败')
       }
 
       // 创建视频元素
@@ -94,7 +74,7 @@ export class ARGestureRecognition {
       this.canvasCtx = this.canvasElement.getContext('2d')
 
       // 初始化Hands
-      this.hands = new window.Hands({
+      this.hands = new this.Hands({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
         }
@@ -110,7 +90,7 @@ export class ARGestureRecognition {
       this.hands.onResults(this.onResults.bind(this))
 
       // 初始化相机
-      this.camera = new window.Camera(this.videoElement, {
+      this.camera = new this.Camera(this.videoElement, {
         onFrame: async () => {
           if (this.isRunning) {
             await this.hands.send({ image: this.videoElement })
