@@ -1134,14 +1134,31 @@ class ARSceneManager {
           }
           
           // 简化材质以减少GPU负担
+          // 打印模型结构，找出动画根节点
+          console.log('🦴 模型结构:')
           vrm.scene.traverse((child) => {
             if (child.isMesh) {
               child.castShadow = false
               child.receiveShadow = false
             }
+            // 打印所有节点名称
+            if (child.name) {
+              console.log('  -', child.name, child.type)
+            }
           })
           
-          this.mixer = new THREE.AnimationMixer(vrm.scene)
+          // 查找动画根节点（通常是骨骼根）
+          let animationRoot = vrm.scene
+          vrm.scene.traverse((child) => {
+            if (child.name === 'G1' || child.name === 'Root' || child.name === 'root' || child.name === 'Armature') {
+              animationRoot = child
+              console.log('🦴 找到动画根节点:', child.name, child.type)
+            }
+          })
+          
+          // 使用动画根节点创建mixer
+          this.mixer = new THREE.AnimationMixer(animationRoot)
+          console.log('🎬 Mixer创建在:', animationRoot.name || 'scene')
           
           vrm.scene.visible = false
           vrm.scene.position.set(0, 0, -1.5)
@@ -1316,6 +1333,9 @@ class ARSceneManager {
         // 重置动画
         this.currentAnimation.reset()
         
+        // 设置动画权重为1（完全影响）
+        this.currentAnimation.weight = 1
+        
         // 确保动画循环播放
         this.currentAnimation.setLoop(THREE.LoopRepeat, Infinity)
         
@@ -1323,8 +1343,10 @@ class ARSceneManager {
         this.currentAnimation.play()
         
         console.log('✅ Playing action:', action.name)
-        console.log('Animation root:', animationRoot.name)
-        console.log('Mixer:', this.mixer)
+        console.log('Animation root:', animationRoot.name || 'scene')
+        console.log('Animation weight:', this.currentAnimation.weight)
+        console.log('Animation time:', this.currentAnimation.time)
+        console.log('Mixer time:', this.mixer.time)
       } else {
         console.error('❌ No clip to play')
       }
