@@ -230,7 +230,9 @@ export function ARMMDDirector() {
           characterColor: char.color,
           scene: [],
           action: [],
-          effect: []
+          effect: [],
+          scale: [],
+          bgScale: []
         }))
       ]
     }))
@@ -238,6 +240,24 @@ export function ARMMDDirector() {
     if (previewOpen && characterManagerRef.current) {
       newCharacters.forEach(char => loadCharacter(char))
     }
+  }
+  
+  // 删除角色
+  const deleteCharacter = (characterId) => {
+    if (!confirm('确定要删除这个角色吗？相关的轨道数据也会被删除。')) {
+      return
+    }
+    
+    // 从场景中移除角色
+    if (characterManagerRef.current) {
+      characterManagerRef.current.removeCharacter(characterId)
+    }
+    
+    setProject(prev => ({
+      ...prev,
+      characters: prev.characters.filter(c => c.id !== characterId),
+      tracks: prev.tracks.filter(t => t.characterId !== characterId)
+    }))
   }
   
   // 添加格子到子轨道
@@ -322,12 +342,42 @@ export function ARMMDDirector() {
           }
         }
         
+        // 应用背景缩放动画
+        const activeBgScale = track.bgScale?.find(s => time >= s.startTime && time <= s.startTime + s.duration)
+        if (activeBgScale && sceneRef.current?.background) {
+          const progress = (time - activeBgScale.startTime) / activeBgScale.duration
+          const startScale = activeBgScale.startValue ?? 1
+          const endScale = activeBgScale.endValue ?? 1
+          const currentScale = startScale + (endScale - startScale) * progress
+          // 通过调整camera来模拟背景缩放效果
+          const baseFov = 60
+          const newFov = baseFov / currentScale
+          cameraRef.current.fov = Math.max(20, Math.min(120, newFov))
+          cameraRef.current.updateProjectionMatrix()
+        }
+        
         if (activeScene?.position) {
           character.vrm.scene.position.set(
             activeScene.position.x,
             activeScene.position.y,
             activeScene.position.z
           )
+        }
+        
+        // 应用缩放动画
+        const activeScale = track.scale?.find(s => time >= s.startTime && time <= s.startTime + s.duration)
+        if (activeScale) {
+          // 计算缩放值（支持起始值和结束值的渐变）
+          const progress = (time - activeScale.startTime) / activeScale.duration
+          const startScale = activeScale.startValue ?? 1
+          const endScale = activeScale.endValue ?? 1
+          const currentScale = startScale + (endScale - startScale) * progress
+          character.vrm.scene.scale.setScalar(currentScale)
+          character.vrm.scene.visible = currentScale > 0.01 // 缩放小于0.01时隐藏
+        } else {
+          // 没有缩放动画时恢复默认
+          character.vrm.scene.scale.setScalar(1)
+          character.vrm.scene.visible = true
         }
         
         // 应用动作 - 只在动作变化时加载
@@ -683,6 +733,7 @@ export function ARMMDDirector() {
         }}
         onCellUpdate={updateCell}
         onDeleteCell={deleteCell}
+        onDeleteCharacter={deleteCharacter}
         isPlaying={isPlaying}
         onPlayPause={togglePlay}
       />

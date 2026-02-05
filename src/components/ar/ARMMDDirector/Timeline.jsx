@@ -15,6 +15,7 @@ export function Timeline({
   onEditCell,
   onCellUpdate,
   onDeleteCell,
+  onDeleteCharacter,
   isPlaying,
   onPlayPause
 }) {
@@ -148,6 +149,8 @@ export function Timeline({
       case 'scene': return '🗺️'
       case 'action': return '🎭'
       case 'effect': return '✨'
+      case 'scale': return '🔍'
+      case 'bgScale': return '🖼️'
       default: return ''
     }
   }
@@ -217,17 +220,30 @@ export function Timeline({
                 <span className={styles.trackName}>
                   {track.characterName}
                 </span>
+                <button 
+                  className={styles.deleteCharacterBtn}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDeleteCharacter(track.characterId)
+                  }}
+                  title="删除角色"
+                >
+                  🗑️
+                </button>
               </div>
               
-              {/* 3条子轨道 */}
+              {/* 5条子轨道 */}
               <div className={styles.subTracks}>
-                {['scene', 'action', 'effect'].map((subTrackType) => (
+                {['scene', 'action', 'effect', 'scale', 'bgScale'].map((subTrackType) => (
                   <div key={subTrackType} className={styles.subTrack}>
                     {/* 子轨道头部 */}
                     <div className={styles.subTrackHeader}>
                       <span className={styles.subTrackIcon}>{getSubTrackIcon(subTrackType)}</span>
                       <span className={styles.subTrackName}>
-                        {subTrackType === 'scene' ? '场景' : subTrackType === 'action' ? '动作' : '特效'}
+                        {subTrackType === 'scene' ? '场景' : 
+                         subTrackType === 'action' ? '动作' : 
+                         subTrackType === 'effect' ? '特效' :
+                         subTrackType === 'scale' ? '人物缩放' : '背景缩放'}
                       </span>
                       <button 
                         className={styles.subTrackAddBtn}
@@ -235,7 +251,10 @@ export function Timeline({
                           e.stopPropagation()
                           onAddCell(track.id, subTrackType)
                         }}
-                        title={`添加${subTrackType === 'scene' ? '场景' : subTrackType === 'action' ? '动作' : '特效'}`}
+                        title={`添加${subTrackType === 'scene' ? '场景' : 
+                                 subTrackType === 'action' ? '动作' : 
+                                 subTrackType === 'effect' ? '特效' :
+                                 subTrackType === 'scale' ? '人物缩放' : '背景缩放'}`}
                       >
                         +
                       </button>

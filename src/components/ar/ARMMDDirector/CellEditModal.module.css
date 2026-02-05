@@ -186,6 +186,46 @@
   border-radius: 8px;
 }
 
+/* 缩放面板 */
+.scalePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.scaleField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scaleField label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+}
+
+.scaleField input {
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 16px;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.scaleField input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+}
+
+.scaleField small {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 /* 内容区域 */
 .content {
   flex: 1;

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import styles from './CellEditModal.module.css'
 import { getAllVRMActions } from '../../../data/vrmaActions'
 import { SceneManagerModal } from './SceneManagerModal'
+import { ActionSelectModal } from './ActionSelectModal'
 
 /**
  * 格子编辑弹窗 - 根据子轨道类型编辑对应内容
@@ -14,6 +15,7 @@ export function CellEditModal({ trackId, subTrackType, cell, onSave, onDelete, o
     return saved ? JSON.parse(saved) : []
   })
   const [showSceneManager, setShowSceneManager] = useState(false)
+  const [showActionSelect, setShowActionSelect] = useState(false)
   
   // 格子数据
   const [cellData, setCellData] = useState({
@@ -107,35 +109,17 @@ export function CellEditModal({ trackId, subTrackType, cell, onSave, onDelete, o
       case 'action':
         return (
           <div className={styles.actionPanel}>
-            <input
-              type="text"
-              placeholder="搜索动作..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className={styles.searchInput}
-            />
-            <div className={styles.itemGrid}>
-              {filteredActions.map(action => {
-                const isSelected = cellData.filePath === action.filePath
-                const isFavorite = favorites.includes(action.id)
-                return (
-                  <div
-                    key={action.id}
-                    className={`${styles.itemCard} ${isSelected ? styles.selected : ''}`}
-                    onClick={() => selectAction(action)}
-                  >
-                    <span className={styles.itemIcon}>{action.icon}</span>
-                    <span className={styles.itemName}>{action.name}</span>
-                    <button
-                      className={`${styles.favBtn} ${isFavorite ? styles.active : ''}`}
-                      onClick={(e) => toggleFavorite(e, action.id)}
-                    >
-                      {isFavorite ? '★' : '☆'}
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
+            <button 
+              className={styles.manageSceneBtn}
+              onClick={() => setShowActionSelect(true)}
+            >
+              🎭 打开动作库
+            </button>
+            {cellData.filePath && (
+              <div className={styles.selectedScene}>
+                <span>已选择: {cellData.name}</span>
+              </div>
+            )}
           </div>
         )
       
@@ -180,6 +164,66 @@ export function CellEditModal({ trackId, subTrackType, cell, onSave, onDelete, o
           </div>
         )
       
+      case 'scale':
+        return (
+          <div className={styles.scalePanel}>
+            <div className={styles.scaleField}>
+              <label>起始缩放值</label>
+              <input
+                type="number"
+                value={cellData.startValue ?? 1}
+                onChange={(e) => setCellData(prev => ({ ...prev, startValue: Number(e.target.value) }))}
+                min={0}
+                max={5}
+                step={0.1}
+              />
+              <small>0 = 隐藏, 1 = 正常, 2 = 双倍</small>
+            </div>
+            <div className={styles.scaleField}>
+              <label>结束缩放值</label>
+              <input
+                type="number"
+                value={cellData.endValue ?? 1}
+                onChange={(e) => setCellData(prev => ({ ...prev, endValue: Number(e.target.value) }))}
+                min={0}
+                max={5}
+                step={0.1}
+              />
+              <small>设置起始和结束值实现渐变效果</small>
+            </div>
+          </div>
+        )
+      
+      case 'bgScale':
+        return (
+          <div className={styles.scalePanel}>
+            <div className={styles.scaleField}>
+              <label>起始缩放值</label>
+              <input
+                type="number"
+                value={cellData.startValue ?? 1}
+                onChange={(e) => setCellData(prev => ({ ...prev, startValue: Number(e.target.value) }))}
+                min={0.1}
+                max={3}
+                step={0.1}
+              />
+              <small>0.5 = 缩小, 1 = 正常, 2 = 放大</small>
+            </div>
+            <div className={styles.scaleField}>
+              <label>结束缩放值</label>
+              <input
+                type="number"
+                value={cellData.endValue ?? 1}
+                onChange={(e) => setCellData(prev => ({ ...prev, endValue: Number(e.target.value) }))}
+                min={0.1}
+                max={3}
+                step={0.1}
+              />
+              <small>通过调整视角模拟背景缩放</small>
+            </div>
+          </div>
+        )
+      
       default:
         return null
     }
@@ -190,6 +234,8 @@ export function CellEditModal({ trackId, subTrackType, cell, onSave, onDelete, o
       case 'action': return '🎭 选择动作'
       case 'scene': return '🗺️ 选择场景'
       case 'effect': return '✨ 选择特效'
+      case 'scale': return '🔍 人物缩放设置'
+      case 'bgScale': return '🖼️ 背景缩放设置'
       default: return '编辑'
     }
   }
@@ -262,6 +308,17 @@ export function CellEditModal({ trackId, subTrackType, cell, onSave, onDelete, o
         <SceneManagerModal
           onSelect={selectScene}
           onClose={() => setShowSceneManager(false)}
+        />
+      )}
+      
+      {/* 动作选择弹窗 */}
+      {showActionSelect && (
+        <ActionSelectModal
+          onSelect={(action) => {
+            selectAction(action)
+            setShowActionSelect(false)
+          }}
+          onClose={() => setShowActionSelect(false)}
         />
       )}
     </div>
