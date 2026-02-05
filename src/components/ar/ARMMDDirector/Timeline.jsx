@@ -31,10 +31,13 @@ export function Timeline({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`
   }
   
+  // 总头部宽度 = 角色头部(200) + 子轨道头部(120)
+  const TOTAL_HEADER_WIDTH = 320
+  
   // 获取时间轴宽度
   const getTimelineWidth = () => {
     if (!timelineRef.current) return 0
-    return timelineRef.current.clientWidth - 200
+    return timelineRef.current.clientWidth - TOTAL_HEADER_WIDTH
   }
   
   // 时间转像素
@@ -51,7 +54,7 @@ export function Timeline({
   const handleTimelineClick = (e) => {
     if (!timelineRef.current || dragState || resizeState) return
     const rect = timelineRef.current.getBoundingClientRect()
-    const x = e.clientX - rect.left - 200
+    const x = e.clientX - rect.left - TOTAL_HEADER_WIDTH
     if (x < 0) return
     const time = pixelsToTime(x)
     onTimeChange(Math.max(0, Math.min(time, duration)))
@@ -182,7 +185,7 @@ export function Timeline({
           <div 
             key={tick}
             className={styles.tick}
-            style={{ left: `${200 + timeToPixels(tick)}px` }}
+            style={{ left: `${TOTAL_HEADER_WIDTH + timeToPixels(tick)}px` }}
           >
             <span>{tick}s</span>
           </div>
@@ -293,7 +296,7 @@ export function Timeline({
         {/* 播放头 */}
         <div 
           className={styles.playhead}
-          style={{ left: `${200 + timeToPixels(currentTime)}px` }}
+          style={{ left: `${TOTAL_HEADER_WIDTH + timeToPixels(currentTime)}px` }}
         >
           <div className={styles.playheadLine} />
           <div className={styles.playheadHandle} />

@@ -247,6 +247,9 @@ export function ARMMDDirector() {
     }))
   }
   
+  // 当前播放的动作缓存，避免重复加载
+  const currentActionsRef = useRef({})
+  
   // 更新时间轴
   const updateSceneAtTime = (time) => {
     project.tracks.forEach(track => {
@@ -264,9 +267,15 @@ export function ARMMDDirector() {
           )
         }
         
-        // 应用动作
+        // 应用动作 - 只在动作变化时加载
         const activeAction = track.action.find(a => time >= a.startTime && time <= a.startTime + a.duration)
-        if (activeAction?.filePath) {
+        const actionKey = `${track.characterId}_${activeAction?.id}`
+        const currentActionKey = currentActionsRef.current[track.characterId]
+        
+        if (activeAction?.filePath && actionKey !== currentActionKey) {
+          // 动作发生变化，加载新动作
+          currentActionsRef.current[track.characterId] = actionKey
+          
           loadVRMAAction(activeAction.filePath, character.vrm).then(result => {
             if (result?.clip) {
               characterManagerRef.current.playCharacterAction(
@@ -275,7 +284,13 @@ export function ARMMDDirector() {
                 { loop: true, transitionDuration: 0.3 }
               )
             }
+          }).catch(err => {
+            console.error('加载动作失败:', err)
           })
+        } else if (!activeAction && currentActionKey) {
+          // 没有动作了，停止播放
+          currentActionsRef.current[track.characterId] = null
+          characterManagerRef.current.stopCharacterAction?.(track.characterId)
         }
         
         // 应用特效
