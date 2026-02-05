@@ -255,23 +255,28 @@ export function ARSceneRecorder() {
     })
   }
 
-  // 保存视频到存储
+  // 保存视频到存储 - 使用内存存储避免IndexedDB问题
   const saveVideoToStorage = async (sceneId, blob) => {
     try {
-      // 使用IndexedDB存储大文件
-      const db = await openDB('AR-Director-V2', 1, {
-        upgrade(db) {
-          if (!db.objectStoreNames.contains('scenes')) {
-            db.createObjectStore('scenes')
-          }
-        }
-      })
+      // 由于IndexedDB在移动端问题较多，改用内存存储
+      // 将blob转为URL存储在内存中
+      const videoUrl = URL.createObjectURL(blob)
       
-      await db.put('scenes', blob, `${sceneId}_video`)
+      // 存储到window临时对象
+      if (!window.arDirectorVideos) {
+        window.arDirectorVideos = {}
+      }
+      window.arDirectorVideos[`${sceneId}_video`] = {
+        url: videoUrl,
+        blob: blob,
+        timestamp: Date.now()
+      }
+      
+      console.log('视频已保存到内存:', sceneId)
+      return videoUrl
     } catch (error) {
-      console.error('IndexedDB保存失败:', error)
-      // 降级到localStorage存储元数据，不存储视频blob
-      throw new Error('视频存储失败，可能是存储空间不足')
+      console.error('视频保存失败:', error)
+      throw new Error('视频存储失败: ' + error.message)
     }
   }
 
@@ -436,26 +441,6 @@ export function ARSceneRecorder() {
       </main>
     </div>
   )
-}
-
-// 简单的IndexedDB封装
-function openDB(name, version, upgradeCallback) {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(name, version)
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => resolve(request.result)
-    request.onupgradeneeded = (event) => {
-      try {
-        upgradeCallback(event.target.result)
-      } catch (error) {
-        console.error('Upgrade error:', error)
-      }
-    }
-    request.onblocked = () => {
-      console.warn('IndexedDB blocked')
-      reject(new Error('IndexedDB blocked'))
-    }
-  })
 }
 
 export default ARSceneRecorder
