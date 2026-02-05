@@ -899,7 +899,7 @@ class ARSceneManager {
     } catch (e) {}
   }
 
-  // 截图功能 - 简化版，直接使用canvas
+  // 截图功能 - 优化版
   takeScreenshot() {
     try {
       if (!this.renderer || !this.renderer.domElement) {
@@ -907,14 +907,21 @@ class ARSceneManager {
         return null
       }
       
+      const canvas = this.renderer.domElement
+      console.log('📷 截图尺寸:', canvas.width, 'x', canvas.height)
+      
       // 直接从canvas获取数据URL
-      const dataURL = this.renderer.domElement.toDataURL('image/png')
+      const dataURL = canvas.toDataURL('image/png')
+      console.log('📷 截图数据大小:', Math.round(dataURL.length * 3 / 4 / 1024), 'KB')
       
       // 创建下载链接
       const link = document.createElement('a')
       link.download = `AR截图_${new Date().getTime()}.png`
       link.href = dataURL
+      link.style.display = 'none'
+      document.body.appendChild(link)
       link.click()
+      document.body.removeChild(link)
       
       console.log('✅ 截图已保存')
       return dataURL
@@ -924,7 +931,7 @@ class ARSceneManager {
     }
   }
 
-  // 录制功能
+  // 录制功能 - 优化版
   startRecording() {
     try {
       if (!this.renderer || !this.renderer.domElement) {
@@ -933,28 +940,62 @@ class ARSceneManager {
       }
       
       const canvas = this.renderer.domElement
+      console.log('🎥 开始录制，尺寸:', canvas.width, 'x', canvas.height)
+      
       const stream = canvas.captureStream(30) // 30fps
       
+      // 使用更兼容的MIME类型
+      const mimeType = this.getSupportedMimeType()
+      console.log('🎥 使用MIME类型:', mimeType)
+      
       this.mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9'
+        mimeType: mimeType
       })
       
       this.recordedChunks = []
+      this.recordingStartTime = Date.now()
       
       this.mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
           this.recordedChunks.push(event.data)
+          console.log('🎥 收到数据块:', event.data.size, 'bytes')
         }
       }
       
       this.mediaRecorder.onstop = () => {
-        const blob = new Blob(this.recordedChunks, { type: 'video/webm' })
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.download = `AR录制_${new Date().getTime()}.webm`
-        link.href = url
-        link.click()
-        console.log('✅ 录制已保存')
+        const duration = Date.now() - this.recordingStartTime
+        console.log('🎥 录制结束，时长:', duration, 'ms')
+        console.log('🎥 数据块数量:', this.recordedChunks.length)
+        
+        if (this.recordedChunks.length === 0) {
+          console.error('❌ 录制失败: 没有数据')
+          return
+        }
+        
+        try {
+          const blob = new Blob(this.recordedChunks, { type: mimeType })
+          console.log('🎥 生成Blob大小:', Math.round(blob.size / 1024), 'KB')
+          
+          const url = URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.download = `AR录制_${new Date().getTime()}.webm`
+          link.href = url
+          link.style.display = 'none'
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          
+          // 释放URL
+          setTimeout(() => URL.revokeObjectURL(url), 1000)
+          
+          console.log('✅ 录制已保存')
+        } catch (error) {
+          console.error('❌ 录制保存失败:', error)
+        }
+      }
+      
+      this.mediaRecorder.onerror = (error) => {
+        console.error('❌ 录制器错误:', error)
       }
       
       this.mediaRecorder.start()
@@ -968,9 +1009,27 @@ class ARSceneManager {
   
   stopRecording() {
     if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-      this.mediaRecorder.stop()
       console.log('⏹️ 停止录制')
+      this.mediaRecorder.stop()
     }
+  }
+  
+  // 获取支持的MIME类型
+  getSupportedMimeType() {
+    const options = [
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
+      'video/mp4'
+    ]
+    
+    for (const option of options) {
+      if (MediaRecorder.isTypeSupported(option)) {
+        return option
+      }
+    }
+    
+    return 'video/webm'
   }
   
   // 重置视角
