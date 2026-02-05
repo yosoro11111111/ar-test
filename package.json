@@ -11,6 +11,8 @@
     "deploy": "gh-pages -d dist"
   },
   "dependencies": {
+    "@mediapipe/camera_utils": "^0.3.1675466862",
+    "@mediapipe/hands": "^0.4.1675469240",
     "@pixiv/three-vrm": "^3.4.5",
     "@pixiv/three-vrm-animation": "^3.4.5",
     "@react-three/drei": "^9.122.0",

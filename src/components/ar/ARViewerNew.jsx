@@ -5,6 +5,7 @@ import { VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { loadVRMAAction, getAllCategories, getAllVRMActions } from '../../data/vrmaActions'
 import ARTimeline from './ARTimeline'
 import ARProps from './ARProps'
+import ARGestureRecognition from './ARGestureRecognition'
 import styles from './ARViewerNew.module.css'
 
 // 内存优化的AR场景管理器类
@@ -820,27 +821,55 @@ class ARSceneManager {
     }
   }
 
-  // 跟随模式 - 模型随摄像头移动
+  // 跟随模式 - 模型随摄像头移动（优化版）
   updateFollowing() {
     if (!this.isFollowing || !this.isPlaced || !this.currentCharacter || !this.camera) return
+    
+    // 每2帧更新一次，减少性能消耗
+    if (this.frameCount % 2 !== 0) return
     
     try {
       const hitResults = this.frame?.getHitTestResults(this.hitTestSource)
       if (hitResults && hitResults.length > 0) {
         const hitPose = hitResults[0].getPose(this.referenceSpace)
         if (hitPose) {
-          const newPosition = new THREE.Vector3(
+          const targetPosition = new THREE.Vector3(
             hitPose.transform.position.x,
-            hitPose.transform.position.y,
+            hitPose.transform.position.y + 0.02, // 保持地面高度
             hitPose.transform.position.z
           )
           
           const model = this.currentCharacter.scene
-          // 平滑移动到新的地面位置
-          model.position.x += (newPosition.x - model.position.x) * 0.1
-          model.position.z += (newPosition.z - model.position.z) * 0.1
-          // Y轴保持相对高度
-          model.position.y = newPosition.y + 0.02
+          
+          // 计算距离
+          const distance = model.position.distanceTo(targetPosition)
+          
+          // 阈值控制：只有移动超过0.1米才更新
+          if (distance > 0.1) {
+            // 使用lerp平滑插值，0.08的系数保证平滑但响应及时
+            model.position.lerp(targetPosition, 0.08)
+            
+            // 限制最大跟随距离（3米），超过则瞬移
+            if (distance > 3) {
+              model.position.copy(targetPosition)
+            }
+          }
+          
+          // 平滑旋转：让模型面向摄像头
+          const cameraPos = this.camera.position
+          const dx = cameraPos.x - model.position.x
+          const dz = cameraPos.z - model.position.z
+          const targetRotation = Math.atan2(dx, dz)
+          
+          // 计算最短旋转角度
+          let rotDiff = targetRotation - model.rotation.y
+          while (rotDiff > Math.PI) rotDiff -= Math.PI * 2
+          while (rotDiff < -Math.PI) rotDiff += Math.PI * 2
+          
+          // 平滑旋转，0.05的系数保证自然
+          if (Math.abs(rotDiff) > 0.1) {
+            model.rotation.y += rotDiff * 0.05
+          }
         }
       }
     } catch (e) {}
@@ -1174,6 +1203,8 @@ export const ARViewerNew = ({
   const [isTracking, setIsTracking] = useState(false)
   const [isFollowing, setIsFollowing] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  const [isGestureEnabled, setIsGestureEnabled] = useState(false)
+  const [lastGesture, setLastGesture] = useState(null)
   const [vrmaActions, setVrmaActions] = useState([])
   const [categories, setCategories] = useState([])
   const [selectedCategory, setSelectedCategory] = useState('全部')
@@ -1365,6 +1396,32 @@ export const ARViewerNew = ({
     const newRecent = [action, ...recentActions.filter(a => a.id !== action.id)].slice(0, 10)
     setRecentActions(newRecent)
     localStorage.setItem('ar-recent', JSON.stringify(newRecent))
+  }
+
+  // 处理手势动作
+  const handleGestureAction = async (gesture) => {
+    console.log('👋 手势触发动作:', gesture)
+    
+    // 手势映射到动作
+    const gestureActionMap = {
+      'thumbs_up': 'vrma_Stand Cheer (1)',
+      'thumbs_down': 'vrma_Stand Disappointed (1)',
+      'open_palm': 'vrma_Stand Greeting (1)',
+      'fist': 'vrma_Stand Fight Ready (1)',
+      'peace': 'vrma_Stand Victory (1)',
+      'pointing': 'vrma_Stand Pointing (1)',
+      'ok': 'vrma_Stand Agree (1)'
+    }
+    
+    const actionId = gestureActionMap[gesture]
+    if (actionId && vrmaActions.length > 0) {
+      const action = vrmaActions.find(a => a.id === actionId)
+      if (action) {
+        setGuideText(`👋 手势: ${gesture} -> ${action.name}`)
+        setTimeout(() => setGuideText(''), 2000)
+        await handleAction(action)
+      }
+    }
   }
 
   const toggleFavorite = (action) => {
@@ -1893,6 +1950,34 @@ export const ARViewerNew = ({
           title="帮助"
         >
           ❓
+        </button>
+        <button
+          className={`${styles.toolButton} ${isGestureEnabled ? styles.active : ''}`}
+          onClick={async () => {
+            const newState = !isGestureEnabled
+            setIsGestureEnabled(newState)
+            
+            if (newState) {
+              // 启用手势识别
+              if (!arManagerRef.current?.gestureRecognition) {
+                arManagerRef.current.gestureRecognition = new ARGestureRecognition()
+                arManagerRef.current.gestureRecognition.onGestureDetected = (gesture) => {
+                  setLastGesture(gesture)
+                  handleGestureAction(gesture)
+                }
+              }
+              await arManagerRef.current.gestureRecognition.start()
+              setGuideText('👋 手势识别已开启')
+            } else {
+              // 关闭手势识别
+              arManagerRef.current?.gestureRecognition?.stop()
+              setGuideText('👋 手势识别已关闭')
+            }
+            setTimeout(() => setGuideText(''), 2000)
+          }}
+          title="手势识别"
+        >
+          ✋
         </button>
       </div>
 

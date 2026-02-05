@@ -465,6 +465,11 @@
   animation: pulse 1.5s infinite;
 }
 
+.rightToolbar .toolButton.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 0 15px rgba(102, 126, 234, 0.5);
+}
+
 /* 录制指示器 */
 .recordingIndicator {
   position: fixed;
