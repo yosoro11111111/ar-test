@@ -6,31 +6,7 @@ import { loadVRMAAction, getAllCategories, getAllVRMActions } from '../../data/v
 import ARTimeline from './ARTimeline'
 import ARProps from './ARProps'
 import { AREnvironmentRecognition } from './AREnvironmentRecognition'
-// 简化版手势识别类
-class ARGestureRecognition {
-  constructor() {
-    this.isInitialized = false
-    this.isRunning = false
-    this.onGestureDetected = null
-  }
-
-  async start() {
-    console.log('✋ 简化版手势识别已启动')
-    this.isInitialized = true
-    this.isRunning = true
-    return true
-  }
-
-  stop() {
-    console.log('✋ 简化版手势识别已停止')
-    this.isRunning = false
-  }
-
-  destroy() {
-    this.stop()
-    this.isInitialized = false
-  }
-}
+import { ARFeatures } from './ARFeatures'
 import styles from './ARViewerNew.module.css'
 
 // 内存优化的AR场景管理器类
@@ -71,6 +47,9 @@ class ARSceneManager {
     this.environmentRecognition = new AREnvironmentRecognition() // 环境识别
     this.environmentData = null // 环境数据
     this.onEnvironmentUpdate = null // 环境更新回调
+    this.arFeatures = null // AR高级功能模块
+    this.onGestureDetected = null // 手势检测回调
+    this.onImageTracked = null // 图像追踪回调
   }
 
   async isSupported() {
@@ -138,12 +117,95 @@ class ARSceneManager {
       })
 
       this.setupPlaneDetection()
+      
+      // 初始化AR高级功能
+      await this.initializeARFeatures()
+      
       this.startRenderLoop()
 
       return true
     } catch (error) {
       console.error('启动AR失败:', error)
       throw error
+    }
+  }
+
+  async initializeARFeatures() {
+    // 创建AR高级功能模块
+    this.arFeatures = new ARFeatures(this.scene, this.camera)
+    
+    // 初始化所有功能
+    await this.arFeatures.initialize(this.session, this.referenceSpace, this.renderer)
+    
+    // 启动手势识别
+    this.arFeatures.startHandTracking()
+    
+    // 启动深度遮挡
+    this.arFeatures.startDepthOcclusion()
+    
+    // 设置回调
+    this.arFeatures.onGesture = (data) => {
+      console.log('🖐️ 检测到手势:', data.gestureName)
+      if (this.onGestureDetected) {
+        this.onGestureDetected(data)
+      }
+      this.handleGestureAction(data)
+    }
+    
+    this.arFeatures.onImageDetected = (data) => {
+      console.log('🖼️ 检测到图像:', data.name)
+      if (this.onImageTracked) {
+        this.onImageTracked(data)
+      }
+    }
+    
+    this.arFeatures.onPlaneDetected = (data) => {
+      console.log(`📐 检测到 ${data.walls.length} 个墙面, ${data.ceilings.length} 个天花板`)
+    }
+    
+    console.log('🚀 AR高级功能已启动')
+  }
+
+  handleGestureAction(data) {
+    const { gesture, handedness } = data
+    
+    switch(gesture) {
+      case 'thumbs_up':
+        // 点赞 - 播放欢呼动画
+        if (this.currentCharacter && this.isModelLoaded) {
+          this.playAnimationByName('欢呼')
+        }
+        break
+      case 'victory':
+        // 胜利 - 播放胜利动画
+        if (this.currentCharacter && this.isModelLoaded) {
+          this.playAnimationByName('胜利')
+        }
+        break
+      case 'pointing':
+        // 指向 - 创建特效
+        const handPos = this.arFeatures.handTracking.getHandPosition(handedness)
+        if (handPos) {
+          this.arFeatures.createSparkles(handPos, 15)
+        }
+        break
+      case 'open_palm':
+        // 手掌 - 停止当前动画
+        if (this.currentCharacter && this.mixer) {
+          this.mixer.stopAllAction()
+        }
+        break
+    }
+  }
+
+  playAnimationByName(name) {
+    // 根据名称播放动画的辅助方法
+    const actions = getAllVRMActions()
+    const action = actions.find(a => a.name.includes(name) || a.name === name)
+    if (action && this.currentCharacter) {
+      loadVRMAction(action, this.currentCharacter).then(() => {
+        console.log(`播放动画: ${name}`)
+      })
     }
   }
 
@@ -759,6 +821,11 @@ class ARSceneManager {
           // 更新环境识别
           if (this.frameCount % 300 === 0) { // 每5秒分析一次（60fps * 5 = 300）
             this.updateEnvironmentRecognition(frame)
+          }
+          
+          // 更新AR高级功能
+          if (this.arFeatures) {
+            this.arFeatures.update(frame, deltaTime / 1000)
           }
 
           const glLayer = this.session.renderState.baseLayer
@@ -1474,6 +1541,14 @@ export const ARViewerNew = ({
   const [isLoopMode, setIsLoopMode] = useState(true) // 播放模式：true=循环，false=单次
   const [environmentData, setEnvironmentData] = useState(null) // 环境识别数据
   const [recommendedActions, setRecommendedActions] = useState([]) // 推荐动作
+  const [detectedGesture, setDetectedGesture] = useState(null) // 检测到的手势
+  const [trackedImages, setTrackedImages] = useState([]) // 追踪的图像
+  const [arFeaturesStatus, setArFeaturesStatus] = useState({
+    handTracking: false,
+    depthOcclusion: false,
+    imageTracking: false,
+    anchors: false
+  }) // AR功能状态
   const [modelLoadingProgress, setModelLoadingProgress] = useState(0)
   const [isModelLoading, setIsModelLoading] = useState(false)
   const [vrmaActions, setVrmaActions] = useState([])
@@ -1587,6 +1662,17 @@ export const ARViewerNew = ({
     
     arManagerRef.current.onPositionUpdate = (data) => {
       setModelScale(data.scale)
+    }
+    
+    // AR高级功能回调
+    arManagerRef.current.onGestureDetected = (data) => {
+      setDetectedGesture(data)
+      // 3秒后清除手势显示
+      setTimeout(() => setDetectedGesture(null), 3000)
+    }
+    
+    arManagerRef.current.onImageTracked = (data) => {
+      setTrackedImages(prev => [...prev, data.name])
     }
     
     try {
@@ -2490,6 +2576,46 @@ export const ARViewerNew = ({
                   <div className={styles.recommendedActions}>
                     {recommendedActions.slice(0, 5).map((action, index) => (
                       <span key={index} className={styles.recommendedActionTag}>{action}</span>
+                    ))}
+                  </div>
+                </>
+              )}
+              
+              {/* AR高级功能状态 */}
+              <h4 className={styles.settingsSectionTitle} style={{ marginTop: '16px' }}>AR功能</h4>
+              <div className={styles.settingItem}>
+                <span className={styles.settingLabel}>🖐️ 手势识别</span>
+                <span className={styles.settingValue}>{arFeaturesStatus.handTracking ? '✅' : '❌'}</span>
+              </div>
+              <div className={styles.settingItem}>
+                <span className={styles.settingLabel}>🔍 深度遮挡</span>
+                <span className={styles.settingValue}>{arFeaturesStatus.depthOcclusion ? '✅' : '❌'}</span>
+              </div>
+              <div className={styles.settingItem}>
+                <span className={styles.settingLabel}>🖼️ 图像追踪</span>
+                <span className={styles.settingValue}>{arFeaturesStatus.imageTracking ? '✅' : '❌'}</span>
+              </div>
+              <div className={styles.settingItem}>
+                <span className={styles.settingLabel}>📍 锚点持久化</span>
+                <span className={styles.settingValue}>{arFeaturesStatus.anchors ? '✅' : '❌'}</span>
+              </div>
+              
+              {detectedGesture && (
+                <>
+                  <h4 className={styles.settingsSectionTitle} style={{ marginTop: '16px' }}>检测到的手势</h4>
+                  <div className={styles.gestureDisplay}>
+                    <span className={styles.gestureIcon}>{detectedGesture.gestureName}</span>
+                    <span className={styles.gestureHand}>{detectedGesture.handedness === 'left' ? '左手' : '右手'}</span>
+                  </div>
+                </>
+              )}
+              
+              {trackedImages.length > 0 && (
+                <>
+                  <h4 className={styles.settingsSectionTitle} style={{ marginTop: '16px' }}>追踪的图像</h4>
+                  <div className={styles.trackedImages}>
+                    {trackedImages.map((name, index) => (
+                      <span key={index} className={styles.trackedImageTag}>🖼️ {name}</span>
                     ))}
                   </div>
                 </>

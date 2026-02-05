@@ -17,6 +17,7 @@
     "@pixiv/three-vrm-animation": "^3.4.5",
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
+    "cannon-es": "^0.20.0",
     "framer-motion": "^12.30.0",
     "gif.js": "^0.2.0",
     "media-recorder-js": "^2.1.0",
