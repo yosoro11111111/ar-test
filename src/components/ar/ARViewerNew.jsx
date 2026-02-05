@@ -5,7 +5,7 @@ import { VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { loadVRMAAction, getAllCategories, getAllVRMActions } from '../../data/vrmaActions'
 import ARTimeline from './ARTimeline'
 import ARProps from './ARProps'
-import ARGestureRecognition from './ARGestureRecognition'
+import { ARGestureRecognition } from './ARGestureRecognition'
 import styles from './ARViewerNew.module.css'
 
 // 内存优化的AR场景管理器类
