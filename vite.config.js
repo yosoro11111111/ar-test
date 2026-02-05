@@ -24,7 +24,14 @@ export default defineConfig({
     assetsInlineLimit: 0, // Don't inline any assets
     rollupOptions: {
       output: {
-        manualChunks: undefined
+        manualChunks: undefined,
+        entryFileNames: 'assets/[name]-[hash]-v3.js',
+        chunkFileNames: 'assets/[name]-[hash]-v3.js',
+        assetFileNames: (assetInfo) => {
+          const info = assetInfo.name.split('.')
+          const ext = info[info.length - 1]
+          return `assets/[name]-[hash][extname]-v3`
+        }
       }
     }
   }
