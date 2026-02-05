@@ -50,8 +50,20 @@ export class ARHandTracking {
     }
     
     // 检查是否支持hand-tracking
-    const supported = await this.session.isFeatureEnabled('hand-tracking') || 
-                      this.session.enabledFeatures?.includes('hand-tracking')
+    // 注意：isFeatureEnabled不是所有浏览器都支持，使用try-catch
+    let supported = false
+    try {
+      if (typeof this.session.isFeatureEnabled === 'function') {
+        supported = await this.session.isFeatureEnabled('hand-tracking')
+      }
+    } catch (e) {
+      // 方法不存在，使用备用方案
+    }
+    
+    // 备用检查方式
+    if (!supported && this.session.enabledFeatures) {
+      supported = this.session.enabledFeatures.includes('hand-tracking')
+    }
     
     if (!supported) {
       console.warn('ARHandTracking: 设备不支持手部追踪')

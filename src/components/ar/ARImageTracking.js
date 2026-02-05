@@ -42,8 +42,18 @@ export class ARImageTracking {
     }
     
     // 检查是否支持image-tracking
-    const supported = await this.session.isFeatureEnabled('image-tracking') ||
-                      this.session.enabledFeatures?.includes('image-tracking')
+    let supported = false
+    try {
+      if (typeof this.session.isFeatureEnabled === 'function') {
+        supported = await this.session.isFeatureEnabled('image-tracking')
+      }
+    } catch (e) {
+      // 方法不存在
+    }
+    
+    if (!supported && this.session.enabledFeatures) {
+      supported = this.session.enabledFeatures.includes('image-tracking')
+    }
     
     if (!supported) {
       console.warn('ARImageTracking: 设备不支持图像追踪')

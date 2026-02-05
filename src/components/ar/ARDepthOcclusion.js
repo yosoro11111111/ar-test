@@ -42,8 +42,18 @@ export class ARDepthOcclusion {
     }
     
     // 检查是否支持depth-sensing
-    const supported = await this.session.isFeatureEnabled('depth-sensing') ||
-                      this.session.enabledFeatures?.includes('depth-sensing')
+    let supported = false
+    try {
+      if (typeof this.session.isFeatureEnabled === 'function') {
+        supported = await this.session.isFeatureEnabled('depth-sensing')
+      }
+    } catch (e) {
+      // 方法不存在
+    }
+    
+    if (!supported && this.session.enabledFeatures) {
+      supported = this.session.enabledFeatures.includes('depth-sensing')
+    }
     
     if (!supported) {
       console.warn('ARDepthOcclusion: 设备不支持深度感知')
