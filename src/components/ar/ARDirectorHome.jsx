@@ -104,6 +104,15 @@ export function ARDirectorHome() {
             <span className={styles.featureName}>图片导入</span>
             <span className={styles.featureDesc}>直接导入图片作为背景</span>
           </button>
+          
+          <button 
+            className={styles.featureBtn}
+            onClick={() => navigate('/ar-director/manager')}
+          >
+            <span className={styles.featureIcon}>🎬</span>
+            <span className={styles.featureName}>时间轴</span>
+            <span className={styles.featureDesc}>进入时间轴编辑器</span>
+          </button>
         </div>
 
         {/* 最近项目 */}
