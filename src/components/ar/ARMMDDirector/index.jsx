@@ -96,7 +96,12 @@ export function ARMMDDirector() {
   }, [currentTime, previewOpen, isPlaying])
   
   const initThreeJS = () => {
-    if (!canvasRef.current) return
+    if (!canvasRef.current) {
+      console.error('Canvas ref is null')
+      return
+    }
+    
+    console.log('Initializing Three.js...')
     
     const scene = new THREE.Scene()
     
@@ -139,10 +144,13 @@ export function ARMMDDirector() {
     characterManagerRef.current = new MultiCharacterManager(scene)
     
     // 加载所有角色，并在加载完成后应用当前时间轴状态
+    console.log('Loading characters:', project.characters.length)
     const loadPromises = project.characters.map(char => loadCharacter(char))
     Promise.all(loadPromises).then(() => {
+      console.log('All characters loaded')
       // 角色加载完成后，立即应用当前时间的状态
       setTimeout(() => {
+        console.log('Applying scene at time:', currentTime)
         updateSceneAtTime(currentTime)
       }, 500)
     })
