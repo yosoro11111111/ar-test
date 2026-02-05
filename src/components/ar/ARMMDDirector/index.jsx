@@ -367,6 +367,13 @@ export function ARMMDDirector() {
       {/* 顶部工具栏 */}
       <header className={styles.header}>
         <div className={styles.headerLeft}>
+          <button 
+            className={styles.backBtn}
+            onClick={() => navigate('/ar-director')}
+            title="返回"
+          >
+            ←
+          </button>
           <h1 className={styles.title}>AR MMD Director</h1>
         </div>
         
