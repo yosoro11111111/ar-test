@@ -1549,6 +1549,7 @@ export const ARViewerNew = ({
     imageTracking: false,
     anchors: false
   }) // AR功能状态
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true) // 右侧面板展开状态
   const [modelLoadingProgress, setModelLoadingProgress] = useState(0)
   const [isModelLoading, setIsModelLoading] = useState(false)
   const [vrmaActions, setVrmaActions] = useState([])
@@ -2250,227 +2251,162 @@ export const ARViewerNew = ({
         </div>
       </div>
 
-      {/* 右侧可折叠工具栏 */}
-      <div className={styles.rightToolbar}>
-        <button
-          className={styles.toolButton}
-          onClick={() => {
-            console.log('📷 截图按钮点击')
-            console.log('  arManagerRef.current:', arManagerRef.current)
-            console.log('  renderer:', arManagerRef.current?.renderer)
-            console.log('  domElement:', arManagerRef.current?.renderer?.domElement)
-            
-            if (!arManagerRef.current) {
-              console.error('❌ arManagerRef.current 为 null')
-              setGuideText('❌ AR管理器未初始化')
-              setTimeout(() => setGuideText(''), 2000)
-              return
-            }
-            
-            if (!arManagerRef.current.renderer) {
-              console.error('❌ renderer 为 null')
-              setGuideText('❌ 渲染器未就绪')
-              setTimeout(() => setGuideText(''), 2000)
-              return
-            }
-            
-            if (typeof arManagerRef.current.takeScreenshot !== 'function') {
-              console.error('❌ takeScreenshot 方法不存在')
-              console.log('  可用方法:', Object.keys(arManagerRef.current).filter(k => typeof arManagerRef.current[k] === 'function'))
-              setGuideText('❌ 截图方法未找到')
-              setTimeout(() => setGuideText(''), 2000)
-              return
-            }
-            
-            try {
-              arManagerRef.current.takeScreenshot()
-              setGuideText('✅ 截图成功')
-            } catch (error) {
-              console.error('❌ 截图失败:', error)
-              setGuideText('❌ 截图失败: ' + error.message)
-            }
-            setTimeout(() => setGuideText(''), 2000)
-          }}
-          title="截图"
-        >
-          📷
-        </button>
-        <button
-          className={`${styles.toolButton} ${isRecording ? styles.recording : ''}`}
-          onClick={() => {
-            console.log('📹 录制按钮点击')
-            console.log('  arManagerRef.current:', arManagerRef.current)
-            console.log('  isRecording:', isRecording)
-            
-            if (!arManagerRef.current) {
-              console.error('❌ arManagerRef.current 为 null')
-              setGuideText('❌ AR管理器未初始化')
-              setTimeout(() => setGuideText(''), 2000)
-              return
-            }
-            
-            const newRecording = !isRecording
-            setIsRecording(newRecording)
-            
-            try {
-              if (newRecording) {
-                console.log('▶️ 开始录制')
-                if (typeof arManagerRef.current.startRecording !== 'function') {
-                  console.error('❌ startRecording 方法不存在')
-                  setGuideText('❌ 录制方法未找到')
-                  setIsRecording(false)
-                  setTimeout(() => setGuideText(''), 2000)
-                  return
-                }
-                arManagerRef.current.startRecording()
-                setGuideText('🔴 录制中...')
-              } else {
-                console.log('⏹️ 停止录制')
-                if (typeof arManagerRef.current.stopRecording === 'function') {
-                  arManagerRef.current.stopRecording()
-                }
-                setGuideText('✅ 录制已保存')
-              }
-            } catch (error) {
-              console.error('❌ 录制失败:', error)
-              setGuideText('❌ 录制失败: ' + error.message)
-              setIsRecording(false)
-            }
-            setTimeout(() => setGuideText(''), 2000)
-          }}
-          title={isRecording ? '停止录制' : '开始录制'}
-        >
-          {isRecording ? '⏹️' : '📹'}
-        </button>
-        <button
-          className={styles.toolButton}
-          onClick={() => {
-            if (arManagerRef.current?.session) {
-              // 切换手电筒
-              const session = arManagerRef.current.session
-              if (session.requestLightProbe) {
-                setGuideText('🔦 手电筒功能开发中')
-                setTimeout(() => setGuideText(''), 1500)
-              }
-            }
-          }}
-          title="手电筒"
-        >
-          🔦
-        </button>
-        <button
-          className={styles.toolButton}
-          onClick={() => {
-            if (arManagerRef.current) {
-              arManagerRef.current.resetCamera()
-              setGuideText('🔄 视角已重置')
-              setTimeout(() => setGuideText(''), 1500)
-            }
-          }}
-          title="重置视角"
-        >
-          🔄
-        </button>
-        <button
-          className={styles.toolButton}
-          onClick={() => {
-            setShowHelp(!showHelp)
-          }}
-          title="帮助"
-        >
-          ❓
-        </button>
-        <button
-          className={`${styles.toolButton} ${isGestureEnabled ? styles.active : ''}`}
-          onClick={async () => {
-            console.log('✋ 手势识别按钮点击')
-            console.log('  arManagerRef.current:', arManagerRef.current)
-            console.log('  isGestureEnabled:', isGestureEnabled)
-            console.log('  ARGestureRecognition:', ARGestureRecognition)
-            
-            if (!arManagerRef.current) {
-              console.error('❌ arManagerRef.current 为 null')
-              setGuideText('❌ AR管理器未初始化')
-              setTimeout(() => setGuideText(''), 2000)
-              return
-            }
-            
-            const newState = !isGestureEnabled
-            setIsGestureEnabled(newState)
-
-            try {
-              if (newState) {
-                console.log('▶️ 启用手势识别')
-                
-                if (!arManagerRef.current.gestureRecognition) {
-                  console.log('🆕 创建手势识别实例')
-                  if (!ARGestureRecognition) {
-                    console.error('❌ ARGestureRecognition 未定义')
-                    setGuideText('❌ 手势识别库未加载')
-                    setIsGestureEnabled(false)
+      {/* 右侧主要功能面板 */}
+      <div className={`${styles.rightPanel} ${isRightPanelOpen ? styles.open : styles.collapsed}`}>
+        {/* 面板标题栏 */}
+        <div className={styles.rightPanelHeader}>
+          <span className={styles.rightPanelTitle}>工具</span>
+          <button 
+            className={styles.panelToggleBtn}
+            onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
+          >
+            {isRightPanelOpen ? '◀' : '▶'}
+          </button>
+        </div>
+        
+        {/* 面板内容 */}
+        {isRightPanelOpen && (
+          <div className={styles.rightPanelContent}>
+            {/* 录制功能区 */}
+            <div className={styles.panelSection}>
+              <span className={styles.panelSectionTitle}>录制</span>
+              <div className={styles.panelButtons}>
+                <button
+                  className={styles.panelBtn}
+                  onClick={() => {
+                    if (!arManagerRef.current) {
+                      setGuideText('❌ AR管理器未初始化')
+                      setTimeout(() => setGuideText(''), 2000)
+                      return
+                    }
+                    try {
+                      arManagerRef.current.takeScreenshot()
+                      setGuideText('✅ 截图成功')
+                    } catch (error) {
+                      setGuideText('❌ 截图失败')
+                    }
                     setTimeout(() => setGuideText(''), 2000)
-                    return
-                  }
-                  arManagerRef.current.gestureRecognition = new ARGestureRecognition()
-                  arManagerRef.current.gestureRecognition.onGestureDetected = (gesture) => {
-                    console.log('👋 检测到手势:', gesture)
-                    setLastGesture(gesture)
-                    handleGestureAction(gesture)
-                  }
-                }
-                
-                console.log('🚀 启动手势识别...')
-                const success = await arManagerRef.current.gestureRecognition.start()
-                if (success) {
-                  setGuideText('👋 手势识别已开启')
-                } else {
-                  console.error('❌ 手势识别启动失败')
-                  setGuideText('❌ 手势识别启动失败')
-                  setIsGestureEnabled(false)
-                }
-              } else {
-                console.log('⏹️ 关闭手势识别')
-                arManagerRef.current?.gestureRecognition?.stop()
-                setGuideText('👋 手势识别已关闭')
-              }
-            } catch (error) {
-              console.error('❌ 手势识别错误:', error)
-              setGuideText('❌ 手势识别错误: ' + error.message)
-              setIsGestureEnabled(false)
-            }
-            setTimeout(() => setGuideText(''), 2000)
-          }}
-          title="手势识别"
-        >
-          ✋
-        </button>
-        <button
-          className={`${styles.toolButton} ${isFollowing ? styles.active : ''}`}
-          onClick={() => {
-            const newFollowing = !isFollowing
-            setIsFollowing(newFollowing)
-            if (arManagerRef.current) {
-              arManagerRef.current.isFollowing = newFollowing
-            }
-            setGuideText(newFollowing ? '🔒 跟随模式已开启' : '🔓 跟随模式已关闭')
-            setTimeout(() => setGuideText(''), 1500)
-          }}
-          title="跟随模式"
-        >
-          {isFollowing ? '🔒' : '🔓'}
-        </button>
-        <button
-          className={`${styles.toolButton} ${isLoopMode ? styles.active : ''}`}
-          onClick={() => {
-            const newLoopMode = !isLoopMode
-            setIsLoopMode(newLoopMode)
-            setGuideText(newLoopMode ? '🔁 循环播放模式' : '▶️ 单次播放模式')
-            setTimeout(() => setGuideText(''), 1500)
-          }}
-          title={isLoopMode ? '循环播放' : '单次播放'}
-        >
-          {isLoopMode ? '🔁' : '▶️'}
-        </button>
+                  }}
+                  title="截图"
+                >
+                  📷 拍照
+                </button>
+                <button
+                  className={`${styles.panelBtn} ${isRecording ? styles.recording : ''}`}
+                  onClick={() => {
+                    if (!arManagerRef.current) {
+                      setGuideText('❌ AR管理器未初始化')
+                      setTimeout(() => setGuideText(''), 2000)
+                      return
+                    }
+                    const newRecording = !isRecording
+                    setIsRecording(newRecording)
+                    try {
+                      if (newRecording) {
+                        arManagerRef.current.startRecording()
+                        setGuideText('🔴 录制中...')
+                      } else {
+                        arManagerRef.current.stopRecording()
+                        setGuideText('✅ 录制已保存')
+                      }
+                    } catch (error) {
+                      setGuideText('❌ 录制失败')
+                      setIsRecording(false)
+                    }
+                    setTimeout(() => setGuideText(''), 2000)
+                  }}
+                  title={isRecording ? '停止录制' : '开始录制'}
+                >
+                  {isRecording ? '⏹️ 停止' : '📹 录制'}
+                </button>
+              </div>
+            </div>
+
+            {/* 控制功能区 */}
+            <div className={styles.panelSection}>
+              <span className={styles.panelSectionTitle}>控制</span>
+              <div className={styles.panelButtons}>
+                <button
+                  className={`${styles.panelBtn} ${isFollowing ? styles.active : ''}`}
+                  onClick={() => {
+                    const newFollowing = !isFollowing
+                    setIsFollowing(newFollowing)
+                    if (arManagerRef.current) {
+                      arManagerRef.current.isFollowing = newFollowing
+                    }
+                    setGuideText(newFollowing ? '🔒 跟随已开启' : '🔓 跟随已关闭')
+                    setTimeout(() => setGuideText(''), 1500)
+                  }}
+                >
+                  {isFollowing ? '🔒 跟随中' : '🔓 跟随'}
+                </button>
+                <button
+                  className={`${styles.panelBtn} ${isLoopMode ? styles.active : ''}`}
+                  onClick={() => {
+                    const newLoopMode = !isLoopMode
+                    setIsLoopMode(newLoopMode)
+                    setGuideText(newLoopMode ? '🔁 循环模式' : '▶️ 单次模式')
+                    setTimeout(() => setGuideText(''), 1500)
+                  }}
+                >
+                  {isLoopMode ? '🔁 循环' : '▶️ 单次'}
+                </button>
+                <button
+                  className={styles.panelBtn}
+                  onClick={() => {
+                    if (arManagerRef.current) {
+                      arManagerRef.current.resetCamera()
+                      setGuideText('🔄 视角已重置')
+                      setTimeout(() => setGuideText(''), 1500)
+                    }
+                  }}
+                >
+                  🔄 重置视角
+                </button>
+              </div>
+            </div>
+
+            {/* AR功能区 */}
+            <div className={styles.panelSection}>
+              <span className={styles.panelSectionTitle}>AR功能</span>
+              <div className={styles.panelButtons}>
+                <button
+                  className={`${styles.panelBtn} ${isGestureEnabled ? styles.active : ''}`}
+                  onClick={async () => {
+                    if (!arManagerRef.current) {
+                      setGuideText('❌ AR管理器未初始化')
+                      setTimeout(() => setGuideText(''), 2000)
+                      return
+                    }
+                    const newState = !isGestureEnabled
+                    setIsGestureEnabled(newState)
+                    try {
+                      if (newState) {
+                        await arManagerRef.current.arFeatures?.startHandTracking()
+                        setGuideText('👋 手势识别已开启')
+                      } else {
+                        arManagerRef.current.arFeatures?.stopHandTracking()
+                        setGuideText('👋 手势识别已关闭')
+                      }
+                    } catch (error) {
+                      setGuideText('❌ 手势识别错误')
+                      setIsGestureEnabled(false)
+                    }
+                    setTimeout(() => setGuideText(''), 2000)
+                  }}
+                >
+                  ✋ 手势识别
+                </button>
+                <button
+                  className={styles.panelBtn}
+                  onClick={() => setShowHelp(!showHelp)}
+                >
+                  ❓ 帮助
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 录制指示器 */}
