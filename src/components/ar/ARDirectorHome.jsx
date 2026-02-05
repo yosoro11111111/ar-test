@@ -107,11 +107,11 @@ export function ARDirectorHome() {
           
           <button 
             className={styles.featureBtn}
-            onClick={() => navigate('/ar-director/manager')}
+            onClick={() => navigate('/ar-director/mmd')}
           >
             <span className={styles.featureIcon}>🎬</span>
-            <span className={styles.featureName}>时间轴</span>
-            <span className={styles.featureDesc}>进入时间轴编辑器</span>
+            <span className={styles.featureName}>MMD导演</span>
+            <span className={styles.featureDesc}>专业时间轴编辑器</span>
           </button>
         </div>
 
