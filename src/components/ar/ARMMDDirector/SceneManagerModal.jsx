@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import styles from './SceneManagerModal.module.css'
 
 /**
@@ -6,6 +7,7 @@ import styles from './SceneManagerModal.module.css'
  * 功能：录制(AR识别平面)、导入(图片或AR包)、导出(AR包)、重命名、删除
  */
 export function SceneManagerModal({ onSelect, onClose }) {
+  const navigate = useNavigate()
   const [scenes, setScenes] = useState(() => {
     const saved = localStorage.getItem('mmd-scenes')
     return saved ? JSON.parse(saved) : []
@@ -50,23 +52,61 @@ export function SceneManagerModal({ onSelect, onClose }) {
     setEditingName(null)
   }
 
-  // 导出场景包
-  const exportScene = (scene) => {
-    const scenePackage = {
-      version: '1.0',
-      type: 'mmd-scene',
-      data: scene
+  // 导出场景包 - 包含高清图片和JSON数据
+  const exportScene = async (scene) => {
+    try {
+      // 创建场景包数据结构
+      const scenePackage = {
+        version: '1.0',
+        type: 'mmd-scene',
+        metadata: {
+          name: scene.name,
+          id: scene.id,
+          type: scene.type,
+          createdAt: scene.createdAt,
+          exportedAt: new Date().toISOString()
+        },
+        data: {
+          ...scene.data,
+          // 不包含imageUrl，单独处理图片
+          imageUrl: undefined
+        }
+      }
+
+      // 如果是图片类型场景，需要下载图片并打包
+      if (scene.type === 'image' && scene.data?.imageUrl) {
+        // 获取图片数据
+        const response = await fetch(scene.data.imageUrl)
+        const imageBlob = await response.blob()
+        
+        // 转换为base64
+        const reader = new FileReader()
+        const imageBase64 = await new Promise((resolve) => {
+          reader.onloadend = () => resolve(reader.result)
+          reader.readAsDataURL(imageBlob)
+        })
+        
+        // 将图片数据包含在JSON中
+        scenePackage.imageData = imageBase64
+      }
+
+      // 导出为JSON文件
+      const jsonBlob = new Blob([JSON.stringify(scenePackage, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(jsonBlob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${scene.name}.mmdscene.json`
+      a.click()
+      URL.revokeObjectURL(url)
+      
+      console.log('场景导出成功:', scene.name)
+    } catch (error) {
+      console.error('导出场景失败:', error)
+      alert('导出失败: ' + error.message)
     }
-    const blob = new Blob([JSON.stringify(scenePackage, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${scene.name}.mmdscene.json`
-    a.click()
-    URL.revokeObjectURL(url)
   }
 
-  // 导入场景包
+  // 导入场景包 - 支持包含图片数据的场景包
   const importScene = (file) => {
     const reader = new FileReader()
     reader.onload = (e) => {
@@ -74,15 +114,23 @@ export function SceneManagerModal({ onSelect, onClose }) {
         const packageData = JSON.parse(e.target.result)
         if (packageData.type === 'mmd-scene' && packageData.data) {
           const importedScene = {
-            ...packageData.data,
             id: `scene_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            name: `${packageData.data.name} (导入)`
+            name: `${packageData.metadata?.name || '未命名场景'} (导入)`,
+            type: packageData.metadata?.type || 'image',
+            createdAt: new Date().toISOString(),
+            data: {
+              ...packageData.data,
+              // 如果有图片数据，使用图片数据
+              imageUrl: packageData.imageData || packageData.data?.imageUrl
+            }
           }
           saveScenes([...scenes, importedScene])
+          console.log('场景导入成功:', importedScene.name)
         } else {
           alert('无效的场景包文件')
         }
       } catch (error) {
+        console.error('导入失败:', error)
         alert('导入失败：文件格式错误')
       }
     }
@@ -102,10 +150,10 @@ export function SceneManagerModal({ onSelect, onClose }) {
     reader.readAsDataURL(file)
   }
 
-  // 录制AR场景（模拟）
+  // 录制AR场景 - 跳转到AR Director录制页面
   const recordARScene = () => {
-    // 这里应该打开AR录制界面
-    alert('AR录制功能：请使用AR Director的录制功能创建场景')
+    // 保存当前状态并跳转到录制页面
+    navigate('/ar-director/record')
   }
 
   return (

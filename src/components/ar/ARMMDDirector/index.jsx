@@ -123,7 +123,12 @@ export function ARMMDDirector() {
     
     sceneRef.current = scene
     
-    const camera = new THREE.PerspectiveCamera(60, 16/9, 0.1, 1000)
+    // 获取canvas实际尺寸
+    const canvasWidth = canvasRef.current.clientWidth || 960
+    const canvasHeight = canvasRef.current.clientHeight || 540
+    const aspectRatio = canvasWidth / canvasHeight
+    
+    const camera = new THREE.PerspectiveCamera(60, aspectRatio, 0.1, 1000)
     camera.position.set(0, 5, 10)
     camera.lookAt(0, 0, 0)
     cameraRef.current = camera
@@ -133,9 +138,6 @@ export function ARMMDDirector() {
       antialias: true,
       preserveDrawingBuffer: true
     })
-    // 使用固定尺寸或容器尺寸
-    const canvasWidth = canvasRef.current.clientWidth || 960
-    const canvasHeight = canvasRef.current.clientHeight || 540
     renderer.setSize(canvasWidth, canvasHeight)
     renderer.shadowMap.enabled = true
     rendererRef.current = renderer
@@ -152,6 +154,15 @@ export function ARMMDDirector() {
     
     const gridHelper = new THREE.GridHelper(50, 50, 0x444444, 0x222222)
     scene.add(gridHelper)
+    
+    // 添加测试立方体
+    const testGeometry = new THREE.BoxGeometry(1, 1, 1)
+    const testMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+    const testCube = new THREE.Mesh(testGeometry, testMaterial)
+    testCube.position.set(0, 2, 0)
+    testCube.name = 'testCube'
+    scene.add(testCube)
+    console.log('Test cube added to scene')
     
     characterManagerRef.current = new MultiCharacterManager(scene)
     
