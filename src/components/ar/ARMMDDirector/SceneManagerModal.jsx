@@ -152,8 +152,10 @@ export function SceneManagerModal({ onSelect, onClose }) {
 
   // 录制AR场景 - 跳转到AR Director录制页面
   const recordARScene = () => {
-    // 保存当前状态并跳转到录制页面
-    navigate('/ar-director/record')
+    // 保存当前状态并跳转到录制页面，传递返回路径
+    navigate('/ar-director/record', { 
+      state: { returnPath: '/ar-director/mmd' }
+    })
   }
 
   return (

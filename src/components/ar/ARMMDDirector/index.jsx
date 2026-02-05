@@ -395,7 +395,25 @@ export function ARMMDDirector() {
     alert('项目已保存')
   }
   
+  // 计算时间轴最后的时间
+  const getTimelineEndTime = () => {
+    let maxTime = 0
+    project.tracks.forEach(track => {
+      // 检查场景、动作、特效的结束时间
+      ;['scene', 'action', 'effect'].forEach(key => {
+        track[key]?.forEach(item => {
+          const endTime = item.startTime + item.duration
+          if (endTime > maxTime) maxTime = endTime
+        })
+      })
+    })
+    return Math.max(maxTime, project.duration)
+  }
+  
   // 导出GIF/视频
+  const [exportProgress, setExportProgress] = useState(0)
+  const [isExporting, setIsExporting] = useState(false)
+  
   const handleExportMedia = async (type) => {
     if (!rendererRef.current || !sceneRef.current || !cameraRef.current) {
       alert('预览窗口未打开，请先打开预览')
@@ -403,16 +421,29 @@ export function ARMMDDirector() {
     }
     
     const canvas = rendererRef.current.domElement
-    const frames = []
     const fps = 30
-    const duration = Math.min(project.duration, 10) // 最多导出10秒
-    const totalFrames = duration * fps
+    const duration = getTimelineEndTime()
+    const totalFrames = Math.ceil(duration * fps)
     
-    alert(`开始导出${type === 'gif' ? 'GIF' : '视频'}，共${duration}秒...`)
+    if (totalFrames === 0) {
+      alert('时间轴为空，无法导出')
+      return
+    }
+    
+    if (duration > 60) {
+      if (!confirm(`导出时长为${duration.toFixed(1)}秒，超过60秒，确定要继续吗？`)) {
+        return
+      }
+    }
+    
+    setIsExporting(true)
+    setExportProgress(0)
     
     // 暂停播放
     const wasPlaying = isPlaying
     setIsPlaying(false)
+    
+    const frames = []
     
     // 逐帧渲染
     for (let i = 0; i < totalFrames; i++) {
@@ -425,18 +456,23 @@ export function ARMMDDirector() {
       frames.push(dataUrl)
       
       // 更新进度
-      if (i % 10 === 0) {
-        console.log(`导出进度: ${Math.round((i / totalFrames) * 100)}%`)
+      const progress = Math.round(((i + 1) / totalFrames) * 100)
+      setExportProgress(progress)
+      
+      // 让UI有时间更新
+      if (i % 5 === 0) {
+        await new Promise(resolve => setTimeout(resolve, 0))
       }
     }
     
     if (type === 'gif') {
-      // 导出GIF
-      exportGIF(frames, fps)
+      await exportGIF(frames, fps)
     } else {
-      // 导出视频
-      exportVideo(frames, fps)
+      await exportVideo(frames, fps)
     }
+    
+    setIsExporting(false)
+    setExportProgress(0)
     
     // 恢复播放状态
     if (wasPlaying) {
@@ -444,22 +480,53 @@ export function ARMMDDirector() {
     }
   }
   
-  // 导出GIF
-  const exportGIF = (frames, fps) => {
-    // 使用gif.js库导出GIF（需要添加库）
-    alert('GIF导出功能需要添加gif.js库，当前使用图片序列代替')
-    
-    // 下载第一帧作为示例
-    const link = document.createElement('a')
-    link.download = `${project.name}_frame1.png`
-    link.href = frames[0]
-    link.click()
+  // 导出GIF - 使用gif.js
+  const exportGIF = async (frames, fps) => {
+    try {
+      const gif = new GIF({
+        workers: 2,
+        quality: 10,
+        width: 960,
+        height: 540,
+        workerScript: '/gif.worker.js'
+      })
+      
+      let loadedFrames = 0
+      
+      // 加载所有帧
+      for (const frameData of frames) {
+        const img = new Image()
+        img.src = frameData
+        await new Promise((resolve) => {
+          img.onload = () => {
+            gif.addFrame(img, { delay: 1000 / fps })
+            loadedFrames++
+            setExportProgress(Math.round((loadedFrames / frames.length) * 50) + 50)
+            resolve()
+          }
+        })
+      }
+      
+      gif.on('finished', (blob) => {
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.download = `${project.name}.gif`
+        link.href = url
+        link.click()
+        URL.revokeObjectURL(url)
+        alert('GIF导出成功！')
+      })
+      
+      gif.render()
+    } catch (error) {
+      console.error('GIF导出失败:', error)
+      alert('GIF导出失败: ' + error.message)
+    }
   }
   
   // 导出视频
   const exportVideo = async (frames, fps) => {
     try {
-      // 使用MediaRecorder录制canvas
       const canvas = rendererRef.current.domElement
       const stream = canvas.captureStream(fps)
       const mediaRecorder = new MediaRecorder(stream, {
@@ -580,6 +647,22 @@ export function ARMMDDirector() {
                 </div>
               </div>
               <canvas ref={canvasRef} className={styles.previewCanvas} />
+              
+              {/* 导出进度条 */}
+              {isExporting && (
+                <div className={styles.exportProgressOverlay}>
+                  <div className={styles.exportProgressBox}>
+                    <div className={styles.exportProgressTitle}>🎬 正在导出...</div>
+                    <div className={styles.exportProgressBar}>
+                      <div 
+                        className={styles.exportProgressFill} 
+                        style={{ width: `${exportProgress}%` }}
+                      />
+                    </div>
+                    <div className={styles.exportProgressText}>{exportProgress}%</div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

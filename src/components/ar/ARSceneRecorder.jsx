@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import styles from './ARSceneRecorder.module.css'
 
 /**
@@ -8,8 +8,12 @@ import styles from './ARSceneRecorder.module.css'
  */
 export function ARSceneRecorder() {
   const navigate = useNavigate()
+  const location = useLocation()
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
+  
+  // 获取返回路径，如果没有则默认返回到ar-director
+  const returnPath = location.state?.returnPath || '/ar-director'
   
   const [isRecording, setIsRecording] = useState(false)
   const [recordedTime, setRecordedTime] = useState(0)
@@ -284,7 +288,7 @@ export function ARSceneRecorder() {
     <div className={styles.container}>
       {/* 顶部导航 */}
       <header className={styles.header}>
-        <button className={styles.backBtn} onClick={() => navigate('/ar-director')}>
+        <button className={styles.backBtn} onClick={() => navigate(returnPath)}>
           ← 返回
         </button>
         <h1 className={styles.title}>录制场景</h1>
