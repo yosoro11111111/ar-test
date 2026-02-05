@@ -258,7 +258,9 @@ export function Timeline({
                           }}
                         >
                           <div className={styles.cellContent}>
-                            <span className={styles.cellName}>{cell.name}</span>
+                            <span className={styles.cellName}>
+                              {cell.name || `未命名${subTrackType === 'scene' ? '场景' : subTrackType === 'action' ? '动作' : '特效'}`}
+                            </span>
                             <span className={styles.cellDuration}>{Math.round(cell.duration)}s</span>
                           </div>
                           

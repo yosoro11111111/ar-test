@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import styles from './CellEditModal.module.css'
 import { getAllVRMActions } from '../../../data/vrmaActions'
+import { SceneManagerModal } from './SceneManagerModal'
 
 /**
  * 格子编辑弹窗 - 根据子轨道类型编辑对应内容
@@ -12,6 +13,7 @@ export function CellEditModal({ trackId, subTrackType, cell, onSave, onDelete, o
     const saved = localStorage.getItem('mmd-action-favorites')
     return saved ? JSON.parse(saved) : []
   })
+  const [showSceneManager, setShowSceneManager] = useState(false)
   
   // 格子数据
   const [cellData, setCellData] = useState({
@@ -28,16 +30,6 @@ export function CellEditModal({ trackId, subTrackType, cell, onSave, onDelete, o
       getAllVRMActions().then(list => setActions(list))
     }
   }, [subTrackType])
-
-  // 场景预设
-  const scenePresets = [
-    { id: 'default', name: '默认', position: { x: 0, y: 0, z: 0 } },
-    { id: 'left', name: '左侧', position: { x: -2, y: 0, z: 0 } },
-    { id: 'right', name: '右侧', position: { x: 2, y: 0, z: 0 } },
-    { id: 'front', name: '前方', position: { x: 0, y: 0, z: 2 } },
-    { id: 'back', name: '后方', position: { x: 0, y: 0, z: -2 } },
-    { id: 'center', name: '中心', position: { x: 0, y: 0, z: 0 } },
-  ]
 
   // 特效预设
   const effectPresets = [
@@ -67,18 +59,20 @@ export function CellEditModal({ trackId, subTrackType, cell, onSave, onDelete, o
   const selectAction = (action) => {
     setCellData(prev => ({
       ...prev,
-      name: action.name,
+      name: action.name, // 自动填充动作名称
       filePath: action.filePath,
       duration: action.duration ? action.duration / 1000 : 5
     }))
   }
 
-  // 选择场景
+  // 选择场景 - 从场景管理器
   const selectScene = (scene) => {
     setCellData(prev => ({
       ...prev,
-      name: scene.name,
-      position: scene.position
+      name: scene.name, // 自动填充场景名称
+      sceneId: scene.id,
+      sceneData: scene.data, // 保存完整场景数据
+      position: scene.data?.position || { x: 0, y: 0, z: 0 }
     }))
   }
 
@@ -86,7 +80,7 @@ export function CellEditModal({ trackId, subTrackType, cell, onSave, onDelete, o
   const selectEffect = (effect) => {
     setCellData(prev => ({
       ...prev,
-      name: effect.name,
+      name: effect.name, // 自动填充特效名称
       effectId: effect.id,
       icon: effect.icon
     }))
@@ -148,25 +142,20 @@ export function CellEditModal({ trackId, subTrackType, cell, onSave, onDelete, o
       case 'scene':
         return (
           <div className={styles.scenePanel}>
-            <div className={styles.itemGrid}>
-              {scenePresets.map(scene => {
-                const isSelected = cellData.position?.x === scene.position.x && 
-                                  cellData.position?.z === scene.position.z
-                return (
-                  <div
-                    key={scene.id}
-                    className={`${styles.itemCard} ${isSelected ? styles.selected : ''}`}
-                    onClick={() => selectScene(scene)}
-                  >
-                    <span className={styles.itemIcon}>🗺️</span>
-                    <span className={styles.itemName}>{scene.name}</span>
-                    <span className={styles.itemMeta}>
-                      x:{scene.position.x} z:{scene.position.z}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
+            <button 
+              className={styles.manageSceneBtn}
+              onClick={() => setShowSceneManager(true)}
+            >
+              🗺️ 打开场景管理器
+            </button>
+            {cellData.sceneId && (
+              <div className={styles.selectedScene}>
+                <span>已选择: {cellData.name}</span>
+                {cellData.sceneData?.imageUrl && (
+                  <img src={cellData.sceneData.imageUrl} alt={cellData.name} />
+                )}
+              </div>
+            )}
           </div>
         )
       
@@ -237,14 +226,17 @@ export function CellEditModal({ trackId, subTrackType, cell, onSave, onDelete, o
           </div>
         </div>
 
-        {/* 名称编辑 */}
+        {/* 名称编辑 - 显示已选择的内容名称 */}
         <div className={styles.nameField}>
-          <label>名称</label>
+          <label>
+            已选择: {subTrackType === 'scene' ? '🗺️ 场景' : subTrackType === 'action' ? '🎭 动作' : '✨ 特效'}
+          </label>
           <input
             type="text"
             value={cellData.name}
             onChange={(e) => setCellData(prev => ({ ...prev, name: e.target.value }))}
-            placeholder={`输入${subTrackType === 'scene' ? '场景' : subTrackType === 'action' ? '动作' : '特效'}名称`}
+            placeholder={cellData.name ? '' : `点击上方选择${subTrackType === 'scene' ? '场景' : subTrackType === 'action' ? '动作' : '特效'}`}
+            readOnly={subTrackType !== 'scene'} // 场景可以手动编辑，动作和特效从库中选择
           />
         </div>
 
@@ -264,6 +256,14 @@ export function CellEditModal({ trackId, subTrackType, cell, onSave, onDelete, o
           </div>
         </div>
       </div>
+
+      {/* 场景管理弹窗 */}
+      {showSceneManager && (
+        <SceneManagerModal
+          onSelect={selectScene}
+          onClose={() => setShowSceneManager(false)}
+        />
+      )}
     </div>
   )
 }

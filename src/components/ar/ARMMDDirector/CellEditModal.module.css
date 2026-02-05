@@ -138,6 +138,54 @@
   border-color: #667eea;
 }
 
+/* 场景面板 */
+.scenePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.manageSceneBtn {
+  width: 100%;
+  padding: 16px;
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.manageSceneBtn:hover {
+  border-color: #4ade80;
+  background: rgba(74, 222, 128, 0.1);
+}
+
+.selectedScene {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(74, 222, 128, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.selectedScene span {
+  font-size: 14px;
+  color: #4ade80;
+  font-weight: 500;
+}
+
+.selectedScene img {
+  width: 100%;
+  max-height: 150px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
 /* 内容区域 */
 .content {
   flex: 1;
@@ -149,15 +197,14 @@
 /* 项目网格 */
 .itemGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
 }
 
 .itemCard {
-  aspect-ratio: 1;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 10px;
+  padding: 8px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -166,6 +213,7 @@
   border: 2px solid transparent;
   transition: all 0.2s;
   position: relative;
+  min-height: 70px;
 }
 
 .itemCard:hover {
@@ -179,17 +227,18 @@
 }
 
 .itemIcon {
-  font-size: 28px;
+  font-size: 20px;
 }
 
 .itemName {
-  font-size: 11px;
+  font-size: 10px;
   color: #fff;
   text-align: center;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   width: 100%;
+  line-height: 1.2;
 }
 
 .itemMeta {
@@ -199,16 +248,16 @@
 
 .favBtn {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 20px;
-  height: 20px;
+  top: 2px;
+  right: 2px;
+  width: 16px;
+  height: 16px;
   border: none;
   background: rgba(0, 0, 0, 0.3);
   border-radius: 50%;
   color: rgba(255, 255, 255, 0.4);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 10px;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -199,7 +199,7 @@ export function ARMMDDirector() {
   const addCell = (trackId, subTrackType) => {
     const newCell = {
       id: `cell_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      name: subTrackType === 'scene' ? '新场景' : subTrackType === 'action' ? '新动作' : '新特效',
+      name: '', // 初始为空，选择后会自动填充
       startTime: currentTime,
       duration: 5
     }
