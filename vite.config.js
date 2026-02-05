@@ -30,7 +30,7 @@ export default defineConfig({
         assetFileNames: (assetInfo) => {
           const info = assetInfo.name.split('.')
           const ext = info[info.length - 1]
-          return `assets/[name]-[hash][extname]-v3`
+          return `assets/[name]-[hash]-v3[extname]`
         }
       }
     }
