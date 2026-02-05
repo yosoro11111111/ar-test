@@ -1,21 +1,13 @@
 import * as THREE from 'three'
-import { ARHandTracking } from './ARHandTracking'
-import { ARDepthOcclusion } from './ARDepthOcclusion'
-import { ARImageTracking } from './ARImageTracking'
 
 /**
- * AR高级功能整合模块
- * 包含：手势识别、深度遮挡、图像追踪、锚点持久化、射线检测、空间音频、物理模拟等
+ * 简化的AR功能模块
+ * 只保留兼容性好的功能：射线检测、空间音频、基础交互
  */
 export class ARFeatures {
   constructor(scene, camera) {
     this.scene = scene
     this.camera = camera
-    
-    // 各功能模块
-    this.handTracking = new ARHandTracking()
-    this.depthOcclusion = new ARDepthOcclusion()
-    this.imageTracking = new ARImageTracking()
     
     // 锚点系统
     this.anchors = new Map()
@@ -29,26 +21,13 @@ export class ARFeatures {
     this.audioListener = null
     this.sounds = new Map()
     
-    // 物理模拟
-    this.physics = null
-    this.physicsObjects = []
-    
     // 多平面检测
     this.planes = new Map()
     this.wallPlanes = []
     this.ceilingPlanes = []
     
-    // 后处理效果
-    this.postProcessing = {
-      enabled: false,
-      scanlines: false,
-      colorFilter: null,
-      edgeDetection: false
-    }
-    
     // 回调函数
     this.onGesture = null
-    this.onImageDetected = null
     this.onObjectSelected = null
     this.onPlaneDetected = null
   }
@@ -59,92 +38,13 @@ export class ARFeatures {
     this.referenceSpace = referenceSpace
     this.renderer = renderer
     
-    // 初始化手势识别
-    await this.handTracking.initialize(session, referenceSpace)
-    this.handTracking.onGestureDetected = (data) => {
-      this.handleGesture(data)
-      if (this.onGesture) this.onGesture(data)
-    }
-    
-    // 初始化深度遮挡
-    await this.depthOcclusion.initialize(session, renderer)
-    this.depthOcclusion.setCamera(camera)
-    
-    // 初始化图像追踪
-    await this.imageTracking.initialize(session, referenceSpace)
-    this.imageTracking.onImageDetected = (data) => {
-      if (this.onImageDetected) this.onImageDetected(data)
-    }
-    
     // 初始化空间音频
     this.initSpatialAudio()
     
     // 初始化射线检测
     this.initRaycasting()
     
-    console.log('🚀 AR高级功能模块已初始化')
-  }
-
-  // ========== 手势识别 ==========
-  startHandTracking() {
-    return this.handTracking.start()
-  }
-
-  stopHandTracking() {
-    this.handTracking.stop()
-  }
-
-  handleGesture(data) {
-    const { gesture, gestureName, handedness } = data
-    console.log(`🖐️ 检测到手势: ${gestureName} (${handedness})`)
-    
-    // 根据手势触发不同动作
-    switch(gesture) {
-      case 'thumbs_up':
-        this.playSound('approve')
-        break
-      case 'victory':
-        this.playSound('cheer')
-        break
-      case 'pointing':
-        // 指向位置放置物体
-        const handPos = this.handTracking.getHandPosition(handedness)
-        if (handPos) {
-          this.createSparkles(handPos)
-        }
-        break
-      case 'pinch':
-        // 捏合拾取物体
-        this.tryGrabObject(handedness)
-        break
-    }
-  }
-
-  // ========== 深度遮挡 ==========
-  startDepthOcclusion() {
-    return this.depthOcclusion.start()
-  }
-
-  stopDepthOcclusion() {
-    this.depthOcclusion.stop()
-  }
-
-  checkOcclusion(object) {
-    return this.depthOcclusion.isOccluded(object.position, 0.1)
-  }
-
-  // ========== 图像追踪 ==========
-  async startImageTracking(imageTargets) {
-    await this.imageTracking.setTrackingImages(imageTargets)
-    return this.imageTracking.start()
-  }
-
-  stopImageTracking() {
-    this.imageTracking.stop()
-  }
-
-  bindObjectToImage(imageName, object) {
-    return this.imageTracking.bindObjectToImage(imageName, object)
+    console.log('🚀 AR功能模块已初始化')
   }
 
   // ========== 锚点持久化 ==========
@@ -274,67 +174,6 @@ export class ARFeatures {
     }
   }
 
-  // ========== 物理模拟 ==========
-  async initPhysics() {
-    // 使用Cannon.js进行物理模拟
-    const CANNON = await import('cannon-es')
-    this.physics = {
-      world: new CANNON.World(),
-      CANNON
-    }
-    this.physics.world.gravity.set(0, -9.82, 0)
-    
-    // 添加材质
-    const defaultMaterial = new CANNON.Material('default')
-    const defaultContactMaterial = new CANNON.ContactMaterial(
-      defaultMaterial,
-      defaultMaterial,
-      { friction: 0.3, restitution: 0.5 }
-    )
-    this.physics.world.addContactMaterial(defaultContactMaterial)
-  }
-
-  addPhysicsObject(mesh, mass = 1, shape = null) {
-    if (!this.physics) return null
-    
-    const { CANNON } = this.physics
-    
-    // 创建物理体
-    const body = new CANNON.Body({ mass })
-    
-    // 根据网格创建形状
-    if (!shape) {
-      const box = new THREE.Box3().setFromObject(mesh)
-      const size = new THREE.Vector3()
-      box.getSize(size)
-      
-      shape = new CANNON.Box(new CANNON.Vec3(size.x/2, size.y/2, size.z/2))
-    }
-    
-    body.addShape(shape)
-    body.position.copy(mesh.position)
-    body.quaternion.copy(mesh.quaternion)
-    
-    this.physics.world.addBody(body)
-    
-    const physicsObject = { mesh, body }
-    this.physicsObjects.push(physicsObject)
-    
-    return physicsObject
-  }
-
-  updatePhysics(deltaTime) {
-    if (!this.physics) return
-    
-    this.physics.world.step(deltaTime)
-    
-    // 同步物理体和视觉网格
-    this.physicsObjects.forEach(({ mesh, body }) => {
-      mesh.position.copy(body.position)
-      mesh.quaternion.copy(body.quaternion)
-    })
-  }
-
   // ========== 多平面检测 ==========
   updatePlanes(detectedPlanes) {
     this.wallPlanes = []
@@ -381,29 +220,6 @@ export class ARFeatures {
     })
     
     return nearest
-  }
-
-  // ========== 后处理效果 ==========
-  enableScanlines() {
-    this.postProcessing.scanlines = true
-    this.postProcessing.enabled = true
-  }
-
-  enableColorFilter(color) {
-    this.postProcessing.colorFilter = color
-    this.postProcessing.enabled = true
-  }
-
-  enableEdgeDetection() {
-    this.postProcessing.edgeDetection = true
-    this.postProcessing.enabled = true
-  }
-
-  disablePostProcessing() {
-    this.postProcessing.enabled = false
-    this.postProcessing.scanlines = false
-    this.postProcessing.colorFilter = null
-    this.postProcessing.edgeDetection = false
   }
 
   // ========== 特效 ==========
@@ -453,25 +269,11 @@ export class ARFeatures {
 
   // ========== 更新循环 ==========
   update(frame, deltaTime) {
-    // 更新手势识别
-    this.handTracking.update(frame)
-    
-    // 更新深度遮挡
-    this.depthOcclusion.update(frame)
-    
-    // 更新图像追踪
-    this.imageTracking.update(frame)
-    
-    // 更新物理
-    this.updatePhysics(deltaTime)
+    // 基础功能不需要每帧更新
   }
 
   // ========== 清理 ==========
   destroy() {
-    this.handTracking.destroy()
-    this.depthOcclusion.destroy()
-    this.imageTracking.destroy()
-    
     // 清理锚点
     this.anchors.forEach(async (data) => {
       await data.anchor.delete()
@@ -482,10 +284,6 @@ export class ARFeatures {
     if (this.audioContext) {
       this.audioContext.close()
     }
-    
-    // 清理物理
-    this.physicsObjects = []
-    this.physics = null
   }
 }
 

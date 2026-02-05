@@ -137,65 +137,12 @@ class ARSceneManager {
     // 初始化所有功能
     await this.arFeatures.initialize(this.session, this.referenceSpace, this.renderer)
     
-    // 启动手势识别
-    this.arFeatures.startHandTracking()
-    
-    // 启动深度遮挡
-    this.arFeatures.startDepthOcclusion()
-    
     // 设置回调
-    this.arFeatures.onGesture = (data) => {
-      console.log('🖐️ 检测到手势:', data.gestureName)
-      if (this.onGestureDetected) {
-        this.onGestureDetected(data)
-      }
-      this.handleGestureAction(data)
-    }
-    
-    this.arFeatures.onImageDetected = (data) => {
-      console.log('🖼️ 检测到图像:', data.name)
-      if (this.onImageTracked) {
-        this.onImageTracked(data)
-      }
-    }
-    
     this.arFeatures.onPlaneDetected = (data) => {
       console.log(`📐 检测到 ${data.walls.length} 个墙面, ${data.ceilings.length} 个天花板`)
     }
     
     console.log('🚀 AR高级功能已启动')
-  }
-
-  handleGestureAction(data) {
-    const { gesture, handedness } = data
-    
-    switch(gesture) {
-      case 'thumbs_up':
-        // 点赞 - 播放欢呼动画
-        if (this.currentCharacter && this.isModelLoaded) {
-          this.playAnimationByName('欢呼')
-        }
-        break
-      case 'victory':
-        // 胜利 - 播放胜利动画
-        if (this.currentCharacter && this.isModelLoaded) {
-          this.playAnimationByName('胜利')
-        }
-        break
-      case 'pointing':
-        // 指向 - 创建特效
-        const handPos = this.arFeatures.handTracking.getHandPosition(handedness)
-        if (handPos) {
-          this.arFeatures.createSparkles(handPos, 15)
-        }
-        break
-      case 'open_palm':
-        // 手掌 - 停止当前动画
-        if (this.currentCharacter && this.mixer) {
-          this.mixer.stopAllAction()
-        }
-        break
-    }
   }
 
   playAnimationByName(name) {
@@ -2366,37 +2313,10 @@ export const ARViewerNew = ({
               </div>
             </div>
 
-            {/* AR功能区 */}
+            {/* 其他功能区 */}
             <div className={styles.panelSection}>
-              <span className={styles.panelSectionTitle}>AR功能</span>
+              <span className={styles.panelSectionTitle}>其他</span>
               <div className={styles.panelButtons}>
-                <button
-                  className={`${styles.panelBtn} ${isGestureEnabled ? styles.active : ''}`}
-                  onClick={async () => {
-                    if (!arManagerRef.current) {
-                      setGuideText('❌ AR管理器未初始化')
-                      setTimeout(() => setGuideText(''), 2000)
-                      return
-                    }
-                    const newState = !isGestureEnabled
-                    setIsGestureEnabled(newState)
-                    try {
-                      if (newState) {
-                        await arManagerRef.current.arFeatures?.startHandTracking()
-                        setGuideText('👋 手势识别已开启')
-                      } else {
-                        arManagerRef.current.arFeatures?.stopHandTracking()
-                        setGuideText('👋 手势识别已关闭')
-                      }
-                    } catch (error) {
-                      setGuideText('❌ 手势识别错误')
-                      setIsGestureEnabled(false)
-                    }
-                    setTimeout(() => setGuideText(''), 2000)
-                  }}
-                >
-                  ✋ 手势识别
-                </button>
                 <button
                   className={styles.panelBtn}
                   onClick={() => setShowHelp(!showHelp)}
