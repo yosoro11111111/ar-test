@@ -140,6 +140,19 @@ class ARSceneManager {
     // 设置回调
     this.arFeatures.onPlaneDetected = (data) => {
       console.log(`📐 检测到 ${data.walls.length} 个墙面, ${data.ceilings.length} 个天花板`)
+      // 更新平面检测状态
+      if (this.onARFeaturesStatus) {
+        this.onARFeaturesStatus({ planeDetection: true })
+      }
+    }
+    
+    // 更新功能状态
+    if (this.onARFeaturesStatus) {
+      this.onARFeaturesStatus({
+        anchors: true,
+        spatialAudio: !!this.arFeatures.audioContext,
+        raycasting: true
+      })
     }
     
     console.log('🚀 AR高级功能已启动')
@@ -1491,10 +1504,10 @@ export const ARViewerNew = ({
   const [detectedGesture, setDetectedGesture] = useState(null) // 检测到的手势
   const [trackedImages, setTrackedImages] = useState([]) // 追踪的图像
   const [arFeaturesStatus, setArFeaturesStatus] = useState({
-    handTracking: false,
-    depthOcclusion: false,
-    imageTracking: false,
-    anchors: false
+    anchors: false,
+    spatialAudio: false,
+    planeDetection: false,
+    raycasting: false
   }) // AR功能状态
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true) // 右侧面板展开状态
   const [modelLoadingProgress, setModelLoadingProgress] = useState(0)
@@ -1612,15 +1625,9 @@ export const ARViewerNew = ({
       setModelScale(data.scale)
     }
     
-    // AR高级功能回调
-    arManagerRef.current.onGestureDetected = (data) => {
-      setDetectedGesture(data)
-      // 3秒后清除手势显示
-      setTimeout(() => setDetectedGesture(null), 3000)
-    }
-    
-    arManagerRef.current.onImageTracked = (data) => {
-      setTrackedImages(prev => [...prev, data.name])
+    // AR功能状态更新回调
+    arManagerRef.current.onARFeaturesStatus = (status) => {
+      setArFeaturesStatus(prev => ({ ...prev, ...status }))
     }
     
     try {
@@ -2437,45 +2444,24 @@ export const ARViewerNew = ({
                 </>
               )}
               
-              {/* AR高级功能状态 */}
-              <h4 className={styles.settingsSectionTitle} style={{ marginTop: '16px' }}>AR功能</h4>
-              <div className={styles.settingItem}>
-                <span className={styles.settingLabel}>🖐️ 手势识别</span>
-                <span className={styles.settingValue}>{arFeaturesStatus.handTracking ? '✅' : '❌'}</span>
-              </div>
-              <div className={styles.settingItem}>
-                <span className={styles.settingLabel}>🔍 深度遮挡</span>
-                <span className={styles.settingValue}>{arFeaturesStatus.depthOcclusion ? '✅' : '❌'}</span>
-              </div>
-              <div className={styles.settingItem}>
-                <span className={styles.settingLabel}>🖼️ 图像追踪</span>
-                <span className={styles.settingValue}>{arFeaturesStatus.imageTracking ? '✅' : '❌'}</span>
-              </div>
+              {/* AR功能状态 */}
+              <h4 className={styles.settingsSectionTitle} style={{ marginTop: '16px' }}>AR功能状态</h4>
               <div className={styles.settingItem}>
                 <span className={styles.settingLabel}>📍 锚点持久化</span>
                 <span className={styles.settingValue}>{arFeaturesStatus.anchors ? '✅' : '❌'}</span>
               </div>
-              
-              {detectedGesture && (
-                <>
-                  <h4 className={styles.settingsSectionTitle} style={{ marginTop: '16px' }}>检测到的手势</h4>
-                  <div className={styles.gestureDisplay}>
-                    <span className={styles.gestureIcon}>{detectedGesture.gestureName}</span>
-                    <span className={styles.gestureHand}>{detectedGesture.handedness === 'left' ? '左手' : '右手'}</span>
-                  </div>
-                </>
-              )}
-              
-              {trackedImages.length > 0 && (
-                <>
-                  <h4 className={styles.settingsSectionTitle} style={{ marginTop: '16px' }}>追踪的图像</h4>
-                  <div className={styles.trackedImages}>
-                    {trackedImages.map((name, index) => (
-                      <span key={index} className={styles.trackedImageTag}>🖼️ {name}</span>
-                    ))}
-                  </div>
-                </>
-              )}
+              <div className={styles.settingItem}>
+                <span className={styles.settingLabel}>🔊 空间音频</span>
+                <span className={styles.settingValue}>{arFeaturesStatus.spatialAudio ? '✅' : '❌'}</span>
+              </div>
+              <div className={styles.settingItem}>
+                <span className={styles.settingLabel}>📐 多平面检测</span>
+                <span className={styles.settingValue}>{arFeaturesStatus.planeDetection ? '✅' : '❌'}</span>
+              </div>
+              <div className={styles.settingItem}>
+                <span className={styles.settingLabel}>🎯 射线检测</span>
+                <span className={styles.settingValue}>{arFeaturesStatus.raycasting ? '✅' : '❌'}</span>
+              </div>
             </div>
           </div>
         </div>
