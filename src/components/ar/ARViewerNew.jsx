@@ -721,6 +721,12 @@ class ARSceneManager {
         return
       }
 
+      // 性能优化：页面不可见时跳过渲染
+      if (document.hidden) {
+        this.session.requestAnimationFrame(loop)
+        return
+      }
+
       // 移除FPS限制，让WebXR自己控制帧率
       // 这可以避免60Hz设备上的闪烁问题
       const deltaTime = time - (this.lastTime || time)
@@ -731,9 +737,9 @@ class ARSceneManager {
         this.frame = frame // 保存frame引用
         const pose = frame.getViewerPose(this.referenceSpace)
         
-        // 扫描环位置更新 - 使用hit-test检测地面（每3帧更新一次，优化性能）
-        // 扫描环始终显示（放置后也显示，方便重新放置）
-        if (this.frameCount % 3 === 0) {
+        // 扫描环位置更新 - 使用hit-test检测地面（未放置时每5帧更新一次，已放置时每15帧更新一次，优化性能）
+        const hitTestInterval = this.isPlaced ? 15 : 5
+        if (this.frameCount % hitTestInterval === 0) {
           try {
             if (this.hitTestSource) {
               const hitResults = frame.getHitTestResults(this.hitTestSource)
@@ -883,21 +889,16 @@ class ARSceneManager {
   }
 
   updateAnimation(deltaTime) {
-    // 更新动画混合器
-    if (this.mixer) {
-      // 使用固定时间步长，确保动画流畅
-      const fixedDelta = 16.666 * 0.001 // 60fps
-      this.mixer.update(fixedDelta)
-      
-      // 更新VRM模型（应用动画到骨骼）
-      if (this.currentCharacter) {
-        this.currentCharacter.update(fixedDelta)
-      }
-      
-      // 每60帧打印一次日志（避免日志过多）
-      if (this.frameCount % 60 === 0) {
-        console.log('🎬 动画更新:', fixedDelta, 'VRM更新完成')
-      }
+    // 性能优化：页面不可见或没有mixer时跳过
+    if (!this.mixer || document.hidden) return
+    
+    // 使用实际时间差，限制最大值防止卡顿
+    const clampedDelta = Math.min(deltaTime * 0.001, 0.1)
+    this.mixer.update(clampedDelta)
+    
+    // 更新VRM模型（只在有动画播放时更新）
+    if (this.currentCharacter && this.currentAnimation) {
+      this.currentCharacter.update(clampedDelta)
     }
   }
 
@@ -1739,8 +1740,18 @@ export const ARViewerNew = ({
     
     arManagerRef.current = new ARSceneManager()
     
+    // 性能优化：使用防抖处理平面更新，避免频繁setState
+    let planeUpdateTimeout = null
     arManagerRef.current.onPlaneUpdate = (planes) => {
-      setDetectedPlanes(planes)
+      // 清除之前的定时器
+      if (planeUpdateTimeout) {
+        clearTimeout(planeUpdateTimeout)
+      }
+      // 延迟300ms更新，合并频繁的更新
+      planeUpdateTimeout = setTimeout(() => {
+        setDetectedPlanes(planes)
+        planeUpdateTimeout = null
+      }, 300)
     }
     
     // 环境识别回调
@@ -1753,8 +1764,9 @@ export const ARViewerNew = ({
       }
     }
     
-    // 扫描进度计时器 - 3秒后自动完成扫描
+    // 扫描进度计时器 - 3秒后自动完成扫描（优化：每500ms才更新一次UI）
     let scanStartTime = Date.now()
+    let lastUIUpdate = Date.now()
     scanTimerRef.current = setInterval(() => {
       if (!isMountedRef.current) {
         clearInterval(scanTimerRef.current)
@@ -1768,7 +1780,12 @@ export const ARViewerNew = ({
       // 取平面检测进度和时间进度的最大值
       const planeProgress = Math.min(100, arManagerRef.current?.detectedPlanes?.length * 20 || 0)
       const finalProgress = Math.max(timeProgress, planeProgress)
-      setScanProgress(finalProgress)
+      
+      // 性能优化：每500ms才更新一次UI，减少setState调用
+      if (Date.now() - lastUIUpdate >= 500 || finalProgress >= 100) {
+        setScanProgress(finalProgress)
+        lastUIUpdate = Date.now()
+      }
       
       // 3秒后自动完成扫描
       if (elapsed >= 3000) {
