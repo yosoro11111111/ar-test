@@ -88,6 +88,13 @@ export function ARMMDDirector() {
     }
   }, [isPlaying, previewOpen, project.duration])
   
+  // 当currentTime变化时更新场景（不播放时拖动时间轴也能看到效果）
+  useEffect(() => {
+    if (previewOpen && !isPlaying) {
+      updateSceneAtTime(currentTime)
+    }
+  }, [currentTime, previewOpen, isPlaying])
+  
   const initThreeJS = () => {
     if (!canvasRef.current) return
     
@@ -131,8 +138,13 @@ export function ARMMDDirector() {
     
     characterManagerRef.current = new MultiCharacterManager(scene)
     
-    project.characters.forEach(char => {
-      loadCharacter(char)
+    // 加载所有角色，并在加载完成后应用当前时间轴状态
+    const loadPromises = project.characters.map(char => loadCharacter(char))
+    Promise.all(loadPromises).then(() => {
+      // 角色加载完成后，立即应用当前时间的状态
+      setTimeout(() => {
+        updateSceneAtTime(currentTime)
+      }, 500)
     })
     
     const animate = () => {
@@ -252,14 +264,19 @@ export function ARMMDDirector() {
   
   // 更新时间轴
   const updateSceneAtTime = (time) => {
+    console.log('updateSceneAtTime:', time, 'tracks:', project.tracks.length)
+    
     project.tracks.forEach(track => {
       if (track.type === 'character') {
         const character = characterManagerRef.current?.getCharacter(track.characterId)
+        console.log('Character:', track.characterId, character ? 'loaded' : 'not loaded')
         if (!character) return
         
         // 应用场景
         const activeScene = track.scene.find(s => time >= s.startTime && time <= s.startTime + s.duration)
+        console.log('Active scene:', activeScene)
         if (activeScene?.position) {
+          console.log('Setting position:', activeScene.position)
           character.vrm.scene.position.set(
             activeScene.position.x,
             activeScene.position.y,
@@ -269,10 +286,12 @@ export function ARMMDDirector() {
         
         // 应用动作 - 只在动作变化时加载
         const activeAction = track.action.find(a => time >= a.startTime && time <= a.startTime + a.duration)
+        console.log('Active action:', activeAction)
         const actionKey = `${track.characterId}_${activeAction?.id}`
         const currentActionKey = currentActionsRef.current[track.characterId]
         
         if (activeAction?.filePath && actionKey !== currentActionKey) {
+          console.log('Loading action:', activeAction.filePath)
           // 动作发生变化，加载新动作
           currentActionsRef.current[track.characterId] = actionKey
           
