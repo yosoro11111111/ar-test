@@ -8,20 +8,19 @@ import { ActionSelectModal } from './ActionSelectModal'
 import { SceneMapModal } from './SceneMapModal'
 import { EffectSelectModal } from './EffectSelectModal'
 import { SettingsModal } from './SettingsModal'
+import { AddItemModal } from './AddItemModal'
 import { Timeline } from './Timeline'
 import { actions as vrmaActions } from '../../../data/actions250.js'
 import { loadVRMAAction } from '../../../data/vrmaActions.js'
 
 /**
- * AR MMD Director - MMD风格AR导演系统
+ * AR MMD Director - 简化版MMD风格AR导演系统
  * 
  * 核心功能：
- * 1. 清爽可折叠界面
- * 2. 弹窗式角色/动作/场景选择
- * 3. 长时间轴编辑（多轨道）
- * 4. AR地图定位（场景位置）
- * 5. 可隐藏预览窗口
- * 6. 真实位移计算
+ * 1. 极简界面，只保留时间轴
+ * 2. 时间轴+号弹出添加选项
+ * 3. 支持拖拽调整位置、缩放调整时间
+ * 4. 使用VRMA动作库
  */
 export function ARMMDDirector() {
   const navigate = useNavigate()
@@ -34,17 +33,17 @@ export function ARMMDDirector() {
   const characterManagerRef = useRef(null)
   const animationFrameRef = useRef(null)
   
-  // 面板折叠状态
-  const [leftPanelOpen, setLeftPanelOpen] = useState(true)
+  // 面板状态
   const [previewOpen, setPreviewOpen] = useState(false)
   
   // 弹窗状态
+  const [showAddModal, setShowAddModal] = useState(false)
   const [showCharacterModal, setShowCharacterModal] = useState(false)
   const [showActionModal, setShowActionModal] = useState(false)
   const [showSceneModal, setShowSceneModal] = useState(false)
   const [showEffectModal, setShowEffectModal] = useState(false)
   const [showSettingsModal, setShowSettingsModal] = useState(false)
-  const [actionTarget, setActionTarget] = useState(null) // { characterId, trackId }
+  const [actionTarget, setActionTarget] = useState(null)
   
   // 项目数据
   const [project, setProject] = useState({
@@ -194,7 +193,6 @@ export function ARMMDDirector() {
       ]
     }))
     
-    // 如果在预览模式，加载角色
     if (previewOpen && characterManagerRef.current) {
       newCharacters.forEach(char => loadCharacter(char))
     }
@@ -204,7 +202,7 @@ export function ARMMDDirector() {
   const addScenesToTimeline = (selectedScenes) => {
     const newScenes = selectedScenes.map((scene, index) => ({
       ...scene,
-      timelinePosition: currentTime + index * 10 // 每个场景间隔10秒
+      timelinePosition: currentTime + index * 10
     }))
     
     setProject(prev => ({
@@ -212,7 +210,6 @@ export function ARMMDDirector() {
       scenes: [...prev.scenes, ...newScenes]
     }))
     
-    // 创建场景轨道片段
     const sceneClips = newScenes.map(scene => ({
       id: `clip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       type: 'scene',
@@ -223,7 +220,6 @@ export function ARMMDDirector() {
       position: scene.position || { x: 0, y: 0, z: 0 }
     }))
     
-    // 添加或更新场景轨道
     setProject(prev => {
       const existingSceneTrack = prev.tracks.find(t => t.type === 'scene')
       if (existingSceneTrack) {
@@ -281,7 +277,6 @@ export function ARMMDDirector() {
   
   // 更新时间轴位置
   const updateSceneAtTime = (time) => {
-    // 更新角色动作
     project.tracks.forEach(track => {
       if (track.type === 'character') {
         const activeClips = track.clips.filter(clip => 
@@ -306,6 +301,23 @@ export function ARMMDDirector() {
         })
       }
     })
+  }
+  
+  // 处理时间轴片段更新（拖拽、缩放）
+  const handleClipUpdate = (trackId, clipId, updates) => {
+    setProject(prev => ({
+      ...prev,
+      tracks: prev.tracks.map(track => 
+        track.id === trackId
+          ? {
+              ...track,
+              clips: track.clips.map(clip =>
+                clip.id === clipId ? { ...clip, ...updates } : clip
+              )
+            }
+          : track
+      )
+    }))
   }
   
   // 播放/暂停
@@ -355,12 +367,6 @@ export function ARMMDDirector() {
       {/* 顶部工具栏 */}
       <header className={styles.header}>
         <div className={styles.headerLeft}>
-          <button 
-            className={styles.menuBtn}
-            onClick={() => setLeftPanelOpen(!leftPanelOpen)}
-          >
-            {leftPanelOpen ? '◀' : '▶'}
-          </button>
           <h1 className={styles.title}>AR MMD Director</h1>
         </div>
         
@@ -374,61 +380,8 @@ export function ARMMDDirector() {
         </div>
       </header>
       
-      {/* 主内容区 */}
+      {/* 主内容区 - 只保留预览 */}
       <div className={styles.main}>
-        {/* 左侧面板 - 场景地图 */}
-        {leftPanelOpen && (
-          <aside className={styles.leftPanel}>
-            <div className={styles.panelHeader}>
-              <h3>🗺️ 场景地图</h3>
-              <button 
-                className={styles.addBtn}
-                onClick={() => setShowSceneModal(true)}
-              >
-                ➕
-              </button>
-            </div>
-            
-            <div className={styles.sceneMap}>
-              {project.scenes.length === 0 ? (
-                <div className={styles.emptyMap}>
-                  <p>点击 ➕ 添加场景</p>
-                  <p>场景将显示在地图上</p>
-                </div>
-              ) : (
-                <div className={styles.mapContent}>
-                  {project.scenes.map((scene, index) => (
-                    <div 
-                      key={scene.id}
-                      className={styles.mapScene}
-                      style={{
-                        left: `${(scene.position?.x || 0) * 10 + 50}%`,
-                        top: `${(scene.position?.z || 0) * 10 + 50}%`
-                      }}
-                    >
-                      <div className={styles.mapSceneDot}>
-                        {index + 1}
-                      </div>
-                      <span className={styles.mapSceneName}>{scene.name}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            <div className={styles.sceneList}>
-              <h4>已选场景 ({project.scenes.length})</h4>
-              {project.scenes.map((scene, index) => (
-                <div key={scene.id} className={styles.sceneListItem}>
-                  <span className={styles.sceneNumber}>{index + 1}</span>
-                  <span className={styles.sceneListName}>{scene.name}</span>
-                </div>
-              ))}
-            </div>
-          </aside>
-        )}
-        
-        {/* 中央预览区 */}
         <div className={styles.centerArea}>
           {!previewOpen ? (
             <div className={styles.previewPlaceholder}>
@@ -457,60 +410,6 @@ export function ARMMDDirector() {
         </div>
       </div>
       
-      {/* 底部工具栏 */}
-      <div className={styles.bottomToolbar}>
-        <button 
-          className={styles.toolbarBtn}
-          onClick={() => setShowCharacterModal(true)}
-        >
-          <span>👤</span>
-          <span>角色</span>
-        </button>
-        
-        <button 
-          className={styles.toolbarBtn}
-          onClick={() => setShowSceneModal(true)}
-        >
-          <span>🗺️</span>
-          <span>场景</span>
-        </button>
-        
-        <button 
-          className={styles.toolbarBtn}
-          onClick={() => {
-            if (project.tracks.length > 0) {
-              setActionTarget({
-                trackId: project.tracks[0].id,
-                characterId: project.tracks[0].characterId
-              })
-              setShowActionModal(true)
-            } else {
-              alert('请先添加角色')
-            }
-          }}
-        >
-          <span>🎭</span>
-          <span>动作</span>
-        </button>
-        
-        <button 
-          className={styles.toolbarBtn}
-          onClick={() => setShowEffectModal(true)}
-        >
-          <span>✨</span>
-          <span>特效</span>
-        </button>
-        
-        <div className={styles.toolbarDivider} />
-        
-        <button 
-          className={`${styles.playBtn} ${isPlaying ? styles.playing : ''}`}
-          onClick={togglePlay}
-        >
-          {isPlaying ? '⏸️' : '▶️'}
-        </button>
-      </div>
-      
       {/* 时间轴 */}
       <Timeline
         tracks={project.tracks}
@@ -519,13 +418,46 @@ export function ARMMDDirector() {
         scale={timelineScale}
         onTimeChange={setCurrentTime}
         onTrackSelect={setSelectedTrackId}
-        onAddAction={(trackId, characterId) => {
-          setActionTarget({ trackId, characterId })
-          setShowActionModal(true)
-        }}
+        onAddClick={() => setShowAddModal(true)}
+        onClipUpdate={handleClipUpdate}
+        isPlaying={isPlaying}
+        onPlayPause={togglePlay}
       />
       
-      {/* 弹窗 */}
+      {/* 添加选项弹窗 */}
+      {showAddModal && (
+        <AddItemModal
+          onSelect={(type) => {
+            setShowAddModal(false)
+            switch(type) {
+              case 'character':
+                setShowCharacterModal(true)
+                break
+              case 'scene':
+                setShowSceneModal(true)
+                break
+              case 'action':
+                if (project.tracks.filter(t => t.type === 'character').length > 0) {
+                  const charTrack = project.tracks.find(t => t.type === 'character')
+                  setActionTarget({
+                    trackId: charTrack.id,
+                    characterId: charTrack.characterId
+                  })
+                  setShowActionModal(true)
+                } else {
+                  alert('请先添加角色')
+                }
+                break
+              case 'effect':
+                setShowEffectModal(true)
+                break
+            }
+          }}
+          onClose={() => setShowAddModal(false)}
+        />
+      )}
+      
+      {/* 其他弹窗 */}
       {showCharacterModal && (
         <CharacterSelectModal
           onSelect={addCharacters}
@@ -554,7 +486,6 @@ export function ARMMDDirector() {
       {showEffectModal && (
         <EffectSelectModal
           onSelect={(effect) => {
-            // 添加特效到时间轴
             const newClip = {
               id: `clip_effect_${Date.now()}`,
               type: 'effect',
@@ -575,6 +506,7 @@ export function ARMMDDirector() {
                 }
               ]
             }))
+            setShowEffectModal(false)
           }}
           onClose={() => setShowEffectModal(false)}
         />
