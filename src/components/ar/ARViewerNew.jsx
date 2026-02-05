@@ -1026,7 +1026,7 @@ class ARSceneManager {
     }
   }
 
-  async loadVRMModel(url) {
+  async loadVRMModel(url, onProgress) {
     return new Promise((resolve, reject) => {
       const loader = new GLTFLoader()
       loader.register((parser) => new VRMLoaderPlugin(parser))
@@ -1065,7 +1065,13 @@ class ARSceneManager {
           this.onModelLoaded?.(vrm)
           resolve(vrm)
         },
-        undefined,
+        (progress) => {
+          // 进度回调
+          if (progress.lengthComputable) {
+            const percent = (progress.loaded / progress.total) * 100
+            onProgress?.(percent)
+          }
+        },
         (error) => {
           console.error('加载失败:', error)
           reject(error)
@@ -1290,6 +1296,8 @@ export const ARViewerNew = ({
   const [showHelp, setShowHelp] = useState(false)
   const [isGestureEnabled, setIsGestureEnabled] = useState(false)
   const [lastGesture, setLastGesture] = useState(null)
+  const [modelLoadingProgress, setModelLoadingProgress] = useState(0)
+  const [isModelLoading, setIsModelLoading] = useState(false)
   const [vrmaActions, setVrmaActions] = useState([])
   const [categories, setCategories] = useState([])
   const [selectedCategory, setSelectedCategory] = useState('全部')
@@ -1973,8 +1981,13 @@ export const ARViewerNew = ({
         <button
           className={styles.toolButton}
           onClick={() => {
-            if (arManagerRef.current) {
+            console.log('截图按钮点击，arManagerRef.current:', arManagerRef.current)
+            if (arManagerRef.current && typeof arManagerRef.current.takeScreenshot === 'function') {
               arManagerRef.current.takeScreenshot()
+            } else {
+              console.warn('截图功能未就绪')
+              setGuideText('⚠️ 截图功能未就绪')
+              setTimeout(() => setGuideText(''), 2000)
             }
           }}
           title="截图"

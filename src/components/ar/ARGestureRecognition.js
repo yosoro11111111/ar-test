@@ -22,16 +22,29 @@ export class ARGestureRecognition {
     if (this.scriptLoaded) return true
 
     return new Promise((resolve, reject) => {
+      // 检查是否已经加载
+      if (window.Hands && window.Camera) {
+        this.scriptLoaded = true
+        resolve(true)
+        return
+      }
+
       // 加载Hands脚本
       const handsScript = document.createElement('script')
       handsScript.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js'
       handsScript.crossOrigin = 'anonymous'
+      handsScript.async = true
+      
       handsScript.onload = () => {
+        console.log('✅ MediaPipe Hands 脚本加载成功')
         // 加载CameraUtils脚本
         const cameraScript = document.createElement('script')
         cameraScript.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js'
         cameraScript.crossOrigin = 'anonymous'
+        cameraScript.async = true
+        
         cameraScript.onload = () => {
+          console.log('✅ MediaPipe CameraUtils 脚本加载成功')
           this.scriptLoaded = true
           resolve(true)
         }
