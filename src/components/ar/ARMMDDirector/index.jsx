@@ -405,13 +405,26 @@ export function ARMMDDirector() {
           ) : (
             <div className={styles.previewContainer}>
               <div className={styles.previewHeader}>
-                <span>3D 预览</span>
-                <button 
-                  className={styles.hidePreviewBtn}
-                  onClick={() => setPreviewOpen(false)}
-                >
-                  ✕
-                </button>
+                <span>🎬 3D 预览</span>
+                <div className={styles.previewControls}>
+                  <button 
+                    className={styles.controlBtn}
+                    onClick={() => setIsPlaying(!isPlaying)}
+                    title={isPlaying ? '暂停' : '播放'}
+                  >
+                    {isPlaying ? '⏸️' : '▶️'}
+                  </button>
+                  <button 
+                    className={styles.closePreviewBtn}
+                    onClick={() => {
+                      setPreviewOpen(false)
+                      setIsPlaying(false)
+                    }}
+                    title="关闭预览"
+                  >
+                    ✕ 关闭
+                  </button>
+                </div>
               </div>
               <canvas ref={canvasRef} className={styles.previewCanvas} />
             </div>
