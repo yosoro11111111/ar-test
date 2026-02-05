@@ -220,6 +220,7 @@
   height: 100%;
   display: block;
   min-height: 400px;
+  background: #1a1a2e;
 }
 
 /* 弹窗样式 */

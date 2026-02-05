@@ -164,10 +164,17 @@ export function ARMMDDirector() {
       if (rendererRef.current && sceneRef.current && cameraRef.current) {
         characterManagerRef.current?.update(0.016)
         rendererRef.current.render(sceneRef.current, cameraRef.current)
+      } else {
+        console.log('Missing ref:', { 
+          renderer: !!rendererRef.current, 
+          scene: !!sceneRef.current, 
+          camera: !!cameraRef.current 
+        })
       }
       requestAnimationFrame(animate)
     }
     animate()
+    console.log('Animation loop started')
   }
   
   const loadCharacter = async (charData) => {
