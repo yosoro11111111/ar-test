@@ -273,7 +273,7 @@ export class MultiCharacterManager {
     newAction
       .reset()
       .setEffectiveTimeScale(timeScale)
-      .setEffectiveWeight(0)
+      .setEffectiveWeight(1)
       .fadeIn(transitionDuration)
       .play()
 

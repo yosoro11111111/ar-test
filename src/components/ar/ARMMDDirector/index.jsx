@@ -155,15 +155,6 @@ export function ARMMDDirector() {
     const gridHelper = new THREE.GridHelper(50, 50, 0x444444, 0x222222)
     scene.add(gridHelper)
     
-    // 添加测试立方体
-    const testGeometry = new THREE.BoxGeometry(1, 1, 1)
-    const testMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 })
-    const testCube = new THREE.Mesh(testGeometry, testMaterial)
-    testCube.position.set(0, 2, 0)
-    testCube.name = 'testCube'
-    scene.add(testCube)
-    console.log('Test cube added to scene')
-    
     characterManagerRef.current = new MultiCharacterManager(scene)
     
     // 加载所有角色，并在加载完成后应用当前时间轴状态
