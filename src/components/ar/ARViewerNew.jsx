@@ -5,6 +5,7 @@ import { VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { loadVRMAAction, getAllCategories, getAllVRMActions } from '../../data/vrmaActions'
 import ARTimeline from './ARTimeline'
 import ARProps from './ARProps'
+import { AREnvironmentRecognition } from './AREnvironmentRecognition'
 // 简化版手势识别类
 class ARGestureRecognition {
   constructor() {
@@ -67,6 +68,9 @@ class ARSceneManager {
     this.sharedGeometry = null
     this.sharedMaterial = null
     this.cornerLines = null
+    this.environmentRecognition = new AREnvironmentRecognition() // 环境识别
+    this.environmentData = null // 环境数据
+    this.onEnvironmentUpdate = null // 环境更新回调
   }
 
   async isSupported() {
@@ -751,6 +755,11 @@ class ARSceneManager {
           this.updateTracking()
           this.updateFollowing() // 更新跟随
           this.updateAnimation(deltaTime)
+          
+          // 更新环境识别
+          if (this.frameCount % 300 === 0) { // 每5秒分析一次（60fps * 5 = 300）
+            this.updateEnvironmentRecognition(frame)
+          }
 
           const glLayer = this.session.renderState.baseLayer
           const gl = this.renderer.getContext()
@@ -909,6 +918,34 @@ class ARSceneManager {
         }
       }
     } catch (e) {}
+  }
+
+  // 更新环境识别
+  async updateEnvironmentRecognition(frame) {
+    try {
+      if (!this.session || !this.referenceSpace) return
+      
+      const envData = await this.environmentRecognition.analyzeEnvironment(
+        this.session,
+        frame,
+        this.referenceSpace
+      )
+      
+      this.environmentData = envData
+      
+      // 触发回调
+      if (this.onEnvironmentUpdate) {
+        this.onEnvironmentUpdate(envData)
+      }
+      
+      // 根据环境自动推荐动作
+      if (this.currentCharacter && this.isPlaced) {
+        const recommendations = this.environmentRecognition.recommendActions()
+        console.log('🎯 环境推荐动作:', recommendations)
+      }
+    } catch (error) {
+      console.warn('环境识别更新失败:', error)
+    }
   }
 
   // 截图功能 - 优化版
@@ -1435,6 +1472,8 @@ export const ARViewerNew = ({
   const [isGestureEnabled, setIsGestureEnabled] = useState(false)
   const [lastGesture, setLastGesture] = useState(null)
   const [isLoopMode, setIsLoopMode] = useState(true) // 播放模式：true=循环，false=单次
+  const [environmentData, setEnvironmentData] = useState(null) // 环境识别数据
+  const [recommendedActions, setRecommendedActions] = useState([]) // 推荐动作
   const [modelLoadingProgress, setModelLoadingProgress] = useState(0)
   const [isModelLoading, setIsModelLoading] = useState(false)
   const [vrmaActions, setVrmaActions] = useState([])
@@ -1501,6 +1540,16 @@ export const ARViewerNew = ({
     
     arManagerRef.current.onPlaneUpdate = (planes) => {
       setDetectedPlanes(planes)
+    }
+    
+    // 环境识别回调
+    arManagerRef.current.onEnvironmentUpdate = (envData) => {
+      setEnvironmentData(envData)
+      // 获取推荐动作
+      if (arManagerRef.current?.environmentRecognition) {
+        const recommendations = arManagerRef.current.environmentRecognition.recommendActions()
+        setRecommendedActions(recommendations)
+      }
     }
     
     // 扫描进度计时器 - 3秒后自动完成扫描
@@ -2405,6 +2454,46 @@ export const ARViewerNew = ({
                 <span className={styles.settingLabel}>模型已放置</span>
                 <span className={styles.settingValue}>{isPlaced ? '是' : '否'}</span>
               </div>
+              
+              {environmentData && (
+                <>
+                  <h4 className={styles.settingsSectionTitle} style={{ marginTop: '16px' }}>环境识别</h4>
+                  <div className={styles.settingItem}>
+                    <span className={styles.settingLabel}>地面材质</span>
+                    <span className={styles.settingValue}>
+                      {environmentData.groundType === 'wood' && '🪵 木地板'}
+                      {environmentData.groundType === 'tile' && '⬜ 瓷砖'}
+                      {environmentData.groundType === 'grass' && '🌱 草地'}
+                      {environmentData.groundType === 'carpet' && '🧶 地毯'}
+                      {environmentData.groundType === 'concrete' && '🪨 水泥'}
+                      {environmentData.groundType === 'unknown' && '❓ 未知'}
+                    </span>
+                  </div>
+                  <div className={styles.settingItem}>
+                    <span className={styles.settingLabel}>空间大小</span>
+                    <span className={styles.settingValue}>
+                      {environmentData.spaceSize === 'small' && '📦 小空间'}
+                      {environmentData.spaceSize === 'medium' && '🏠 中等空间'}
+                      {environmentData.spaceSize === 'large' && '🏢 大空间'}
+                    </span>
+                  </div>
+                  <div className={styles.settingItem}>
+                    <span className={styles.settingLabel}>光照强度</span>
+                    <span className={styles.settingValue}>{(environmentData.lightIntensity * 100).toFixed(0)}%</span>
+                  </div>
+                </>
+              )}
+              
+              {recommendedActions.length > 0 && (
+                <>
+                  <h4 className={styles.settingsSectionTitle} style={{ marginTop: '16px' }}>推荐动作</h4>
+                  <div className={styles.recommendedActions}>
+                    {recommendedActions.slice(0, 5).map((action, index) => (
+                      <span key={index} className={styles.recommendedActionTag}>{action}</span>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
