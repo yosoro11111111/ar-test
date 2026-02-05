@@ -1271,8 +1271,8 @@ class ARSceneManager {
     }
   }
 
-  async playAction(actionId, actionsList) {
-    console.log('🎬 playAction called:', actionId)
+  async playAction(actionId, actionsList, loopMode = true) {
+    console.log('🎬 playAction called:', actionId, 'loopMode:', loopMode)
     
     if (!this.mixer) {
       console.error('❌ Mixer not initialized')
@@ -1345,8 +1345,16 @@ class ARSceneManager {
         // 设置动画权重为1（完全影响）
         this.currentAnimation.weight = 1
         
-        // 确保动画循环播放
-        this.currentAnimation.setLoop(THREE.LoopRepeat, Infinity)
+        // 根据播放模式设置循环
+        if (loopMode) {
+          this.currentAnimation.setLoop(THREE.LoopRepeat, Infinity)
+          console.log('🔁 循环播放模式')
+        } else {
+          this.currentAnimation.setLoop(THREE.LoopOnce, 1)
+          // 监听动画完成事件
+          this.currentAnimation.clampWhenFinished = true
+          console.log('▶️ 单次播放模式')
+        }
         
         // 直接播放（不使用fadeIn，减少延迟）
         this.currentAnimation.play()
@@ -1426,6 +1434,7 @@ export const ARViewerNew = ({
   const [showHelp, setShowHelp] = useState(false)
   const [isGestureEnabled, setIsGestureEnabled] = useState(false)
   const [lastGesture, setLastGesture] = useState(null)
+  const [isLoopMode, setIsLoopMode] = useState(true) // 播放模式：true=循环，false=单次
   const [modelLoadingProgress, setModelLoadingProgress] = useState(0)
   const [isModelLoading, setIsModelLoading] = useState(false)
   const [vrmaActions, setVrmaActions] = useState([])
@@ -1614,7 +1623,7 @@ export const ARViewerNew = ({
     
     setTimeout(() => toast.remove(), 2000)
     
-    await arManagerRef.current?.playAction(action.id, vrmaActions)
+    await arManagerRef.current?.playAction(action.id, vrmaActions, isLoopMode)
     
     const newRecent = [action, ...recentActions.filter(a => a.id !== action.id)].slice(0, 10)
     setRecentActions(newRecent)
@@ -2314,6 +2323,18 @@ export const ARViewerNew = ({
           title="跟随模式"
         >
           {isFollowing ? '🔒' : '🔓'}
+        </button>
+        <button
+          className={`${styles.toolButton} ${isLoopMode ? styles.active : ''}`}
+          onClick={() => {
+            const newLoopMode = !isLoopMode
+            setIsLoopMode(newLoopMode)
+            setGuideText(newLoopMode ? '🔁 循环播放模式' : '▶️ 单次播放模式')
+            setTimeout(() => setGuideText(''), 1500)
+          }}
+          title={isLoopMode ? '循环播放' : '单次播放'}
+        >
+          {isLoopMode ? '🔁' : '▶️'}
         </button>
       </div>
 
