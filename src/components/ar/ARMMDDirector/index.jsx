@@ -168,8 +168,8 @@ export function ARMMDDirector() {
       name: char.name,
       vrmUrl: char.modelUrl,
       thumbnail: char.thumbnail,
-      initialPosition: { x: 0, y: 0, z: 0 },
-      initialRotation: { x: 0, y: 0, z: 0 },
+      initialPosition: { x: (Math.random() - 0.5) * 4, y: 0, z: (Math.random() - 0.5) * 4 },
+      initialRotation: { x: 0, y: Math.random() * Math.PI * 2, z: 0 },
       initialScale: 1,
       color: `hsl(${Math.random() * 360}, 70%, 60%)`
     }))
