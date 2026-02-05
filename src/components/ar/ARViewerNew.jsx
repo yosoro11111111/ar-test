@@ -1981,14 +1981,41 @@ export const ARViewerNew = ({
         <button
           className={styles.toolButton}
           onClick={() => {
-            console.log('截图按钮点击，arManagerRef.current:', arManagerRef.current)
-            if (arManagerRef.current && typeof arManagerRef.current.takeScreenshot === 'function') {
-              arManagerRef.current.takeScreenshot()
-            } else {
-              console.warn('截图功能未就绪')
-              setGuideText('⚠️ 截图功能未就绪')
+            console.log('📷 截图按钮点击')
+            console.log('  arManagerRef.current:', arManagerRef.current)
+            console.log('  renderer:', arManagerRef.current?.renderer)
+            console.log('  domElement:', arManagerRef.current?.renderer?.domElement)
+            
+            if (!arManagerRef.current) {
+              console.error('❌ arManagerRef.current 为 null')
+              setGuideText('❌ AR管理器未初始化')
               setTimeout(() => setGuideText(''), 2000)
+              return
             }
+            
+            if (!arManagerRef.current.renderer) {
+              console.error('❌ renderer 为 null')
+              setGuideText('❌ 渲染器未就绪')
+              setTimeout(() => setGuideText(''), 2000)
+              return
+            }
+            
+            if (typeof arManagerRef.current.takeScreenshot !== 'function') {
+              console.error('❌ takeScreenshot 方法不存在')
+              console.log('  可用方法:', Object.keys(arManagerRef.current).filter(k => typeof arManagerRef.current[k] === 'function'))
+              setGuideText('❌ 截图方法未找到')
+              setTimeout(() => setGuideText(''), 2000)
+              return
+            }
+            
+            try {
+              arManagerRef.current.takeScreenshot()
+              setGuideText('✅ 截图成功')
+            } catch (error) {
+              console.error('❌ 截图失败:', error)
+              setGuideText('❌ 截图失败: ' + error.message)
+            }
+            setTimeout(() => setGuideText(''), 2000)
           }}
           title="截图"
         >
@@ -1997,15 +2024,45 @@ export const ARViewerNew = ({
         <button
           className={`${styles.toolButton} ${isRecording ? styles.recording : ''}`}
           onClick={() => {
-            if (arManagerRef.current) {
-              const newRecording = !isRecording
-              setIsRecording(newRecording)
-              if (newRecording) {
-                arManagerRef.current.startRecording()
-              } else {
-                arManagerRef.current.stopRecording()
-              }
+            console.log('📹 录制按钮点击')
+            console.log('  arManagerRef.current:', arManagerRef.current)
+            console.log('  isRecording:', isRecording)
+            
+            if (!arManagerRef.current) {
+              console.error('❌ arManagerRef.current 为 null')
+              setGuideText('❌ AR管理器未初始化')
+              setTimeout(() => setGuideText(''), 2000)
+              return
             }
+            
+            const newRecording = !isRecording
+            setIsRecording(newRecording)
+            
+            try {
+              if (newRecording) {
+                console.log('▶️ 开始录制')
+                if (typeof arManagerRef.current.startRecording !== 'function') {
+                  console.error('❌ startRecording 方法不存在')
+                  setGuideText('❌ 录制方法未找到')
+                  setIsRecording(false)
+                  setTimeout(() => setGuideText(''), 2000)
+                  return
+                }
+                arManagerRef.current.startRecording()
+                setGuideText('🔴 录制中...')
+              } else {
+                console.log('⏹️ 停止录制')
+                if (typeof arManagerRef.current.stopRecording === 'function') {
+                  arManagerRef.current.stopRecording()
+                }
+                setGuideText('✅ 录制已保存')
+              }
+            } catch (error) {
+              console.error('❌ 录制失败:', error)
+              setGuideText('❌ 录制失败: ' + error.message)
+              setIsRecording(false)
+            }
+            setTimeout(() => setGuideText(''), 2000)
           }}
           title={isRecording ? '停止录制' : '开始录制'}
         >
@@ -2052,24 +2109,60 @@ export const ARViewerNew = ({
         <button
           className={`${styles.toolButton} ${isGestureEnabled ? styles.active : ''}`}
           onClick={async () => {
+            console.log('✋ 手势识别按钮点击')
+            console.log('  arManagerRef.current:', arManagerRef.current)
+            console.log('  isGestureEnabled:', isGestureEnabled)
+            console.log('  ARGestureRecognition:', ARGestureRecognition)
+            
+            if (!arManagerRef.current) {
+              console.error('❌ arManagerRef.current 为 null')
+              setGuideText('❌ AR管理器未初始化')
+              setTimeout(() => setGuideText(''), 2000)
+              return
+            }
+            
             const newState = !isGestureEnabled
             setIsGestureEnabled(newState)
 
-            if (newState) {
-              // 启用手势识别
-              if (!arManagerRef.current?.gestureRecognition) {
-                arManagerRef.current.gestureRecognition = new ARGestureRecognition()
-                arManagerRef.current.gestureRecognition.onGestureDetected = (gesture) => {
-                  setLastGesture(gesture)
-                  handleGestureAction(gesture)
+            try {
+              if (newState) {
+                console.log('▶️ 启用手势识别')
+                
+                if (!arManagerRef.current.gestureRecognition) {
+                  console.log('🆕 创建手势识别实例')
+                  if (!ARGestureRecognition) {
+                    console.error('❌ ARGestureRecognition 未定义')
+                    setGuideText('❌ 手势识别库未加载')
+                    setIsGestureEnabled(false)
+                    setTimeout(() => setGuideText(''), 2000)
+                    return
+                  }
+                  arManagerRef.current.gestureRecognition = new ARGestureRecognition()
+                  arManagerRef.current.gestureRecognition.onGestureDetected = (gesture) => {
+                    console.log('👋 检测到手势:', gesture)
+                    setLastGesture(gesture)
+                    handleGestureAction(gesture)
+                  }
                 }
+                
+                console.log('🚀 启动手势识别...')
+                const success = await arManagerRef.current.gestureRecognition.start()
+                if (success) {
+                  setGuideText('👋 手势识别已开启')
+                } else {
+                  console.error('❌ 手势识别启动失败')
+                  setGuideText('❌ 手势识别启动失败')
+                  setIsGestureEnabled(false)
+                }
+              } else {
+                console.log('⏹️ 关闭手势识别')
+                arManagerRef.current?.gestureRecognition?.stop()
+                setGuideText('👋 手势识别已关闭')
               }
-              await arManagerRef.current.gestureRecognition.start()
-              setGuideText('👋 手势识别已开启')
-            } else {
-              // 关闭手势识别
-              arManagerRef.current?.gestureRecognition?.stop()
-              setGuideText('👋 手势识别已关闭')
+            } catch (error) {
+              console.error('❌ 手势识别错误:', error)
+              setGuideText('❌ 手势识别错误: ' + error.message)
+              setIsGestureEnabled(false)
             }
             setTimeout(() => setGuideText(''), 2000)
           }}
