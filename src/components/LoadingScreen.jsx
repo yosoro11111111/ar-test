@@ -115,12 +115,18 @@ export const LoadingScreen = ({ onComplete, isMobile }) => {
           </div>
         </div>
 
-        {/* 进入按钮 */}
+        {/* 进入按钮区域 */}
         {showEnter && (
-          <button className="enter-button" onClick={handleEnter}>
-            <span>进入体验</span>
-            <div className="button-glow" />
-          </button>
+          <div className="enter-buttons">
+            <button className="enter-button" onClick={handleEnter}>
+              <span>进入体验</span>
+              <div className="button-glow" />
+            </button>
+            <button className="mmd-button" onClick={() => window.location.href = '/ar-director/mmd'}>
+              <span>🎬 MMD导演</span>
+              <div className="button-glow" />
+            </button>
+          </div>
         )}
       </div>
 

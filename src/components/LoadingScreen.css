@@ -294,10 +294,18 @@
   }
 }
 
+/* 进入按钮区域 */
+.enter-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 40px;
+  animation: buttonAppear 0.5s ease-out;
+}
+
 /* 进入按钮 */
 .enter-button {
   position: relative;
-  margin-top: 40px;
   padding: 16px 48px;
   font-size: 18px;
   font-weight: 600;
@@ -307,7 +315,6 @@
   border-radius: 30px;
   cursor: pointer;
   overflow: hidden;
-  animation: buttonAppear 0.5s ease-out;
   box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
@@ -318,6 +325,31 @@
 }
 
 .enter-button:active {
+  transform: translateY(0);
+}
+
+/* MMD按钮 */
+.mmd-button {
+  position: relative;
+  padding: 14px 40px;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(240, 147, 251, 0.4);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.mmd-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 40px rgba(240, 147, 251, 0.5);
+}
+
+.mmd-button:active {
   transform: translateY(0);
 }
 
