@@ -136,11 +136,15 @@ export function ARMMDDirector() {
     const renderer = new THREE.WebGLRenderer({
       canvas: canvasRef.current,
       antialias: true,
-      preserveDrawingBuffer: true
+      preserveDrawingBuffer: true,
+      alpha: false
     })
     renderer.setSize(canvasWidth, canvasHeight)
+    renderer.setClearColor(0x1a1a2e, 1)
     renderer.shadowMap.enabled = true
     rendererRef.current = renderer
+    
+    console.log('Background set to:', project.backgroundImage ? 'texture' : '#1a1a2e')
     
     console.log('Renderer size:', canvasWidth, canvasHeight)
     
