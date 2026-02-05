@@ -1239,17 +1239,22 @@ class ARSceneManager {
           this.currentAnimation.stop()
         }
         
-        // 创建动画动作 - 使用VRM的humanoid作为root
-        const humanoidRoot = this.currentCharacter.humanoid?.normalizedHumanBonesRoot || this.currentCharacter.scene
-        this.currentAnimation = this.mixer.clipAction(clip, humanoidRoot)
+        // 使用VRM的scene作为动画根对象
+        // 这是最可靠的方式，适用于大多数VRM模型
+        this.currentAnimation = this.mixer.clipAction(clip, this.currentCharacter.scene)
+        
+        // 重置动画
         this.currentAnimation.reset()
-        this.currentAnimation.fadeIn(0.3)
-        this.currentAnimation.play()
         
         // 确保动画循环播放
         this.currentAnimation.setLoop(THREE.LoopRepeat, Infinity)
         
+        // 直接播放（不使用fadeIn，减少延迟）
+        this.currentAnimation.play()
+        
         console.log('✅ Playing action:', action.name)
+        console.log('Animation action:', this.currentAnimation)
+        console.log('Mixer:', this.mixer)
       } else {
         console.error('❌ No clip to play')
       }
