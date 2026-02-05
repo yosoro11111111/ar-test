@@ -10,6 +10,7 @@ import { ARExportPage } from './components/ar/ARExportPage.jsx'
 import { ARCapturePro } from './components/ar/ARCapturePro/index.jsx'
 import { ARSceneManager } from './components/ar/ARSceneManager/index.jsx'
 import { ARDirector } from './components/ar/ARDirector/index.jsx'
+import { ARExportPro } from './components/ar/ARExportPro/index.jsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -25,6 +26,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/ar-director/capture-pro" element={<ARCapturePro />} />
         <Route path="/ar-director/manager" element={<ARSceneManager />} />
         <Route path="/ar-director/director/:sceneId" element={<ARDirector />} />
+        <Route path="/ar-director/export-pro/:sceneId" element={<ARExportPro />} />
         
         {/* 旧版兼容 */}
         <Route path="/ar-director/edit/:projectId" element={<ARTimelineEditorPage />} />
