@@ -844,7 +844,16 @@ class ARSceneManager {
       // 使用固定时间步长，确保动画流畅
       const fixedDelta = 16.666 * 0.001 // 60fps
       this.mixer.update(fixedDelta)
-      console.log('🎬 动画更新:', fixedDelta)
+      
+      // 更新VRM模型（应用动画到骨骼）
+      if (this.currentCharacter) {
+        this.currentCharacter.update(fixedDelta)
+      }
+      
+      // 每60帧打印一次日志（避免日志过多）
+      if (this.frameCount % 60 === 0) {
+        console.log('🎬 动画更新:', fixedDelta, 'VRM更新完成')
+      }
     }
   }
 
