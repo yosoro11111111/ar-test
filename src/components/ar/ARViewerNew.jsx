@@ -22,6 +22,9 @@ class ARSceneManager {
     this.hitTestSource = null
     this.planes = new Map()
     this.detectedPlanes = []
+    // 事件监听器引用，用于正确移除
+    this.planesDetectedHandler = null
+    this.selectHandler = null
     this.currentCharacter = null
     this.isModelLoaded = false
     this.isPlaced = false
@@ -327,8 +330,8 @@ class ARSceneManager {
       if (supportsPlaneDetection) {
         console.log('✅ Device supports native plane detection')
         
-        // 设置平面检测事件监听
-        this.session.addEventListener('planesdetected', (event) => {
+        // 保存事件处理器引用，以便正确移除
+        this.planesDetectedHandler = (event) => {
           try {
             console.log('📦 Planes detected event:', event)
             const planes = event.data
@@ -357,7 +360,10 @@ class ARSceneManager {
           } catch (err) {
             console.warn('Plane detection event error:', err)
           }
-        })
+        }
+        
+        // 设置平面检测事件监听
+        this.session.addEventListener('planesdetected', this.planesDetectedHandler)
         
         // Chrome特定：尝试获取现有平面
         if (this.session.planes) {
@@ -1182,6 +1188,9 @@ class ARSceneManager {
       // 恢复原始渲染目标
       this.renderer.setRenderTarget(originalRenderTarget)
       
+      // 释放renderTarget资源
+      renderTarget.dispose()
+      
       console.log('✅ 截图捕获成功:', canvas.width, 'x', canvas.height)
       return canvas.toDataURL('image/png')
     } catch (error) {
@@ -1211,13 +1220,17 @@ class ARSceneManager {
             vrm.lookAt.enabled = false
           }
           
-          // 简化材质以减少GPU负担
-          // 打印模型结构，找出动画根节点
+          // 简化材质和纹理以减少GPU/内存负担
           console.log('🦴 模型结构:')
           vrm.scene.traverse((child) => {
             if (child.isMesh) {
               child.castShadow = false
               child.receiveShadow = false
+              
+              // 压缩纹理
+              if (child.material) {
+                this.compressMaterialTextures(child.material)
+              }
             }
             // 打印所有节点名称
             if (child.name) {
@@ -1258,6 +1271,47 @@ class ARSceneManager {
           reject(error)
         }
       )
+    })
+  }
+  
+  // 压缩材质纹理
+  compressMaterialTextures(material) {
+    const maxTextureSize = 1024 // 限制纹理最大尺寸
+    
+    const compressTexture = (texture) => {
+      if (!texture || !texture.image) return
+      
+      const width = texture.image.width
+      const height = texture.image.height
+      
+      // 如果纹理尺寸超过限制，进行压缩
+      if (width > maxTextureSize || height > maxTextureSize) {
+        const canvas = document.createElement('canvas')
+        const scale = Math.min(maxTextureSize / width, maxTextureSize / height)
+        canvas.width = width * scale
+        canvas.height = height * scale
+        
+        const ctx = canvas.getContext('2d')
+        ctx.drawImage(texture.image, 0, 0, canvas.width, canvas.height)
+        
+        // 更新纹理
+        texture.image = canvas
+        texture.needsUpdate = true
+        
+        console.log(`🖼️ 纹理压缩: ${width}x${height} -> ${canvas.width}x${canvas.height}`)
+      }
+    }
+    
+    // 处理所有可能的纹理属性
+    const textureProperties = [
+      'map', 'normalMap', 'roughnessMap', 'metalnessMap', 
+      'emissiveMap', 'aoMap', 'lightMap'
+    ]
+    
+    textureProperties.forEach(prop => {
+      if (material[prop]) {
+        compressTexture(material[prop])
+      }
     })
   }
 
@@ -1316,8 +1370,35 @@ class ARSceneManager {
     return this.isTracking
   }
 
-  // 预加载动作缓存
+  // 预加载动作缓存 - 限制大小为10
   actionCache = new Map()
+  maxActionCacheSize = 10
+  
+  // 设置动作缓存，自动管理大小
+  setActionCache(key, clip) {
+    // 如果缓存已满，移除最旧的条目
+    if (this.actionCache.size >= this.maxActionCacheSize) {
+      const firstKey = this.actionCache.keys().next().value
+      const oldClip = this.actionCache.get(firstKey)
+      if (oldClip) {
+        // 释放旧clip的资源
+        this.disposeClip(oldClip)
+      }
+      this.actionCache.delete(firstKey)
+      console.log('🧹 移除旧动作缓存:', firstKey)
+    }
+    this.actionCache.set(key, clip)
+  }
+  
+  // 释放动画clip资源
+  disposeClip(clip) {
+    if (!clip) return
+    // 清理track数据以释放内存
+    clip.tracks.forEach(track => {
+      if (track.values) track.values = null
+      if (track.times) track.times = null
+    })
+  }
   
   // 预加载常用动作
   async preloadActions(actionsList, count = 5) {
@@ -1331,7 +1412,7 @@ class ARSceneManager {
       try {
         const result = await loadVRMAAction(action.filePath, this.currentCharacter)
         if (result && result.clip) {
-          this.actionCache.set(action.id, result.clip)
+          this.setActionCache(action.id, result.clip)
           console.log('✅ 预加载动作:', action.name)
         }
       } catch (e) {
@@ -1380,7 +1461,7 @@ class ARSceneManager {
         console.log('📥 Load result:', result)
         if (result && result.clip) {
           clip = result.clip
-          this.actionCache.set(actionId, clip)
+          this.setActionCache(actionId, clip)
           console.log('✅ Clip cached')
         } else {
           console.error('❌ No clip in load result')
@@ -1444,17 +1525,44 @@ class ARSceneManager {
 
   async end() {
     // 清理所有资源
+    
+    // 1. 移除事件监听器（在结束session之前）
     if (this.session) {
+      if (this.planesDetectedHandler) {
+        this.session.removeEventListener('planesdetected', this.planesDetectedHandler)
+        this.planesDetectedHandler = null
+      }
+      if (this.selectHandler) {
+        this.session.removeEventListener('select', this.selectHandler)
+        this.selectHandler = null
+      }
+      
       await this.session.end()
       this.session = null
     }
     
+    // 2. 停止动画mixer
+    if (this.mixer) {
+      this.mixer.stopAllAction()
+      if (this.currentCharacter) {
+        this.mixer.uncacheRoot(this.currentCharacter.scene)
+      }
+      this.mixer = null
+    }
+    
+    // 3. 释放VRM模型资源
+    if (this.currentCharacter) {
+      this.disposeVRMModel(this.currentCharacter)
+      this.currentCharacter = null
+    }
+    
+    // 4. 释放渲染器
     if (this.renderer) {
       this.renderer.dispose()
       this.renderer = null
     }
     
-    // 清理几何体和材质
+    // 5. 清理几何体和材质
     if (this.sharedGeometry) {
       this.sharedGeometry.dispose()
       this.sharedGeometry = null
@@ -1464,15 +1572,59 @@ class ARSceneManager {
       this.sharedMaterial = null
     }
     
+    // 6. 清理动作缓存
+    this.actionCache.forEach((clip) => {
+      if (clip && clip.dispose) {
+        clip.dispose()
+      }
+    })
+    this.actionCache.clear()
+    
+    // 7. 清理其他资源
     this.detectedPlanes = []
     this.isPlaced = false
     this.isModelLoaded = false
-    this.currentCharacter = null
-    this.mixer = null
     this.currentAnimation = null
     this.isRendering = false
     this.placedPlane = null
     this.mediaRecorder = null
+    
+    console.log('🧹 AR资源清理完成')
+  }
+  
+  // 释放VRM模型资源
+  disposeVRMModel(vrm) {
+    if (!vrm || !vrm.scene) return
+    
+    vrm.scene.traverse((obj) => {
+      if (obj.isMesh) {
+        if (obj.geometry) {
+          obj.geometry.dispose()
+        }
+        if (obj.material) {
+          if (Array.isArray(obj.material)) {
+            obj.material.forEach(mat => this.disposeMaterial(mat))
+          } else {
+            this.disposeMaterial(obj.material)
+          }
+        }
+      }
+    })
+  }
+  
+  // 释放材质资源
+  disposeMaterial(material) {
+    if (!material) return
+    
+    // 释放纹理
+    Object.keys(material).forEach(key => {
+      const value = material[key]
+      if (value && value.isTexture) {
+        value.dispose()
+      }
+    })
+    
+    material.dispose()
   }
 }
 
@@ -1570,10 +1722,18 @@ export const ARViewerNew = ({
       isMounted = false
       isMountedRef.current = false
       document.removeEventListener('visibilitychange', handleVisibilityChange)
+      // 清理扫描定时器
+      if (scanTimerRef.current) {
+        clearInterval(scanTimerRef.current)
+        scanTimerRef.current = null
+      }
       arManagerRef.current?.end()
     }
   }, [])
 
+  // 使用ref存储定时器，确保可以清理
+  const scanTimerRef = useRef(null)
+  
   const initAR = async () => {
     if (!canvasRef.current) return
     
@@ -1595,9 +1755,10 @@ export const ARViewerNew = ({
     
     // 扫描进度计时器 - 3秒后自动完成扫描
     let scanStartTime = Date.now()
-    const scanTimer = setInterval(() => {
+    scanTimerRef.current = setInterval(() => {
       if (!isMountedRef.current) {
-        clearInterval(scanTimer)
+        clearInterval(scanTimerRef.current)
+        scanTimerRef.current = null
         return
       }
       
@@ -1605,13 +1766,14 @@ export const ARViewerNew = ({
       const timeProgress = Math.min(100, (elapsed / 3000) * 100)
       
       // 取平面检测进度和时间进度的最大值
-      const planeProgress = Math.min(100, arManagerRef.current.detectedPlanes?.length * 20 || 0)
+      const planeProgress = Math.min(100, arManagerRef.current?.detectedPlanes?.length * 20 || 0)
       const finalProgress = Math.max(timeProgress, planeProgress)
       setScanProgress(finalProgress)
       
       // 3秒后自动完成扫描
       if (elapsed >= 3000) {
-        clearInterval(scanTimer)
+        clearInterval(scanTimerRef.current)
+        scanTimerRef.current = null
         setScanProgress(100)
       }
     }, 100)
