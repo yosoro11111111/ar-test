@@ -418,33 +418,72 @@
 }
 
 /* 移动端横屏优化 */
-@media (max-width: 768px) and (orientation: landscape) {
+@media (max-width: 896px) and (orientation: landscape) {
   .container {
     flex-direction: row;
   }
   
   .header {
     flex-direction: column;
-    width: 60px;
+    width: 50px;
     height: 100vh;
-    padding: 12px 8px;
+    padding: 8px 4px;
     border-right: 1px solid #2a2a35;
     border-bottom: none;
+    justify-content: flex-start;
+    gap: 8px;
   }
   
   .headerLeft {
     flex-direction: column;
+    gap: 4px;
   }
   
   .headerRight {
     flex-direction: column;
+    gap: 4px;
+    margin-top: auto;
+  }
+  
+  .backBtn {
+    width: 32px;
+    height: 32px;
+    font-size: 16px;
+  }
+  
+  .title {
+    display: none;
+  }
+  
+  .iconBtn {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
   }
   
   .main {
     flex-direction: row;
+    height: 100vh;
   }
   
   .centerArea {
-    flex: 2;
+    flex: 1;
+    padding: 8px;
+    height: 100%;
+  }
+  
+  .previewContainer {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: calc(100vh - 16px);
+  }
+  
+  .showPreviewBtn {
+    padding: 20px 30px;
+  }
+  
+  .previewIcon {
+    font-size: 32px;
   }
 }

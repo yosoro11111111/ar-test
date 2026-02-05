@@ -445,7 +445,15 @@ function openDB(name, version, upgradeCallback) {
     request.onerror = () => reject(request.error)
     request.onsuccess = () => resolve(request.result)
     request.onupgradeneeded = (event) => {
-      upgradeCallback(event.target.result)
+      try {
+        upgradeCallback(event.target.result)
+      } catch (error) {
+        console.error('Upgrade error:', error)
+      }
+    }
+    request.onblocked = () => {
+      console.warn('IndexedDB blocked')
+      reject(new Error('IndexedDB blocked'))
     }
   })
 }
