@@ -62,14 +62,17 @@
 
 /* 左侧预览区 */
 .previewSection {
-  flex: 1.5;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
 }
 
 .videoContainer {
-  flex: 1;
+  flex: 0 0 auto;
+  height: 50vh;
+  max-height: 400px;
   position: relative;
   background: #000;
   border-radius: 16px;
@@ -161,49 +164,50 @@
 
 /* 右侧控制区 */
 .controlSection {
-  flex: 1;
+  flex: 0 0 350px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  max-width: 400px;
+  gap: 12px;
+  min-width: 0;
 }
 
 .statsCard, .planesCard, .editorCard {
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 16px;
-  padding: 20px;
+  border-radius: 12px;
+  padding: 16px;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
 }
 
 .statsCard h3, .planesCard h3, .editorCard h3 {
-  font-size: 16px;
-  margin-bottom: 16px;
+  font-size: 14px;
+  margin-bottom: 12px;
   color: rgba(255, 255, 255, 0.9);
 }
 
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 8px;
 }
 
 .statItem {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 16px;
+  padding: 12px 8px;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
 .statValue {
-  font-size: 32px;
+  font-size: 24px;
   font-weight: bold;
   color: #667eea;
 }
 
 .statLabel {
-  font-size: 12px;
+  font-size: 11px;
   color: rgba(255, 255, 255, 0.6);
   margin-top: 4px;
 }
@@ -211,53 +215,55 @@
 .planesList {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 200px;
+  gap: 6px;
+  max-height: 120px;
   overflow-y: auto;
 }
 
 .planeItem {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
+  gap: 10px;
+  padding: 10px;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
+  border-radius: 6px;
 }
 
 .planeColor {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
 }
 
 .planeName {
   flex: 1;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .planeCheck {
   color: #4ade80;
   font-weight: bold;
+  font-size: 12px;
 }
 
 .emptyPlanes {
   text-align: center;
-  padding: 24px;
+  padding: 16px;
   color: rgba(255, 255, 255, 0.4);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .actionButtons {
   margin-top: auto;
+  flex-shrink: 0;
 }
 
 .recordBtn, .stopBtn {
   width: 100%;
-  padding: 16px;
+  padding: 14px;
   border: none;
-  border-radius: 12px;
-  font-size: 16px;
+  border-radius: 10px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
