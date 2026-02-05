@@ -1464,60 +1464,58 @@ class ARSceneManager {
       }
       
       if (clip) {
-        console.log('▶️ Playing with smooth transition')
+        console.log('▶️ Creating clip action, duration:', clip.duration)
         
-        // 使用缓存的动画根节点
-        const animationRoot = this.cachedAnimationRoot || this.findAnimationRoot()
+        // 停止之前的动画
+        if (this.currentAnimation) {
+          this.currentAnimation.fadeOut(0.2)
+          this.currentAnimation.stop()
+        }
         
-        // 创建新动画
-        const newAction = this.mixer.clipAction(clip, animationRoot)
+        // 查找模型内部的G1节点（动画骨骼根节点）
+        let animationRoot = this.currentCharacter.scene
+        this.currentCharacter.scene.traverse((child) => {
+          if (child.name === 'G1' || child.name === 'Root' || child.name === 'root') {
+            animationRoot = child
+            console.log('🦴 找到动画根节点:', child.name)
+          }
+        })
         
-        // 设置循环模式
+        // 使用找到的动画根节点创建动画
+        this.currentAnimation = this.mixer.clipAction(clip, animationRoot)
+        
+        // 重置动画
+        this.currentAnimation.reset()
+        
+        // 设置动画权重为1（完全影响）
+        this.currentAnimation.weight = 1
+        
+        // 根据播放模式设置循环
         if (loopMode) {
-          newAction.setLoop(THREE.LoopRepeat, Infinity)
+          this.currentAnimation.setLoop(THREE.LoopRepeat, Infinity)
+          console.log('🔁 循环播放模式')
         } else {
-          newAction.setLoop(THREE.LoopOnce, 1)
-          newAction.clampWhenFinished = true
+          this.currentAnimation.setLoop(THREE.LoopOnce, 1)
+          // 监听动画完成事件
+          this.currentAnimation.clampWhenFinished = true
+          console.log('▶️ 单次播放模式')
         }
         
-        // 平滑过渡：旧动画淡出，新动画淡入
-        if (this.currentAnimation && this.currentAnimation !== newAction) {
-          this.currentAnimation.fadeOut(transitionDuration)
-        }
+        // 直接播放（不使用fadeIn，减少延迟）
+        this.currentAnimation.play()
         
-        // 新动画从0权重淡入
-        newAction
-          .reset()
-          .setEffectiveTimeScale(1)
-          .setEffectiveWeight(0)
-          .fadeIn(transitionDuration)
-          .play()
-        
-        this.currentAnimation = newAction
-        console.log('✅ Smooth transition started:', action.name)
+        console.log('✅ Playing action:', action.name)
+        console.log('Animation root:', animationRoot.name || 'scene')
+        console.log('Animation weight:', this.currentAnimation.weight)
+        console.log('Animation time:', this.currentAnimation.time)
+        console.log('Mixer time:', this.mixer.time)
+      } else {
+        console.error('❌ No clip to play')
       }
     } catch (error) {
       console.error('❌ playAction failed:', error)
       console.error('Stack:', error.stack)
     }
-  }
-
-  // 查找并缓存动画根节点
-  findAnimationRoot() {
-    if (this.cachedAnimationRoot) {
-      return this.cachedAnimationRoot
-    }
-    
-    let animationRoot = this.currentCharacter.scene
-    this.currentCharacter.scene.traverse((child) => {
-      if (child.name === 'G1' || child.name === 'Root' || child.name === 'root' || child.name === 'Armature') {
-        animationRoot = child
-      }
-    })
-    
-    this.cachedAnimationRoot = animationRoot
-    console.log('🦴 Cached animation root:', animationRoot.name || 'scene')
-    return animationRoot
   }
 
   async end() {
