@@ -28,9 +28,9 @@ export function ARDirectorHome() {
     }
   }
 
-  // 开始新的场景采集 - 进入场景选择界面
+  // 开始新的场景采集 - 进入新的采集器
   const startSceneCapture = () => {
-    navigate('/ar-director/selector')
+    navigate('/ar-director/capture-pro')
   }
 
   // 打开项目

@@ -1,0 +1,416 @@
+/* ARCapturePro - 横屏AR采集器样式 */
+
+.container {
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 顶部栏 */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.backBtn, .settingsBtn, .saveBtn {
+  padding: 8px 16px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+.backBtn:hover, .settingsBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.saveBtn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.saveBtn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+/* 主内容区 */
+.main {
+  flex: 1;
+  display: flex;
+  padding: 20px;
+  gap: 20px;
+  overflow: hidden;
+}
+
+/* 左侧预览区 */
+.previewSection {
+  flex: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.videoContainer {
+  flex: 1;
+  position: relative;
+  background: #000;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.arOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.planeOverlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60%;
+  height: 60%;
+  border: 3px solid;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.planeLabel {
+  font-size: 24px;
+  font-weight: bold;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.planeSize {
+  font-size: 14px;
+  opacity: 0.9;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+.recordingIndicator {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255, 0, 0, 0.8);
+  border-radius: 20px;
+}
+
+.recordingDot {
+  width: 12px;
+  height: 12px;
+  background: white;
+  border-radius: 50%;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.recordingTime {
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+}
+
+.hint {
+  padding: 12px 16px;
+  background: rgba(102, 126, 234, 0.2);
+  border-radius: 8px;
+  font-size: 14px;
+  text-align: center;
+  border: 1px solid rgba(102, 126, 234, 0.3);
+}
+
+/* 右侧控制区 */
+.controlSection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 400px;
+}
+
+.statsCard, .planesCard, .editorCard {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.statsCard h3, .planesCard h3, .editorCard h3 {
+  font-size: 16px;
+  margin-bottom: 16px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+}
+
+.statValue {
+  font-size: 32px;
+  font-weight: bold;
+  color: #667eea;
+}
+
+.statLabel {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-top: 4px;
+}
+
+.planesList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.planeItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.planeColor {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+}
+
+.planeName {
+  flex: 1;
+  font-size: 14px;
+}
+
+.planeCheck {
+  color: #4ade80;
+  font-weight: bold;
+}
+
+.emptyPlanes {
+  text-align: center;
+  padding: 24px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
+}
+
+.actionButtons {
+  margin-top: auto;
+}
+
+.recordBtn, .stopBtn {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.recordBtn {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+.stopBtn {
+  background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+  color: white;
+}
+
+.recordBtn:hover, .stopBtn:hover {
+  transform: scale(1.02);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* 编辑界面 */
+.capturePreview {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 16px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.captureImage {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.editorSection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 450px;
+  overflow-y: auto;
+}
+
+.nameInput, .planeNameInput {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: white;
+  font-size: 14px;
+}
+
+.nameInput:focus, .planeNameInput:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.planesEditorList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.planeEditorItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.planeEditorColor {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.planeEditorName {
+  flex: 1;
+  font-size: 14px;
+}
+
+.planeEditorSize {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.planeEditorActions {
+  display: flex;
+  gap: 8px;
+}
+
+.editBtn, .deleteBtn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editBtn {
+  background: rgba(102, 126, 234, 0.3);
+}
+
+.editBtn:hover {
+  background: rgba(102, 126, 234, 0.5);
+}
+
+.deleteBtn {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+.deleteBtn:hover {
+  background: rgba(239, 68, 68, 0.5);
+}
+
+.infoList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.infoItem {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+}
+
+.infoItem span:first-child {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* 响应式 */
+@media (max-width: 1024px) {
+  .main {
+    flex-direction: column;
+  }
+  
+  .controlSection, .editorSection {
+    max-width: none;
+  }
+}
