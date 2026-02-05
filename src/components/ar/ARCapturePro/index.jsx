@@ -44,14 +44,22 @@ export function ARCapturePro() {
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: 1920, height: 1080 },
+        video: { 
+          facingMode: 'environment',
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
         audio: false
       })
       if (videoRef.current) {
         videoRef.current.srcObject = stream
+        videoRef.current.onloadedmetadata = () => {
+          videoRef.current.play()
+        }
       }
     } catch (error) {
       console.error('摄像头启动失败:', error)
+      alert('摄像头启动失败，请确保已授予摄像头权限')
     }
   }
   
