@@ -42,7 +42,8 @@ export class MultiCharacterManager {
 
     this.initLoader()
 
-    const characterId = `char_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    // 使用传入的ID或生成新ID
+    const characterId = options.id || `char_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     
     try {
       // 加载VRM模型
