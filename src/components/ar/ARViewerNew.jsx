@@ -1301,9 +1301,17 @@ class ARSceneManager {
           this.currentAnimation.stop()
         }
         
-        // 使用VRM的scene作为动画根对象
-        // 这是最可靠的方式，适用于大多数VRM模型
-        this.currentAnimation = this.mixer.clipAction(clip, this.currentCharacter.scene)
+        // 查找模型内部的G1节点（动画骨骼根节点）
+        let animationRoot = this.currentCharacter.scene
+        this.currentCharacter.scene.traverse((child) => {
+          if (child.name === 'G1' || child.name === 'Root' || child.name === 'root') {
+            animationRoot = child
+            console.log('🦴 找到动画根节点:', child.name)
+          }
+        })
+        
+        // 使用找到的动画根节点创建动画
+        this.currentAnimation = this.mixer.clipAction(clip, animationRoot)
         
         // 重置动画
         this.currentAnimation.reset()
@@ -1315,7 +1323,7 @@ class ARSceneManager {
         this.currentAnimation.play()
         
         console.log('✅ Playing action:', action.name)
-        console.log('Animation action:', this.currentAnimation)
+        console.log('Animation root:', animationRoot.name)
         console.log('Mixer:', this.mixer)
       } else {
         console.error('❌ No clip to play')
