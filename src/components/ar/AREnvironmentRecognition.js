@@ -86,10 +86,18 @@ export class AREnvironmentRecognition {
   // 分析地面材质
   async analyzeGroundMaterial(session) {
     try {
-      // 获取摄像头图像
-      const imageData = await this.captureCameraImage(session)
+      // 方法1: 尝试从WebXR获取摄像头图像
+      let imageData = await this.captureCameraImageFromXR(session)
+      
+      // 方法2: 如果失败，尝试从页面视频元素获取
       if (!imageData) {
-        this.groundType = 'unknown'
+        imageData = await this.captureCameraImageFromVideo()
+      }
+      
+      if (!imageData) {
+        // 如果都无法获取图像，使用基于平面的启发式检测
+        this.groundType = this.detectGroundFromPlanes()
+        console.log('🌍 使用平面检测地面材质:', this.groundType)
         return
       }
 
@@ -102,51 +110,91 @@ export class AREnvironmentRecognition {
       console.log('🌍 地面材质识别:', this.groundType, features)
     } catch (error) {
       console.warn('地面材质分析失败:', error)
-      this.groundType = 'unknown'
+      // 失败时使用平面检测
+      this.groundType = this.detectGroundFromPlanes()
     }
   }
 
-  // 捕获摄像头图像
-  async captureCameraImage(session) {
+  // 从WebXR获取摄像头图像
+  async captureCameraImageFromXR(session) {
     try {
-      // 尝试从WebXR会话获取摄像头图像
-      // 注意：这需要浏览器支持，目前Chrome Android支持
+      // WebXR的摄像头访问API（如果支持）
       if (session.camera && session.camera.getCameraImage) {
         const image = await session.camera.getCameraImage()
         return image
       }
+      return null
+    } catch (error) {
+      return null
+    }
+  }
 
-      // 备选方案：使用canvas捕获视频流
-      const video = document.createElement('video')
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      })
-      video.srcObject = stream
-      await new Promise(resolve => {
-        video.onloadedmetadata = () => {
-          video.play()
-          resolve()
+  // 从页面视频元素获取图像
+  async captureCameraImageFromVideo() {
+    try {
+      // 查找页面中的video元素（AR视图通常会有）
+      const videos = document.querySelectorAll('video')
+      let targetVideo = null
+      
+      for (const video of videos) {
+        // 查找正在播放的视频元素
+        if (video.readyState >= 2 && video.videoWidth > 0) {
+          targetVideo = video
+          break
         }
-      })
-
-      // 等待一帧
-      await new Promise(resolve => setTimeout(resolve, 100))
+      }
+      
+      if (!targetVideo) {
+        return null
+      }
 
       // 绘制到canvas
       const canvas = document.createElement('canvas')
-      canvas.width = 320
-      canvas.height = 240
+      canvas.width = Math.min(320, targetVideo.videoWidth)
+      canvas.height = Math.min(240, targetVideo.videoHeight)
       const ctx = canvas.getContext('2d')
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-
-      // 停止流
-      stream.getTracks().forEach(track => track.stop())
+      ctx.drawImage(targetVideo, 0, 0, canvas.width, canvas.height)
 
       return ctx.getImageData(0, 0, canvas.width, canvas.height)
     } catch (error) {
-      console.warn('摄像头捕获失败:', error)
+      console.warn('从视频获取图像失败:', error)
       return null
     }
+  }
+
+  // 基于平面信息的启发式地面检测
+  detectGroundFromPlanes() {
+    // 如果没有平面数据，返回unknown
+    if (!this.planes || this.planes.length === 0) {
+      return 'unknown'
+    }
+    
+    // 获取最大的地面平面
+    const groundPlanes = this.planes.filter(p => p.type === 'floor' || p.normal?.y > 0.8)
+    
+    if (groundPlanes.length === 0) {
+      return 'unknown'
+    }
+    
+    // 按面积排序
+    groundPlanes.sort((a, b) => (b.width * b.height) - (a.width * a.height))
+    const largestPlane = groundPlanes[0]
+    
+    // 基于平面大小和位置的启发式判断
+    const area = (largestPlane.width || 1) * (largestPlane.height || 1)
+    
+    // 室内小平面可能是瓷砖或木地板
+    if (area < 2) {
+      // 随机选择瓷砖或木地板（实际应用中可以使用更多线索）
+      return Math.random() > 0.5 ? 'tile' : 'wood'
+    }
+    
+    // 大平面可能是混凝土或草地
+    if (area > 10) {
+      return 'concrete'
+    }
+    
+    return 'unknown'
   }
 
   // 分析图像特征

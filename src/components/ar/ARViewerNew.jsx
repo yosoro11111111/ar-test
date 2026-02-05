@@ -7,6 +7,8 @@ import ARTimeline from './ARTimeline'
 import ARProps from './ARProps'
 import { AREnvironmentRecognition } from './AREnvironmentRecognition'
 import { ARFeatures } from './ARFeatures'
+import { AREnvironmentCard } from './AREnvironmentCard'
+import { ARRecommendedActions } from './ARRecommendedActions'
 import styles from './ARViewerNew.module.css'
 
 // 内存优化的AR场景管理器类
@@ -952,6 +954,9 @@ class ARSceneManager {
     try {
       if (!this.session || !this.referenceSpace) return
       
+      // 将平面数据传递给环境识别模块
+      this.environmentRecognition.planes = this.detectedPlanes
+      
       const envData = await this.environmentRecognition.analyzeEnvironment(
         this.session,
         frame,
@@ -1800,7 +1805,47 @@ export const ARViewerNew = ({
           {guideText}
         </div>
       )}
-      
+
+      {/* 环境识别和推荐动作卡片 */}
+      {isPlaced && (
+        <div className={styles.infoCardsContainer}>
+          <AREnvironmentCard 
+            environmentData={environmentData}
+            onRefresh={() => {
+              // 手动触发环境重新识别
+              if (arManagerRef.current) {
+                arManagerRef.current.environmentData = null
+                setEnvironmentData(null)
+              }
+            }}
+          />
+          <ARRecommendedActions 
+            actions={recommendedActions}
+            environmentData={environmentData}
+            onActionClick={(actionName) => {
+              // 查找并播放动作
+              const action = vrmaActions.find(a => a.name === actionName || a.name.includes(actionName))
+              if (action) {
+                handleAction(action)
+              } else {
+                // 如果没有精确匹配，尝试模糊匹配
+                const fuzzyAction = vrmaActions.find(a => 
+                  actionName.includes('跳舞') && a.name.includes('舞') ||
+                  actionName.includes('走路') && a.name.includes('走') ||
+                  actionName.includes('跳跃') && a.name.includes('跳') ||
+                  actionName.includes('坐下') && a.name.includes('坐') ||
+                  actionName.includes('欢呼') && a.name.includes('欢呼') ||
+                  actionName.includes('胜利') && a.name.includes('胜利')
+                )
+                if (fuzzyAction) {
+                  handleAction(fuzzyAction)
+                }
+              }
+            }}
+          />
+        </div>
+      )}
+
       {/* 顶部工具栏 */}
       <div className={styles.header}>
         <button className={styles.closeButton} onClick={onClose}>
