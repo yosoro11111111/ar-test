@@ -1,5 +1,5 @@
-// AR手势识别模块
-// 使用MediaPipe Hands进行手势识别
+// AR手势识别模块 - 简化版
+// 使用CDN加载MediaPipe Hands
 
 export class ARGestureRecognition {
   constructor() {
@@ -13,7 +13,34 @@ export class ARGestureRecognition {
     this.onGestureDetected = null
     this.gestureHistory = []
     this.lastGestureTime = 0
-    this.gestureCooldown = 1000 // 手势识别冷却时间（毫秒）
+    this.gestureCooldown = 1000
+    this.scriptLoaded = false
+  }
+
+  // 动态加载MediaPipe脚本
+  async loadMediaPipeScripts() {
+    if (this.scriptLoaded) return true
+
+    return new Promise((resolve, reject) => {
+      // 加载Hands脚本
+      const handsScript = document.createElement('script')
+      handsScript.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js'
+      handsScript.crossOrigin = 'anonymous'
+      handsScript.onload = () => {
+        // 加载CameraUtils脚本
+        const cameraScript = document.createElement('script')
+        cameraScript.src = 'https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js'
+        cameraScript.crossOrigin = 'anonymous'
+        cameraScript.onload = () => {
+          this.scriptLoaded = true
+          resolve(true)
+        }
+        cameraScript.onerror = () => reject(new Error('Failed to load camera utils'))
+        document.head.appendChild(cameraScript)
+      }
+      handsScript.onerror = () => reject(new Error('Failed to load MediaPipe Hands'))
+      document.head.appendChild(handsScript)
+    })
   }
 
   // 初始化手势识别
@@ -21,9 +48,13 @@ export class ARGestureRecognition {
     if (this.isInitialized) return true
 
     try {
-      // 动态导入MediaPipe
-      const { Hands } = await import('@mediapipe/hands')
-      const { Camera } = await import('@mediapipe/camera_utils')
+      // 加载MediaPipe脚本
+      await this.loadMediaPipeScripts()
+
+      // 等待全局对象可用
+      if (!window.Hands || !window.Camera) {
+        throw new Error('MediaPipe not loaded')
+      }
 
       // 创建视频元素
       this.videoElement = document.createElement('video')
@@ -32,6 +63,8 @@ export class ARGestureRecognition {
 
       // 创建canvas用于绘制
       this.canvasElement = document.createElement('canvas')
+      this.canvasElement.width = 160
+      this.canvasElement.height = 120
       this.canvasElement.style.cssText = `
         position: fixed;
         top: 10px;
@@ -42,12 +75,13 @@ export class ARGestureRecognition {
         z-index: 10000;
         opacity: 0.7;
         pointer-events: none;
+        background: rgba(0,0,0,0.5);
       `
       document.body.appendChild(this.canvasElement)
       this.canvasCtx = this.canvasElement.getContext('2d')
 
       // 初始化Hands
-      this.hands = new Hands({
+      this.hands = new window.Hands({
         locateFile: (file) => {
           return `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
         }
@@ -63,7 +97,7 @@ export class ARGestureRecognition {
       this.hands.onResults(this.onResults.bind(this))
 
       // 初始化相机
-      this.camera = new Camera(this.videoElement, {
+      this.camera = new window.Camera(this.videoElement, {
         onFrame: async () => {
           if (this.isRunning) {
             await this.hands.send({ image: this.videoElement })
@@ -84,10 +118,13 @@ export class ARGestureRecognition {
 
   // 处理识别结果
   onResults(results) {
-    // 绘制手部关键点
     this.canvasCtx.save()
     this.canvasCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height)
-    this.canvasCtx.drawImage(results.image, 0, 0, this.canvasElement.width, this.canvasElement.height)
+    
+    // 绘制视频帧
+    if (results.image) {
+      this.canvasCtx.drawImage(results.image, 0, 0, this.canvasElement.width, this.canvasElement.height)
+    }
 
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
       const landmarks = results.multiHandLandmarks[0]
@@ -113,12 +150,12 @@ export class ARGestureRecognition {
 
     // 绘制连接线
     const connections = [
-      [0, 1], [1, 2], [2, 3], [3, 4], // 拇指
-      [0, 5], [5, 6], [6, 7], [7, 8], // 食指
-      [0, 9], [9, 10], [10, 11], [11, 12], // 中指
-      [0, 13], [13, 14], [14, 15], [15, 16], // 无名指
-      [0, 17], [17, 18], [18, 19], [19, 20], // 小指
-      [5, 9], [9, 13], [13, 17] // 手掌
+      [0, 1], [1, 2], [2, 3], [3, 4],
+      [0, 5], [5, 6], [6, 7], [7, 8],
+      [0, 9], [9, 10], [10, 11], [11, 12],
+      [0, 13], [13, 14], [14, 15], [15, 16],
+      [0, 17], [17, 18], [18, 19], [19, 20],
+      [5, 9], [9, 13], [13, 17]
     ]
 
     ctx.strokeStyle = '#00d4ff'
@@ -144,10 +181,8 @@ export class ARGestureRecognition {
 
   // 识别手势
   recognizeGesture(landmarks) {
-    // 计算手指状态
     const fingers = this.getFingerStates(landmarks)
     
-    // 识别具体手势
     if (this.isThumbsUp(fingers, landmarks)) return 'thumbs_up'
     if (this.isThumbsDown(fingers, landmarks)) return 'thumbs_down'
     if (this.isOpenPalm(fingers)) return 'open_palm'
@@ -162,69 +197,50 @@ export class ARGestureRecognition {
   // 获取手指状态
   getFingerStates(landmarks) {
     const fingers = []
-    const fingerTips = [8, 12, 16, 20] // 食指、中指、无名指、小指指尖
-    const fingerBases = [5, 9, 13, 17] // 对应指根
+    const fingerTips = [8, 12, 16, 20]
+    const fingerBases = [5, 9, 13, 17]
     
-    // 检查四指（非拇指）
     for (let i = 0; i < 4; i++) {
       const tip = landmarks[fingerTips[i]]
       const base = landmarks[fingerBases[i]]
-      // 如果指尖y坐标小于指根y坐标（在屏幕上方），则手指伸直
       fingers.push(tip.y < base.y)
     }
     
-    // 检查拇指（特殊处理）
     const thumbTip = landmarks[4]
     const thumbBase = landmarks[2]
-    fingers.push(thumbTip.x < thumbBase.x) // 拇指伸直
+    fingers.push(thumbTip.x < thumbBase.x)
     
     return fingers
   }
 
-  // 拇指向上
   isThumbsUp(fingers, landmarks) {
     const thumbTip = landmarks[4]
-    const thumbBase = landmarks[2]
     const wrist = landmarks[0]
-    
-    return fingers[4] && // 拇指伸直
-           !fingers[0] && !fingers[1] && !fingers[2] && !fingers[3] && // 其他手指弯曲
-           thumbTip.y < wrist.y // 拇指在手腕上方
+    return fingers[4] && !fingers[0] && !fingers[1] && !fingers[2] && !fingers[3] && thumbTip.y < wrist.y
   }
 
-  // 拇指向下
   isThumbsDown(fingers, landmarks) {
     const thumbTip = landmarks[4]
     const wrist = landmarks[0]
-    
-    return fingers[4] && // 拇指伸直
-           !fingers[0] && !fingers[1] && !fingers[2] && !fingers[3] && // 其他手指弯曲
-           thumbTip.y > wrist.y // 拇指在手腕下方
+    return fingers[4] && !fingers[0] && !fingers[1] && !fingers[2] && !fingers[3] && thumbTip.y > wrist.y
   }
 
-  // 张开手掌
   isOpenPalm(fingers) {
-    return fingers.every(f => f) // 所有手指都伸直
+    return fingers.every(f => f)
   }
 
-  // 握拳
   isFist(fingers) {
-    return fingers.every(f => !f) // 所有手指都弯曲
+    return fingers.every(f => !f)
   }
 
-  // 剪刀手
   isPeaceSign(fingers) {
-    return fingers[0] && fingers[1] && // 食指和中指伸直
-           !fingers[2] && !fingers[3] && !fingers[4] // 其他手指弯曲
+    return fingers[0] && fingers[1] && !fingers[2] && !fingers[3] && !fingers[4]
   }
 
-  // 指向
   isPointing(fingers) {
-    return fingers[0] && // 食指伸直
-           !fingers[1] && !fingers[2] && !fingers[3] && !fingers[4] // 其他手指弯曲
+    return fingers[0] && !fingers[1] && !fingers[2] && !fingers[3] && !fingers[4]
   }
 
-  // OK手势
   isOkSign(fingers, landmarks) {
     const thumbTip = landmarks[4]
     const indexTip = landmarks[8]
@@ -232,23 +248,17 @@ export class ARGestureRecognition {
       Math.pow(thumbTip.x - indexTip.x, 2) + 
       Math.pow(thumbTip.y - indexTip.y, 2)
     )
-    
-    return distance < 0.05 && // 拇指和食指接触
-           fingers[1] && fingers[2] && fingers[3] // 其他手指伸直
+    return distance < 0.05 && fingers[1] && fingers[2] && fingers[3]
   }
 
   // 处理识别到的手势
   handleGesture(gesture) {
     const now = Date.now()
-    
-    // 检查冷却时间
     if (now - this.lastGestureTime < this.gestureCooldown) return
     
-    // 添加到历史记录
     this.gestureHistory.push({ gesture, time: now })
     if (this.gestureHistory.length > 10) this.gestureHistory.shift()
     
-    // 检查手势是否稳定（连续识别到相同手势）
     const recentGestures = this.gestureHistory.slice(-3)
     const isStable = recentGestures.every(g => g.gesture === gesture)
     

@@ -875,6 +875,90 @@ class ARSceneManager {
     } catch (e) {}
   }
 
+  // 截图功能 - 简化版，直接使用canvas
+  takeScreenshot() {
+    try {
+      if (!this.renderer || !this.renderer.domElement) {
+        console.warn('无法截图: 渲染器未就绪')
+        return null
+      }
+      
+      // 直接从canvas获取数据URL
+      const dataURL = this.renderer.domElement.toDataURL('image/png')
+      
+      // 创建下载链接
+      const link = document.createElement('a')
+      link.download = `AR截图_${new Date().getTime()}.png`
+      link.href = dataURL
+      link.click()
+      
+      console.log('✅ 截图已保存')
+      return dataURL
+    } catch (error) {
+      console.error('截图失败:', error)
+      return null
+    }
+  }
+
+  // 录制功能
+  startRecording() {
+    try {
+      if (!this.renderer || !this.renderer.domElement) {
+        console.warn('无法录制: 渲染器未就绪')
+        return false
+      }
+      
+      const canvas = this.renderer.domElement
+      const stream = canvas.captureStream(30) // 30fps
+      
+      this.mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'video/webm;codecs=vp9'
+      })
+      
+      this.recordedChunks = []
+      
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          this.recordedChunks.push(event.data)
+        }
+      }
+      
+      this.mediaRecorder.onstop = () => {
+        const blob = new Blob(this.recordedChunks, { type: 'video/webm' })
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.download = `AR录制_${new Date().getTime()}.webm`
+        link.href = url
+        link.click()
+        console.log('✅ 录制已保存')
+      }
+      
+      this.mediaRecorder.start()
+      console.log('✅ 开始录制')
+      return true
+    } catch (error) {
+      console.error('录制失败:', error)
+      return false
+    }
+  }
+  
+  stopRecording() {
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      this.mediaRecorder.stop()
+      console.log('⏹️ 停止录制')
+    }
+  }
+  
+  // 重置视角
+  resetCamera() {
+    if (this.session && this.camera) {
+      // 重置相机位置到初始状态
+      this.camera.position.set(0, 0, 0)
+      this.camera.rotation.set(0, 0, 0)
+      console.log('🔄 视角已重置')
+    }
+  }
+
   // 截图功能 - 使用Three.js渲染器直接截图
   captureScreenshot() {
     if (!this.renderer || !this.scene || !this.camera) {
@@ -1125,8 +1209,9 @@ class ARSceneManager {
           this.currentAnimation.stop()
         }
         
-        // 创建动画动作 - 使用VRM的scene作为root
-        this.currentAnimation = this.mixer.clipAction(clip, this.currentCharacter.scene)
+        // 创建动画动作 - 使用VRM的humanoid作为root
+        const humanoidRoot = this.currentCharacter.humanoid?.normalizedHumanBonesRoot || this.currentCharacter.scene
+        this.currentAnimation = this.mixer.clipAction(clip, humanoidRoot)
         this.currentAnimation.reset()
         this.currentAnimation.fadeIn(0.3)
         this.currentAnimation.play()
@@ -1956,7 +2041,7 @@ export const ARViewerNew = ({
           onClick={async () => {
             const newState = !isGestureEnabled
             setIsGestureEnabled(newState)
-            
+
             if (newState) {
               // 启用手势识别
               if (!arManagerRef.current?.gestureRecognition) {
@@ -1978,6 +2063,21 @@ export const ARViewerNew = ({
           title="手势识别"
         >
           ✋
+        </button>
+        <button
+          className={`${styles.toolButton} ${isFollowing ? styles.active : ''}`}
+          onClick={() => {
+            const newFollowing = !isFollowing
+            setIsFollowing(newFollowing)
+            if (arManagerRef.current) {
+              arManagerRef.current.isFollowing = newFollowing
+            }
+            setGuideText(newFollowing ? '🔒 跟随模式已开启' : '🔓 跟随模式已关闭')
+            setTimeout(() => setGuideText(''), 1500)
+          }}
+          title="跟随模式"
+        >
+          {isFollowing ? '🔒' : '🔓'}
         </button>
       </div>
 
