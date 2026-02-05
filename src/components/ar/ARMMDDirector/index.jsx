@@ -52,13 +52,20 @@ export function ARMMDDirector() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [timelineScale, setTimelineScale] = useState(1)
   
-  // 初始化Three.js
+  // 初始化Three.js - 只在previewOpen变为true时初始化
   useEffect(() => {
-    if (previewOpen) {
-      initThreeJS()
+    if (previewOpen && !rendererRef.current) {
+      // 使用setTimeout确保DOM已经渲染
+      setTimeout(() => {
+        initThreeJS()
+      }, 100)
     }
-    return () => cleanup()
   }, [previewOpen])
+  
+  // 组件卸载时清理
+  useEffect(() => {
+    return () => cleanup()
+  }, [])
   
   // 播放循环
   useEffect(() => {
@@ -431,6 +438,12 @@ export function ARMMDDirector() {
                     onClick={() => {
                       setPreviewOpen(false)
                       setIsPlaying(false)
+                      // 清理Three.js
+                      cleanup()
+                      rendererRef.current = null
+                      sceneRef.current = null
+                      cameraRef.current = null
+                      characterManagerRef.current = null
                     }}
                     title="关闭预览"
                   >
