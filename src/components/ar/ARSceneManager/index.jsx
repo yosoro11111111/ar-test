@@ -55,6 +55,37 @@ export function ARSceneManager() {
     setNewName('')
   }
 
+  // 重命名平面
+  const handleRenamePlane = (planeId, name) => {
+    if (!name.trim()) {
+      setEditingScene(null)
+      return
+    }
+    
+    const updatedScenes = scenes.map(s => {
+      if (s.id === selectedScene.id) {
+        return {
+          ...s,
+          environment: {
+            ...s.environment,
+            planes: s.environment.planes.map(p => 
+              p.id === planeId ? { ...p, name } : p
+            )
+          }
+        }
+      }
+      return s
+    })
+    
+    localStorage.setItem('ar-director-scenes', JSON.stringify(updatedScenes))
+    setScenes(updatedScenes)
+    
+    const updatedSelected = updatedScenes.find(s => s.id === selectedScene.id)
+    setSelectedScene(updatedSelected)
+    setEditingScene(null)
+    setNewName('')
+  }
+
   // 删除场景
   const handleDelete = (sceneId) => {
     if (!confirm('确定要删除这个场景吗？')) return
@@ -213,17 +244,51 @@ export function ARSceneManager() {
                 
                 {/* 平面列表 */}
                 <div className={styles.planesList}>
-                  <h4>检测到的平面:</h4>
-                  {selectedScene.environment?.planes?.map(plane => (
+                  <h4>检测到的平面 ({selectedScene.environment?.planes?.length || 0}):</h4>
+                  {selectedScene.environment?.planes?.map((plane, index) => (
                     <div key={plane.id} className={styles.planeItem}>
-                      <div 
-                        className={styles.planeColor}
-                        style={{ backgroundColor: plane.color }}
-                      />
-                      <span className={styles.planeName}>{plane.name}</span>
-                      <span className={styles.planeSize}>
-                        {plane.size.width.toFixed(1)}m × {plane.size.height.toFixed(1)}m
-                      </span>
+                      <div className={styles.planeThumbnail}>
+                        {selectedScene.planeThumbnails?.[index] ? (
+                          <img 
+                            src={selectedScene.planeThumbnails[index]} 
+                            alt={plane.name}
+                            className={styles.planeThumbImg}
+                          />
+                        ) : (
+                          <div 
+                            className={styles.planeColorThumb}
+                            style={{ backgroundColor: plane.color }}
+                          />
+                        )}
+                      </div>
+                      <div className={styles.planeInfo}>
+                        {editingScene === `plane_${plane.id}` ? (
+                          <input
+                            type="text"
+                            defaultValue={plane.name}
+                            onChange={(e) => setNewName(e.target.value)}
+                            onBlur={() => handleRenamePlane(plane.id, newName)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleRenamePlane(plane.id, e.target.value)}
+                            autoFocus
+                            className={styles.planeNameInput}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <span 
+                            className={styles.planeName}
+                            onClick={() => {
+                              setEditingScene(`plane_${plane.id}`)
+                              setNewName(plane.name)
+                            }}
+                            title="点击重命名"
+                          >
+                            {plane.name} ✏️
+                          </span>
+                        )}
+                        <span className={styles.planeSize}>
+                          {plane.size.width.toFixed(1)}m × {plane.size.height.toFixed(1)}m
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>

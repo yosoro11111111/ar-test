@@ -76,31 +76,33 @@ export function ARDirectorHome() {
           </div>
         </div>
 
-        {/* 大大的AR录制按钮 */}
-        <div className={styles.recordSection}>
+        {/* 功能按钮区域 */}
+        <div className={styles.featuresSection}>
           <button 
-            className={styles.recordButton}
+            className={styles.featureBtn}
             onClick={startSceneCapture}
-            title="开始采集AR场景"
           >
-            <div className={styles.recordButtonInner}>
-              <span className={styles.recordIcon}>📹</span>
-              <span className={styles.recordText}>AR录制</span>
-              <span className={styles.recordSubtext}>点击开始创作</span>
-            </div>
-            <div className={styles.recordPulse}></div>
+            <span className={styles.featureIcon}>📹</span>
+            <span className={styles.featureName}>录制场景</span>
+            <span className={styles.featureDesc}>AR检测平面并录制</span>
           </button>
-        </div>
-
-        {/* 快捷操作 */}
-        <div className={styles.quickActions}>
-          <button className={styles.actionBtn} onClick={openSceneLibrary}>
-            <span className={styles.actionIcon}>🎭</span>
-            <span className={styles.actionText}>场景库</span>
+          
+          <button 
+            className={styles.featureBtn}
+            onClick={() => navigate('/ar-director/manager')}
+          >
+            <span className={styles.featureIcon}>📂</span>
+            <span className={styles.featureName}>场景库</span>
+            <span className={styles.featureDesc}>管理所有场景</span>
           </button>
-          <button className={styles.actionBtn} onClick={openTutorial}>
-            <span className={styles.actionIcon}>📚</span>
-            <span className={styles.actionText}>教程</span>
+          
+          <button 
+            className={styles.featureBtn}
+            onClick={() => navigate('/ar-director/import-image')}
+          >
+            <span className={styles.featureIcon}>🖼️</span>
+            <span className={styles.featureName}>图片导入</span>
+            <span className={styles.featureDesc}>直接导入图片作为背景</span>
           </button>
         </div>
 

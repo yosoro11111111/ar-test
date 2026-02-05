@@ -330,20 +330,66 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
+  padding: 10px;
   background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  margin-bottom: 8px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  transition: all 0.3s ease;
 }
 
-.planeColor {
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
+.planeItem:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.planeThumbnail {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.planeThumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.planeColorThumb {
+  width: 100%;
+  height: 100%;
+}
+
+.planeInfo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .planeName {
-  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s ease;
+}
+
+.planeName:hover {
+  color: #667eea;
+}
+
+.planeNameInput {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid #667eea;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: white;
   font-size: 14px;
 }
 

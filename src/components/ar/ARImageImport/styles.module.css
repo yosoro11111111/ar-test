@@ -1,0 +1,314 @@
+/* ARImageImport - 图片导入界面样式 */
+
+.container {
+  width: 100vw;
+  height: 100vh;
+  background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 顶部栏 */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 24px;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.backBtn {
+  padding: 8px 16px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.backBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.headerSpacer {
+  width: 60px;
+}
+
+/* 主内容区 */
+.main {
+  flex: 1;
+  display: flex;
+  padding: 24px;
+  gap: 24px;
+  overflow: hidden;
+}
+
+/* 左侧上传区 */
+.uploadSection {
+  flex: 1.2;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.dropZone {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px dashed rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  min-height: 300px;
+}
+
+.dropZone:hover {
+  border-color: rgba(102, 126, 234, 0.5);
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.dropZone.dragging {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.2);
+}
+
+.dropZone.hasImage {
+  border: none;
+  background: transparent;
+  cursor: default;
+}
+
+.fileInput {
+  display: none;
+}
+
+.dropContent {
+  text-align: center;
+  padding: 40px;
+}
+
+.dropIcon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.dropText {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.dropSubtext {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.previewImage {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+.changeImageBtn {
+  padding: 12px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.changeImageBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* 右侧设置区 */
+.settingsSection {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 400px;
+}
+
+.settingsCard {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.inputGroup {
+  margin-bottom: 24px;
+}
+
+.inputLabel {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.textInput {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: white;
+  font-size: 16px;
+  transition: all 0.3s ease;
+}
+
+.textInput:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.textInput::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* 图片信息 */
+.imageInfo {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+}
+
+.infoTitle {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.infoGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.infoItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.infoLabel {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.infoValue {
+  font-size: 13px;
+  font-weight: 600;
+  color: #667eea;
+}
+
+/* 提示框 */
+.hintBox {
+  padding: 16px;
+  background: rgba(102, 126, 234, 0.15);
+  border-radius: 12px;
+  border: 1px solid rgba(102, 126, 234, 0.3);
+}
+
+.hintBox h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #667eea;
+}
+
+.hintBox p {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.5;
+}
+
+/* 操作按钮 */
+.actionButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: auto;
+}
+
+.saveBtn {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.saveBtn:hover:not(:disabled) {
+  transform: scale(1.02);
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+}
+
+.saveBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancelBtn {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.cancelBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* 响应式 */
+@media (max-width: 1024px) {
+  .main {
+    flex-direction: column;
+  }
+  
+  .settingsSection {
+    max-width: none;
+  }
+  
+  .dropZone {
+    min-height: 200px;
+  }
+}
