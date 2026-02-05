@@ -3,6 +3,10 @@ import styles from './Timeline.module.css'
 
 /**
  * 时间轴组件 - 支持拖拽调整位置、缩放调整时间
+ * 
+ * 操作流程：
+ * 1. 主+按钮 -> 添加角色
+ * 2. 角色轨道后的+按钮 -> 添加场景/动作/特效到该角色
  */
 export function Timeline({ 
   tracks, 
@@ -11,7 +15,8 @@ export function Timeline({
   scale, 
   onTimeChange,
   onTrackSelect,
-  onAddClick,
+  onAddCharacter,
+  onAddContent,
   onClipUpdate,
   isPlaying,
   onPlayPause
@@ -32,9 +37,9 @@ export function Timeline({
   const handleTimelineClick = (e) => {
     if (!timelineRef.current || dragState || resizeState) return
     const rect = timelineRef.current.getBoundingClientRect()
-    const x = e.clientX - rect.left - 150 // 减去轨道头部宽度
+    const x = e.clientX - rect.left - 200
     if (x < 0) return
-    const time = (x / (rect.width - 150)) * duration
+    const time = (x / (rect.width - 200)) * duration
     onTimeChange(Math.max(0, Math.min(time, duration)))
   }
   
@@ -67,10 +72,9 @@ export function Timeline({
     if (!timelineRef.current) return
     
     const rect = timelineRef.current.getBoundingClientRect()
-    const timelineWidth = rect.width - 150
+    const timelineWidth = rect.width - 200
     const pixelsPerSecond = timelineWidth / duration
     
-    // 处理拖拽
     if (dragState) {
       const deltaX = e.clientX - dragState.startX
       const deltaTime = deltaX / pixelsPerSecond
@@ -79,7 +83,6 @@ export function Timeline({
       onClipUpdate(dragState.trackId, dragState.clipId, { startTime: newStartTime })
     }
     
-    // 处理缩放
     if (resizeState) {
       const deltaX = e.clientX - resizeState.startX
       const deltaTime = deltaX / pixelsPerSecond
@@ -108,8 +111,6 @@ export function Timeline({
   // 获取轨道颜色
   const getTrackColor = (track) => {
     if (track.type === 'character') return track.characterColor || '#667eea'
-    if (track.type === 'scene') return '#4ade80'
-    if (track.type === 'effect') return '#f472b6'
     return '#888'
   }
   
@@ -118,7 +119,7 @@ export function Timeline({
       {/* 时间轴头部 */}
       <div className={styles.timelineHeader}>
         <div className={styles.headerLeft}>
-          <button className={styles.addBtn} onClick={onAddClick} title="添加元素">
+          <button className={styles.addBtn} onClick={onAddCharacter} title="添加角色">
             ➕
           </button>
           <button 
@@ -164,7 +165,7 @@ export function Timeline({
       >
         {tracks.length === 0 ? (
           <div className={styles.emptyTracks}>
-            <p>点击 ➕ 添加角色、场景、动作或特效</p>
+            <p>点击 ➕ 添加角色</p>
           </div>
         ) : (
           tracks.map(track => (
@@ -178,6 +179,19 @@ export function Timeline({
                 <span className={styles.trackName}>
                   {track.characterName || track.name || '未命名'}
                 </span>
+                {/* 角色轨道后的+按钮 */}
+                {track.type === 'character' && (
+                  <button 
+                    className={styles.trackAddBtn}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onAddContent(track.id)
+                    }}
+                    title="添加场景/动作/特效"
+                  >
+                    +
+                  </button>
+                )}
               </div>
               
               {/* 轨道内容 */}
@@ -195,7 +209,6 @@ export function Timeline({
                     <span className={styles.clipName}>
                       {clip.actionName || clip.sceneName || clip.effectName || clip.name}
                     </span>
-                    {/* 缩放手柄 */}
                     <div 
                       className={styles.resizeHandle}
                       onMouseDown={(e) => handleClipResizeStart(e, track.id, clip.id, clip.startTime, clip.duration)}

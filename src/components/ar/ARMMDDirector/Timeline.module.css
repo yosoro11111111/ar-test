@@ -152,7 +152,7 @@
 }
 
 .trackHeader {
-  width: 150px;
+  width: 200px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -175,6 +175,26 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.trackAddBtn {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: #888;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.trackAddBtn:hover {
+  background: #667eea;
+  color: #fff;
 }
 
 .trackLane {

@@ -8,7 +8,6 @@ import { ActionSelectModal } from './ActionSelectModal'
 import { SceneMapModal } from './SceneMapModal'
 import { EffectSelectModal } from './EffectSelectModal'
 import { SettingsModal } from './SettingsModal'
-import { AddItemModal } from './AddItemModal'
 import { Timeline } from './Timeline'
 import { actions as vrmaActions } from '../../../data/actions250.js'
 import { loadVRMAAction } from '../../../data/vrmaActions.js'
@@ -16,11 +15,10 @@ import { loadVRMAAction } from '../../../data/vrmaActions.js'
 /**
  * AR MMD Director - 简化版MMD风格AR导演系统
  * 
- * 核心功能：
- * 1. 极简界面，只保留时间轴
- * 2. 时间轴+号弹出添加选项
- * 3. 支持拖拽调整位置、缩放调整时间
- * 4. 使用VRMA动作库
+ * 操作流程：
+ * 1. 点击时间轴+号 -> 选择角色
+ * 2. 角色轨道显示在列表中
+ * 3. 点击角色轨道后的+号 -> 选择场景/动作/特效
  */
 export function ARMMDDirector() {
   const navigate = useNavigate()
@@ -37,13 +35,13 @@ export function ARMMDDirector() {
   const [previewOpen, setPreviewOpen] = useState(false)
   
   // 弹窗状态
-  const [showAddModal, setShowAddModal] = useState(false)
   const [showCharacterModal, setShowCharacterModal] = useState(false)
   const [showActionModal, setShowActionModal] = useState(false)
   const [showSceneModal, setShowSceneModal] = useState(false)
   const [showEffectModal, setShowEffectModal] = useState(false)
   const [showSettingsModal, setShowSettingsModal] = useState(false)
-  const [actionTarget, setActionTarget] = useState(null)
+  const [showAddContentModal, setShowAddContentModal] = useState(false)
+  const [selectedTrackForContent, setSelectedTrackForContent] = useState(null)
   
   // 项目数据
   const [project, setProject] = useState({
@@ -198,62 +196,40 @@ export function ARMMDDirector() {
     }
   }
   
-  // 添加场景到时间轴
-  const addScenesToTimeline = (selectedScenes) => {
-    const newScenes = selectedScenes.map((scene, index) => ({
-      ...scene,
-      timelinePosition: currentTime + index * 10
-    }))
+  // 添加场景到角色
+  const addSceneToCharacter = (selectedScenes) => {
+    if (!selectedTrackForContent) return
     
-    setProject(prev => ({
-      ...prev,
-      scenes: [...prev.scenes, ...newScenes]
-    }))
-    
-    const sceneClips = newScenes.map(scene => ({
-      id: `clip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    const sceneClips = selectedScenes.map((scene, index) => ({
+      id: `clip_scene_${Date.now()}_${index}`,
       type: 'scene',
       sceneId: scene.id,
       sceneName: scene.name,
-      startTime: scene.timelinePosition,
+      startTime: currentTime + index * 10,
       duration: 10,
       position: scene.position || { x: 0, y: 0, z: 0 }
     }))
     
-    setProject(prev => {
-      const existingSceneTrack = prev.tracks.find(t => t.type === 'scene')
-      if (existingSceneTrack) {
-        return {
-          ...prev,
-          tracks: prev.tracks.map(t => 
-            t.type === 'scene' 
-              ? { ...t, clips: [...t.clips, ...sceneClips] }
-              : t
-          )
-        }
-      } else {
-        return {
-          ...prev,
-          tracks: [
-            ...prev.tracks,
-            {
-              id: 'track_scene',
-              type: 'scene',
-              name: '场景',
-              clips: sceneClips
-            }
-          ]
-        }
-      }
-    })
+    setProject(prev => ({
+      ...prev,
+      scenes: [...prev.scenes, ...selectedScenes],
+      tracks: prev.tracks.map(track => 
+        track.id === selectedTrackForContent
+          ? { ...track, clips: [...track.clips, ...sceneClips] }
+          : track
+      )
+    }))
+    
+    setShowSceneModal(false)
+    setSelectedTrackForContent(null)
   }
   
-  // 添加动作到时间轴
-  const addActionToTimeline = (action) => {
-    if (!actionTarget) return
+  // 添加动作到角色
+  const addActionToCharacter = (action) => {
+    if (!selectedTrackForContent) return
     
     const newClip = {
-      id: `clip_${Date.now()}`,
+      id: `clip_action_${Date.now()}`,
       type: 'action',
       actionId: action.id,
       actionName: action.name,
@@ -265,14 +241,57 @@ export function ARMMDDirector() {
     setProject(prev => ({
       ...prev,
       tracks: prev.tracks.map(track => 
-        track.id === actionTarget.trackId
+        track.id === selectedTrackForContent
           ? { ...track, clips: [...track.clips, newClip] }
           : track
       )
     }))
     
     setShowActionModal(false)
-    setActionTarget(null)
+    setSelectedTrackForContent(null)
+  }
+  
+  // 添加特效到角色
+  const addEffectToCharacter = (effect) => {
+    if (!selectedTrackForContent) return
+    
+    const newClip = {
+      id: `clip_effect_${Date.now()}`,
+      type: 'effect',
+      effectId: effect.id,
+      effectName: effect.name,
+      startTime: currentTime,
+      duration: 5
+    }
+    
+    setProject(prev => ({
+      ...prev,
+      tracks: prev.tracks.map(track => 
+        track.id === selectedTrackForContent
+          ? { ...track, clips: [...track.clips, newClip] }
+          : track
+      )
+    }))
+    
+    setShowEffectModal(false)
+    setSelectedTrackForContent(null)
+  }
+  
+  // 处理时间轴片段更新（拖拽、缩放）
+  const handleClipUpdate = (trackId, clipId, updates) => {
+    setProject(prev => ({
+      ...prev,
+      tracks: prev.tracks.map(track => 
+        track.id === trackId
+          ? {
+              ...track,
+              clips: track.clips.map(clip =>
+                clip.id === clipId ? { ...clip, ...updates } : clip
+              )
+            }
+          : track
+      )
+    }))
   }
   
   // 更新时间轴位置
@@ -301,23 +320,6 @@ export function ARMMDDirector() {
         })
       }
     })
-  }
-  
-  // 处理时间轴片段更新（拖拽、缩放）
-  const handleClipUpdate = (trackId, clipId, updates) => {
-    setProject(prev => ({
-      ...prev,
-      tracks: prev.tracks.map(track => 
-        track.id === trackId
-          ? {
-              ...track,
-              clips: track.clips.map(clip =>
-                clip.id === clipId ? { ...clip, ...updates } : clip
-              )
-            }
-          : track
-      )
-    }))
   }
   
   // 播放/暂停
@@ -425,46 +427,17 @@ export function ARMMDDirector() {
         scale={timelineScale}
         onTimeChange={setCurrentTime}
         onTrackSelect={setSelectedTrackId}
-        onAddClick={() => setShowAddModal(true)}
+        onAddCharacter={() => setShowCharacterModal(true)}
+        onAddContent={(trackId) => {
+          setSelectedTrackForContent(trackId)
+          setShowAddContentModal(true)
+        }}
         onClipUpdate={handleClipUpdate}
         isPlaying={isPlaying}
         onPlayPause={togglePlay}
       />
       
-      {/* 添加选项弹窗 */}
-      {showAddModal && (
-        <AddItemModal
-          onSelect={(type) => {
-            setShowAddModal(false)
-            switch(type) {
-              case 'character':
-                setShowCharacterModal(true)
-                break
-              case 'scene':
-                setShowSceneModal(true)
-                break
-              case 'action':
-                if (project.tracks.filter(t => t.type === 'character').length > 0) {
-                  const charTrack = project.tracks.find(t => t.type === 'character')
-                  setActionTarget({
-                    trackId: charTrack.id,
-                    characterId: charTrack.characterId
-                  })
-                  setShowActionModal(true)
-                } else {
-                  alert('请先添加角色')
-                }
-                break
-              case 'effect':
-                setShowEffectModal(true)
-                break
-            }
-          }}
-          onClose={() => setShowAddModal(false)}
-        />
-      )}
-      
-      {/* 其他弹窗 */}
+      {/* 角色选择弹窗 */}
       {showCharacterModal && (
         <CharacterSelectModal
           onSelect={addCharacters}
@@ -472,53 +445,91 @@ export function ARMMDDirector() {
         />
       )}
       
+      {/* 添加内容选择弹窗（场景/动作/特效） */}
+      {showAddContentModal && (
+        <div className={styles.overlay} onClick={() => setShowAddContentModal(false)}>
+          <div className={styles.modal} onClick={e => e.stopPropagation()}>
+            <div className={styles.header}>
+              <h2>➕ 添加内容</h2>
+              <button className={styles.closeBtn} onClick={() => setShowAddContentModal(false)}>✕</button>
+            </div>
+            <div className={styles.options}>
+              <button
+                className={styles.option}
+                onClick={() => {
+                  setShowAddContentModal(false)
+                  setShowSceneModal(true)
+                }}
+                style={{ '--option-color': '#4ade80' }}
+              >
+                <span className={styles.optionIcon}>🗺️</span>
+                <span className={styles.optionName}>场景</span>
+                <span className={styles.optionDesc}>添加AR场景</span>
+              </button>
+              <button
+                className={styles.option}
+                onClick={() => {
+                  setShowAddContentModal(false)
+                  setShowActionModal(true)
+                }}
+                style={{ '--option-color': '#f093fb' }}
+              >
+                <span className={styles.optionIcon}>🎭</span>
+                <span className={styles.optionName}>动作</span>
+                <span className={styles.optionDesc}>添加VRMA动作</span>
+              </button>
+              <button
+                className={styles.option}
+                onClick={() => {
+                  setShowAddContentModal(false)
+                  setShowEffectModal(true)
+                }}
+                style={{ '--option-color': '#fbbf24' }}
+              >
+                <span className={styles.optionIcon}>✨</span>
+                <span className={styles.optionName}>特效</span>
+                <span className={styles.optionDesc}>添加视觉特效</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* 场景选择弹窗 */}
+      {showSceneModal && (
+        <SceneMapModal
+          onSelect={addSceneToCharacter}
+          onClose={() => {
+            setShowSceneModal(false)
+            setSelectedTrackForContent(null)
+          }}
+        />
+      )}
+      
+      {/* 动作选择弹窗 */}
       {showActionModal && (
         <ActionSelectModal
           actions={vrmaActions}
-          onSelect={addActionToTimeline}
+          onSelect={addActionToCharacter}
           onClose={() => {
             setShowActionModal(false)
-            setActionTarget(null)
+            setSelectedTrackForContent(null)
           }}
         />
       )}
       
-      {showSceneModal && (
-        <SceneMapModal
-          onSelect={addScenesToTimeline}
-          onClose={() => setShowSceneModal(false)}
-        />
-      )}
-      
+      {/* 特效选择弹窗 */}
       {showEffectModal && (
         <EffectSelectModal
-          onSelect={(effect) => {
-            const newClip = {
-              id: `clip_effect_${Date.now()}`,
-              type: 'effect',
-              effectId: effect.id,
-              effectName: effect.name,
-              startTime: currentTime,
-              duration: 5
-            }
-            setProject(prev => ({
-              ...prev,
-              tracks: [
-                ...prev.tracks,
-                {
-                  id: `track_effect_${Date.now()}`,
-                  type: 'effect',
-                  name: effect.name,
-                  clips: [newClip]
-                }
-              ]
-            }))
+          onSelect={addEffectToCharacter}
+          onClose={() => {
             setShowEffectModal(false)
+            setSelectedTrackForContent(null)
           }}
-          onClose={() => setShowEffectModal(false)}
         />
       )}
       
+      {/* 设置弹窗 */}
       {showSettingsModal && (
         <SettingsModal
           project={project}
