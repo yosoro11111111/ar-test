@@ -18,6 +18,8 @@ export function WebXRARSceneRecorder({
   const cameraRef = useRef(null)
   const captureIntervalRef = useRef(null)
   const capturedImagesRef = useRef([])
+  const shouldCaptureRef = useRef(false)
+  const lastCaptureTimeRef = useRef(0)
   
   const [isSessionActive, setIsSessionActive] = useState(false)
   const [isCapturing, setIsCapturing] = useState(false)
@@ -54,11 +56,13 @@ export function WebXRARSceneRecorder({
       }
       
       // 创建渲染器，使用已有的WebGL上下文
+      // preserveDrawingBuffer: true 确保可以捕获画面
       const renderer = new THREE.WebGLRenderer({
         canvas: canvasRef.current,
         context: gl,
         alpha: true,
-        antialias: true
+        antialias: true,
+        preserveDrawingBuffer: true
       })
       renderer.setSize(window.innerWidth, window.innerHeight)
       renderer.setPixelRatio(window.devicePixelRatio)
@@ -98,6 +102,15 @@ export function WebXRARSceneRecorder({
           rendererRef.current.render(new THREE.Scene(), cameraRef.current)
         }
         
+        // 处理拍摄 - 在渲染完成后捕获
+        if (shouldCaptureRef.current) {
+          const now = Date.now()
+          if (now - lastCaptureTimeRef.current >= CAPTURE_INTERVAL) {
+            lastCaptureTimeRef.current = now
+            captureFrame()
+          }
+        }
+        
         session.requestAnimationFrame(onXRFrame)
       }
       
@@ -122,12 +135,10 @@ export function WebXRARSceneRecorder({
     setIsCapturing(true)
     setCapturedCount(0)
     capturedImagesRef.current = []
+    shouldCaptureRef.current = true
+    lastCaptureTimeRef.current = 0
     
     setDebugInfo(`开始拍摄，每${CAPTURE_INTERVAL/1000}秒拍摄一张，共${MAX_CAPTURES}张`)
-    
-    captureIntervalRef.current = setInterval(() => {
-      captureFrame()
-    }, CAPTURE_INTERVAL)
   }
   
   // 拍摄单帧
@@ -174,10 +185,7 @@ export function WebXRARSceneRecorder({
   
   // 停止拍摄
   const stopCapture = () => {
-    if (captureIntervalRef.current) {
-      clearInterval(captureIntervalRef.current)
-      captureIntervalRef.current = null
-    }
+    shouldCaptureRef.current = false
     
     setIsCapturing(false)
     setDebugInfo(`拍摄完成！共${capturedImagesRef.current.length}张图片`)
