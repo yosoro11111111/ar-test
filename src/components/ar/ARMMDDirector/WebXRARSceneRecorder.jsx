@@ -115,9 +115,27 @@ export function WebXRARSceneRecorder({
       const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
       cameraRef.current = camera
       
-      // 创建渲染器 - 使用alpha通道让AR背景透过来
+      // 获取WebGL上下文 - 必须标记为XR兼容
+      const gl = canvasRef.current.getContext('webgl2', { 
+        xrCompatible: true,
+        alpha: true,
+        antialias: true,
+        preserveDrawingBuffer: true
+      }) || canvasRef.current.getContext('webgl', { 
+        xrCompatible: true,
+        alpha: true,
+        antialias: true,
+        preserveDrawingBuffer: true
+      })
+      
+      if (!gl) {
+        throw new Error('无法创建WebGL上下文')
+      }
+      
+      // 创建渲染器 - 使用已有的WebGL上下文
       const renderer = new THREE.WebGLRenderer({
         canvas: canvasRef.current,
+        context: gl,
         alpha: true,
         antialias: true,
         preserveDrawingBuffer: true
@@ -129,7 +147,7 @@ export function WebXRARSceneRecorder({
       
       // 设置渲染状态 - 关键：让AR背景显示
       session.updateRenderState({
-        baseLayer: new XRWebGLLayer(session, renderer.getContext())
+        baseLayer: new XRWebGLLayer(session, gl)
       })
       
       // 设置参考空间
