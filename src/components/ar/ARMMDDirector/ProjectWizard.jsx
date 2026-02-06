@@ -26,7 +26,7 @@ const AR_BACKGROUNDS = [
   { id: 'ar_4', name: '会议室', thumbnail: '📊', type: 'ar', date: '2024-01-12' }
 ]
 
-export function ProjectWizard({ isOpen, onComplete, onCancel, onImport }) {
+export function ProjectWizard({ isOpen, onComplete, onCancel, onImport, onOpenARRecorder, onOpenSceneManager }) {
   const [step, setStep] = useState(1)
   const [projectName, setProjectName] = useState('')
   const [duration, setDuration] = useState(60)
@@ -324,13 +324,13 @@ export function ProjectWizard({ isOpen, onComplete, onCancel, onImport }) {
                     </label>
                     <button 
                       className={styles.arActionBtn}
-                      onClick={() => setShowARRecorder(true)}
+                      onClick={() => onOpenARRecorder && onOpenARRecorder()}
                     >
                       📹 拍摄AR场景
                     </button>
                     <button 
                       className={styles.arActionBtn}
-                      onClick={() => console.log('选择AR场景')}
+                      onClick={() => onOpenSceneManager && onOpenSceneManager()}
                     >
                       🗺️ 选择AR场景
                     </button>

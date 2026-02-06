@@ -20,6 +20,7 @@ import { ProjectWizard } from './ProjectWizard'
 import { QuickActions } from './QuickActions'
 import { exportProject, importProject, downloadFile } from './ProjectIO'
 import { ARSceneRecorder } from './ARSceneRecorder'
+import { SceneManagerModal } from './SceneManagerModal'
 
 /**
  * AR MMD Director - 新轨道系统版本
@@ -92,6 +93,7 @@ export function ARMMDDirector() {
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
   const [showProjectWizard, setShowProjectWizard] = useState(true) // 默认显示项目向导
+  const [showSceneManager, setShowSceneManager] = useState(false) // 场景管理器
   
   // 检测移动端
   useEffect(() => {
@@ -1515,6 +1517,14 @@ export function ARMMDDirector() {
           onComplete={handleProjectWizardComplete}
           onCancel={() => setShowProjectWizard(false)}
           onImport={handleProjectImport}
+          onOpenARRecorder={() => {
+            setShowProjectWizard(false)
+            setShowARRecorder(true)
+          }}
+          onOpenSceneManager={() => {
+            setShowProjectWizard(false)
+            setShowSceneManager(true)
+          }}
         />
       )}
       
@@ -2069,6 +2079,18 @@ export function ARMMDDirector() {
             console.log('AR场景录制完成:', sceneData)
           }}
           existingScene={arSceneData}
+        />
+      )}
+
+      {/* 场景管理弹窗 */}
+      {showSceneManager && (
+        <SceneManagerModal
+          onSelect={(scene) => {
+            // 处理选择的场景
+            console.log('选择场景:', scene)
+            setShowSceneManager(false)
+          }}
+          onClose={() => setShowSceneManager(false)}
         />
       )}
     </div>
