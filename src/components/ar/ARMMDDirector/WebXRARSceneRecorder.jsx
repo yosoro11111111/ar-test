@@ -97,17 +97,11 @@ export function WebXRARSceneRecorder({
   
   // 启动AR会话
   const startARSession = async () => {
-    if (!isSupported) {
-      // 不支持WebXR，使用普通摄像头
-      await startNormalCamera()
-      return
-    }
-    
     try {
       // 请求AR会话
       const session = await navigator.xr.requestSession('immersive-ar', {
         requiredFeatures: ['local-floor'],
-        optionalFeatures: ['dom-overlay'],
+        optionalFeatures: ['dom-overlay', 'camera-access'],
         domOverlay: { root: document.body }
       })
       
@@ -121,14 +115,16 @@ export function WebXRARSceneRecorder({
       const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
       cameraRef.current = camera
       
-      // 创建渲染器
+      // 创建渲染器 - 使用alpha通道让AR背景透过来
       const renderer = new THREE.WebGLRenderer({
         canvas: canvasRef.current,
         alpha: true,
-        antialias: true
+        antialias: true,
+        preserveDrawingBuffer: true
       })
       renderer.setSize(window.innerWidth, window.innerHeight)
       renderer.setPixelRatio(window.devicePixelRatio)
+      renderer.autoClear = false
       rendererRef.current = renderer
       
       // 设置参考空间
@@ -139,13 +135,12 @@ export function WebXRARSceneRecorder({
       session.requestAnimationFrame(onXRFrame)
       
       setIsSessionActive(true)
+      setUseNormalCamera(false)
       setDebugInfo('AR会话已启动，点击"开始拍摄"')
       
     } catch (err) {
       console.error('启动AR会话失败:', err)
-      // AR启动失败，尝试普通摄像头
-      setDebugInfo('AR启动失败，尝试普通摄像头...')
-      await startNormalCamera()
+      setError('AR启动失败: ' + err.message + '，请确保使用支持AR的浏览器（Chrome Android）并允许摄像头权限')
     }
   }
   
@@ -496,7 +491,7 @@ export function WebXRARSceneRecorder({
                 className={styles.primaryBtn}
                 onClick={startARSession}
               >
-                {isSupported ? '启动AR相机' : '启动普通摄像头'}
+                启动AR相机
               </button>
             ) : (
               <>
@@ -538,12 +533,16 @@ export function WebXRARSceneRecorder({
           <div className={styles.instructions}>
             <h3>使用说明:</h3>
             <ol>
-              <li>点击"启动{isSupported ? 'AR相机' : '普通摄像头'}"</li>
+              <li>点击"启动AR相机"（需要支持AR的浏览器）</li>
+              <li>允许摄像头和AR权限</li>
               <li>点击"开始拍摄"开始自动拍摄</li>
               <li>缓慢移动相机，每0.5秒自动拍摄一张</li>
               <li>拍摄{MAX_CAPTURES}张后自动停止</li>
               <li>点击"导出场景"保存</li>
             </ol>
+            <p style={{color: '#ff6b6b', fontSize: '12px', marginTop: '8px'}}>
+              注意：需要使用Chrome Android浏览器，并确保设备支持ARCore
+            </p>
           </div>
         </div>
       </div>
