@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect } from 'react'
 import styles from './CameraEditor.module.css'
 
 // 预设机位
@@ -22,13 +22,10 @@ const EASING_OPTIONS = [
   { value: 'bounce', name: '弹跳', icon: '⚡' }
 ]
 
-export function CameraEditor({ clip, onSave, onClose }) {
+export function CameraEditor({ clip, onSave, onClose, onStartCoordinatePicker }) {
   const [keyframes, setKeyframes] = useState(clip?.data?.keyframes || [])
   const [selectedKeyframeIndex, setSelectedKeyframeIndex] = useState(0)
   const [duration, setDuration] = useState(clip?.duration || 5)
-  const [showCoordinatePicker, setShowCoordinatePicker] = useState(false)
-  const [pickerMode, setPickerMode] = useState('position') // 'position' 或 'target'
-  const [pickerView, setPickerView] = useState('top') // 'top', 'front', 'side'
 
   // 添加关键帧
   const addKeyframe = () => {
@@ -87,14 +84,21 @@ export function CameraEditor({ clip, onSave, onClose }) {
     onClose()
   }
 
-  // 处理坐标选择器中的点击
-  const handleCoordinatePickerClick = (coord) => {
-    if (pickerMode === 'position') {
-      updateKeyframe(selectedKeyframeIndex, { position: coord })
-    } else {
-      updateKeyframe(selectedKeyframeIndex, { target: coord })
-    }
-    setShowCoordinatePicker(false)
+  // 在预览画面中选择位置
+  const pickInPreview = (mode) => {
+    const currentKeyframe = keyframes[selectedKeyframeIndex]
+    const currentValue = mode === 'position' ? currentKeyframe?.position : currentKeyframe?.target
+    
+    onStartCoordinatePicker(mode, (coord) => {
+      if (mode === 'position') {
+        updateKeyframe(selectedKeyframeIndex, { position: coord })
+      } else {
+        updateKeyframe(selectedKeyframeIndex, { target: coord })
+      }
+    }, currentValue)
+    
+    // 关闭编辑器，让用户在预览画面中选择
+    onClose()
   }
 
   const selectedKeyframe = keyframes[selectedKeyframeIndex]
@@ -211,13 +215,10 @@ export function CameraEditor({ clip, onSave, onClose }) {
                 <div className={styles.groupHeader}>
                   <label className={styles.groupLabel}>📷 摄像机位置</label>
                   <button 
-                    className={styles.pickCoordBtn}
-                    onClick={() => {
-                      setPickerMode('position')
-                      setShowCoordinatePicker(true)
-                    }}
+                    className={styles.pickInPreviewBtn}
+                    onClick={() => pickInPreview('position')}
                   >
-                    🖱️ 点击选择
+                    🖱️ 在预览中选择
                   </button>
                 </div>
                 <div className={styles.vectorInput}>
@@ -262,13 +263,10 @@ export function CameraEditor({ clip, onSave, onClose }) {
                 <div className={styles.groupHeader}>
                   <label className={styles.groupLabel}>🎯 目标点</label>
                   <button 
-                    className={styles.pickCoordBtn}
-                    onClick={() => {
-                      setPickerMode('target')
-                      setShowCoordinatePicker(true)
-                    }}
+                    className={styles.pickInPreviewBtn}
+                    onClick={() => pickInPreview('target')}
                   >
-                    🖱️ 点击选择
+                    🖱️ 在预览中选择
                   </button>
                 </div>
                 <div className={styles.vectorInput}>
@@ -327,323 +325,6 @@ export function CameraEditor({ clip, onSave, onClose }) {
         <div className={styles.footer}>
           <button className={styles.cancelBtn} onClick={onClose}>取消</button>
           <button className={styles.saveBtn} onClick={handleSave}>💾 保存</button>
-        </div>
-      </div>
-
-      {/* 坐标选择器弹窗 */}
-      {showCoordinatePicker && (
-        <CoordinatePicker
-          mode={pickerMode}
-          currentValue={pickerMode === 'position' ? selectedKeyframe?.position : selectedKeyframe?.target}
-          onSelect={handleCoordinatePickerClick}
-          onClose={() => setShowCoordinatePicker(false)}
-        />
-      )}
-    </div>
-  )
-}
-
-// 坐标选择器组件
-function CoordinatePicker({ mode, currentValue, onSelect, onClose }) {
-  const canvasRef = useRef(null)
-  const selectedPointRef = useRef({ x: 0, y: 0, z: 0 }) // 使用ref存储选中点
-  const [view, setView] = useState('top') // top, front, side
-  const [scale, setScale] = useState(20) // 像素/单位
-  const [offset, setOffset] = useState({ x: 0, y: 0 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  const [selectedPoint, setSelectedPoint] = useState({ x: 0, y: 0, z: 0 })
-  const [renderTrigger, setRenderTrigger] = useState(0) // 用于强制重绘
-
-  // 世界坐标范围
-  const WORLD_SIZE = 20 // -10 到 10
-
-  // 将世界坐标转换为画布坐标
-  const worldToCanvas = (worldX, worldY) => {
-    const canvas = canvasRef.current
-    if (!canvas) return { x: 0, y: 0 }
-    
-    const centerX = canvas.width / 2 + offset.x
-    const centerY = canvas.height / 2 + offset.y
-    
-    return {
-      x: centerX + worldX * scale,
-      y: centerY - worldY * scale // Y轴翻转
-    }
-  }
-
-  // 将画布坐标转换为世界坐标
-  const canvasToWorld = (canvasX, canvasY) => {
-    const canvas = canvasRef.current
-    if (!canvas) return { x: 0, y: 0 }
-    
-    const centerX = canvas.width / 2 + offset.x
-    const centerY = canvas.height / 2 + offset.y
-    
-    return {
-      x: (canvasX - centerX) / scale,
-      y: (centerY - canvasY) / scale
-    }
-  }
-
-  // 绘制网格和坐标轴 - 使用ref获取最新值避免闭包问题
-  const drawCanvas = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    
-    const ctx = canvas.getContext('2d')
-    const width = canvas.width
-    const height = canvas.height
-    
-    // 清空画布
-    ctx.fillStyle = '#1a1a2e'
-    ctx.fillRect(0, 0, width, height)
-    
-    const centerX = width / 2 + offset.x
-    const centerY = height / 2 + offset.y
-    
-    // 绘制网格
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'
-    ctx.lineWidth = 1
-    
-    // 垂直线
-    for (let x = -WORLD_SIZE; x <= WORLD_SIZE; x += 1) {
-      const canvasX = centerX + x * scale
-      ctx.beginPath()
-      ctx.moveTo(canvasX, 0)
-      ctx.lineTo(canvasX, height)
-      ctx.stroke()
-    }
-    
-    // 水平线
-    for (let y = -WORLD_SIZE; y <= WORLD_SIZE; y += 1) {
-      const canvasY = centerY - y * scale
-      ctx.beginPath()
-      ctx.moveTo(0, canvasY)
-      ctx.lineTo(width, canvasY)
-      ctx.stroke()
-    }
-    
-    // 绘制坐标轴
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
-    ctx.lineWidth = 2
-    
-    // X轴
-    ctx.beginPath()
-    ctx.moveTo(0, centerY)
-    ctx.lineTo(width, centerY)
-    ctx.stroke()
-    
-    // Y轴
-    ctx.beginPath()
-    ctx.moveTo(centerX, 0)
-    ctx.lineTo(centerX, height)
-    ctx.stroke()
-    
-    // 绘制原点
-    ctx.fillStyle = '#ff6b6b'
-    ctx.beginPath()
-    ctx.arc(centerX, centerY, 4, 0, Math.PI * 2)
-    ctx.fill()
-    
-    // 绘制刻度标签
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)'
-    ctx.font = '10px Arial'
-    ctx.textAlign = 'center'
-    
-    for (let x = -WORLD_SIZE; x <= WORLD_SIZE; x += 2) {
-      if (x === 0) continue
-      const canvasX = centerX + x * scale
-      ctx.fillText(x.toString(), canvasX, centerY + 15)
-    }
-    
-    ctx.textAlign = 'right'
-    for (let y = -WORLD_SIZE; y <= WORLD_SIZE; y += 2) {
-      if (y === 0) continue
-      const canvasY = centerY - y * scale
-      ctx.fillText(y.toString(), centerX - 8, canvasY + 3)
-    }
-    
-    // 获取当前选中的点（使用ref避免闭包）
-    const currentPoint = selectedPointRef.current
-    
-    // 绘制当前选择的点
-    let pointX, pointY, label
-    if (view === 'top') {
-      pointX = currentPoint.x
-      pointY = currentPoint.z
-      label = `X: ${currentPoint.x.toFixed(1)}, Z: ${currentPoint.z.toFixed(1)}`
-    } else if (view === 'front') {
-      pointX = currentPoint.x
-      pointY = currentPoint.y
-      label = `X: ${currentPoint.x.toFixed(1)}, Y: ${currentPoint.y.toFixed(1)}`
-    } else {
-      pointX = currentPoint.z
-      pointY = currentPoint.y
-      label = `Z: ${currentPoint.z.toFixed(1)}, Y: ${currentPoint.y.toFixed(1)}`
-    }
-    
-    const canvasPoint = worldToCanvas(pointX, pointY)
-    
-    // 绘制点
-    ctx.fillStyle = mode === 'position' ? '#4facfe' : '#43e97b'
-    ctx.beginPath()
-    ctx.arc(canvasPoint.x, canvasPoint.y, 8, 0, Math.PI * 2)
-    ctx.fill()
-    
-    // 绘制外圈
-    ctx.strokeStyle = '#fff'
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.arc(canvasPoint.x, canvasPoint.y, 10, 0, Math.PI * 2)
-    ctx.stroke()
-    
-    // 绘制标签
-    ctx.fillStyle = '#fff'
-    ctx.font = '12px Arial'
-    ctx.textAlign = 'left'
-    ctx.fillText(label, canvasPoint.x + 15, canvasPoint.y - 10)
-    
-    // 绘制视图标签
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)'
-    ctx.font = '14px Arial'
-    ctx.textAlign = 'left'
-    const viewNames = { top: '俯视图 (X-Z平面)', front: '正视图 (X-Y平面)', side: '侧视图 (Z-Y平面)' }
-    ctx.fillText(viewNames[view], 10, 25)
-  }
-
-  // 初始化画布大小
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    
-    canvas.width = 600
-    canvas.height = 400
-    
-    // 初始化选中点
-    if (currentValue) {
-      const newPoint = {
-        x: currentValue.x || 0,
-        y: currentValue.y || 0,
-        z: currentValue.z || 0
-      }
-      selectedPointRef.current = newPoint
-      setSelectedPoint(newPoint)
-    }
-  }, [currentValue])
-  
-  // 同步ref和state
-  useEffect(() => {
-    selectedPointRef.current = selectedPoint
-  }, [selectedPoint])
-
-  // 绘制
-  useEffect(() => {
-    drawCanvas()
-  }, [renderTrigger, view, scale, offset, mode])
-
-  // 处理画布点击
-  const handleCanvasClick = (e) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    
-    const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-    
-    const worldPos = canvasToWorld(x, y)
-    
-    if (view === 'top') {
-      setSelectedPoint(prev => ({ ...prev, x: worldPos.x, z: worldPos.y }))
-    } else if (view === 'front') {
-      setSelectedPoint(prev => ({ ...prev, x: worldPos.x, y: worldPos.y }))
-    } else {
-      setSelectedPoint(prev => ({ ...prev, z: worldPos.x, y: worldPos.y }))
-    }
-    
-    // 强制重绘
-    setRenderTrigger(prev => prev + 1)
-  }
-
-  // 处理滚轮缩放
-  const handleWheel = (e) => {
-    e.preventDefault()
-    const delta = e.deltaY > 0 ? 0.9 : 1.1
-    setScale(prev => Math.max(5, Math.min(100, prev * delta)))
-  }
-
-  // 确认选择 - 使用ref获取最新值
-  const handleConfirm = () => {
-    const current = selectedPointRef.current
-    onSelect({
-      x: current.x,
-      y: current.y,
-      z: current.z
-    })
-  }
-
-  return (
-    <div className={styles.coordinatePickerOverlay} onClick={onClose}>
-      <div className={styles.coordinatePicker} onClick={e => e.stopPropagation()}>
-        <div className={styles.pickerHeader}>
-          <h4>
-            {mode === 'position' ? '📷 选择摄像机位置' : '🎯 选择目标点'}
-          </h4>
-          <button className={styles.closeBtn} onClick={onClose}>✕</button>
-        </div>
-        
-        <div className={styles.pickerToolbar}>
-          <div className={styles.viewButtons}>
-            <button 
-              className={`${styles.viewBtn} ${view === 'top' ? styles.active : ''}`}
-              onClick={() => setView('top')}
-            >
-              俯视
-            </button>
-            <button 
-              className={`${styles.viewBtn} ${view === 'front' ? styles.active : ''}`}
-              onClick={() => setView('front')}
-            >
-              正视
-            </button>
-            <button 
-              className={`${styles.viewBtn} ${view === 'side' ? styles.active : ''}`}
-              onClick={() => setView('side')}
-            >
-              侧视
-            </button>
-          </div>
-          
-          <div className={styles.zoomControls}>
-            <button onClick={() => setScale(prev => Math.max(5, prev * 0.8))}>➖</button>
-            <span>{Math.round(scale)}px/单位</span>
-            <button onClick={() => setScale(prev => Math.min(100, prev * 1.2))}>➕</button>
-          </div>
-        </div>
-        
-        <div className={styles.canvasContainer}>
-          <canvas
-            ref={canvasRef}
-            className={styles.coordinateCanvas}
-            onClick={handleCanvasClick}
-            onWheel={handleWheel}
-          />
-        </div>
-        
-        <div className={styles.pickerInfo}>
-          <div className={styles.coordDisplay}>
-            <span>X: {(selectedPoint?.x ?? 0).toFixed(2)}</span>
-            <span>Y: {(selectedPoint?.y ?? 0).toFixed(2)}</span>
-            <span>Z: {(selectedPoint?.z ?? 0).toFixed(2)}</span>
-          </div>
-          <p className={styles.hint}>💡 点击画布选择坐标，滚轮缩放，当前为{view === 'top' ? '俯视图' : view === 'front' ? '正视图' : '侧视图'}</p>
-        </div>
-        
-        <div className={styles.pickerFooter}>
-          <button className={styles.cancelBtn} onClick={onClose}>取消</button>
-          <button className={styles.confirmBtn} onClick={handleConfirm}>
-            ✓ 确认选择
-          </button>
         </div>
       </div>
     </div>

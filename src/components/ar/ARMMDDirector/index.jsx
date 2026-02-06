@@ -41,6 +41,25 @@ export function ARMMDDirector() {
   const [characterScale, setCharacterScale] = useState(1.5)
   const previewContainerRef = useRef(null)
   
+  // 坐标选择模式
+  const [coordinatePickerMode, setCoordinatePickerMode] = useState(null) // 'position' | 'target' | null
+  const [coordinatePickerCallback, setCoordinatePickerCallback] = useState(null)
+  const [pickerPreviewPosition, setPickerPreviewPosition] = useState({ x: 0, y: 0, z: 0 })
+  
+  // 注册全局坐标选择函数
+  useEffect(() => {
+    window.startCoordinatePicker = (mode, callback, currentValue) => {
+      setCoordinatePickerMode(mode)
+      setCoordinatePickerCallback(() => callback)
+      if (currentValue) {
+        setPickerPreviewPosition(currentValue)
+      }
+    }
+    return () => {
+      delete window.startCoordinatePicker
+    }
+  }, [])
+  
   // 画布设置
   const [canvasSettings, setCanvasSettings] = useState({
     width: 1920,
@@ -225,6 +244,33 @@ export function ARMMDDirector() {
       cameraRef.current.position.z = distance
     }
   }, [cameraZoom])
+  
+  // 处理画布点击选择坐标
+  const handleCanvasClickForCoordinate = (e) => {
+    if (!cameraRef.current || !rendererRef.current) return
+    
+    const canvas = canvasRef.current
+    const rect = canvas.getBoundingClientRect()
+    const x = ((e.clientX - rect.left) / rect.width) * 2 - 1
+    const y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+    
+    // 创建射线
+    const raycaster = new THREE.Raycaster()
+    raycaster.setFromCamera({ x, y }, cameraRef.current)
+    
+    // 与地面平面 (y=0) 相交
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+    const target = new THREE.Vector3()
+    raycaster.ray.intersectPlane(plane, target)
+    
+    if (target) {
+      setPickerPreviewPosition({
+        x: target.x,
+        y: target.y,
+        z: target.z
+      })
+    }
+  }
   
   const loadCharacter = async (charData) => {
     try {
@@ -964,7 +1010,48 @@ export function ARMMDDirector() {
                 </button>
               </div>
             </div>
-            <canvas ref={canvasRef} className={styles.previewCanvas} />
+            <canvas 
+              ref={canvasRef} 
+              className={`${styles.previewCanvas} ${coordinatePickerMode ? styles.pickerMode : ''}`}
+              onClick={coordinatePickerMode ? handleCanvasClickForCoordinate : undefined}
+            />
+            
+            {/* 坐标选择模式覆盖层 */}
+            {coordinatePickerMode && (
+              <div className={styles.coordinatePickerOverlay}>
+                <div className={styles.pickerInfo}>
+                  <span className={styles.pickerTitle}>
+                    {coordinatePickerMode === 'position' ? '📷 选择摄像机位置' : '🎯 选择目标点'}
+                  </span>
+                  <span className={styles.pickerCoords}>
+                    X: {pickerPreviewPosition.x.toFixed(1)} Y: {pickerPreviewPosition.y.toFixed(1)} Z: {pickerPreviewPosition.z.toFixed(1)}
+                  </span>
+                </div>
+                <div className={styles.pickerActions}>
+                  <button 
+                    className={styles.pickerConfirmBtn}
+                    onClick={() => {
+                      if (coordinatePickerCallback) {
+                        coordinatePickerCallback(pickerPreviewPosition)
+                      }
+                      setCoordinatePickerMode(null)
+                      setCoordinatePickerCallback(null)
+                    }}
+                  >
+                    ✓ 确认选择
+                  </button>
+                  <button 
+                    className={styles.pickerCancelBtn}
+                    onClick={() => {
+                      setCoordinatePickerMode(null)
+                      setCoordinatePickerCallback(null)
+                    }}
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            )}
             
             {/* 导出进度条 */}
             {isExporting && (

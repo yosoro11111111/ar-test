@@ -544,6 +544,12 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
             setShowCameraEditor(false)
           }}
           onClose={() => setShowCameraEditor(false)}
+          onStartCoordinatePicker={(mode, callback, currentValue) => {
+            // 通过全局事件或props传递坐标选择请求给父组件
+            if (window.startCoordinatePicker) {
+              window.startCoordinatePicker(mode, callback, currentValue)
+            }
+          }}
         />
       )}
     </div>

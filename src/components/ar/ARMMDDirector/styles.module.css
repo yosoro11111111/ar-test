@@ -512,6 +512,90 @@
   min-height: 400px;
 }
 
+.previewCanvas.pickerMode {
+  cursor: crosshair;
+}
+
+/* 坐标选择器覆盖层 */
+.coordinatePickerOverlay {
+  position: absolute;
+  top: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(26, 26, 46, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  z-index: 150;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.pickerInfo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.pickerTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.pickerCoords {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  color: #4facfe;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+.pickerActions {
+  display: flex;
+  gap: 12px;
+}
+
+.pickerConfirmBtn {
+  padding: 10px 20px;
+  border: none;
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  border-radius: 10px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.pickerConfirmBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(67, 233, 123, 0.4);
+}
+
+.pickerCancelBtn {
+  padding: 10px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.pickerCancelBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
 /* 导出进度条 */
 .exportProgressOverlay {
   position: absolute;
