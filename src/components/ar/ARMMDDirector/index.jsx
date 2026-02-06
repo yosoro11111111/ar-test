@@ -727,8 +727,8 @@ export function ARMMDDirector() {
             }
           })
         }
-        // 处理真实AR场景背景
-        else if (sceneData.type === 'real-ar' && sceneData.image) {
+        // 处理真实AR场景背景 (real-ar 或 true-ar)
+        else if ((sceneData.type === 'real-ar' || sceneData.type === 'true-ar') && sceneData.image) {
           const textureLoader = new THREE.TextureLoader()
           textureLoader.load(sceneData.image, (texture) => {
             if (sceneRef.current) {
@@ -1468,9 +1468,9 @@ export function ARMMDDirector() {
       // 创建AR背景场景轨道
       const sceneTrack = createTrack(null, 'scene')
       
-      // 判断是真实AR场景还是普通AR场景
-      const isRealAR = wizardData.arBackground.type === 'real-ar' || 
-                       wizardData.arBackground.backgroundType === 'real-ar'
+      // 判断AR场景类型
+      const arType = wizardData.arBackground.type || wizardData.arBackground.backgroundType || 'ar'
+      const isRealAR = arType === 'real-ar' || arType === 'true-ar'
       
       sceneTrack.clips = [{
         ...createClip('scene', 0, wizardData.duration),
@@ -1478,13 +1478,14 @@ export function ARMMDDirector() {
           name: wizardData.arBackground.name,
           sceneId: wizardData.arBackground.id,
           sceneData: {
-            type: isRealAR ? 'real-ar' : 'ar',
+            type: arType,
             arData: wizardData.arBackground,
             thumbnail: wizardData.arBackground.thumbnail || wizardData.arBackground.data?.image,
             // 真实AR场景特有数据
             image: isRealAR ? (wizardData.arBackground.data?.image || wizardData.arBackground.image) : null,
             planes: isRealAR ? (wizardData.arBackground.data?.planes || wizardData.arBackground.planes) : null,
-            camera: isRealAR ? (wizardData.arBackground.data?.camera || wizardData.arBackground.camera) : null
+            camera: isRealAR ? (wizardData.arBackground.data?.camera || wizardData.arBackground.camera) : null,
+            referenceDistance: wizardData.arBackground.referenceDistance || 3
           }
         }
       }]

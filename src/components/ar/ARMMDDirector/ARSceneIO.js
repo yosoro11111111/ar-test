@@ -139,7 +139,9 @@ export async function importARScenePack(file) {
   const manifest = JSON.parse(await manifestFile.async('text'))
   
   // 根据版本处理
-  if (manifest.version === ARSCENE2_VERSION || manifest.type === 'real-ar-scene-pack') {
+  if (manifest.version === ARSCENE2_VERSION || 
+      manifest.type === 'real-ar-scene-pack' || 
+      manifest.type === 'true-ar-scene-pack') {
     return importRealARScene(zip, manifest)
   } else {
     return importLegacyARScene(zip, manifest)
@@ -168,22 +170,26 @@ async function importRealARScene(zip, manifest) {
   }
   
   // 3. 构建场景对象
+  const isTrueAR = sceneData.type === 'true-ar-scene' || manifest.type === 'true-ar-scene-pack'
+  const sceneType = isTrueAR ? 'true-ar' : 'real-ar'
+  
   const scene = {
-    id: `real_ar_scene_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    id: `${sceneType}_scene_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     name: `${manifest.metadata?.name || sceneData.name || '真实AR场景'} (导入)`,
-    type: 'real-ar',
+    type: sceneType,
     createdAt: new Date().toISOString(),
     importedAt: new Date().toISOString(),
     data: sceneData,
     // 兼容旧版格式
-    backgroundType: 'real-ar',
+    backgroundType: sceneType,
     arBackground: {
       id: sceneData.id || `ar_${Date.now()}`,
       name: sceneData.name || '真实AR场景',
-      type: 'real-ar',
+      type: sceneType,
       image: sceneData.image,
       planes: sceneData.planes || [],
-      camera: sceneData.camera
+      camera: sceneData.camera,
+      referenceDistance: sceneData.referenceDistance || 3
     }
   }
   
