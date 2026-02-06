@@ -8,15 +8,21 @@ import { CharacterSelectModal } from './CharacterSelectModal'
 import { CellEditModal } from './CellEditModal'
 import { SettingsModal } from './SettingsModal'
 import { Timeline } from './Timeline'
+import { TrackTypeSelectModal } from './TrackTypeSelectModal'
+import { createTrack, createClip, TRACK_TYPES } from './trackTypes'
 import { loadVRMAAction } from '../../../data/vrmaActions.js'
 
 /**
- * AR MMD Director - 三轨道版本
+ * AR MMD Director - 新轨道系统版本
  * 
- * 每个角色有3条子轨道：
- * - 场景轨道（绿色）
- * - 动作轨道（粉色）
- * - 特效轨道（黄色）
+ * 支持多种轨道类型：
+ * - 场景轨道（背景图片）
+ * - 动作轨道（VRMA动画）
+ * - 特效轨道（粒子效果）
+ * - 位置控制轨道（人物移动）
+ * - 音乐轨道（背景音乐）
+ * - 道具轨道（3D道具）
+ * - 缩放轨道（人物/背景缩放）
  */
 export function ARMMDDirector() {
   const navigate = useNavigate()
@@ -36,6 +42,8 @@ export function ARMMDDirector() {
   const [showCharacterModal, setShowCharacterModal] = useState(false)
   const [showCellEditModal, setShowCellEditModal] = useState(false)
   const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [showTrackTypeModal, setShowTrackTypeModal] = useState(false)
+  const [selectedCharacterForTrack, setSelectedCharacterForTrack] = useState(null)
   const [editingCell, setEditingCell] = useState(null)
   
   // 项目数据
@@ -205,7 +213,7 @@ export function ARMMDDirector() {
     }
   }
   
-  // 添加角色 - 创建3条子轨道
+  // 添加角色 - 新轨道系统
   const addCharacters = (selectedCharacters) => {
     const newCharacters = selectedCharacters.map(char => ({
       id: `char_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -217,30 +225,47 @@ export function ARMMDDirector() {
       initialScale: 1,
       color: `hsl(${Math.random() * 360}, 70%, 60%)`
     }))
-    
+
+    // 为新角色创建默认轨道（场景、动作）
+    const newTracks = []
+    newCharacters.forEach(char => {
+      // 场景轨道
+      newTracks.push(createTrack(char.id, 'scene'))
+      // 动作轨道
+      newTracks.push(createTrack(char.id, 'action'))
+    })
+
     setProject(prev => ({
       ...prev,
       characters: [...prev.characters, ...newCharacters],
-      tracks: [
-        ...prev.tracks,
-        ...newCharacters.map(char => ({
-          id: `track_${char.id}`,
-          type: 'character',
-          characterId: char.id,
-          characterName: char.name,
-          characterColor: char.color,
-          scene: [],
-          action: [],
-          effect: [],
-          scale: [],
-          bgScale: []
-        }))
-      ]
+      tracks: [...prev.tracks, ...newTracks]
     }))
-    
+
     if (previewOpen && characterManagerRef.current) {
       newCharacters.forEach(char => loadCharacter(char))
     }
+  }
+
+  // 打开轨道类型选择弹窗
+  const openTrackTypeModal = (characterId) => {
+    const character = project.characters.find(c => c.id === characterId)
+    setSelectedCharacterForTrack(character)
+    setShowTrackTypeModal(true)
+  }
+
+  // 添加新轨道
+  const handleAddTrack = (trackType) => {
+    if (!selectedCharacterForTrack) return
+
+    const newTrack = createTrack(selectedCharacterForTrack.id, trackType)
+
+    setProject(prev => ({
+      ...prev,
+      tracks: [...prev.tracks, newTrack]
+    }))
+
+    setShowTrackTypeModal(false)
+    setSelectedCharacterForTrack(null)
   }
   
   // 删除角色
@@ -888,6 +913,17 @@ export function ARMMDDirector() {
           onExport={handleExportMedia}
         />
       )}
+
+      {/* 轨道类型选择弹窗 */}
+      <TrackTypeSelectModal
+        isOpen={showTrackTypeModal}
+        onClose={() => {
+          setShowTrackTypeModal(false)
+          setSelectedCharacterForTrack(null)
+        }}
+        onSelect={handleAddTrack}
+        characterName={selectedCharacterForTrack?.name}
+      />
     </div>
   )
 }
