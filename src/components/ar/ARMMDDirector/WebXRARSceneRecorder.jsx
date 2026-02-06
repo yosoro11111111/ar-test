@@ -157,20 +157,10 @@ export function WebXRARSceneRecorder({
     if (!cameraRef.current) return
     
     try {
-      // 获取视口尺寸
-      const viewport = baseLayer.getViewport({
-        eye: 'none',
-        projectionMatrix: new Float32Array(16),
-        transform: { 
-          inverse: { matrix: new Float32Array(16) },
-          matrix: new Float32Array(16),
-          orientation: new Float32Array(4),
-          position: new Float32Array(3)
-        }
-      }) || { width: 1920, height: 1080 }
-      
-      const width = viewport.width || 1920
-      const height = viewport.height || 1080
+      // 使用固定的分辨率（从canvas获取）
+      const canvas = rendererRef.current.domElement
+      const width = canvas.width || 1920
+      const height = canvas.height || 1080
       
       // 读取像素数据
       const pixels = new Uint8Array(width * height * 4)
