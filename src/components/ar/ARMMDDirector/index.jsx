@@ -828,6 +828,159 @@ export function ARMMDDirector() {
             sceneRef.current.add(planesGroup)
           }
         }
+        // 处理ARCJPack场景 - 时间轴和MMD预览专用
+        else if (sceneData.type === 'arcjpack' && sceneData.image) {
+          // 清除之前的场景
+          const existingScene = sceneRef.current.getObjectByName('arcjpack-scene')
+          if (existingScene) {
+            sceneRef.current.remove(existingScene)
+          }
+          
+          // 加载背景图片
+          const textureLoader = new THREE.TextureLoader()
+          textureLoader.load(sceneData.image, (texture) => {
+            if (sceneRef.current) {
+              sceneRef.current.background = texture
+            }
+          })
+          
+          // 创建场景组
+          const sceneGroup = new THREE.Group()
+          sceneGroup.name = 'arcjpack-scene'
+          
+          // 获取MMD渲染配置
+          const mmdConfig = sceneData.mmdRenderConfig || {}
+          const planes = mmdConfig.planes3D || sceneData.planes || []
+          
+          // 创建多平面3D环境
+          if (planes.length > 0) {
+            const planesGroup = new THREE.Group()
+            planesGroup.name = 'mmd-planes'
+            
+            // 调整相机位置
+            const camera = mmdConfig.camera || sceneData.camera
+            if (camera && camera.position && cameraRef.current) {
+              cameraRef.current.position.set(
+                camera.position.x,
+                camera.position.y,
+                camera.position.z
+              )
+              const lookAt = camera.lookAt || { x: 0, y: 0, z: 0 }
+              cameraRef.current.lookAt(lookAt.x, lookAt.y, lookAt.z)
+            }
+            
+            planes.forEach((planeData, index) => {
+              const { worldPosition, realSize, rotation, polygon } = planeData
+              
+              // 创建平面几何体
+              let geometry
+              if (polygon && polygon.length >= 3) {
+                const shape = new THREE.Shape()
+                shape.moveTo(polygon[0].x, polygon[0].z)
+                for (let i = 1; i < polygon.length; i++) {
+                  shape.lineTo(polygon[i].x, polygon[i].z)
+                }
+                shape.closePath()
+                geometry = new THREE.ShapeGeometry(shape)
+              } else {
+                geometry = new THREE.PlaneGeometry(
+                  realSize?.width || 2,
+                  realSize?.height || 2
+                )
+              }
+              
+              // 平面材质 - 不同颜色
+              const colors = [0x00ff88, 0x4488ff, 0xff6b6b, 0xffd93d, 0x6bcf7f, 0x9b59b6]
+              const color = colors[index % colors.length]
+              
+              const material = new THREE.MeshStandardMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.35,
+                side: THREE.DoubleSide,
+                roughness: 0.6,
+                metalness: 0.2
+              })
+              
+              const mesh = new THREE.Mesh(geometry, material)
+              mesh.position.set(worldPosition.x, worldPosition.y, worldPosition.z)
+              mesh.rotation.set(
+                (rotation?.x || -90) * Math.PI / 180,
+                (rotation?.y || 0) * Math.PI / 180,
+                (rotation?.z || 0) * Math.PI / 180
+              )
+              mesh.castShadow = true
+              mesh.receiveShadow = true
+              mesh.userData = { 
+                isPlane: true, 
+                planeIndex: index,
+                anchorPoints: planeData.anchorPoints || []
+              }
+              
+              // 边框
+              const edges = new THREE.EdgesGeometry(geometry)
+              const lineMaterial = new THREE.LineBasicMaterial({ color: color })
+              const wireframe = new THREE.LineSegments(edges, lineMaterial)
+              mesh.add(wireframe)
+              
+              // 序号标签
+              const canvas = document.createElement('canvas')
+              const ctx = canvas.getContext('2d')
+              canvas.width = 128
+              canvas.height = 64
+              ctx.fillStyle = '#' + color.toString(16).padStart(6, '0')
+              ctx.fillRect(0, 0, canvas.width, canvas.height)
+              ctx.fillStyle = '#000'
+              ctx.font = 'bold 32px Arial'
+              ctx.textAlign = 'center'
+              ctx.fillText(`${index + 1}`, 64, 44)
+              
+              const texture = new THREE.CanvasTexture(canvas)
+              const spriteMaterial = new THREE.SpriteMaterial({ map: texture })
+              const sprite = new THREE.Sprite(spriteMaterial)
+              sprite.position.y = 0.8
+              sprite.scale.set(1, 0.5, 1)
+              mesh.add(sprite)
+              
+              planesGroup.add(mesh)
+            })
+            
+            sceneGroup.add(planesGroup)
+          }
+          
+          // 添加光照
+          const lighting = mmdConfig.lighting || {}
+          
+          // 环境光
+          const ambientLight = new THREE.AmbientLight(
+            lighting.ambient?.color || 0xffffff,
+            lighting.ambient?.intensity || 0.6
+          )
+          sceneGroup.add(ambientLight)
+          
+          // 平行光
+          const dirLight = new THREE.DirectionalLight(
+            lighting.directional?.color || 0xffffff,
+            lighting.directional?.intensity || 0.8
+          )
+          const dirPos = lighting.directional?.position || { x: 5, y: 10, z: 5 }
+          dirLight.position.set(dirPos.x, dirPos.y, dirPos.z)
+          dirLight.castShadow = true
+          sceneGroup.add(dirLight)
+          
+          // 添加地面网格（辅助）
+          const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222)
+          gridHelper.position.y = 0.01
+          sceneGroup.add(gridHelper)
+          
+          sceneRef.current.add(sceneGroup)
+          
+          console.log('ARCJPack场景加载完成:', {
+            planes: planes.length,
+            camera: mmdConfig.camera,
+            characterPlacement: mmdConfig.characterPlacement
+          })
+        }
         // 处理AR多平面场景 - 真实多平面3D环境
         else if (sceneData.type === 'ar-multi-plane' && sceneData.image) {
           // 清除之前的AR场景平面

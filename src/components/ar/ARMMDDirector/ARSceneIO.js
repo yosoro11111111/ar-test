@@ -140,7 +140,9 @@ export async function importARScenePack(file) {
   const manifest = JSON.parse(await manifestFile.async('text'))
   
   // 根据版本处理
-  if (manifest.type === 'ar-multi-plane-scene-pack') {
+  if (manifest.type === 'arcjpack' || manifest.format === 'ar-cinematic-pack') {
+    return importARCJPackScene(zip, manifest)
+  } else if (manifest.type === 'ar-multi-plane-scene-pack') {
     return importARMultiPlaneScene(zip, manifest)
   } else if (manifest.type === 'ar-camera-scene-pack') {
     return importARCameraScene(zip, manifest)
@@ -281,6 +283,7 @@ export function isARScenePack(file) {
          file.name.endsWith('.arscene2') ||
          file.name.endsWith('.arscene3') ||
          file.name.endsWith('.arscene4') ||
+         file.name.endsWith('.arcjpack') ||
          file.name.endsWith('.webxrar')
 }
 
@@ -448,6 +451,129 @@ async function importARMultiPlaneScene(zip, manifest) {
       camera: sceneData.camera,
       sceneBounds: sceneData.sceneBounds,
       imageDimensions: sceneData.image
+    }
+  }
+  
+  return scene
+}
+
+/**
+ * 导入ARCJPack场景 - 专门用于时间轴和MMD渲染
+ */
+async function importARCJPackScene(zip, manifest) {
+  // 1. 读取场景数据
+  const sceneFile = zip.file('scene.json')
+  if (!sceneFile) {
+    throw new Error('无效的ARCJPack：缺少场景数据')
+  }
+  
+  const sceneData = JSON.parse(await sceneFile.async('text'))
+  
+  // 2. 加载场景图片
+  const imageFile = zip.file('scene.jpg') || zip.file('scene.png')
+  let imageDataUrl = null
+  
+  if (imageFile) {
+    const base64Data = await imageFile.async('base64')
+    const ext = imageFile.name.split('.').pop()
+    const mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png'
+    imageDataUrl = `data:${mimeType};base64,${base64Data}`
+  }
+  
+  // 3. 加载所有平面图片
+  const planeImages = []
+  const imagesFolder = zip.folder('images')
+  if (imagesFolder) {
+    const imageFiles = imagesFolder.file(/^plane_\d+\.jpg$/)
+    for (const imgFile of imageFiles) {
+      const base64Data = await imgFile.async('base64')
+      planeImages.push(`data:image/jpeg;base64,${base64Data}`)
+    }
+  }
+  
+  // 4. 构建时间轴兼容的场景对象
+  const scene = {
+    id: `arcjpack_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    name: `${manifest.metadata?.name || sceneData.name || 'AR场景'} (导入)`,
+    type: 'arcjpack',
+    format: 'ar-cinematic-pack',
+    createdAt: new Date().toISOString(),
+    importedAt: new Date().toISOString(),
+    // 时间轴渲染数据
+    data: {
+      ...sceneData,
+      image: imageDataUrl,
+      planeImages,
+      // MMD渲染配置
+      mmdRenderConfig: {
+        // 背景设置
+        background: {
+          type: 'image',
+          image: imageDataUrl,
+          enable3DPlanes: true
+        },
+        // 3D平面设置
+        planes3D: sceneData.planes || [],
+        // 相机设置
+        camera: sceneData.camera || {
+          position: { x: 0, y: 3, z: 5 },
+          lookAt: { x: 0, y: 0, z: 0 }
+        },
+        // 光照设置
+        lighting: {
+          ambient: { color: 0xffffff, intensity: 0.6 },
+          directional: { color: 0xffffff, intensity: 0.8, position: { x: 5, y: 10, z: 5 } }
+        },
+        // 阴影设置
+        shadows: {
+          enabled: true,
+          type: 'PCFSoftShadowMap'
+        },
+        // MMD角色放置配置
+        characterPlacement: {
+          // 可以放置角色的平面
+          validPlanes: sceneData.planes?.map((p, i) => ({
+            planeIndex: i,
+            worldPosition: p.worldPosition,
+            anchorPoints: p.anchorPoints || []
+          })) || [],
+          // 默认角色位置（第一个平面的中心）
+          defaultPosition: sceneData.planes?.[0]?.worldPosition || { x: 0, y: 0, z: 0 }
+        }
+      }
+    },
+    // 背景类型
+    backgroundType: 'arcjpack',
+    // AR背景数据（用于预览）
+    arBackground: {
+      id: sceneData.id || `arcjpack_${Date.now()}`,
+      name: sceneData.name || 'AR场景',
+      type: 'arcjpack',
+      image: imageDataUrl,
+      planeImages,
+      planes: sceneData.planes || [],
+      camera: sceneData.camera,
+      sceneBounds: sceneData.sceneBounds,
+      renderConfig: sceneData.renderConfig,
+      imageDimensions: sceneData.image
+    },
+    // 时间轴轨道数据
+    timelineData: {
+      // 场景轨道配置
+      sceneTrack: {
+        type: 'scene',
+        background: imageDataUrl,
+        planes3D: sceneData.planes || [],
+        camera: sceneData.camera
+      },
+      // 角色可以使用的平面
+      validPlacementPlanes: sceneData.planes?.map((p, i) => ({
+        planeIndex: i,
+        name: `平面 ${i + 1}`,
+        worldPosition: p.worldPosition,
+        realSize: p.realSize,
+        anchorPoints: p.anchorPoints || []
+      })) || []
     }
   }
   

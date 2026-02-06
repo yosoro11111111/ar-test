@@ -388,10 +388,11 @@ export function ARSceneCameraRecorder({
       const mainImage = capturedImages[0].image
       const imageBase64 = mainImage.split(',')[1]
       
-      // 构建场景数据
+      // 构建场景数据 - 适配时间轴渲染
       const sceneData = {
         version: '4.0',
         type: 'ar-multi-plane-scene',
+        format: 'arcjpack',
         name: sceneName || `AR多平面场景_${planes.length}个平面`,
         capturedAt: new Date().toISOString(),
         image: {
@@ -399,7 +400,7 @@ export function ARSceneCameraRecorder({
           height: canvasRef.current?.height || 1080,
           format: 'jpeg'
         },
-        // 所有平面数据
+        // 所有平面数据 - 用于3D渲染
         planes: planes.map(p => ({
           id: p.id,
           index: p.index,
@@ -407,16 +408,36 @@ export function ARSceneCameraRecorder({
           worldPosition: p.worldPosition,
           realSize: p.realSize,
           rotation: p.rotation,
-          polygon: p.polygon
+          polygon: p.polygon,
+          // 用于MMD角色放置的锚点
+          anchorPoints: generateAnchorPoints(p)
         })),
-        // 相机配置
+        // 相机配置 - 用于时间轴预览
         camera: {
           height: 1.6,
           fov: 75,
-          position: { x: 0, y: 1.6, z: 0 }
+          position: { x: 0, y: 1.6, z: 0 },
+          target: calculateSceneCenter(planes),
+          // 时间轴默认相机位置
+          timelineDefault: {
+            position: { x: 0, y: 3, z: 5 },
+            lookAt: { x: 0, y: 0, z: 0 }
+          }
         },
         // 场景边界
-        sceneBounds: calculateSceneBounds(planes)
+        sceneBounds: calculateSceneBounds(planes),
+        // 渲染配置
+        renderConfig: {
+          backgroundType: 'ar-multi-plane',
+          enableShadows: true,
+          enableLighting: true,
+          // MMD角色可以放置的平面
+          validPlacementPlanes: planes.map((p, i) => ({
+            planeIndex: i,
+            worldPosition: p.worldPosition,
+            normal: { x: 0, y: 1, z: 0 }
+          }))
+        }
       }
       
       // 创建ZIP
@@ -424,13 +445,15 @@ export function ARSceneCameraRecorder({
       
       zip.file('manifest.json', JSON.stringify({
         version: '4.0',
-        type: 'ar-multi-plane-scene-pack',
+        type: 'arcjpack',
+        format: 'ar-cinematic-pack',
         createdAt: new Date().toISOString(),
         metadata: {
           name: sceneData.name,
           type: 'ar-multi-plane',
           planeCount: planes.length,
-          imageCount: capturedImages.length
+          imageCount: capturedImages.length,
+          compatibleWith: ['timeline', 'mmd-preview', 'ar-renderer']
         }
       }, null, 2))
       
@@ -496,7 +519,7 @@ sceneData.planes.forEach(plane => {
       const url = URL.createObjectURL(content)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${sceneData.name.replace(/\s+/g, '_')}.arscene4`
+      a.download = `${sceneData.name.replace(/\s+/g, '_')}.arcjpack`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -536,6 +559,75 @@ sceneData.planes.forEach(plane => {
         z: (Math.min(...zs) + Math.max(...zs)) / 2
       }
     }
+  }
+
+  // 计算场景中心
+  const calculateSceneCenter = (planes) => {
+    const bounds = calculateSceneBounds(planes)
+    return bounds ? bounds.center : { x: 0, y: 0, z: 0 }
+  }
+
+  // 生成锚点 - 用于MMD角色放置
+  const generateAnchorPoints = (plane) => {
+    const points = []
+    const { worldPosition, realSize } = plane
+    
+    // 中心点
+    points.push({
+      id: `${plane.id}_center`,
+      name: '中心',
+      position: { ...worldPosition },
+      type: 'center'
+    })
+    
+    // 四个角
+    const halfWidth = realSize.width / 2
+    const halfHeight = realSize.height / 2
+    
+    points.push(
+      {
+        id: `${plane.id}_corner_1`,
+        name: '左上角',
+        position: {
+          x: worldPosition.x - halfWidth,
+          y: worldPosition.y,
+          z: worldPosition.z - halfHeight
+        },
+        type: 'corner'
+      },
+      {
+        id: `${plane.id}_corner_2`,
+        name: '右上角',
+        position: {
+          x: worldPosition.x + halfWidth,
+          y: worldPosition.y,
+          z: worldPosition.z - halfHeight
+        },
+        type: 'corner'
+      },
+      {
+        id: `${plane.id}_corner_3`,
+        name: '左下角',
+        position: {
+          x: worldPosition.x - halfWidth,
+          y: worldPosition.y,
+          z: worldPosition.z + halfHeight
+        },
+        type: 'corner'
+      },
+      {
+        id: `${plane.id}_corner_4`,
+        name: '右下角',
+        position: {
+          x: worldPosition.x + halfWidth,
+          y: worldPosition.y,
+          z: worldPosition.z + halfHeight
+        },
+        type: 'corner'
+      }
+    )
+    
+    return points
   }
 
   // 关闭
