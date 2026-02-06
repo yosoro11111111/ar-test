@@ -351,7 +351,7 @@ function CoordinatePicker({ mode, currentValue, onSelect, onClose }) {
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  const [selectedPoint, setSelectedPoint] = useState({ x: 0, z: 0 })
+  const [selectedPoint, setSelectedPoint] = useState({ x: 0, y: 0, z: 0 })
 
   // 世界坐标范围
   const WORLD_SIZE = 20 // -10 到 10
@@ -616,9 +616,9 @@ function CoordinatePicker({ mode, currentValue, onSelect, onClose }) {
         
         <div className={styles.pickerInfo}>
           <div className={styles.coordDisplay}>
-            <span>X: {selectedPoint.x.toFixed(2)}</span>
-            <span>Y: {selectedPoint.y.toFixed(2)}</span>
-            <span>Z: {selectedPoint.z.toFixed(2)}</span>
+            <span>X: {(selectedPoint?.x ?? 0).toFixed(2)}</span>
+            <span>Y: {(selectedPoint?.y ?? 0).toFixed(2)}</span>
+            <span>Z: {(selectedPoint?.z ?? 0).toFixed(2)}</span>
           </div>
           <p className={styles.hint}>💡 点击画布选择坐标，滚轮缩放，当前为{view === 'top' ? '俯视图' : view === 'front' ? '正视图' : '侧视图'}</p>
         </div>
