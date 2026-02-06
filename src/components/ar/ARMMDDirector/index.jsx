@@ -279,6 +279,10 @@ export function ARMMDDirector() {
   
   // 添加片段到轨道
   const addCell = (trackId) => {
+    // 获取轨道类型
+    const track = project.tracks.find(t => t.id === trackId)
+    const trackType = track?.type || 'unknown'
+    
     const newClip = {
       id: `clip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       type: 'clip',
@@ -296,8 +300,8 @@ export function ARMMDDirector() {
       )
     }))
 
-    // 打开编辑弹窗
-    setEditingCell({ trackId, clip: newClip })
+    // 打开编辑弹窗 - 传入trackType
+    setEditingCell({ trackId, trackType, cell: newClip })
     setShowCellEditModal(true)
   }
 

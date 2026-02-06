@@ -152,9 +152,27 @@ export function Timeline({
 
   // 获取单元格显示名称
   const getCellDisplayName = (cell, trackType) => {
-    if (cell.data?.name) return cell.data.name
-    const typeInfo = getTrackTypeInfo(trackType)
-    return `未命名${typeInfo?.name || '片段'}`
+    // 根据轨道类型显示不同的内容
+    switch (trackType) {
+      case 'scene':
+        return cell.data?.sceneName || cell.data?.name || '选择场景'
+      case 'action':
+        return cell.data?.actionName || cell.data?.name || '选择动作'
+      case 'effect':
+        return cell.data?.effectName || cell.data?.name || '选择特效'
+      case 'position':
+        return cell.data?.presetId || cell.data?.name || '设置路径'
+      case 'scale':
+        return cell.data?.scale ? `${cell.data.scale}x` : (cell.data?.name || '设置缩放')
+      case 'music':
+        return cell.data?.musicName || cell.data?.name || '选择音乐'
+      case 'prop':
+        return cell.data?.propName || cell.data?.name || '选择道具'
+      case 'bgScale':
+        return cell.data?.scale ? `${cell.data.scale}x` : (cell.data?.name || '背景缩放')
+      default:
+        return cell.data?.name || `未命名${getTrackTypeInfo(trackType)?.name || '片段'}`
+    }
   }
 
   return (
