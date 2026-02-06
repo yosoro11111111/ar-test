@@ -310,7 +310,7 @@ export function ProjectWizard({ isOpen, onComplete, onCancel, onImport, onOpenAR
                       📁 导入AR场景
                       <input
                         type="file"
-                        accept=".arpack,.arscene,.arscene2,.webxrar"
+                        accept=".arcjpack"
                         onChange={async (e) => {
                           const file = e.target.files[0]
                           if (file) {

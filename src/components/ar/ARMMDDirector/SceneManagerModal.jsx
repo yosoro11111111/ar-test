@@ -154,7 +154,7 @@ export function SceneManagerModal({ onSelect, onClose }) {
             📦 导入场景包
             <input
               type="file"
-              accept=".arpack,.arscene,.arscene2,.arscene3,.webxrar,.json,.mmdscene.json"
+              accept=".arcjpack"
               onChange={(e) => e.target.files?.[0] && importScene(e.target.files[0])}
               style={{ display: 'none' }}
             />
