@@ -89,6 +89,7 @@
   padding: 20px;
   min-height: 400px;
   max-height: 70vh;
+  position: relative;
 }
 
 .previewPlaceholder {

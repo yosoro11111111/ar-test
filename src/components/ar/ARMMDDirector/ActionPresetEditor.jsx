@@ -9,6 +9,7 @@ import {
   autoArrangeActions,
   calculatePresetDuration,
   savePresetsToStorage,
+  loadPresetsFromStorage,
   PRESET_TAGS
 } from './actionPresets'
 import styles from './ActionPresetEditor.module.css'

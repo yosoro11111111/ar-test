@@ -11,6 +11,8 @@ import { Timeline } from './Timeline'
 import { TrackTypeSelectModal } from './TrackTypeSelectModal'
 import { createTrack, createClip, TRACK_TYPES } from './trackTypes'
 import { loadVRMAAction } from '../../../data/vrmaActions.js'
+import { calculatePositionOnPath } from './positionPresets'
+import { getMusicManager, destroyMusicManager } from './MusicManager'
 
 /**
  * AR MMD Director - 新轨道系统版本
@@ -43,16 +45,18 @@ export function ARMMDDirector() {
   
   // 坐标选择模式
   const [coordinatePickerMode, setCoordinatePickerMode] = useState(null) // 'position' | 'target' | null
-  const [coordinatePickerCallback, setCoordinatePickerCallback] = useState(null)
+  const coordinatePickerCallbackRef = useRef(null)
   const [pickerPreviewPosition, setPickerPreviewPosition] = useState({ x: 0, y: 0, z: 0 })
   
   // 注册全局坐标选择函数
   useEffect(() => {
     window.startCoordinatePicker = (mode, callback, currentValue) => {
       setCoordinatePickerMode(mode)
-      setCoordinatePickerCallback(() => callback)
+      coordinatePickerCallbackRef.current = callback
       if (currentValue) {
         setPickerPreviewPosition(currentValue)
+      } else {
+        setPickerPreviewPosition({ x: 0, y: 0, z: 0 })
       }
     }
     return () => {
@@ -247,12 +251,23 @@ export function ARMMDDirector() {
   
   // 处理画布点击选择坐标
   const handleCanvasClickForCoordinate = (e) => {
-    if (!cameraRef.current || !rendererRef.current) return
+    console.log('Coordinate picker clicked')
+    if (!cameraRef.current) {
+      console.warn('Camera not available')
+      return
+    }
     
     const canvas = canvasRef.current
+    if (!canvas) {
+      console.warn('Canvas not available')
+      return
+    }
+    
     const rect = canvas.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * 2 - 1
     const y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+    
+    console.log('Mouse normalized:', { x, y })
     
     // 创建射线
     const raycaster = new THREE.Raycaster()
@@ -261,14 +276,20 @@ export function ARMMDDirector() {
     // 与地面平面 (y=0) 相交
     const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
     const target = new THREE.Vector3()
-    raycaster.ray.intersectPlane(plane, target)
+    const intersected = raycaster.ray.intersectPlane(plane, target)
     
-    if (target) {
-      setPickerPreviewPosition({
+    console.log('Intersection result:', intersected, 'Target:', target)
+    
+    if (intersected) {
+      const newPosition = {
         x: target.x,
         y: target.y,
         z: target.z
-      })
+      }
+      console.log('Setting picker position:', newPosition)
+      setPickerPreviewPosition(newPosition)
+    } else {
+      console.warn('No intersection with ground plane')
     }
   }
   
@@ -476,12 +497,11 @@ export function ARMMDDirector() {
         if (activeClip?.data?.pathData) {
           const path = activeClip.data.pathData
           const progress = (time - activeClip.startTime) / activeClip.duration
-          // 简单的线性插值
-          if (path.startPosition && path.endPosition) {
-            const x = path.startPosition.x + (path.endPosition.x - path.startPosition.x) * progress
-            const y = path.startPosition.y + (path.endPosition.y - path.startPosition.y) * progress
-            const z = path.startPosition.z + (path.endPosition.z - path.startPosition.z) * progress
-            character.vrm.scene.position.set(x, y, z)
+          
+          // 使用路径计算函数
+          const position = calculatePositionOnPath(path, progress)
+          if (position) {
+            character.vrm.scene.position.set(position.x, position.y, position.z)
           }
         }
       }
@@ -549,6 +569,126 @@ export function ARMMDDirector() {
         }
       })
     })
+    
+    // 处理音乐轨道
+    const musicTracks = tracksByType['music'] || []
+    musicTracks.forEach(track => {
+      const activeClip = track.clips?.find(clip => 
+        time >= clip.startTime && time <= clip.startTime + clip.duration
+      )
+      
+      if (activeClip?.data?.audioUrl) {
+        const musicManager = getMusicManager()
+        
+        // 如果音频未加载或需要切换，加载新音频
+        if (musicManager.currentUrl !== activeClip.data.audioUrl) {
+          musicManager.load(activeClip.data.audioUrl).then(() => {
+            if (isPlaying) {
+              musicManager.play()
+            }
+          }).catch(err => {
+            console.error('音乐加载失败:', err)
+          })
+        }
+        
+        // 同步时间
+        const clipTime = time - activeClip.startTime
+        if (Math.abs(musicManager.getCurrentTime() - clipTime) > 0.1) {
+          musicManager.setCurrentTime(clipTime)
+        }
+      }
+    })
+    
+    // 处理摄像机轨道
+    const cameraTracks = tracksByType['camera'] || []
+    cameraTracks.forEach(track => {
+      const activeClip = track.clips?.find(clip => 
+        time >= clip.startTime && time <= clip.startTime + clip.duration
+      )
+      
+      if (activeClip?.data?.keyframes && cameraRef.current) {
+        const keyframes = activeClip.data.keyframes
+        if (keyframes.length === 0) return
+        
+        // 计算片段内的时间进度
+        const clipTime = time - activeClip.startTime
+        const clipDuration = activeClip.duration
+        const progress = Math.max(0, Math.min(1, clipTime / clipDuration))
+        
+        // 找到当前时间所在的关键帧区间
+        let startKeyframe = keyframes[0]
+        let endKeyframe = keyframes[keyframes.length - 1]
+        let localProgress = 0
+        
+        for (let i = 0; i < keyframes.length - 1; i++) {
+          const kf1 = keyframes[i]
+          const kf2 = keyframes[i + 1]
+          const kf1Time = (kf1.time / clipDuration) * clipDuration
+          const kf2Time = (kf2.time / clipDuration) * clipDuration
+          
+          if (clipTime >= kf1Time && clipTime <= kf2Time) {
+            startKeyframe = kf1
+            endKeyframe = kf2
+            localProgress = (clipTime - kf1Time) / (kf2Time - kf1Time)
+            break
+          }
+        }
+        
+        // 应用缓动函数
+        const easing = startKeyframe.easing || 'linear'
+        const easedProgress = applyEasing(localProgress, easing)
+        
+        // 插值计算摄像机位置
+        const position = {
+          x: startKeyframe.position.x + (endKeyframe.position.x - startKeyframe.position.x) * easedProgress,
+          y: startKeyframe.position.y + (endKeyframe.position.y - startKeyframe.position.y) * easedProgress,
+          z: startKeyframe.position.z + (endKeyframe.position.z - startKeyframe.position.z) * easedProgress
+        }
+        
+        // 插值计算目标点
+        const target = {
+          x: startKeyframe.target.x + (endKeyframe.target.x - startKeyframe.target.x) * easedProgress,
+          y: startKeyframe.target.y + (endKeyframe.target.y - startKeyframe.target.y) * easedProgress,
+          z: startKeyframe.target.z + (endKeyframe.target.z - startKeyframe.target.z) * easedProgress
+        }
+        
+        // 插值计算FOV
+        const fov = startKeyframe.fov + (endKeyframe.fov - startKeyframe.fov) * easedProgress
+        
+        // 应用摄像机设置
+        cameraRef.current.position.set(position.x, position.y, position.z)
+        cameraRef.current.lookAt(target.x, target.y, target.z)
+        cameraRef.current.fov = fov
+        cameraRef.current.updateProjectionMatrix()
+      }
+    })
+  }
+  
+  // 缓动函数
+  const applyEasing = (t, easing) => {
+    switch (easing) {
+      case 'easeIn':
+        return t * t
+      case 'easeOut':
+        return 1 - (1 - t) * (1 - t)
+      case 'easeInOut':
+        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2
+      case 'bounce':
+        const n1 = 7.5625
+        const d1 = 2.75
+        if (t < 1 / d1) {
+          return n1 * t * t
+        } else if (t < 2 / d1) {
+          return n1 * (t -= 1.5 / d1) * t + 0.75
+        } else if (t < 2.5 / d1) {
+          return n1 * (t -= 2.25 / d1) * t + 0.9375
+        } else {
+          return n1 * (t -= 2.625 / d1) * t + 0.984375
+        }
+      case 'linear':
+      default:
+        return t
+    }
   }
   
   // 播放/暂停
@@ -557,7 +697,16 @@ export function ARMMDDirector() {
       setPreviewOpen(true)
       setTimeout(() => setIsPlaying(true), 100)
     } else {
-      setIsPlaying(!isPlaying)
+      const newPlayingState = !isPlaying
+      setIsPlaying(newPlayingState)
+      
+      // 同步音乐播放状态
+      const musicManager = getMusicManager()
+      if (newPlayingState) {
+        musicManager.play()
+      } else {
+        musicManager.pause()
+      }
     }
   }
   
@@ -585,13 +734,13 @@ export function ARMMDDirector() {
   const getTimelineEndTime = () => {
     let maxTime = 0
     project.tracks.forEach(track => {
-      // 检查场景、动作、特效的结束时间
-      ;['scene', 'action', 'effect'].forEach(key => {
-        track[key]?.forEach(item => {
-          const endTime = item.startTime + item.duration
+      // 检查所有轨道的clips
+      if (track.clips) {
+        track.clips.forEach(clip => {
+          const endTime = clip.startTime + clip.duration
           if (endTime > maxTime) maxTime = endTime
         })
-      })
+      }
     })
     return Math.max(maxTime, project.duration)
   }
@@ -1031,11 +1180,11 @@ export function ARMMDDirector() {
                   <button 
                     className={styles.pickerConfirmBtn}
                     onClick={() => {
-                      if (coordinatePickerCallback) {
-                        coordinatePickerCallback(pickerPreviewPosition)
+                      if (coordinatePickerCallbackRef.current) {
+                        coordinatePickerCallbackRef.current(pickerPreviewPosition)
                       }
                       setCoordinatePickerMode(null)
-                      setCoordinatePickerCallback(null)
+                      coordinatePickerCallbackRef.current = null
                     }}
                   >
                     ✓ 确认选择
@@ -1044,7 +1193,7 @@ export function ARMMDDirector() {
                     className={styles.pickerCancelBtn}
                     onClick={() => {
                       setCoordinatePickerMode(null)
-                      setCoordinatePickerCallback(null)
+                      coordinatePickerCallbackRef.current = null
                     }}
                   >
                     取消
