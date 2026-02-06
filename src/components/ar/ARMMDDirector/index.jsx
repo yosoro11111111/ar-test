@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as THREE from 'three'
+import JSZip from 'jszip'
 import styles from './styles.module.css'
 import { MultiCharacterManager } from '../MultiCharacterManager.js'
 import { CharacterSelectModal } from './CharacterSelectModal'
@@ -460,9 +461,51 @@ export function ARMMDDirector() {
     return Math.max(maxTime, project.duration)
   }
   
-  // 导出GIF/视频
+  // 导出GIF/视频/ZIP
   const [exportProgress, setExportProgress] = useState(0)
   const [isExporting, setIsExporting] = useState(false)
+  const [exportStage, setExportStage] = useState('') // 导出阶段提示
+  
+  // 优化的批量渲染函数 - 使用requestAnimationFrame
+  const renderFrames = async (duration, fps, onFrame) => {
+    const totalFrames = Math.ceil(duration * fps)
+    const frameTime = 1000 / fps
+    
+    return new Promise((resolve) => {
+      let frameIndex = 0
+      let lastTime = performance.now()
+      
+      const renderLoop = () => {
+        const currentTime = performance.now()
+        const deltaTime = currentTime - lastTime
+        
+        if (deltaTime >= frameTime) {
+          const time = frameIndex / fps
+          updateSceneAtTime(time)
+          rendererRef.current.render(sceneRef.current, cameraRef.current)
+          
+          // 捕获帧
+          const dataUrl = rendererRef.current.domElement.toDataURL('image/png')
+          onFrame(dataUrl, frameIndex)
+          
+          frameIndex++
+          lastTime = currentTime
+          
+          // 更新进度
+          const progress = Math.round((frameIndex / totalFrames) * 100)
+          setExportProgress(progress)
+        }
+        
+        if (frameIndex < totalFrames) {
+          requestAnimationFrame(renderLoop)
+        } else {
+          resolve()
+        }
+      }
+      
+      requestAnimationFrame(renderLoop)
+    })
+  }
   
   const handleExportMedia = async (type) => {
     if (!rendererRef.current || !sceneRef.current || !cameraRef.current) {
@@ -470,12 +513,10 @@ export function ARMMDDirector() {
       return
     }
     
-    const canvas = rendererRef.current.domElement
     const fps = 30
     const duration = getTimelineEndTime()
-    const totalFrames = Math.ceil(duration * fps)
     
-    if (totalFrames === 0) {
+    if (duration === 0) {
       alert('时间轴为空，无法导出')
       return
     }
@@ -488,6 +529,7 @@ export function ARMMDDirector() {
     
     setIsExporting(true)
     setExportProgress(0)
+    setExportStage('正在渲染帧...')
     
     // 暂停播放
     const wasPlaying = isPlaying
@@ -495,34 +537,26 @@ export function ARMMDDirector() {
     
     const frames = []
     
-    // 逐帧渲染
-    for (let i = 0; i < totalFrames; i++) {
-      const time = i / fps
-      updateSceneAtTime(time)
-      rendererRef.current.render(sceneRef.current, cameraRef.current)
-      
-      // 捕获帧
-      const dataUrl = canvas.toDataURL('image/png')
+    // 使用优化的批量渲染
+    await renderFrames(duration, fps, (dataUrl) => {
       frames.push(dataUrl)
-      
-      // 更新进度
-      const progress = Math.round(((i + 1) / totalFrames) * 100)
-      setExportProgress(progress)
-      
-      // 让UI有时间更新
-      if (i % 5 === 0) {
-        await new Promise(resolve => setTimeout(resolve, 0))
-      }
-    }
+    })
+    
+    setExportStage('正在生成文件...')
     
     if (type === 'gif') {
       await exportGIF(frames, fps)
-    } else {
+    } else if (type === 'video') {
       await exportVideo(frames, fps)
+    } else if (type === 'zip') {
+      await exportZIP(frames, fps)
+    } else if (type === 'project') {
+      await exportProjectZIP()
     }
     
     setIsExporting(false)
     setExportProgress(0)
+    setExportStage('')
     
     // 恢复播放状态
     if (wasPlaying) {
@@ -530,31 +564,34 @@ export function ARMMDDirector() {
     }
   }
   
-  // 导出GIF - 使用gif.js
+  // 导出GIF - 使用gif.js（优化版）
   const exportGIF = async (frames, fps) => {
     try {
       const gif = new GIF({
-        workers: 2,
+        workers: 4, // 增加worker数量
         quality: 10,
         width: 960,
         height: 540,
         workerScript: '/gif.worker.js'
       })
       
-      let loadedFrames = 0
-      
-      // 加载所有帧
-      for (const frameData of frames) {
-        const img = new Image()
-        img.src = frameData
-        await new Promise((resolve) => {
+      // 并行加载帧
+      const loadFrame = (frameData) => {
+        return new Promise((resolve) => {
+          const img = new Image()
+          img.src = frameData
           img.onload = () => {
             gif.addFrame(img, { delay: 1000 / fps })
-            loadedFrames++
-            setExportProgress(Math.round((loadedFrames / frames.length) * 50) + 50)
             resolve()
           }
         })
+      }
+      
+      // 批量加载，每10帧更新一次进度
+      for (let i = 0; i < frames.length; i += 10) {
+        const batch = frames.slice(i, i + 10)
+        await Promise.all(batch.map(loadFrame))
+        setExportProgress(Math.round(((i + batch.length) / frames.length) * 50) + 50)
       }
       
       gif.on('finished', (blob) => {
@@ -574,7 +611,7 @@ export function ARMMDDirector() {
     }
   }
   
-  // 导出视频
+  // 导出视频 - 使用实时录制（更高效）
   const exportVideo = async (frames, fps) => {
     try {
       const canvas = rendererRef.current.domElement
@@ -613,6 +650,86 @@ export function ARMMDDirector() {
     } catch (error) {
       console.error('视频导出失败:', error)
       alert('视频导出失败: ' + error.message)
+    }
+  }
+  
+  // 导出帧序列ZIP
+  const exportZIP = async (frames, fps) => {
+    try {
+      const zip = new JSZip()
+      const folder = zip.folder(`${project.name}_frames`)
+      
+      // 添加帧图片
+      for (let i = 0; i < frames.length; i++) {
+        const frameData = frames[i]
+        const base64Data = frameData.split(',')[1]
+        folder.file(`frame_${String(i).padStart(4, '0')}.png`, base64Data, { base64: true })
+        
+        if (i % 10 === 0) {
+          setExportProgress(Math.round((i / frames.length) * 50) + 50)
+        }
+      }
+      
+      // 添加项目信息JSON
+      const projectInfo = {
+        name: project.name,
+        fps: fps,
+        frameCount: frames.length,
+        duration: frames.length / fps,
+        exportedAt: new Date().toISOString()
+      }
+      folder.file('project_info.json', JSON.stringify(projectInfo, null, 2))
+      
+      // 生成ZIP
+      const content = await zip.generateAsync({ type: 'blob' })
+      const url = URL.createObjectURL(content)
+      const link = document.createElement('a')
+      link.download = `${project.name}_frames.zip`
+      link.href = url
+      link.click()
+      URL.revokeObjectURL(url)
+      alert('帧序列导出成功！')
+    } catch (error) {
+      console.error('ZIP导出失败:', error)
+      alert('ZIP导出失败: ' + error.message)
+    }
+  }
+  
+  // 导出项目ZIP（包含所有资源）
+  const exportProjectZIP = async () => {
+    try {
+      const zip = new JSZip()
+      
+      // 添加项目JSON
+      zip.file('project.json', JSON.stringify(project, null, 2))
+      
+      // 添加场景图片
+      for (const track of project.tracks) {
+        for (const scene of track.scene || []) {
+          if (scene.sceneData?.imageUrl) {
+            try {
+              const response = await fetch(scene.sceneData.imageUrl)
+              const blob = await response.blob()
+              zip.file(`scenes/${scene.id}.png`, blob)
+            } catch (e) {
+              console.warn('无法下载场景图片:', e)
+            }
+          }
+        }
+      }
+      
+      // 生成ZIP
+      const content = await zip.generateAsync({ type: 'blob' })
+      const url = URL.createObjectURL(content)
+      const link = document.createElement('a')
+      link.download = `${project.name}.mmdproject.zip`
+      link.href = url
+      link.click()
+      URL.revokeObjectURL(url)
+      alert('项目导出成功！')
+    } catch (error) {
+      console.error('项目导出失败:', error)
+      alert('项目导出失败: ' + error.message)
     }
   }
   
@@ -702,7 +819,7 @@ export function ARMMDDirector() {
               {isExporting && (
                 <div className={styles.exportProgressOverlay}>
                   <div className={styles.exportProgressBox}>
-                    <div className={styles.exportProgressTitle}>🎬 正在导出...</div>
+                    <div className={styles.exportProgressTitle}>🎬 {exportStage || '正在导出...'}</div>
                     <div className={styles.exportProgressBar}>
                       <div 
                         className={styles.exportProgressFill} 

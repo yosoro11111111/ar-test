@@ -20,6 +20,7 @@
     "cannon-es": "^0.20.0",
     "framer-motion": "^12.30.0",
     "gif.js": "^0.2.0",
+    "jszip": "^3.10.1",
     "media-recorder-js": "^2.1.0",
     "omggif": "^1.0.10",
     "react": "^18.3.1",

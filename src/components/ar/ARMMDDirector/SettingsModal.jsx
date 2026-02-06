@@ -137,6 +137,12 @@ export function SettingsModal({ project, onClose, onExport }) {
                 <button className={styles.mediaBtn} onClick={() => handleExportMedia('video')}>
                   🎥 导出视频
                 </button>
+                <button className={styles.mediaBtn} onClick={() => handleExportMedia('zip')}>
+                  🖼️ 导出帧序列 (ZIP)
+                </button>
+                <button className={styles.mediaBtn} onClick={() => handleExportMedia('project')}>
+                  📦 导出完整项目 (ZIP)
+                </button>
               </div>
             )}
           </div>
