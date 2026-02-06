@@ -165,20 +165,33 @@
 @media (max-width: 768px) {
   .modal {
     width: 95%;
-    max-height: 85vh;
+    max-height: 90vh;
+    margin: 20px auto;
   }
 
   .trackList {
-    max-height: 50vh;
-  }
-
-  .trackItem {
+    max-height: none;
+    height: auto;
+    overflow-y: visible;
     padding: 12px;
   }
 
+  .trackItem {
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+
   .trackIcon {
-    width: 40px;
-    height: 40px;
-    font-size: 18px;
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+  
+  .trackName {
+    font-size: 16px;
+  }
+  
+  .trackDesc {
+    font-size: 13px;
   }
 }
