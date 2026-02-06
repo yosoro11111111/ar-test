@@ -1225,8 +1225,9 @@ export function ARMMDDirector() {
             planes: planes.length,
             sceneGroupChildren: sceneGroup.children.length,
             sceneGroupPosition: sceneGroup.position,
-            camera: targetPosition,
-            lookAt: lookAtPosition
+            hasCamera: !!targetPosition,
+            camera: targetPosition || 'not set',
+            lookAt: lookAtPosition || 'not set'
           })
         }
         // 处理AR多平面场景 - 真实多平面3D环境
