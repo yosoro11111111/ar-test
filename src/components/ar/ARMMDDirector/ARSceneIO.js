@@ -3,22 +3,22 @@ import JSZip from 'jszip'
 /**
  * AR场景导入导出工具
  * 
- * 文件格式: .arpack (ZIP压缩包)
+ * 支持格式:
+ * 1. .arpack (v1.0) - 旧版AR场景包
+ * 2. .arscene2 (v2.0) - 新版真实AR场景包
  * 
- * 文件结构:
- * scene.arpack (ZIP)
+ * v2.0 文件结构:
+ * scene.arscene2 (ZIP)
  *   ├── manifest.json      # 场景元数据
- *   ├── scene.json         # 场景数据
- *   └── assets/            # 资源文件
- *       ├── image.png      # 场景图片(如果有)
- *       └── ar/            # AR录制数据
- *           └── data.json
+ *   ├── scene.json         # 场景数据(包含平面配置)
+ *   └── scene.jpg          # 场景背景图片
  */
 
 const ARPACK_VERSION = '1.0'
+const ARSCENE2_VERSION = '2.0'
 
 /**
- * 导出AR场景包
+ * 导出AR场景包 (v1.0 旧版)
  * @param {Object} scene - 场景对象 { id, name, type, data }
  * @returns {Promise<Blob>} - ZIP文件Blob
  */
@@ -80,8 +80,51 @@ export async function exportARScenePack(scene) {
 }
 
 /**
- * 导入AR场景包
- * @param {File} file - .arpack文件
+ * 导出真实AR场景包 (v2.0 新版)
+ * @param {Object} sceneData - 场景数据 { name, image, planes, camera }
+ * @returns {Promise<Blob>} - ZIP文件Blob
+ */
+export async function exportRealARScene(sceneData) {
+  const zip = new JSZip()
+  
+  // 1. 创建清单文件
+  const manifest = {
+    version: ARSCENE2_VERSION,
+    type: 'real-ar-scene-pack',
+    createdAt: new Date().toISOString(),
+    metadata: {
+      name: sceneData.name || '未命名场景',
+      type: 'real-ar',
+      planeCount: sceneData.planes?.length || 0
+    }
+  }
+  zip.file('manifest.json', JSON.stringify(manifest, null, 2))
+  
+  // 2. 准备场景数据（不包含图片base64）
+  const sceneJson = {
+    version: sceneData.version || '2.0',
+    type: sceneData.type || 'real-ar-scene',
+    name: sceneData.name || '未命名场景',
+    capturedAt: sceneData.capturedAt || new Date().toISOString(),
+    planes: sceneData.planes || [],
+    camera: sceneData.camera || { fov: 60, position: { x: 0, y: 0, z: 5 } }
+  }
+  zip.file('scene.json', JSON.stringify(sceneJson, null, 2))
+  
+  // 3. 保存图片
+  if (sceneData.image) {
+    const imageBase64 = sceneData.image.split(',')[1]
+    zip.file('scene.jpg', imageBase64, { base64: true })
+  }
+  
+  // 4. 生成ZIP
+  const content = await zip.generateAsync({ type: 'blob' })
+  return content
+}
+
+/**
+ * 导入AR场景包 (自动识别版本)
+ * @param {File} file - .arpack 或 .arscene2 文件
  * @returns {Promise<Object>} - 场景对象
  */
 export async function importARScenePack(file) {
@@ -94,11 +137,20 @@ export async function importARScenePack(file) {
   }
   
   const manifest = JSON.parse(await manifestFile.async('text'))
-  if (manifest.type !== 'ar-scene-pack') {
-    throw new Error('无效的场景包类型')
-  }
   
-  // 2. 读取场景数据
+  // 根据版本处理
+  if (manifest.version === ARSCENE2_VERSION || manifest.type === 'real-ar-scene-pack') {
+    return importRealARScene(zip, manifest)
+  } else {
+    return importLegacyARScene(zip, manifest)
+  }
+}
+
+/**
+ * 导入新版真实AR场景 (v2.0)
+ */
+async function importRealARScene(zip, manifest) {
+  // 1. 读取场景数据
   const sceneFile = zip.file('scene.json')
   if (!sceneFile) {
     throw new Error('无效的场景包：缺少场景数据')
@@ -106,7 +158,55 @@ export async function importARScenePack(file) {
   
   const sceneData = JSON.parse(await sceneFile.async('text'))
   
-  // 3. 加载图片资源
+  // 2. 加载图片
+  const imageFile = zip.file('scene.jpg') || zip.file('scene.png')
+  if (imageFile) {
+    const base64Data = await imageFile.async('base64')
+    const ext = imageFile.name.split('.').pop()
+    const mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png'
+    sceneData.image = `data:${mimeType};base64,${base64Data}`
+  }
+  
+  // 3. 构建场景对象
+  const scene = {
+    id: `real_ar_scene_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    name: `${manifest.metadata?.name || sceneData.name || '真实AR场景'} (导入)`,
+    type: 'real-ar',
+    createdAt: new Date().toISOString(),
+    importedAt: new Date().toISOString(),
+    data: sceneData,
+    // 兼容旧版格式
+    backgroundType: 'real-ar',
+    arBackground: {
+      id: sceneData.id || `ar_${Date.now()}`,
+      name: sceneData.name || '真实AR场景',
+      type: 'real-ar',
+      image: sceneData.image,
+      planes: sceneData.planes || [],
+      camera: sceneData.camera
+    }
+  }
+  
+  return scene
+}
+
+/**
+ * 导入旧版AR场景 (v1.0)
+ */
+async function importLegacyARScene(zip, manifest) {
+  if (manifest.type !== 'ar-scene-pack') {
+    throw new Error('无效的场景包类型')
+  }
+  
+  // 1. 读取场景数据
+  const sceneFile = zip.file('scene.json')
+  if (!sceneFile) {
+    throw new Error('无效的场景包：缺少场景数据')
+  }
+  
+  const sceneData = JSON.parse(await sceneFile.async('text'))
+  
+  // 2. 加载图片资源
   if (sceneData.imagePath) {
     const imageFile = zip.file(sceneData.imagePath)
     if (imageFile) {
@@ -118,7 +218,7 @@ export async function importARScenePack(file) {
     }
   }
   
-  // 4. 加载AR数据
+  // 3. 加载AR数据
   if (sceneData.arDataPath) {
     const arFile = zip.file(sceneData.arDataPath)
     if (arFile) {
@@ -128,7 +228,7 @@ export async function importARScenePack(file) {
     }
   }
   
-  // 5. 构建场景对象
+  // 4. 构建场景对象
   const scene = {
     id: `scene_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     name: `${manifest.metadata?.name || '未命名场景'} (导入)`,
@@ -163,5 +263,62 @@ export function downloadFile(blob, filename) {
  * @returns {boolean}
  */
 export function isARScenePack(file) {
-  return file.name.endsWith('.arpack') || file.name.endsWith('.arscene')
+  return file.name.endsWith('.arpack') || 
+         file.name.endsWith('.arscene') || 
+         file.name.endsWith('.arscene2')
+}
+
+/**
+ * 获取场景缩略图
+ * @param {Object} scene - 场景对象
+ * @returns {string|null} - 缩略图URL
+ */
+export function getSceneThumbnail(scene) {
+  if (!scene) return null
+  
+  // 真实AR场景
+  if (scene.type === 'real-ar' || scene.backgroundType === 'real-ar') {
+    return scene.data?.image || scene.arBackground?.image || null
+  }
+  
+  // 图片场景
+  if (scene.type === 'image' && scene.data?.imageUrl) {
+    return scene.data.imageUrl
+  }
+  
+  // AR场景
+  if (scene.type === 'ar' && scene.data?.thumbnail) {
+    return scene.data.thumbnail
+  }
+  
+  return null
+}
+
+/**
+ * 转换真实AR场景为项目背景格式
+ * @param {Object} realARScene - 真实AR场景对象
+ * @returns {Object} - 项目背景格式
+ */
+export function convertRealARToProjectBackground(realARScene) {
+  if (!realARScene || realARScene.type !== 'real-ar') {
+    return null
+  }
+  
+  const data = realARScene.data || {}
+  
+  return {
+    id: realARScene.id,
+    name: realARScene.name,
+    type: 'real-ar',
+    backgroundType: 'real-ar',
+    image: data.image,
+    planes: data.planes || [],
+    camera: data.camera || { fov: 60, position: { x: 0, y: 0, z: 5 } },
+    arData: {
+      version: data.version || '2.0',
+      type: data.type || 'real-ar-scene',
+      capturedAt: data.capturedAt,
+      planes: data.planes || []
+    }
+  }
 }

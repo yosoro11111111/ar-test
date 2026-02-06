@@ -20,6 +20,7 @@ import { ProjectWizard } from './ProjectWizard'
 import { QuickActions } from './QuickActions'
 import { exportProject, importProject, downloadFile } from './ProjectIO'
 import { ARSceneRecorder } from './ARSceneRecorder'
+import { RealARSceneRecorder } from './RealARSceneRecorder'
 import { SceneManagerModal } from './SceneManagerModal'
 
 /**
@@ -713,13 +714,31 @@ export function ARMMDDirector() {
         time >= clip.startTime && time <= clip.startTime + clip.duration
       )
       
-      if (activeClip?.data?.sceneData?.imageUrl && sceneRef.current) {
-        const textureLoader = new THREE.TextureLoader()
-        textureLoader.load(activeClip.data.sceneData.imageUrl, (texture) => {
-          if (sceneRef.current) {
-            sceneRef.current.background = texture
-          }
-        })
+      if (activeClip?.data?.sceneData && sceneRef.current) {
+        const sceneData = activeClip.data.sceneData
+        
+        // 处理图片背景
+        if (sceneData.imageUrl) {
+          const textureLoader = new THREE.TextureLoader()
+          textureLoader.load(sceneData.imageUrl, (texture) => {
+            if (sceneRef.current) {
+              sceneRef.current.background = texture
+            }
+          })
+        }
+        // 处理真实AR场景背景
+        else if (sceneData.type === 'real-ar' && sceneData.image) {
+          const textureLoader = new THREE.TextureLoader()
+          textureLoader.load(sceneData.image, (texture) => {
+            if (sceneRef.current) {
+              sceneRef.current.background = texture
+            }
+          })
+        }
+        // 处理纯色背景
+        else if (sceneData.type === 'color' && sceneData.color) {
+          sceneRef.current.background = new THREE.Color(sceneData.color)
+        }
       }
     })
     
@@ -1447,15 +1466,24 @@ export function ARMMDDirector() {
     } else if (wizardData.backgroundType === 'ar' && wizardData.arBackground) {
       // 创建AR背景场景轨道
       const sceneTrack = createTrack(null, 'scene')
+      
+      // 判断是真实AR场景还是普通AR场景
+      const isRealAR = wizardData.arBackground.type === 'real-ar' || 
+                       wizardData.arBackground.backgroundType === 'real-ar'
+      
       sceneTrack.clips = [{
         ...createClip('scene', 0, wizardData.duration),
         data: {
           name: wizardData.arBackground.name,
           sceneId: wizardData.arBackground.id,
           sceneData: {
-            type: 'ar',
+            type: isRealAR ? 'real-ar' : 'ar',
             arData: wizardData.arBackground,
-            thumbnail: wizardData.arBackground.thumbnail
+            thumbnail: wizardData.arBackground.thumbnail || wizardData.arBackground.data?.image,
+            // 真实AR场景特有数据
+            image: isRealAR ? (wizardData.arBackground.data?.image || wizardData.arBackground.image) : null,
+            planes: isRealAR ? (wizardData.arBackground.data?.planes || wizardData.arBackground.planes) : null,
+            camera: isRealAR ? (wizardData.arBackground.data?.camera || wizardData.arBackground.camera) : null
           }
         }
       }]
@@ -2073,15 +2101,15 @@ export function ARMMDDirector() {
 
       {/* AR场景录制弹窗 */}
       {showARRecorder && (
-        <ARSceneRecorder
+        <RealARSceneRecorder
           isOpen={showARRecorder}
           onClose={() => setShowARRecorder(false)}
           onSceneRecorded={(sceneData) => {
             setARSceneData(sceneData)
-            // 可以在这里将AR场景数据关联到项目
-            console.log('AR场景录制完成:', sceneData)
+            // 将真实AR场景数据关联到项目
+            console.log('真实AR场景录制完成:', sceneData)
+            // 可以在这里自动添加到场景列表
           }}
-          existingScene={arSceneData}
         />
       )}
 

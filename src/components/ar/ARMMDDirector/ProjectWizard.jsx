@@ -310,12 +310,28 @@ export function ProjectWizard({ isOpen, onComplete, onCancel, onImport, onOpenAR
                       📁 导入AR场景
                       <input
                         type="file"
-                        accept=".arpack,.arscene"
-                        onChange={(e) => {
+                        accept=".arpack,.arscene,.arscene2"
+                        onChange={async (e) => {
                           const file = e.target.files[0]
                           if (file) {
-                            // 处理导入
-                            console.log('导入AR场景:', file.name)
+                            // 动态导入ARSceneIO
+                            const { importARScenePack } = await import('./ARSceneIO')
+                            try {
+                              const scene = await importARScenePack(file)
+                              console.log('导入AR场景成功:', scene)
+                              // 设置导入的场景为选中
+                              setSelectedARBackground({
+                                id: scene.id,
+                                name: scene.name,
+                                type: scene.type,
+                                thumbnail: scene.data?.image || scene.arBackground?.image,
+                                date: new Date().toISOString().split('T')[0],
+                                ...scene
+                              })
+                            } catch (err) {
+                              console.error('导入失败:', err)
+                              alert('导入AR场景失败: ' + err.message)
+                            }
                           }
                           e.target.value = ''
                         }}
