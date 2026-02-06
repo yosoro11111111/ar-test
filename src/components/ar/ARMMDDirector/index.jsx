@@ -946,19 +946,21 @@ export function ARMMDDirector() {
               
               console.log('根据场景边界调整相机:', { center, size, distance })
             } else if (planes.length > 0) {
-              // 计算所有平面的中心
-              const centerX = planes.reduce((sum, p) => sum + p.worldPosition.x, 0) / planes.length
-              const centerY = planes.reduce((sum, p) => sum + p.worldPosition.y, 0) / planes.length
-              const centerZ = planes.reduce((sum, p) => sum + p.worldPosition.z, 0) / planes.length
+              // 计算所有平面的中心（使用放大后的坐标）
+              const SCALE_FACTOR = 20
+              const centerX = planes.reduce((sum, p) => sum + p.worldPosition.x, 0) / planes.length * SCALE_FACTOR
+              const centerY = planes.reduce((sum, p) => sum + (Math.floor(Math.abs(p.worldPosition.z) / 2) * 3), 0) / planes.length
+              const centerZ = planes.reduce((sum, p) => sum + p.worldPosition.z, 0) / planes.length * SCALE_FACTOR
               
+              // 相机位置：从侧面和上方观察，可以看到所有层次
               targetPosition = {
-                x: centerX + 8,
-                y: centerY + 6,
-                z: centerZ + 10
+                x: centerX + 50,  // 侧面观察
+                y: centerY + 30,  // 从上方观察
+                z: centerZ + 80   // 距离足够远以看到所有平面
               }
               lookAtPosition = { x: centerX, y: centerY, z: centerZ }
               
-              console.log('根据平面中心调整相机:', lookAtPosition)
+              console.log('根据平面中心调整相机（放大后）:', lookAtPosition, '相机位置:', targetPosition)
             }
             
             // 应用相机位置
@@ -994,34 +996,53 @@ export function ARMMDDirector() {
             planes.forEach((planeData, index) => {
               const { worldPosition, realSize, rotation, polygon } = planeData
               
-              // 创建平面几何体
+              // AR坐标到舞台坐标的转换参数
+              const SCALE_FACTOR = 20 // 放大20倍
+              const DEPTH_LAYER_HEIGHT = 3 // 每层高度差3米
+              
+              // 根据Z深度计算分层（产生3D阶梯效果）
+              const depthLayer = Math.floor(Math.abs(worldPosition.z) / 2)
+              const yHeight = depthLayer * DEPTH_LAYER_HEIGHT
+              
+              // 转换坐标
+              const stagePosition = {
+                x: worldPosition.x * SCALE_FACTOR,
+                y: yHeight,
+                z: worldPosition.z * SCALE_FACTOR
+              }
+              
+              // 创建平面几何体（使用放大后的尺寸）
               let geometry
               if (polygon && polygon.length >= 3) {
+                // 使用实际检测到的平面形状（多边形）
                 const shape = new THREE.Shape()
-                shape.moveTo(polygon[0].x, polygon[0].z)
+                shape.moveTo(polygon[0].x * SCALE_FACTOR, polygon[0].z * SCALE_FACTOR)
                 for (let i = 1; i < polygon.length; i++) {
-                  shape.lineTo(polygon[i].x, polygon[i].z)
+                  shape.lineTo(polygon[i].x * SCALE_FACTOR, polygon[i].z * SCALE_FACTOR)
                 }
                 shape.closePath()
                 geometry = new THREE.ShapeGeometry(shape)
               } else {
+                // 使用矩形，但放大尺寸
                 geometry = new THREE.PlaneGeometry(
-                  realSize?.width || 2,
-                  realSize?.height || 2
+                  (realSize?.width || 2) * SCALE_FACTOR,
+                  (realSize?.height || 2) * SCALE_FACTOR
                 )
               }
               
               // 获取平面图片
               const planeImage = sceneData.planeImages?.[index]
-              console.log(`平面 ${index + 1} 图片:`, planeImage ? '有' : '无', '长度:', planeImage?.length, 'hash:', planeImage ? planeImage.substring(50, 100) : 'N/A')
+              console.log(`平面 ${index + 1} 图片:`, planeImage ? '有' : '无', '深度层:', depthLayer, 'Y高度:', yHeight)
               
-              // 创建材质 - 如果有图片则使用图片纹理
+              // 创建材质 - 使用MeshStandardMaterial支持光照
               let material
               if (planeImage) {
-                // 创建一个临时的彩色材质作为占位
+                // 先创建彩色材质作为占位
                 const colors = [0x00ff88, 0x4488ff, 0xff6b6b, 0xffd93d, 0x6bcf7f, 0x9b59b6]
-                material = new THREE.MeshBasicMaterial({
+                material = new THREE.MeshStandardMaterial({
                   color: colors[index % colors.length],
+                  roughness: 0.8,
+                  metalness: 0.1,
                   side: THREE.DoubleSide
                 })
                 
@@ -1031,16 +1052,18 @@ export function ARMMDDirector() {
                   texture.wrapS = THREE.ClampToEdgeWrapping
                   texture.wrapT = THREE.ClampToEdgeWrapping
                   
-                  // 创建新的材质并替换
-                  const newMaterial = new THREE.MeshBasicMaterial({
+                  // 创建带纹理的材质（支持光照）
+                  const newMaterial = new THREE.MeshStandardMaterial({
                     map: texture,
+                    roughness: 0.8,
+                    metalness: 0.1,
                     side: THREE.DoubleSide
                   })
                   
                   // 替换 mesh 的材质
                   if (mesh) {
                     mesh.material = newMaterial
-                    console.log(`平面 ${index + 1} 纹理加载完成，材质已更新`)
+                    console.log(`平面 ${index + 1} 纹理加载完成，深度层: ${depthLayer}`)
                   }
                 }, undefined, (error) => {
                   console.error(`平面 ${index + 1} 纹理加载失败:`, error)
@@ -1052,23 +1075,23 @@ export function ARMMDDirector() {
                 material = new THREE.MeshStandardMaterial({
                   color: color,
                   transparent: true,
-                  opacity: 0.35,
+                  opacity: 0.5,
                   side: THREE.DoubleSide,
-                  roughness: 0.6,
-                  metalness: 0.2
+                  roughness: 0.8,
+                  metalness: 0.1
                 })
               }
               
               const mesh = new THREE.Mesh(geometry, material)
               
-              // 放大平面（乘以缩放因子）
-              // 使用原始大小，不缩放
+              // 设置位置（使用转换后的舞台坐标）
               mesh.position.set(
-                worldPosition.x,
-                worldPosition.y + index * 0.1, // 轻微的高度偏移
-                worldPosition.z
+                stagePosition.x,
+                stagePosition.y,
+                stagePosition.z
               )
               
+              // 设置旋转
               mesh.rotation.set(
                 (rotation?.x || -90) * Math.PI / 180,
                 (rotation?.y || 0) * Math.PI / 180,
