@@ -40,12 +40,10 @@ export function Timeline({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`
   }
 
-  // 角色列宽度
-  const CHARACTER_COL_WIDTH = 200
   // 轨道类型列宽度
   const TRACK_TYPE_COL_WIDTH = 120
-  // 总头部宽度
-  const TOTAL_HEADER_WIDTH = CHARACTER_COL_WIDTH + TRACK_TYPE_COL_WIDTH
+  // 总头部宽度（只包含轨道类型列，因为角色头部是独立的）
+  const TOTAL_HEADER_WIDTH = TRACK_TYPE_COL_WIDTH
 
   // 获取时间轴宽度
   const getTimelineWidth = () => {

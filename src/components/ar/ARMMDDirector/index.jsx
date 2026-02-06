@@ -213,7 +213,7 @@ export function ARMMDDirector() {
     }
   }
   
-  // 添加角色 - 新轨道系统格式
+  // 添加角色 - 不默认创建轨道，让玩家自己添加
   const addCharacters = (selectedCharacters) => {
     const newCharacters = selectedCharacters.map(char => ({
       id: `char_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -226,42 +226,10 @@ export function ARMMDDirector() {
       color: `hsl(${Math.random() * 360}, 70%, 60%)`
     }))
 
-    // 为新角色创建默认轨道（使用新的clips数组格式）
-    const newTracks = []
-    newCharacters.forEach(char => {
-      // 场景轨道
-      newTracks.push({
-        id: `track_${char.id}_scene`,
-        type: 'scene',
-        characterId: char.id,
-        characterName: char.name,
-        characterColor: char.color,
-        clips: []
-      })
-      // 动作轨道
-      newTracks.push({
-        id: `track_${char.id}_action`,
-        type: 'action',
-        characterId: char.id,
-        characterName: char.name,
-        characterColor: char.color,
-        clips: []
-      })
-      // 特效轨道
-      newTracks.push({
-        id: `track_${char.id}_effect`,
-        type: 'effect',
-        characterId: char.id,
-        characterName: char.name,
-        characterColor: char.color,
-        clips: []
-      })
-    })
-
+    // 只添加角色，不创建默认轨道
     setProject(prev => ({
       ...prev,
-      characters: [...prev.characters, ...newCharacters],
-      tracks: [...prev.tracks, ...newTracks]
+      characters: [...prev.characters, ...newCharacters]
     }))
 
     if (previewOpen && characterManagerRef.current) {
