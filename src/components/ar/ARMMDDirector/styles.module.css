@@ -749,10 +749,24 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
-/* 响应式 */
+/* 响应式 - 移动端强制横屏 */
 @media (max-width: 768px) {
+  /* 强制横屏显示 */
+  .container {
+    transform: rotate(90deg);
+    transform-origin: left top;
+    width: 100vh;
+    height: 100vw;
+    position: absolute;
+    top: 0;
+    left: 100vw;
+    overflow: hidden;
+  }
+  
   .header {
     padding: 8px 12px;
+    height: 50px;
+    min-height: 50px;
   }
 
   .title {
@@ -770,11 +784,11 @@
   }
 
   .showPreviewBtn {
-    padding: 30px 40px;
+    padding: 20px 30px;
   }
 
   .previewIcon {
-    font-size: 36px;
+    font-size: 32px;
   }
 
   .overlay {
@@ -789,6 +803,10 @@
 
   .options {
     padding: 20px;
+  }
+  
+  .main {
+    height: calc(100vw - 50px);
   }
 }
 

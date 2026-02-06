@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as THREE from 'three'
@@ -13,6 +14,8 @@ import { createTrack, createClip, TRACK_TYPES } from './trackTypes'
 import { loadVRMAAction } from '../../../data/vrmaActions.js'
 import { calculatePositionOnPath } from './positionPresets'
 import { getMusicManager, destroyMusicManager } from './MusicManager'
+import { PropManager, createPresetProp } from './PropManager'
+import { EffectManager, PRESET_EFFECTS } from './EffectManager'
 
 /**
  * AR MMD Director - 新轨道系统版本
@@ -35,6 +38,8 @@ export function ARMMDDirector() {
   const cameraRef = useRef(null)
   const rendererRef = useRef(null)
   const characterManagerRef = useRef(null)
+  const propManagerRef = useRef(null)
+  const effectManagerRef = useRef(null)
   const animationFrameRef = useRef(null)
   
   // 预览控制
@@ -211,6 +216,12 @@ export function ARMMDDirector() {
     
     characterManagerRef.current = new MultiCharacterManager(scene)
     
+    // 初始化道具管理器
+    propManagerRef.current = new PropManager(scene)
+    
+    // 初始化特效管理器
+    effectManagerRef.current = new EffectManager(scene)
+    
     // 加载所有角色，并在加载完成后应用当前时间轴状态
     console.log('Loading characters:', project.characters.length)
     const loadPromises = project.characters.map(char => loadCharacter(char))
@@ -226,6 +237,7 @@ export function ARMMDDirector() {
     const animate = () => {
       if (rendererRef.current && sceneRef.current && cameraRef.current) {
         characterManagerRef.current?.update(0.016)
+        effectManagerRef.current?.update(0.016)
         rendererRef.current.render(sceneRef.current, cameraRef.current)
       } else {
         console.log('Missing ref:', { 
@@ -269,27 +281,40 @@ export function ARMMDDirector() {
     
     console.log('Mouse normalized:', { x, y })
     
-    // 创建射线
-    const raycaster = new THREE.Raycaster()
-    raycaster.setFromCamera({ x, y }, cameraRef.current)
-    
-    // 与地面平面 (y=0) 相交
-    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
-    const target = new THREE.Vector3()
-    const intersected = raycaster.ray.intersectPlane(plane, target)
-    
-    console.log('Intersection result:', intersected, 'Target:', target)
-    
-    if (intersected) {
-      const newPosition = {
-        x: target.x,
-        y: target.y,
-        z: target.z
+    try {
+      // 创建射线
+      const raycaster = new THREE.Raycaster()
+      raycaster.setFromCamera({ x, y }, cameraRef.current)
+      
+      // 与地面平面 (y=0) 相交
+      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0)
+      const target = new THREE.Vector3()
+      const intersected = raycaster.ray.intersectPlane(plane, target)
+      
+      console.log('Intersection result:', intersected, 'Target:', target)
+      
+      if (intersected) {
+        const newPosition = {
+          x: target.x,
+          y: target.y,
+          z: target.z
+        }
+        console.log('Setting picker position:', newPosition)
+        setPickerPreviewPosition(newPosition)
+      } else {
+        // 如果没有相交，使用一个默认的地面位置
+        console.warn('No intersection with ground plane, using default')
+        // 根据相机方向计算一个默认位置
+        const distance = 10
+        const newPosition = {
+          x: cameraRef.current.position.x + cameraRef.current.getWorldDirection(new THREE.Vector3()).x * distance,
+          y: 0,
+          z: cameraRef.current.position.z + cameraRef.current.getWorldDirection(new THREE.Vector3()).z * distance
+        }
+        setPickerPreviewPosition(newPosition)
       }
-      console.log('Setting picker position:', newPosition)
-      setPickerPreviewPosition(newPosition)
-    } else {
-      console.warn('No intersection with ground plane')
+    } catch (error) {
+      console.error('Error in coordinate picker:', error)
     }
   }
   
@@ -564,8 +589,21 @@ export function ARMMDDirector() {
           time >= clip.startTime && time <= clip.startTime + clip.duration
         )
         
-        if (activeClip?.data?.effectId) {
-          // 特效逻辑 - 可以在这里添加粒子效果等
+        if (activeClip?.data?.effectId && effectManagerRef.current) {
+          const effectId = activeClip.data.effectId
+          const existingEffect = effectManagerRef.current.particleSystems.get(effectId)
+          
+          if (!existingEffect) {
+            // 创建特效
+            const preset = PRESET_EFFECTS[effectId]
+            if (preset) {
+              const options = {
+                ...preset.options,
+                position: activeClip.data.position || { x: 0, y: 1, z: 0 }
+              }
+              effectManagerRef.current.createParticleSystem(effectId, options)
+            }
+          }
         }
       })
     })
@@ -660,6 +698,25 @@ export function ARMMDDirector() {
         cameraRef.current.lookAt(target.x, target.y, target.z)
         cameraRef.current.fov = fov
         cameraRef.current.updateProjectionMatrix()
+      }
+    })
+    
+    // 处理道具轨道
+    const propTracks = tracksByType['prop'] || []
+    propTracks.forEach(track => {
+      const activeClip = track.clips?.find(clip => 
+        time >= clip.startTime && time <= clip.startTime + clip.duration
+      )
+      
+      if (activeClip?.data?.propId && propManagerRef.current) {
+        const propId = activeClip.data.propId
+        const existingProp = propManagerRef.current.getProp(propId)
+        
+        if (!existingProp) {
+          // 创建预设道具
+          const options = activeClip.data.propOptions || {}
+          createPresetProp(sceneRef.current, propId, options)
+        }
       }
     })
   }
