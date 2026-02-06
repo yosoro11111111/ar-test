@@ -166,11 +166,12 @@ export function WebXRARSceneRecorder({
     }
     
     // 检查相机位置是否有变化（避免重复拍摄相同位置）
+    let distance = 0
     if (lastCameraPositionRef.current) {
       const dx = currentPosition.x - lastCameraPositionRef.current.x
       const dy = currentPosition.y - lastCameraPositionRef.current.y
       const dz = currentPosition.z - lastCameraPositionRef.current.z
-      const distance = Math.sqrt(dx*dx + dy*dy + dz*dz)
+      distance = Math.sqrt(dx*dx + dy*dy + dz*dz)
       
       // 如果移动距离小于0.1米，跳过这次拍摄
       if (distance < 0.1) {
