@@ -121,10 +121,17 @@ async function importARCJPackScene(zip, manifest) {
   // 3. 加载所有平面图片
   const planeImages = []
   const imagesFolder = zip.folder('images')
+  console.log('imagesFolder:', imagesFolder)
+  
   if (imagesFolder) {
+    // 先列出所有文件
+    const allFilesInImages = imagesFolder.file(/.*/)
+    console.log('images文件夹所有文件:', allFilesInImages.map(f => f.name))
+    
     // 先列出所有图片文件
     const allFiles = imagesFolder.file(/.*\.jpg$/)
     console.log('images文件夹所有jpg文件:', allFiles.map(f => f.name))
+    console.log('jpg文件数量:', allFiles.length)
     
     // 获取 plane_X.jpg 文件并按数字排序
     const planeFiles = allFiles
@@ -136,6 +143,7 @@ async function importARCJPackScene(zip, manifest) {
       })
     
     console.log('找到的平面图片文件:', planeFiles.map(f => f.name))
+    console.log('planeFiles数量:', planeFiles.length)
     
     // 按顺序加载每个图片
     for (let i = 0; i < planeFiles.length; i++) {
