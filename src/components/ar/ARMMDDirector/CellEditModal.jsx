@@ -22,34 +22,15 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
     data: clip?.data || { name: '' }
   })
 
-  // 获取轨道类型
+  // 获取轨道类型 - 必须使用传入的trackTypeProp
   useEffect(() => {
-    // 优先使用传入的trackTypeProp
     if (trackTypeProp) {
       setTrackType(trackTypeProp)
-      return
+    } else {
+      console.warn('CellEditModal: trackTypeProp is required but not provided')
+      setTrackType('unknown')
     }
-    // 从trackId推断轨道类型（新格式：track_{characterId}_{type}_{timestamp}）
-    if (trackId) {
-      const parts = trackId.split('_')
-      if (parts.length >= 3) {
-        // 尝试从第3个部分获取类型
-        const typeFromId = parts[2]
-        if (typeFromId) {
-          setTrackType(typeFromId)
-          return
-        }
-      }
-      // 兼容旧格式
-      if (trackId.includes('_scene')) setTrackType('scene')
-      else if (trackId.includes('_action')) setTrackType('action')
-      else if (trackId.includes('_effect')) setTrackType('effect')
-      else if (trackId.includes('_position')) setTrackType('position')
-      else if (trackId.includes('_scale')) setTrackType('scale')
-      else if (trackId.includes('_music')) setTrackType('music')
-      else setTrackType('unknown')
-    }
-  }, [trackId, trackTypeProp])
+  }, [trackTypeProp])
 
   // 加载动作列表
   useEffect(() => {
