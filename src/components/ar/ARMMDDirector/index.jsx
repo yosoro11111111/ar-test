@@ -952,11 +952,11 @@ export function ARMMDDirector() {
               const centerY = planes.reduce((sum, p) => sum + (Math.floor(Math.abs(p.worldPosition.z) / 2) * 3), 0) / planes.length
               const centerZ = planes.reduce((sum, p) => sum + p.worldPosition.z, 0) / planes.length * SCALE_FACTOR
               
-              // 相机位置：从侧面和上方观察，可以看到所有层次
+              // 相机位置：从正面偏上和偏右观察，距离适中
               targetPosition = {
-                x: centerX + 50,  // 侧面观察
-                y: centerY + 30,  // 从上方观察
-                z: centerZ + 80   // 距离足够远以看到所有平面
+                x: centerX + 15,  // 右侧观察
+                y: centerY + 10,  // 从上方观察
+                z: centerZ + 30   // 距离适中以看到所有平面
               }
               lookAtPosition = { x: centerX, y: centerY, z: centerZ }
               
