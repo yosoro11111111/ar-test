@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import styles from './SceneManagerModal.module.css'
 import { exportARScenePack, importARScenePack, downloadFile, isARScenePack } from './ARSceneIO'
 import { ARSceneCameraRecorder } from './ARSceneCameraRecorder'
+import { WebXRARSceneRecorder } from './WebXRARSceneRecorder'
 
 /**
  * 场景管理弹窗 - 管理场景列表
