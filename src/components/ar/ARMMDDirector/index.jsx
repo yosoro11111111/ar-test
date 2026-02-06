@@ -213,7 +213,7 @@ export function ARMMDDirector() {
     }
   }
   
-  // 添加角色 - 兼容旧Timeline格式
+  // 添加角色 - 新轨道系统格式
   const addCharacters = (selectedCharacters) => {
     const newCharacters = selectedCharacters.map(char => ({
       id: `char_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -226,19 +226,37 @@ export function ARMMDDirector() {
       color: `hsl(${Math.random() * 360}, 70%, 60%)`
     }))
 
-    // 为新角色创建兼容旧格式的轨道
-    const newTracks = newCharacters.map(char => ({
-      id: `track_${char.id}`,
-      type: 'character',
-      characterId: char.id,
-      characterName: char.name,
-      characterColor: char.color,
-      scene: [],
-      action: [],
-      effect: [],
-      scale: [],
-      bgScale: []
-    }))
+    // 为新角色创建默认轨道（使用新的clips数组格式）
+    const newTracks = []
+    newCharacters.forEach(char => {
+      // 场景轨道
+      newTracks.push({
+        id: `track_${char.id}_scene`,
+        type: 'scene',
+        characterId: char.id,
+        characterName: char.name,
+        characterColor: char.color,
+        clips: []
+      })
+      // 动作轨道
+      newTracks.push({
+        id: `track_${char.id}_action`,
+        type: 'action',
+        characterId: char.id,
+        characterName: char.name,
+        characterColor: char.color,
+        clips: []
+      })
+      // 特效轨道
+      newTracks.push({
+        id: `track_${char.id}_effect`,
+        type: 'effect',
+        characterId: char.id,
+        characterName: char.name,
+        characterColor: char.color,
+        clips: []
+      })
+    })
 
     setProject(prev => ({
       ...prev,
@@ -303,53 +321,54 @@ export function ARMMDDirector() {
     }))
   }
   
-  // 添加格子到子轨道
-  const addCell = (trackId, subTrackType) => {
-    const newCell = {
-      id: `cell_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      name: '', // 初始为空，选择后会自动填充
+  // 添加片段到轨道
+  const addCell = (trackId) => {
+    const newClip = {
+      id: `clip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type: 'clip',
       startTime: currentTime,
-      duration: 5
+      duration: 5,
+      data: { name: '' }
     }
-    
+
     setProject(prev => ({
       ...prev,
-      tracks: prev.tracks.map(track => 
+      tracks: prev.tracks.map(track =>
         track.id === trackId
-          ? { ...track, [subTrackType]: [...track[subTrackType], newCell] }
+          ? { ...track, clips: [...(track.clips || []), newClip] }
           : track
       )
     }))
-    
+
     // 打开编辑弹窗
-    setEditingCell({ trackId, subTrackType, cell: newCell })
+    setEditingCell({ trackId, clip: newClip })
     setShowCellEditModal(true)
   }
-  
-  // 更新格子
-  const updateCell = (trackId, subTrackType, cellId, updates) => {
+
+  // 更新片段
+  const updateCell = (trackId, clipId, updates) => {
     setProject(prev => ({
       ...prev,
-      tracks: prev.tracks.map(track => 
+      tracks: prev.tracks.map(track =>
         track.id === trackId
           ? {
               ...track,
-              [subTrackType]: track[subTrackType].map(cell =>
-                cell.id === cellId ? { ...cell, ...updates } : cell
+              clips: (track.clips || []).map(clip =>
+                clip.id === clipId ? { ...clip, ...updates } : clip
               )
             }
           : track
       )
     }))
   }
-  
-  // 删除格子
-  const deleteCell = (trackId, subTrackType, cellId) => {
+
+  // 删除片段
+  const deleteCell = (trackId, clipId) => {
     setProject(prev => ({
       ...prev,
-      tracks: prev.tracks.map(track => 
+      tracks: prev.tracks.map(track =>
         track.id === trackId
-          ? { ...track, [subTrackType]: track[subTrackType].filter(cell => cell.id !== cellId) }
+          ? { ...track, clips: (track.clips || []).filter(clip => clip.id !== clipId) }
           : track
       )
     }))
@@ -913,10 +932,9 @@ export function ARMMDDirector() {
       {showCellEditModal && (
         <CellEditModal
           trackId={editingCell?.trackId}
-          subTrackType={editingCell?.subTrackType}
-          cell={editingCell?.cell}
-          onSave={(trackId, subTrackType, cellId, data) => {
-            updateCell(trackId, subTrackType, cellId, data)
+          clip={editingCell?.clip}
+          onSave={(trackId, clipId, data) => {
+            updateCell(trackId, clipId, data)
           }}
           onDelete={deleteCell}
           onClose={() => {
