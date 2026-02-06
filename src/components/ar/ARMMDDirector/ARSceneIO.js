@@ -122,36 +122,27 @@ async function importARCJPackScene(zip, manifest) {
   const planeImages = []
   const imagesFolder = zip.folder('images')
   if (imagesFolder) {
-    // 获取所有图片文件，按文件名排序
-    const allFiles = imagesFolder.file(/.*\.jpg$/)
-    console.log('images文件夹所有jpg文件:', allFiles.map(f => f.name))
-    
-    const imageFiles = imagesFolder.file(/^plane_\d+\.jpg$/).sort((a, b) => {
-      const numA = parseInt(a.name.match(/\d+/)[0])
-      const numB = parseInt(b.name.match(/\d+/)[0])
-      return numA - numB
-    })
-    console.log('找到平面图片文件:', imageFiles.map(f => f.name))
-    console.log('imageFiles数组长度:', imageFiles.length)
-    console.log('imageFiles[0] === imageFiles[1]:', imageFiles[0] === imageFiles[1])
-    
-    for (let i = 0; i < imageFiles.length; i++) {
-      const imgFile = imageFiles[i]
-      console.log(`处理图片[${i}]:`, imgFile.name)
-      
-      // 使用 arraybuffer 读取，然后手动转换为 base64
-      const arrayBuffer = await imgFile.async('arraybuffer')
-      const bytes = new Uint8Array(arrayBuffer)
-      let binary = ''
-      for (let j = 0; j < bytes.byteLength; j++) {
-        binary += String.fromCharCode(bytes[j])
+    // 直接通过文件名获取每个图片
+    for (let i = 0; i < 10; i++) {
+      const fileName = `plane_${i}.jpg`
+      const imgFile = imagesFolder.file(fileName)
+      if (imgFile) {
+        console.log(`找到图片文件: ${fileName}`)
+        
+        // 使用 arraybuffer 读取，然后手动转换为 base64
+        const arrayBuffer = await imgFile.async('arraybuffer')
+        const bytes = new Uint8Array(arrayBuffer)
+        let binary = ''
+        for (let j = 0; j < bytes.byteLength; j++) {
+          binary += String.fromCharCode(bytes[j])
+        }
+        const base64Data = btoa(binary)
+        
+        console.log(`图片[${i}] ${fileName} base64长度:`, base64Data.length)
+        console.log(`图片[${i}] ${fileName} base64前100字符:`, base64Data.substring(0, 100))
+        
+        planeImages[i] = `data:image/jpeg;base64,${base64Data}`
       }
-      const base64Data = btoa(binary)
-      
-      console.log(`图片[${i}] ${imgFile.name} base64长度:`, base64Data.length)
-      console.log(`图片[${i}] ${imgFile.name} base64前100字符:`, base64Data.substring(0, 100))
-      
-      planeImages[i] = `data:image/jpeg;base64,${base64Data}`
     }
   }
   console.log('加载的平面图片数量:', planeImages.length)
