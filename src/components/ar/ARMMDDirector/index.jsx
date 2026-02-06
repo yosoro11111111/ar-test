@@ -1756,6 +1756,7 @@ export function ARMMDDirector() {
           onDeleteTrack={deleteTrack}
           isPlaying={isPlaying}
           onPlayPause={togglePlay}
+          onScaleChange={setTimelineScale}
         />
       </div>
       

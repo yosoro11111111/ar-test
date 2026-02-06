@@ -23,7 +23,8 @@ export function Timeline({
   onDeleteCharacter,
   onDeleteTrack,
   isPlaying,
-  onPlayPause
+  onPlayPause,
+  onScaleChange
 }) {
   const timelineRef = useRef(null)
   const [dragState, setDragState] = useState(null)
@@ -196,9 +197,21 @@ export function Timeline({
         </div>
 
         <div className={styles.timelineControls}>
-          <button className={styles.zoomBtn}>-</button>
+          <button 
+            className={styles.zoomBtn}
+            onClick={() => onScaleChange && onScaleChange(Math.max(0.5, scale - 0.1))}
+            title="缩小"
+          >
+            -
+          </button>
           <span className={styles.zoomLevel}>{Math.round(scale * 100)}%</span>
-          <button className={styles.zoomBtn}>+</button>
+          <button 
+            className={styles.zoomBtn}
+            onClick={() => onScaleChange && onScaleChange(Math.min(3, scale + 0.1))}
+            title="放大"
+          >
+            +
+          </button>
         </div>
       </div>
 
