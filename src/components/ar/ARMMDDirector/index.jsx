@@ -94,6 +94,68 @@ export function ARMMDDirector() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
   
+  // 键盘快捷键
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // 如果在输入框中，不处理快捷键
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      
+      if (e.ctrlKey || e.metaKey) {
+        switch(e.key.toLowerCase()) {
+          case 'z':
+            e.preventDefault()
+            if (e.shiftKey) {
+              redo()
+            } else {
+              undo()
+            }
+            break
+          case 's':
+            e.preventDefault()
+            saveProject()
+            break
+          case 'c':
+            if (e.shiftKey) {
+              e.preventDefault()
+              copySelectedClips()
+            }
+            break
+          case 'v':
+            if (e.shiftKey) {
+              e.preventDefault()
+              pasteClips()
+            }
+            break
+        }
+      } else {
+        switch(e.key) {
+          case ' ':
+            e.preventDefault()
+            togglePlay()
+            break
+          case 'Delete':
+          case 'Backspace':
+            if (editingCell) {
+              e.preventDefault()
+              deleteCell(editingCell.trackId, editingCell.cell.id)
+            }
+            break
+          case 'ArrowLeft':
+            e.preventDefault()
+            setCurrentTime(prev => Math.max(0, prev - 0.1))
+            break
+          case 'ArrowRight':
+            e.preventDefault()
+            setCurrentTime(prev => Math.min(project.duration, prev + 0.1))
+            break
+        }
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [undo, redo, saveProject, togglePlay, editingCell, deleteCell, project.duration])
+  
   // 弹窗状态
   const [showCharacterModal, setShowCharacterModal] = useState(false)
   const [showCellEditModal, setShowCellEditModal] = useState(false)
@@ -101,6 +163,7 @@ export function ARMMDDirector() {
   const [showTrackTypeModal, setShowTrackTypeModal] = useState(false)
   const [selectedCharacterForTrack, setSelectedCharacterForTrack] = useState(null)
   const [editingCell, setEditingCell] = useState(null)
+  const [copiedClips, setCopiedClips] = useState([])
   
   // 项目数据
   const [project, setProject] = useState({
@@ -117,6 +180,49 @@ export function ARMMDDirector() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [timelineScale, setTimelineScale] = useState(1)
   
+  // 撤销/重做历史
+  const [history, setHistory] = useState([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
+  const maxHistorySteps = 50
+  
+  // 保存项目状态到历史
+  const saveToHistory = useCallback((newProject) => {
+    setHistory(prev => {
+      const newHistory = prev.slice(0, historyIndex + 1)
+      newHistory.push(JSON.parse(JSON.stringify(newProject)))
+      if (newHistory.length > maxHistorySteps) {
+        newHistory.shift()
+      }
+      return newHistory
+    })
+    setHistoryIndex(prev => Math.min(prev + 1, maxHistorySteps - 1))
+  }, [historyIndex])
+  
+  // 撤销
+  const undo = useCallback(() => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1
+      setHistoryIndex(newIndex)
+      setProject(JSON.parse(JSON.stringify(history[newIndex])))
+    }
+  }, [history, historyIndex])
+  
+  // 重做
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1
+      setHistoryIndex(newIndex)
+      setProject(JSON.parse(JSON.stringify(history[newIndex])))
+    }
+  }, [history, historyIndex])
+  
+  // 初始化历史
+  useEffect(() => {
+    if (history.length === 0) {
+      saveToHistory(project)
+    }
+  }, [])
+  
   // 初始化Three.js - 只在previewOpen变为true时初始化
   useEffect(() => {
     if (previewOpen && !rendererRef.current) {
@@ -132,13 +238,13 @@ export function ARMMDDirector() {
     return () => cleanup()
   }, [])
   
-  // 播放循环
+  // 播放循环 - 使用 performance.now() 提高精度
   useEffect(() => {
     if (isPlaying && previewOpen) {
-      const startTime = Date.now() - currentTime * 1000
+      const startTime = performance.now() - currentTime * 1000
       
       const playLoop = () => {
-        const elapsed = (Date.now() - startTime) / 1000
+        const elapsed = (performance.now() - startTime) / 1000
         
         if (elapsed >= project.duration) {
           setIsPlaying(false)
@@ -466,6 +572,53 @@ export function ARMMDDirector() {
     }))
   }
   
+  // 复制选中的片段
+  const copySelectedClips = () => {
+    if (!editingCell) return
+    
+    const track = project.tracks.find(t => t.id === editingCell.trackId)
+    if (!track) return
+    
+    const clip = track.clips?.find(c => c.id === editingCell.cell.id)
+    if (!clip) return
+    
+    // 深拷贝片段数据
+    const copiedClip = JSON.parse(JSON.stringify(clip))
+    copiedClip.id = `clip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    setCopiedClips([copiedClip])
+  }
+  
+  // 粘贴片段
+  const pasteClips = () => {
+    if (copiedClips.length === 0) return
+    
+    // 粘贴到当前选中的轨道，如果没有选中则粘贴到第一个轨道
+    let targetTrackId = editingCell?.trackId
+    if (!targetTrackId && project.tracks.length > 0) {
+      targetTrackId = project.tracks[0].id
+    }
+    if (!targetTrackId) return
+    
+    const newClips = copiedClips.map(clip => ({
+      ...JSON.parse(JSON.stringify(clip)),
+      id: `clip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      startTime: currentTime
+    }))
+    
+    setProject(prev => ({
+      ...prev,
+      tracks: prev.tracks.map(track =>
+        track.id === targetTrackId
+          ? { ...track, clips: [...(track.clips || []), ...newClips] }
+          : track
+      )
+    }))
+    
+    // 保存到历史
+    saveToHistory(project)
+  }
+  
   // 当前播放的动作缓存，避免重复加载
   const currentActionsRef = useRef({})
   
@@ -644,7 +797,7 @@ export function ARMMDDirector() {
         
         // 同步时间
         const clipTime = time - activeClip.startTime
-        if (Math.abs(musicManager.getCurrentTime() - clipTime) > 0.1) {
+        if (Math.abs(musicManager.getCurrentTime() - clipTime) > 0.03) {
           musicManager.setCurrentTime(clipTime)
         }
       }
@@ -781,7 +934,7 @@ export function ARMMDDirector() {
   }
   
   // 保存项目
-  const saveProject = () => {
+  const saveProject = useCallback(() => {
     const projects = JSON.parse(localStorage.getItem('ar-director-projects') || '[]')
     const existingIndex = projects.findIndex(p => p.id === project.id)
     
@@ -797,8 +950,20 @@ export function ARMMDDirector() {
     }
     
     localStorage.setItem('ar-director-projects', JSON.stringify(projects))
-    alert('项目已保存')
-  }
+    return true
+  }, [project])
+  
+  // 自动保存
+  useEffect(() => {
+    const autoSaveInterval = setInterval(() => {
+      if (project.tracks.length > 0 || project.characters.length > 0) {
+        saveProject()
+        console.log('项目已自动保存')
+      }
+    }, 30000) // 每30秒自动保存
+    
+    return () => clearInterval(autoSaveInterval)
+  }, [project, saveProject])
   
   // 计算时间轴最后的时间
   const getTimelineEndTime = () => {

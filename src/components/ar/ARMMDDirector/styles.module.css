@@ -749,11 +749,17 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
-/* 响应式 - 移动端优化 */
+/* 响应式 - 移动端强制横屏 */
 @media (max-width: 768px) {
+  /* 强制横屏显示 */
   .container {
-    width: 100vw;
-    height: 100vh;
+    transform: rotate(90deg);
+    transform-origin: left top;
+    width: 100vh;
+    height: 100vw;
+    position: absolute;
+    top: 0;
+    left: 100vw;
     overflow: hidden;
   }
   
@@ -800,12 +806,7 @@
   }
   
   .main {
-    height: calc(100vh - 50px);
-  }
-  
-  /* 移动端隐藏预览区域 */
-  .previewArea.hidden {
-    display: none;
+    height: calc(100vw - 50px);
   }
   
   /* 移动端预览按钮 */
