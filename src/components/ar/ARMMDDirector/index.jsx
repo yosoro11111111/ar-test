@@ -912,6 +912,9 @@ export function ARMMDDirector() {
           const mmdConfig = sceneData.mmdRenderConfig || {}
           const planes = mmdConfig.planes3D || sceneData.planes || []
           
+          // 相机位置变量（在代码块外部定义）
+          let targetPosition, lookAtPosition
+          
           console.log('渲染平面数据:', planes.map((p, i) => ({
             index: i,
             worldPosition: p.worldPosition,
@@ -926,7 +929,6 @@ export function ARMMDDirector() {
             
             // 计算场景边界和中心
             const sceneBounds = sceneData.sceneBounds
-            let targetPosition, lookAtPosition
             
             if (sceneBounds && sceneBounds.center) {
               // 使用场景边界计算最佳相机位置
