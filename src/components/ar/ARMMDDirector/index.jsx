@@ -1008,24 +1008,26 @@ export function ARMMDDirector() {
               // 创建材质 - 如果有图片则使用图片纹理
               let material
               if (planeImage) {
-                // 加载平面图片作为纹理
-                const textureLoader = new THREE.TextureLoader()
-                const texture = textureLoader.load(planeImage, (loadedTexture) => {
-                  // 纹理加载完成后更新材质
-                  loadedTexture.wrapS = THREE.ClampToEdgeWrapping
-                  loadedTexture.wrapT = THREE.ClampToEdgeWrapping
-                  loadedTexture.needsUpdate = true
-                  console.log(`平面 ${index + 1} 纹理加载完成`)
-                }, undefined, (error) => {
-                  console.error(`平面 ${index + 1} 纹理加载失败:`, error)
-                })
-                
+                // 先创建一个白色材质作为占位
                 material = new THREE.MeshStandardMaterial({
-                  map: texture,
+                  color: 0xffffff,
                   transparent: false,
                   side: THREE.DoubleSide,
                   roughness: 0.8,
                   metalness: 0.1
+                })
+                
+                // 加载平面图片作为纹理
+                const textureLoader = new THREE.TextureLoader()
+                textureLoader.load(planeImage, (loadedTexture) => {
+                  // 纹理加载完成后更新材质
+                  loadedTexture.wrapS = THREE.ClampToEdgeWrapping
+                  loadedTexture.wrapT = THREE.ClampToEdgeWrapping
+                  material.map = loadedTexture
+                  material.needsUpdate = true
+                  console.log(`平面 ${index + 1} 纹理加载完成并应用到材质`)
+                }, undefined, (error) => {
+                  console.error(`平面 ${index + 1} 纹理加载失败:`, error)
                 })
               } else {
                 // 备用：使用彩色材质
