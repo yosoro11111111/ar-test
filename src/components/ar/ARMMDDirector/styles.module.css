@@ -150,6 +150,8 @@
   gap: 16px;
   padding: 16px;
   padding-top: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* 预览区域 - 在时间轴上方 */
