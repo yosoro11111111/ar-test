@@ -471,18 +471,75 @@ export function ARMMDDirector() {
     }
   }
   
-  // 添加角色 - 不默认创建轨道，让玩家自己添加
+  // 获取场景中的可用平面位置
+  const getScenePlanePositions = () => {
+    const sceneTracks = project.tracks.filter(t => t.type === 'scene')
+    const positions = []
+    
+    sceneTracks.forEach(track => {
+      track.clips?.forEach(clip => {
+        const sceneData = clip.data?.sceneData
+        if (sceneData?.type === 'arcjpack' && sceneData.mmdRenderConfig?.characterPlacement?.validPlanes) {
+          sceneData.mmdRenderConfig.characterPlacement.validPlanes.forEach(plane => {
+            positions.push({
+              planeIndex: plane.planeIndex,
+              worldPosition: plane.worldPosition,
+              anchorPoints: plane.anchorPoints || []
+            })
+          })
+        }
+      })
+    })
+    
+    return positions
+  }
+  
+  // 添加角色 - 自动放置到场景平面上
   const addCharacters = (selectedCharacters) => {
-    const newCharacters = selectedCharacters.map(char => ({
-      id: `char_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      name: char.name,
-      vrmUrl: char.modelUrl,
-      thumbnail: char.thumbnail,
-      initialPosition: { x: (Math.random() - 0.5) * 4, y: 0, z: (Math.random() - 0.5) * 4 },
-      initialRotation: { x: 0, y: Math.random() * Math.PI * 2, z: 0 },
-      initialScale: 1,
-      color: `hsl(${Math.random() * 360}, 70%, 60%)`
-    }))
+    // 获取场景平面位置
+    const planePositions = getScenePlanePositions()
+    console.log('可用平面位置:', planePositions)
+    
+    const newCharacters = selectedCharacters.map((char, index) => {
+      let position
+      
+      // 如果有场景平面，将角色放置到平面上
+      if (planePositions.length > 0) {
+        // 循环使用可用平面
+        const planeIndex = index % planePositions.length
+        const plane = planePositions[planeIndex]
+        const worldPos = plane.worldPosition
+        
+        // 在平面中心位置，稍微抬高一点（避免穿模）
+        position = {
+          x: worldPos.x,
+          y: worldPos.y + 0.05, // 抬高5cm
+          z: worldPos.z
+        }
+        
+        console.log(`角色 ${char.name} 放置到平面 ${plane.planeIndex}:`, position)
+      } else {
+        // 没有场景平面时使用默认位置
+        position = { 
+          x: (Math.random() - 0.5) * 4, 
+          y: 0, 
+          z: (Math.random() - 0.5) * 4 
+        }
+      }
+      
+      return {
+        id: `char_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: char.name,
+        vrmUrl: char.modelUrl,
+        thumbnail: char.thumbnail,
+        initialPosition: position,
+        initialRotation: { x: 0, y: Math.random() * Math.PI * 2, z: 0 },
+        initialScale: 1,
+        color: `hsl(${Math.random() * 360}, 70%, 60%)`,
+        // 记录放置的平面信息
+        placedOnPlane: planePositions.length > 0 ? planePositions[index % planePositions.length].planeIndex : null
+      }
+    })
 
     // 只添加角色，不创建默认轨道
     setProject(prev => ({
@@ -857,16 +914,68 @@ export function ARMMDDirector() {
             const planesGroup = new THREE.Group()
             planesGroup.name = 'mmd-planes'
             
-            // 调整相机位置
-            const camera = mmdConfig.camera || sceneData.camera
-            if (camera && camera.position && cameraRef.current) {
+            // 计算场景边界和中心
+            const sceneBounds = sceneData.sceneBounds
+            let targetPosition, lookAtPosition
+            
+            if (sceneBounds && sceneBounds.center) {
+              // 使用场景边界计算最佳相机位置
+              const center = sceneBounds.center
+              const size = sceneBounds.size || { width: 4, height: 4, depth: 4 }
+              const maxDim = Math.max(size.width, size.height, size.depth)
+              
+              // 根据场景大小计算相机距离
+              const distance = maxDim * 1.5
+              
+              targetPosition = {
+                x: center.x + distance * 0.5,
+                y: center.y + distance * 0.8,
+                z: center.z + distance
+              }
+              lookAtPosition = center
+              
+              console.log('根据场景边界调整相机:', { center, size, distance })
+            } else if (planes.length > 0) {
+              // 计算所有平面的中心
+              const centerX = planes.reduce((sum, p) => sum + p.worldPosition.x, 0) / planes.length
+              const centerY = planes.reduce((sum, p) => sum + p.worldPosition.y, 0) / planes.length
+              const centerZ = planes.reduce((sum, p) => sum + p.worldPosition.z, 0) / planes.length
+              
+              targetPosition = {
+                x: centerX + 3,
+                y: centerY + 4,
+                z: centerZ + 5
+              }
+              lookAtPosition = { x: centerX, y: centerY, z: centerZ }
+              
+              console.log('根据平面中心调整相机:', lookAtPosition)
+            }
+            
+            // 应用相机位置
+            if (targetPosition && cameraRef.current) {
               cameraRef.current.position.set(
-                camera.position.x,
-                camera.position.y,
-                camera.position.z
+                targetPosition.x,
+                targetPosition.y,
+                targetPosition.z
               )
-              const lookAt = camera.lookAt || { x: 0, y: 0, z: 0 }
-              cameraRef.current.lookAt(lookAt.x, lookAt.y, lookAt.z)
+              cameraRef.current.lookAt(
+                lookAtPosition.x,
+                lookAtPosition.y,
+                lookAtPosition.z
+              )
+            }
+            // 如果没有计算出来，使用保存的相机配置
+            else {
+              const camera = mmdConfig.camera || sceneData.camera
+              if (camera && camera.position && cameraRef.current) {
+                cameraRef.current.position.set(
+                  camera.position.x,
+                  camera.position.y,
+                  camera.position.z
+                )
+                const lookAt = camera.lookAt || { x: 0, y: 0, z: 0 }
+                cameraRef.current.lookAt(lookAt.x, lookAt.y, lookAt.z)
+              }
             }
             
             planes.forEach((planeData, index) => {
@@ -889,18 +998,39 @@ export function ARMMDDirector() {
                 )
               }
               
-              // 平面材质 - 不同颜色
-              const colors = [0x00ff88, 0x4488ff, 0xff6b6b, 0xffd93d, 0x6bcf7f, 0x9b59b6]
-              const color = colors[index % colors.length]
+              // 获取平面图片
+              const planeImage = sceneData.planeImages?.[index]
               
-              const material = new THREE.MeshStandardMaterial({
-                color: color,
-                transparent: true,
-                opacity: 0.35,
-                side: THREE.DoubleSide,
-                roughness: 0.6,
-                metalness: 0.2
-              })
+              // 创建材质 - 如果有图片则使用图片纹理
+              let material
+              if (planeImage) {
+                // 加载平面图片作为纹理
+                const textureLoader = new THREE.TextureLoader()
+                const texture = textureLoader.load(planeImage)
+                texture.wrapS = THREE.ClampToEdgeWrapping
+                texture.wrapT = THREE.ClampToEdgeWrapping
+                
+                material = new THREE.MeshStandardMaterial({
+                  map: texture,
+                  transparent: true,
+                  opacity: 0.95,
+                  side: THREE.DoubleSide,
+                  roughness: 0.8,
+                  metalness: 0.1
+                })
+              } else {
+                // 备用：使用彩色材质
+                const colors = [0x00ff88, 0x4488ff, 0xff6b6b, 0xffd93d, 0x6bcf7f, 0x9b59b6]
+                const color = colors[index % colors.length]
+                material = new THREE.MeshStandardMaterial({
+                  color: color,
+                  transparent: true,
+                  opacity: 0.35,
+                  side: THREE.DoubleSide,
+                  roughness: 0.6,
+                  metalness: 0.2
+                })
+              }
               
               const mesh = new THREE.Mesh(geometry, material)
               mesh.position.set(worldPosition.x, worldPosition.y, worldPosition.z)
@@ -914,33 +1044,42 @@ export function ARMMDDirector() {
               mesh.userData = { 
                 isPlane: true, 
                 planeIndex: index,
-                anchorPoints: planeData.anchorPoints || []
+                anchorPoints: planeData.anchorPoints || [],
+                hasTexture: !!planeImage
               }
               
-              // 边框
+              // 边框（仅在无纹理时显示，或半透明）
+              const colors = [0x00ff88, 0x4488ff, 0xff6b6b, 0xffd93d, 0x6bcf7f, 0x9b59b6]
+              const edgeColor = planeImage ? 0xffffff : colors[index % colors.length]
               const edges = new THREE.EdgesGeometry(geometry)
-              const lineMaterial = new THREE.LineBasicMaterial({ color: color })
+              const lineMaterial = new THREE.LineBasicMaterial({ 
+                color: edgeColor,
+                transparent: true,
+                opacity: planeImage ? 0.3 : 0.8
+              })
               const wireframe = new THREE.LineSegments(edges, lineMaterial)
               mesh.add(wireframe)
               
-              // 序号标签
-              const canvas = document.createElement('canvas')
-              const ctx = canvas.getContext('2d')
-              canvas.width = 128
-              canvas.height = 64
-              ctx.fillStyle = '#' + color.toString(16).padStart(6, '0')
-              ctx.fillRect(0, 0, canvas.width, canvas.height)
-              ctx.fillStyle = '#000'
-              ctx.font = 'bold 32px Arial'
-              ctx.textAlign = 'center'
-              ctx.fillText(`${index + 1}`, 64, 44)
-              
-              const texture = new THREE.CanvasTexture(canvas)
-              const spriteMaterial = new THREE.SpriteMaterial({ map: texture })
-              const sprite = new THREE.Sprite(spriteMaterial)
-              sprite.position.y = 0.8
-              sprite.scale.set(1, 0.5, 1)
-              mesh.add(sprite)
+              // 序号标签（仅在无纹理时显示）
+              if (!planeImage) {
+                const canvas = document.createElement('canvas')
+                const ctx = canvas.getContext('2d')
+                canvas.width = 128
+                canvas.height = 64
+                ctx.fillStyle = '#' + colors[index % colors.length].toString(16).padStart(6, '0')
+                ctx.fillRect(0, 0, canvas.width, canvas.height)
+                ctx.fillStyle = '#000'
+                ctx.font = 'bold 32px Arial'
+                ctx.textAlign = 'center'
+                ctx.fillText(`${index + 1}`, 64, 44)
+                
+                const texture = new THREE.CanvasTexture(canvas)
+                const spriteMaterial = new THREE.SpriteMaterial({ map: texture })
+                const sprite = new THREE.Sprite(spriteMaterial)
+                sprite.position.y = 0.8
+                sprite.scale.set(1, 0.5, 1)
+                mesh.add(sprite)
+              }
               
               planesGroup.add(mesh)
             })
@@ -951,22 +1090,52 @@ export function ARMMDDirector() {
           // 添加光照
           const lighting = mmdConfig.lighting || {}
           
-          // 环境光
+          // 环境光 - 提供基础照明
           const ambientLight = new THREE.AmbientLight(
             lighting.ambient?.color || 0xffffff,
-            lighting.ambient?.intensity || 0.6
+            lighting.ambient?.intensity || 0.5
           )
           sceneGroup.add(ambientLight)
           
-          // 平行光
+          // 主光源（平行光）- 模拟太阳光
           const dirLight = new THREE.DirectionalLight(
             lighting.directional?.color || 0xffffff,
-            lighting.directional?.intensity || 0.8
+            lighting.directional?.intensity || 1.0
           )
-          const dirPos = lighting.directional?.position || { x: 5, y: 10, z: 5 }
+          const dirPos = lighting.directional?.position || { x: 8, y: 12, z: 8 }
           dirLight.position.set(dirPos.x, dirPos.y, dirPos.z)
+          
+          // 配置高质量阴影
           dirLight.castShadow = true
+          dirLight.shadow.mapSize.width = 2048
+          dirLight.shadow.mapSize.height = 2048
+          dirLight.shadow.camera.near = 0.5
+          dirLight.shadow.camera.far = 50
+          
+          // 根据场景大小调整阴影范围
+          if (sceneBounds && sceneBounds.size) {
+            const shadowSize = Math.max(sceneBounds.size.width, sceneBounds.size.depth) * 0.8
+            dirLight.shadow.camera.left = -shadowSize
+            dirLight.shadow.camera.right = shadowSize
+            dirLight.shadow.camera.top = shadowSize
+            dirLight.shadow.camera.bottom = -shadowSize
+          } else {
+            dirLight.shadow.camera.left = -10
+            dirLight.shadow.camera.right = 10
+            dirLight.shadow.camera.top = 10
+            dirLight.shadow.camera.bottom = -10
+          }
+          
+          dirLight.shadow.bias = -0.0005
           sceneGroup.add(dirLight)
+          
+          // 补光 - 减少阴影区域的黑暗
+          const fillLight = new THREE.DirectionalLight(
+            lighting.fill?.color || 0xccccff,
+            lighting.fill?.intensity || 0.3
+          )
+          fillLight.position.set(-5, 5, -5)
+          sceneGroup.add(fillLight)
           
           // 添加地面网格（辅助）
           const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222)
