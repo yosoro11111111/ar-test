@@ -7,6 +7,8 @@ import { SceneManagerModal } from './SceneManagerModal'
 import { ActionSelectModal } from './ActionSelectModal'
 import { MusicSelectorModal } from './MusicSelectorModal'
 import { PropSelectorModal } from './PropSelectorModal'
+import { ActionPresetEditor } from './ActionPresetEditor'
+import { loadPresetsFromStorage, calculatePresetDuration } from './actionPresets'
 
 /**
  * 片段编辑弹窗 - 新版
@@ -20,6 +22,15 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
   const [showActionSelector, setShowActionSelector] = useState(false)
   const [showMusicSelector, setShowMusicSelector] = useState(false)
   const [showPropSelector, setShowPropSelector] = useState(false)
+  const [showActionPresetEditor, setShowActionPresetEditor] = useState(false)
+  const [showActionPresetSelector, setShowActionPresetSelector] = useState(false)
+  const [savedPresets, setSavedPresets] = useState([])
+
+  // 加载保存的预设
+  useEffect(() => {
+    const presets = loadPresetsFromStorage()
+    setSavedPresets(presets)
+  }, [showActionPresetSelector])
 
   // 片段数据
   const [clipData, setClipData] = useState({
@@ -155,23 +166,53 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
             </div>
           )}
 
-          {/* 动作轨道 - 选择VRMA动作 */}
+          {/* 动作轨道 - 选择VRMA动作或动作预设 */}
           {(trackTypeProp || trackType) === 'action' && (
             <div className={styles.section}>
               <label className={styles.label}>选择动作</label>
+              
+              {/* 单个动作选择 */}
               <button
                 className={styles.selectActionBtn}
                 onClick={() => setShowActionSelector(true)}
               >
                 <span>🎭</span>
-                <span>{clipData.data.actionName || '选择动作'}</span>
+                <span>{clipData.data.actionName || '选择单个动作'}</span>
               </button>
-              {clipData.data.actionId && (
+              
+              {/* 动作预设选择 */}
+              <div className={styles.presetSection}>
+                <button
+                  className={styles.selectPresetBtn}
+                  onClick={() => setShowActionPresetSelector(true)}
+                >
+                  <span>📋</span>
+                  <span>{clipData.data.presetName || '选择动作合集'}</span>
+                </button>
+                <button
+                  className={styles.createPresetBtn}
+                  onClick={() => setShowActionPresetEditor(true)}
+                  title="创建新预设"
+                >
+                  ➕
+                </button>
+              </div>
+              
+              {/* 显示已选择的内容 */}
+              {clipData.data.actionId && !clipData.data.presetId && (
                 <div className={styles.selectedAction}>
-                  <span>已选择: {clipData.data.actionName}</span>
+                  <span>已选择动作: {clipData.data.actionName}</span>
                   {clipData.data.actionCategory && (
                     <span className={styles.actionCategoryBadge}>{clipData.data.actionCategory}</span>
                   )}
+                </div>
+              )}
+              {clipData.data.presetId && (
+                <div className={styles.selectedPreset}>
+                  <span>已选择合集: {clipData.data.presetName}</span>
+                  <span className={styles.presetInfo}>
+                    {clipData.data.presetActionCount}个动作 | {clipData.data.presetDuration?.toFixed(1)}s
+                  </span>
                 </div>
               )}
             </div>
@@ -384,6 +425,91 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
           }}
           onClose={() => setShowPropSelector(false)}
         />
+      )}
+
+      {/* 动作预设编辑器 */}
+      {showActionPresetEditor && (
+        <ActionPresetEditor
+          isOpen={showActionPresetEditor}
+          onClose={() => setShowActionPresetEditor(false)}
+          onSave={(preset) => {
+            // 刷新预设列表
+            const presets = loadPresetsFromStorage()
+            setSavedPresets(presets)
+          }}
+        />
+      )}
+
+      {/* 动作预设选择器 */}
+      {showActionPresetSelector && (
+        <div className={styles.overlay} onClick={() => setShowActionPresetSelector(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.header}>
+              <h3 className={styles.title}>
+                <span className={styles.icon}>📋</span>
+                选择动作合集
+              </h3>
+              <button className={styles.closeBtn} onClick={() => setShowActionPresetSelector(false)}>×</button>
+            </div>
+            <div className={styles.content}>
+              {savedPresets.length === 0 ? (
+                <div className={styles.emptyPresets}>
+                  <span className={styles.emptyIcon}>📋</span>
+                  <p>暂无动作合集</p>
+                  <button 
+                    className={styles.createPresetBtn}
+                    onClick={() => {
+                      setShowActionPresetSelector(false)
+                      setShowActionPresetEditor(true)
+                    }}
+                  >
+                    创建第一个合集
+                  </button>
+                </div>
+              ) : (
+                <div className={styles.presetList}>
+                  {savedPresets.map((preset) => (
+                    <div
+                      key={preset.id}
+                      className={styles.presetItem}
+                      onClick={() => {
+                        // 清除单个动作选择
+                        updateData('actionId', null)
+                        updateData('actionName', null)
+                        // 设置预设
+                        updateData('presetId', preset.id)
+                        updateData('presetName', preset.name)
+                        updateData('presetActions', preset.actions)
+                        updateData('presetActionCount', preset.actions.length)
+                        updateData('presetDuration', calculatePresetDuration(preset))
+                        // 更新片段时长为预设总时长
+                        const duration = calculatePresetDuration(preset)
+                        if (duration > 0) {
+                          setClipData(prev => ({ ...prev, duration }))
+                        }
+                        setShowActionPresetSelector(false)
+                      }}
+                    >
+                      <div className={styles.presetHeader}>
+                        <span className={styles.presetName}>{preset.name}</span>
+                        <span className={styles.presetCount}>
+                          {preset.actions.length}个动作
+                        </span>
+                      </div>
+                      {preset.description && (
+                        <p className={styles.presetDesc}>{preset.description}</p>
+                      )}
+                      <div className={styles.presetMeta}>
+                        <span>总时长: {calculatePresetDuration(preset).toFixed(1)}s</span>
+                        <span>创建于: {new Date(preset.createdAt).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

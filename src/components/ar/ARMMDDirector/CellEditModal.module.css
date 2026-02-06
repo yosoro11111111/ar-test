@@ -374,6 +374,136 @@
   color: #f093fb;
 }
 
+/* 动作预设 */
+.presetSection {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.selectPresetBtn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px;
+  border: 2px dashed rgba(102, 126, 234, 0.3);
+  background: rgba(102, 126, 234, 0.05);
+  border-radius: 12px;
+  color: #667eea;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.selectPresetBtn:hover {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.createPresetBtn {
+  width: 50px;
+  border: none;
+  background: rgba(102, 126, 234, 0.2);
+  border-radius: 12px;
+  color: #667eea;
+  cursor: pointer;
+  font-size: 20px;
+  transition: all 0.2s;
+}
+
+.createPresetBtn:hover {
+  background: rgba(102, 126, 234, 0.3);
+}
+
+.selectedPreset {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 8px;
+  color: #667eea;
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.presetInfo {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* 预设列表 */
+.emptyPresets {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 48px;
+}
+
+.presetList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.presetItem {
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.presetItem:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.presetHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.presetName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.presetCount {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(102, 126, 234, 0.2);
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.presetDesc {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 4px 0;
+}
+
+.presetMeta {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 8px;
+}
+
 /* 音乐轨道 */
 .selectMusicBtn {
   display: flex;

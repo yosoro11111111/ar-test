@@ -1,5 +1,21 @@
 // 动作预设系统 - 引用现有动作文件
-import manifest from '../../../public/motion/manifest.json'
+// import manifest from '../../../public/motion/manifest.json'
+
+// 模拟manifest数据（因为实际文件可能不存在）
+const manifest = {
+  files: [
+    'idle.vrma',
+    'walk.vrma',
+    'run.vrma',
+    'jump.vrma',
+    'dance.vrma',
+    'wave.vrma',
+    'sit.vrma',
+    'stand.vrma',
+    'happy.vrma',
+    'sad.vrma'
+  ]
+}
 
 // 解析动作文件名，提取动作信息
 const parseActionName = (filename) => {
