@@ -20,6 +20,8 @@ export function WebXRARSceneRecorder({
   const streamRef = useRef(null)
   const captureIntervalRef = useRef(null)
   const capturedImagesRef = useRef([])
+  const lastCameraPositionRef = useRef(null)
+  const lastCaptureTimeRef = useRef(0)
   
   const [isSessionActive, setIsSessionActive] = useState(false)
   const [isCapturing, setIsCapturing] = useState(false)
@@ -131,8 +133,10 @@ export function WebXRARSceneRecorder({
     setIsCapturing(true)
     setCapturedCount(0)
     capturedImagesRef.current = []
+    lastCameraPositionRef.current = null
+    lastCaptureTimeRef.current = 0
     
-    setDebugInfo(`开始拍摄，每${CAPTURE_INTERVAL/1000}秒拍摄一张，共${MAX_CAPTURES}张`)
+    setDebugInfo(`开始拍摄，每${CAPTURE_INTERVAL/1000}秒拍摄一张，共${MAX_CAPTURES}张\n请移动相机拍摄不同角度`)}
     
     captureIntervalRef.current = setInterval(() => {
       captureFrame()
@@ -148,6 +152,32 @@ export function WebXRARSceneRecorder({
     
     if (!videoRef.current || !cameraRef.current) return
     
+    // 检查时间间隔
+    const now = Date.now()
+    if (now - lastCaptureTimeRef.current < CAPTURE_INTERVAL) {
+      return
+    }
+    
+    // 获取当前相机位置
+    const currentPosition = {
+      x: cameraRef.current.position.x,
+      y: cameraRef.current.position.y,
+      z: cameraRef.current.position.z
+    }
+    
+    // 检查相机位置是否有变化（避免重复拍摄相同位置）
+    if (lastCameraPositionRef.current) {
+      const dx = currentPosition.x - lastCameraPositionRef.current.x
+      const dy = currentPosition.y - lastCameraPositionRef.current.y
+      const dz = currentPosition.z - lastCameraPositionRef.current.z
+      const distance = Math.sqrt(dx*dx + dy*dy + dz*dz)
+      
+      // 如果移动距离小于0.1米，跳过这次拍摄
+      if (distance < 0.1) {
+        return
+      }
+    }
+    
     try {
       // 从普通摄像头视频元素捕获画面
       const video = videoRef.current
@@ -160,11 +190,7 @@ export function WebXRARSceneRecorder({
       const imageData = canvas.toDataURL('image/jpeg', 0.9)
       
       // 记录AR相机位置
-      const cameraPosition = {
-        x: cameraRef.current.position.x,
-        y: cameraRef.current.position.y,
-        z: cameraRef.current.position.z
-      }
+      const cameraPosition = { ...currentPosition }
       
       const cameraRotation = {
         x: cameraRef.current.rotation.x,
@@ -177,11 +203,15 @@ export function WebXRARSceneRecorder({
         imageData,
         cameraPosition,
         cameraRotation,
-        timestamp: Date.now()
+        timestamp: now
       })
       
+      // 更新最后拍摄位置和時間
+      lastCameraPositionRef.current = cameraPosition
+      lastCaptureTimeRef.current = now
+      
       setCapturedCount(capturedImagesRef.current.length)
-      setDebugInfo(`已拍摄 ${capturedImagesRef.current.length}/${MAX_CAPTURES} 张`)
+      setDebugInfo(`已拍摄 ${capturedImagesRef.current.length}/${MAX_CAPTURES} 张 (移动了 ${distance?.toFixed(2) || 0}m)`)
       
       if (capturedImagesRef.current.length >= MAX_CAPTURES) {
         stopCapture()
