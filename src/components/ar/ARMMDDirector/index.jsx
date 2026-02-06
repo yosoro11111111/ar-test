@@ -946,21 +946,25 @@ export function ARMMDDirector() {
               
               console.log('根据场景边界调整相机:', { center, size, distance })
             } else if (planes.length > 0) {
-              // 计算所有平面的中心（使用放大后的坐标）
-              const SCALE_FACTOR = 20
-              const centerX = planes.reduce((sum, p) => sum + p.worldPosition.x, 0) / planes.length * SCALE_FACTOR
-              const centerY = planes.reduce((sum, p) => sum + (Math.floor(Math.abs(p.worldPosition.z) / 2) * 3), 0) / planes.length
-              const centerZ = planes.reduce((sum, p) => sum + p.worldPosition.z, 0) / planes.length * SCALE_FACTOR
+              // 新的平面布局：水平排列 0,4,8,12,16，垂直分层 0,0,0,3,3
+              const X_SPACING = 4
+              const Y_LAYER_HEIGHT = 3
+              const Z_OFFSET = 10
               
-              // 相机位置：从正面偏上和偏右观察，距离适中
+              // 计算中心点
+              const centerX = (planes.length - 1) * X_SPACING / 2  // 8
+              const centerY = Math.floor((planes.length - 1) / 3) * Y_LAYER_HEIGHT / 2  // 1.5
+              const centerZ = Z_OFFSET  // 10
+              
+              // 相机位置：从正面观察，能看到所有平面
               targetPosition = {
-                x: centerX + 15,  // 右侧观察
-                y: centerY + 10,  // 从上方观察
-                z: centerZ + 30   // 距离适中以看到所有平面
+                x: centerX,        // 正对中心
+                y: centerY + 8,    // 从上方观察
+                z: centerZ + 25    // 距离25米，能看到所有平面
               }
               lookAtPosition = { x: centerX, y: centerY, z: centerZ }
               
-              console.log('根据平面中心调整相机（放大后）:', lookAtPosition, '相机位置:', targetPosition)
+              console.log('根据平面布局调整相机:', lookAtPosition, '相机位置:', targetPosition)
             }
             
             // 应用相机位置
@@ -996,37 +1000,40 @@ export function ARMMDDirector() {
             planes.forEach((planeData, index) => {
               const { worldPosition, realSize, rotation, polygon } = planeData
               
-              // AR坐标到舞台坐标的转换参数
-              const SCALE_FACTOR = 20 // 放大20倍
-              const DEPTH_LAYER_HEIGHT = 3 // 每层高度差3米
+              // 线性偏移布局参数（加法偏移，保持相对位置）
+              const X_SPACING = 4      // 每平面水平间隔4米
+              const Z_OFFSET = 10      // 整体前移10米
+              const Y_LAYER_HEIGHT = 3 // 每层高度差3米
               
-              // 根据Z深度计算分层（产生3D阶梯效果）
-              const depthLayer = Math.floor(Math.abs(worldPosition.z) / 2)
-              const yHeight = depthLayer * DEPTH_LAYER_HEIGHT
+              // 水平排列：0, 4, 8, 12, 16
+              // 垂直分层：前3个在底层，后2个在上层
+              const xPos = index * X_SPACING
+              const yPos = Math.floor(index / 3) * Y_LAYER_HEIGHT  // 0,0,0,3,3
+              const zPos = worldPosition.z + Z_OFFSET
               
-              // 转换坐标
+              // 转换坐标（使用线性偏移）
               const stagePosition = {
-                x: worldPosition.x * SCALE_FACTOR,
-                y: yHeight,
-                z: worldPosition.z * SCALE_FACTOR
+                x: xPos,
+                y: yPos,
+                z: zPos
               }
               
-              // 创建平面几何体（使用放大后的尺寸）
+              // 创建平面几何体（使用原始尺寸，不放大）
               let geometry
               if (polygon && polygon.length >= 3) {
                 // 使用实际检测到的平面形状（多边形）
                 const shape = new THREE.Shape()
-                shape.moveTo(polygon[0].x * SCALE_FACTOR, polygon[0].z * SCALE_FACTOR)
+                shape.moveTo(polygon[0].x, polygon[0].z)
                 for (let i = 1; i < polygon.length; i++) {
-                  shape.lineTo(polygon[i].x * SCALE_FACTOR, polygon[i].z * SCALE_FACTOR)
+                  shape.lineTo(polygon[i].x, polygon[i].z)
                 }
                 shape.closePath()
                 geometry = new THREE.ShapeGeometry(shape)
               } else {
-                // 使用矩形，但放大尺寸
+                // 使用矩形，原始尺寸
                 geometry = new THREE.PlaneGeometry(
-                  (realSize?.width || 2) * SCALE_FACTOR,
-                  (realSize?.height || 2) * SCALE_FACTOR
+                  realSize?.width || 2,
+                  realSize?.height || 2
                 )
               }
               
