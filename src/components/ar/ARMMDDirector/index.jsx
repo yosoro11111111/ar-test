@@ -956,11 +956,11 @@ export function ARMMDDirector() {
               const centerY = Math.floor((planes.length - 1) / 3) * Y_LAYER_HEIGHT / 2  // 1.5
               const centerZ = Z_OFFSET  // 10
               
-              // 相机位置：从正面观察，能看到所有平面
+              // 相机位置：从侧面观察，能看到所有平面
               targetPosition = {
-                x: centerX,        // 正对中心
-                y: centerY + 8,    // 从上方观察
-                z: centerZ + 25    // 距离25米，能看到所有平面
+                x: centerX + 20,   // 从侧面观察
+                y: centerY + 5,    // 稍微从上方观察
+                z: centerZ + 15    // 距离15米
               }
               lookAtPosition = { x: centerX, y: centerY, z: centerZ }
               
