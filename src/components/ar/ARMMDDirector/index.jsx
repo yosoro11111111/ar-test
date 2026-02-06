@@ -1023,47 +1023,33 @@ export function ARMMDDirector() {
               // 创建材质 - 如果有图片则使用图片纹理
               let material
               if (planeImage) {
-                // 先创建一个白色材质作为占位
-                material = new THREE.MeshStandardMaterial({
-                  color: 0xffffff,
-                  transparent: false,
-                  side: THREE.DoubleSide,
-                  roughness: 0.8,
-                  metalness: 0.1
+                // 创建一个临时的彩色材质作为占位
+                const colors = [0x00ff88, 0x4488ff, 0xff6b6b, 0xffd93d, 0x6bcf7f, 0x9b59b6]
+                material = new THREE.MeshBasicMaterial({
+                  color: colors[index % colors.length],
+                  side: THREE.DoubleSide
                 })
                 
-                // 创建图片元素来验证数据
-                const img = new Image()
-                img.onload = () => {
-                  console.log(`平面 ${index + 1} 图片验证成功:`, img.width, 'x', img.height)
+                // 异步加载纹理
+                const textureLoader = new THREE.TextureLoader()
+                textureLoader.load(planeImage, (texture) => {
+                  texture.wrapS = THREE.ClampToEdgeWrapping
+                  texture.wrapT = THREE.ClampToEdgeWrapping
                   
-                  // 加载平面图片作为纹理
-                  const textureLoader = new THREE.TextureLoader()
-                  textureLoader.load(planeImage, (loadedTexture) => {
-                    // 纹理加载完成后更新材质
-                    loadedTexture.wrapS = THREE.ClampToEdgeWrapping
-                    loadedTexture.wrapT = THREE.ClampToEdgeWrapping
-                    loadedTexture.colorSpace = THREE.SRGBColorSpace
-                    material.map = loadedTexture
-                    material.needsUpdate = true
-                    console.log(`平面 ${index + 1} 纹理加载完成并应用到材质`)
-                    
-                    // 强制场景渲染更新
-                    if (sceneRef.current) {
-                      sceneRef.current.traverse((child) => {
-                        if (child.isMesh && child.material) {
-                          child.material.needsUpdate = true
-                        }
-                      })
-                    }
-                  }, undefined, (error) => {
-                    console.error(`平面 ${index + 1} 纹理加载失败:`, error)
+                  // 创建新的材质并替换
+                  const newMaterial = new THREE.MeshBasicMaterial({
+                    map: texture,
+                    side: THREE.DoubleSide
                   })
-                }
-                img.onerror = (err) => {
-                  console.error(`平面 ${index + 1} 图片验证失败:`, err)
-                }
-                img.src = planeImage
+                  
+                  // 替换 mesh 的材质
+                  if (mesh) {
+                    mesh.material = newMaterial
+                    console.log(`平面 ${index + 1} 纹理加载完成，材质已更新`)
+                  }
+                }, undefined, (error) => {
+                  console.error(`平面 ${index + 1} 纹理加载失败:`, error)
+                })
               } else {
                 // 备用：使用彩色材质
                 const colors = [0x00ff88, 0x4488ff, 0xff6b6b, 0xffd93d, 0x6bcf7f, 0x9b59b6]
