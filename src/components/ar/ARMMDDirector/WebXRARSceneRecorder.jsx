@@ -21,6 +21,7 @@ export function WebXRARSceneRecorder({
   const capturedImagesRef = useRef([])
   const lastCaptureTimeRef = useRef(0)
   const isCapturingRef = useRef(false)
+  const imageCaptureRef = useRef(null)
   
   const [isSessionActive, setIsSessionActive] = useState(false)
   const [isCapturing, setIsCapturing] = useState(false)
@@ -54,6 +55,17 @@ export function WebXRARSceneRecorder({
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         await videoRef.current.play()
+        
+        // 创建 ImageCapture 对象（如果支持）
+        try {
+          const track = stream.getVideoTracks()[0]
+          if (track && typeof ImageCapture !== 'undefined') {
+            imageCaptureRef.current = new ImageCapture(track)
+            console.log('ImageCapture 已创建')
+          }
+        } catch (e) {
+          console.log('ImageCapture 不支持:', e)
+        }
       }
       
       // 2. 请求AR会话（用于追踪位置）
@@ -171,29 +183,57 @@ export function WebXRARSceneRecorder({
     }
     
     try {
-      // 从普通摄像头视频元素捕获画面
-      const video = videoRef.current
+      let imageData
       
-      // 确保视频已经准备好
-      if (video.readyState < 2) {
-        console.log('视频未准备好，跳过')
-        return
+      // 优先使用 ImageCapture API 获取最新帧
+      if (imageCaptureRef.current) {
+        try {
+          const bitmap = await imageCaptureRef.current.grabFrame()
+          const canvas = document.createElement('canvas')
+          canvas.width = bitmap.width
+          canvas.height = bitmap.height
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(bitmap, 0, 0)
+          
+          // 添加时间戳水印
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
+          ctx.font = '30px Arial'
+          ctx.fillText(new Date().toISOString(), 20, 50)
+          
+          imageData = canvas.toDataURL('image/jpeg', 0.9)
+          console.log('使用 ImageCapture 拍摄')
+        } catch (e) {
+          console.log('ImageCapture 失败，使用视频元素:', e)
+          imageCaptureRef.current = null
+        }
       }
       
-      const canvas = document.createElement('canvas')
-      canvas.width = video.videoWidth || 1920
-      canvas.height = video.videoHeight || 1080
-      const ctx = canvas.getContext('2d')
-      
-      // 绘制当前视频帧
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-      
-      // 添加时间戳水印，确保每张图片都不同
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
-      ctx.font = '30px Arial'
-      ctx.fillText(new Date().toISOString(), 20, 50)
-      
-      const imageData = canvas.toDataURL('image/jpeg', 0.9)
+      // 如果 ImageCapture 失败，使用视频元素
+      if (!imageData) {
+        const video = videoRef.current
+        
+        // 确保视频已经准备好并且有数据
+        if (video.readyState < 2 || video.paused) {
+          console.log('视频未准备好或已暂停，跳过')
+          return
+        }
+        
+        const canvas = document.createElement('canvas')
+        canvas.width = video.videoWidth || 1920
+        canvas.height = video.videoHeight || 1080
+        const ctx = canvas.getContext('2d')
+        
+        // 绘制当前视频帧
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        
+        // 添加时间戳水印
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
+        ctx.font = '30px Arial'
+        ctx.fillText(new Date().toISOString(), 20, 50)
+        
+        imageData = canvas.toDataURL('image/jpeg', 0.9)
+        console.log('使用视频元素拍摄')
+      }
       
       // 记录AR相机位置
       const cameraPosition = { ...currentPosition }
