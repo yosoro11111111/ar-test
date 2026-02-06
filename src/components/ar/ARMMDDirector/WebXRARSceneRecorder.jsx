@@ -111,8 +111,8 @@ export function WebXRARSceneRecorder({
             const now = Date.now()
             if (now - lastCaptureTimeRef.current >= CAPTURE_INTERVAL) {
               lastCaptureTimeRef.current = now
-              // 从XR层读取像素数据
-              captureFrameFromXR(gl, baseLayer)
+              // 从canvas捕获画面
+              captureFrameFromCanvas()
             }
           }
         }
@@ -147,48 +147,19 @@ export function WebXRARSceneRecorder({
     setDebugInfo(`开始拍摄，每${CAPTURE_INTERVAL/1000}秒拍摄一张，共${MAX_CAPTURES}张`)
   }
   
-  // 从XR层捕获帧
-  const captureFrameFromXR = (gl, baseLayer) => {
+  // 从canvas捕获帧
+  const captureFrameFromCanvas = () => {
     if (capturedImagesRef.current.length >= MAX_CAPTURES) {
       stopCapture()
       return
     }
     
-    if (!cameraRef.current) return
+    if (!rendererRef.current || !cameraRef.current) return
     
     try {
-      // 使用固定的分辨率（从canvas获取）
-      const sourceCanvas = rendererRef.current.domElement
-      const width = sourceCanvas.width || 1920
-      const height = sourceCanvas.height || 1080
-      
-      // 读取像素数据
-      const pixels = new Uint8Array(width * height * 4)
-      gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
-      
-      // 创建canvas并绘制像素数据
-      const canvas = document.createElement('canvas')
-      canvas.width = width
-      canvas.height = height
-      const ctx = canvas.getContext('2d')
-      const imageData = ctx.createImageData(width, height)
-      
-      // 翻转Y轴（WebGL和Canvas的Y轴方向相反）
-      for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-          const srcIdx = ((height - 1 - y) * width + x) * 4
-          const dstIdx = (y * width + x) * 4
-          imageData.data[dstIdx] = pixels[srcIdx]
-          imageData.data[dstIdx + 1] = pixels[srcIdx + 1]
-          imageData.data[dstIdx + 2] = pixels[srcIdx + 2]
-          imageData.data[dstIdx + 3] = pixels[srcIdx + 3]
-        }
-      }
-      
-      ctx.putImageData(imageData, 0, 0)
-      
-      // 转换为JPEG
-      const jpegData = canvas.toDataURL('image/jpeg', 0.9)
+      // 从canvas获取图像数据
+      const canvas = rendererRef.current.domElement
+      const imageData = canvas.toDataURL('image/jpeg', 0.9)
       
       // 记录相机位置
       const cameraPosition = {
@@ -205,7 +176,7 @@ export function WebXRARSceneRecorder({
       
       capturedImagesRef.current.push({
         index: capturedImagesRef.current.length,
-        imageData: jpegData,
+        imageData,
         cameraPosition,
         cameraRotation,
         timestamp: Date.now()
