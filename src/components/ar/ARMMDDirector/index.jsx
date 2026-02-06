@@ -828,6 +828,126 @@ export function ARMMDDirector() {
             sceneRef.current.add(planesGroup)
           }
         }
+        // 处理AR多平面场景 - 真实多平面3D环境
+        else if (sceneData.type === 'ar-multi-plane' && sceneData.image) {
+          // 清除之前的AR场景平面
+          const existingARPlanes = sceneRef.current.getObjectByName('ar-multi-planes')
+          if (existingARPlanes) {
+            sceneRef.current.remove(existingARPlanes)
+          }
+          
+          // 加载背景图片
+          const textureLoader = new THREE.TextureLoader()
+          textureLoader.load(sceneData.image, (texture) => {
+            if (sceneRef.current) {
+              sceneRef.current.background = texture
+            }
+          })
+          
+          // 创建多平面3D环境
+          if (sceneData.planes && sceneData.planes.length > 0) {
+            const planesGroup = new THREE.Group()
+            planesGroup.name = 'ar-multi-planes'
+            
+            // 计算场景中心，用于调整相机位置
+            const bounds = sceneData.sceneBounds
+            if (bounds && bounds.center) {
+              // 调整相机位置以查看整个场景
+              if (cameraRef.current) {
+                cameraRef.current.position.set(
+                  bounds.center.x,
+                  bounds.center.y + 3,
+                  bounds.center.z + 5
+                )
+                cameraRef.current.lookAt(bounds.center.x, bounds.center.y, bounds.center.z)
+              }
+            }
+            
+            sceneData.planes.forEach((planeData, index) => {
+              const { worldPosition, realSize, rotation, polygon } = planeData
+              
+              // 创建平面几何体
+              let geometry
+              if (polygon && polygon.length >= 3) {
+                // 使用多边形创建自定义形状
+                const shape = new THREE.Shape()
+                shape.moveTo(polygon[0].x, polygon[0].z)
+                for (let i = 1; i < polygon.length; i++) {
+                  shape.lineTo(polygon[i].x, polygon[i].z)
+                }
+                shape.closePath()
+                geometry = new THREE.ShapeGeometry(shape)
+              } else {
+                // 使用矩形
+                geometry = new THREE.PlaneGeometry(
+                  realSize?.width || 2,
+                  realSize?.height || 2
+                )
+              }
+              
+              // 平面材质 - 使用不同颜色区分不同平面
+              const colors = [0x00ff88, 0x4488ff, 0xff6b6b, 0xffd93d, 0x6bcf7f, 0x9b59b6]
+              const color = colors[index % colors.length]
+              
+              const material = new THREE.MeshStandardMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.4,
+                side: THREE.DoubleSide,
+                roughness: 0.6,
+                metalness: 0.2
+              })
+              
+              const mesh = new THREE.Mesh(geometry, material)
+              mesh.position.set(worldPosition.x, worldPosition.y, worldPosition.z)
+              mesh.rotation.set(
+                (rotation?.x || -90) * Math.PI / 180,
+                (rotation?.y || 0) * Math.PI / 180,
+                (rotation?.z || 0) * Math.PI / 180
+              )
+              mesh.castShadow = true
+              mesh.receiveShadow = true
+              
+              // 添加边框
+              const edges = new THREE.EdgesGeometry(geometry)
+              const lineMaterial = new THREE.LineBasicMaterial({ color: color, linewidth: 2 })
+              const wireframe = new THREE.LineSegments(edges, lineMaterial)
+              mesh.add(wireframe)
+              
+              // 添加序号标签
+              const canvas = document.createElement('canvas')
+              const ctx = canvas.getContext('2d')
+              canvas.width = 128
+              canvas.height = 64
+              ctx.fillStyle = '#' + color.toString(16).padStart(6, '0')
+              ctx.fillRect(0, 0, canvas.width, canvas.height)
+              ctx.fillStyle = '#000'
+              ctx.font = 'bold 32px Arial'
+              ctx.textAlign = 'center'
+              ctx.fillText(`${index + 1}`, 64, 44)
+              
+              const texture = new THREE.CanvasTexture(canvas)
+              const spriteMaterial = new THREE.SpriteMaterial({ map: texture })
+              const sprite = new THREE.Sprite(spriteMaterial)
+              sprite.position.y = 0.8
+              sprite.scale.set(1, 0.5, 1)
+              mesh.add(sprite)
+              
+              planesGroup.add(mesh)
+            })
+            
+            sceneRef.current.add(planesGroup)
+            
+            // 添加环境光和平行光
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
+            sceneRef.current.add(ambientLight)
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8)
+            directionalLight.position.set(5, 10, 5)
+            directionalLight.castShadow = true
+            sceneRef.current.add(directionalLight)
+          }
+        }
         // 处理WebXR AR场景 - 渲染3D平面
         else if (sceneData.type === 'webxr-ar' && sceneData.planes) {
           // 清除之前的AR场景平面

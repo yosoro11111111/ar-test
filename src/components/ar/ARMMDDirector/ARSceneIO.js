@@ -140,7 +140,9 @@ export async function importARScenePack(file) {
   const manifest = JSON.parse(await manifestFile.async('text'))
   
   // 根据版本处理
-  if (manifest.type === 'ar-camera-scene-pack') {
+  if (manifest.type === 'ar-multi-plane-scene-pack') {
+    return importARMultiPlaneScene(zip, manifest)
+  } else if (manifest.type === 'ar-camera-scene-pack') {
     return importARCameraScene(zip, manifest)
   } else if (manifest.type === 'webxr-ar-scene-pack') {
     return importWebXRARScene(zip, manifest)
@@ -278,6 +280,7 @@ export function isARScenePack(file) {
          file.name.endsWith('.arscene') || 
          file.name.endsWith('.arscene2') ||
          file.name.endsWith('.arscene3') ||
+         file.name.endsWith('.arscene4') ||
          file.name.endsWith('.webxrar')
 }
 
@@ -381,6 +384,69 @@ async function importARCameraScene(zip, manifest) {
       image: imageDataUrl,
       planes: sceneData.planes || [],
       camera: sceneData.camera,
+      imageDimensions: sceneData.image
+    }
+  }
+  
+  return scene
+}
+
+/**
+ * 导入AR多平面场景 (v4.0 - 支持多个平面的真实AR场景)
+ */
+async function importARMultiPlaneScene(zip, manifest) {
+  // 1. 读取场景数据
+  const sceneFile = zip.file('scene.json')
+  if (!sceneFile) {
+    throw new Error('无效的场景包：缺少场景数据')
+  }
+  
+  const sceneData = JSON.parse(await sceneFile.async('text'))
+  
+  // 2. 加载场景图片
+  const imageFile = zip.file('scene.jpg') || zip.file('scene.png')
+  let imageDataUrl = null
+  
+  if (imageFile) {
+    const base64Data = await imageFile.async('base64')
+    const ext = imageFile.name.split('.').pop()
+    const mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png'
+    imageDataUrl = `data:${mimeType};base64,${base64Data}`
+  }
+  
+  // 3. 加载所有平面图片
+  const planeImages = []
+  const imagesFolder = zip.folder('images')
+  if (imagesFolder) {
+    const imageFiles = imagesFolder.file(/^plane_\d+\.jpg$/)
+    for (const imgFile of imageFiles) {
+      const base64Data = await imgFile.async('base64')
+      planeImages.push(`data:image/jpeg;base64,${base64Data}`)
+    }
+  }
+  
+  // 4. 构建场景对象
+  const scene = {
+    id: `armultiplane_scene_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    name: `${manifest.metadata?.name || sceneData.name || 'AR多平面场景'} (导入)`,
+    type: 'ar-multi-plane',
+    createdAt: new Date().toISOString(),
+    importedAt: new Date().toISOString(),
+    data: {
+      ...sceneData,
+      image: imageDataUrl,
+      planeImages
+    },
+    backgroundType: 'ar-multi-plane',
+    arBackground: {
+      id: sceneData.id || `armulti_${Date.now()}`,
+      name: sceneData.name || 'AR多平面场景',
+      type: 'ar-multi-plane',
+      image: imageDataUrl,
+      planeImages,
+      planes: sceneData.planes || [],
+      camera: sceneData.camera,
+      sceneBounds: sceneData.sceneBounds,
       imageDimensions: sceneData.image
     }
   }
