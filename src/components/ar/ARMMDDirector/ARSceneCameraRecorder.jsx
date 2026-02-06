@@ -37,6 +37,7 @@ export function ARSceneCameraRecorder({
   const [step, setStep] = useState('camera') // camera, preview, edit
   const [detectedPlaneCount, setDetectedPlaneCount] = useState(0)
   const [isARDetecting, setIsARDetecting] = useState(false)
+  const isARDetectingRef = useRef(false)
 
   // 检查AR支持
   useEffect(() => {
@@ -96,14 +97,22 @@ export function ARSceneCameraRecorder({
       // 监听平面检测
       if (session.detectedPlanes) {
         setIsARDetecting(true)
+        isARDetectingRef.current = true
+        console.log('开始平面检测...')
         
         // 平面检测循环
         const detectPlanes = () => {
-          if (!session.detectedPlanes) return
+          if (!session.detectedPlanes) {
+            console.log('session.detectedPlanes 不存在')
+            return
+          }
+          
+          console.log(`检测中... 当前平面数: ${session.detectedPlanes.size}, 已记录: ${detectedPlanesRef.current.size}`)
           
           session.detectedPlanes.forEach(plane => {
             if (!detectedPlanesRef.current.has(plane.uuid)) {
               // 新平面检测到
+              console.log('检测到新平面:', plane.uuid)
               detectedPlanesRef.current.set(plane.uuid, {
                 plane,
                 timestamp: Date.now()
@@ -116,12 +125,20 @@ export function ARSceneCameraRecorder({
             }
           })
           
-          if (isARDetecting) {
+          if (isARDetectingRef.current) {
             requestAnimationFrame(detectPlanes)
+          } else {
+            console.log('停止平面检测')
           }
         }
         
         detectPlanes()
+      } else {
+        console.warn('浏览器不支持平面检测，使用模拟模式')
+        // 如果不支持平面检测，使用模拟模式
+        setIsARDetecting(true)
+        isARDetectingRef.current = true
+        simulateARDetection()
       }
       
       // 渲染循环
@@ -172,14 +189,19 @@ export function ARSceneCameraRecorder({
 
   // 模拟AR平面检测（用于不支持AR的设备）
   const simulateARDetection = () => {
+    console.log('开始模拟平面检测')
     setIsARDetecting(true)
+    isARDetectingRef.current = true
     let count = 0
     
     const detectInterval = setInterval(() => {
-      if (count >= 3 || !isARDetecting) {
+      if (count >= 3 || !isARDetectingRef.current) {
+        console.log('停止模拟检测')
         clearInterval(detectInterval)
         return
       }
+      
+      console.log(`模拟检测平面 ${count + 1}`)
       
       // 模拟检测到平面
       const mockPlane = {
@@ -353,7 +375,9 @@ export function ARSceneCameraRecorder({
 
   // 停止AR/摄像头
   const stopCapture = () => {
+    console.log('停止AR/摄像头')
     setIsARDetecting(false)
+    isARDetectingRef.current = false
     
     if (xrSessionRef.current) {
       xrSessionRef.current.end()
