@@ -1006,14 +1006,19 @@ export function ARMMDDirector() {
               if (planeImage) {
                 // 加载平面图片作为纹理
                 const textureLoader = new THREE.TextureLoader()
-                const texture = textureLoader.load(planeImage)
-                texture.wrapS = THREE.ClampToEdgeWrapping
-                texture.wrapT = THREE.ClampToEdgeWrapping
+                const texture = textureLoader.load(planeImage, (loadedTexture) => {
+                  // 纹理加载完成后更新材质
+                  loadedTexture.wrapS = THREE.ClampToEdgeWrapping
+                  loadedTexture.wrapT = THREE.ClampToEdgeWrapping
+                  loadedTexture.needsUpdate = true
+                  console.log(`平面 ${index + 1} 纹理加载完成`)
+                }, undefined, (error) => {
+                  console.error(`平面 ${index + 1} 纹理加载失败:`, error)
+                })
                 
                 material = new THREE.MeshStandardMaterial({
                   map: texture,
-                  transparent: true,
-                  opacity: 0.95,
+                  transparent: false,
                   side: THREE.DoubleSide,
                   roughness: 0.8,
                   metalness: 0.1
