@@ -65,102 +65,14 @@ export function ARSceneCameraRecorder({
   const startARSession = async () => {
     try {
       setError(null)
+      console.log('开始启动AR/摄像头...')
       
-      const session = await navigator.xr.requestSession('immersive-ar', {
-        requiredFeatures: ['hit-test', 'plane-detection'],
-        optionalFeatures: ['dom-overlay'],
-        domOverlay: { root: document.body }
-      })
-      
-      xrSessionRef.current = session
-      
-      // 设置渲染
-      const canvas = canvasRef.current
-      const gl = canvas.getContext('webgl2', { xrCompatible: true })
-      
-      const renderer = new THREE.WebGLRenderer({
-        canvas,
-        context: gl,
-        alpha: true,
-        antialias: true
-      })
-      renderer.setSize(window.innerWidth, window.innerHeight)
-      renderer.setPixelRatio(window.devicePixelRatio)
-      
-      const scene = new THREE.Scene()
-      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
-      
-      // 创建参考空间
-      const refSpace = await session.requestReferenceSpace('local')
-      xrRefSpaceRef.current = refSpace
-      
-      // 监听平面检测
-      if (session.detectedPlanes) {
-        setIsARDetecting(true)
-        isARDetectingRef.current = true
-        console.log('开始平面检测...')
-        
-        // 平面检测循环
-        const detectPlanes = () => {
-          if (!session.detectedPlanes) {
-            console.log('session.detectedPlanes 不存在')
-            return
-          }
-          
-          console.log(`检测中... 当前平面数: ${session.detectedPlanes.size}, 已记录: ${detectedPlanesRef.current.size}`)
-          
-          session.detectedPlanes.forEach(plane => {
-            if (!detectedPlanesRef.current.has(plane.uuid)) {
-              // 新平面检测到
-              console.log('检测到新平面:', plane.uuid)
-              detectedPlanesRef.current.set(plane.uuid, {
-                plane,
-                timestamp: Date.now()
-              })
-              
-              setDetectedPlaneCount(prev => prev + 1)
-              
-              // 自动拍照
-              captureARPhoto(plane, session, refSpace, renderer, scene, camera)
-            }
-          })
-          
-          if (isARDetectingRef.current) {
-            requestAnimationFrame(detectPlanes)
-          } else {
-            console.log('停止平面检测')
-          }
-        }
-        
-        detectPlanes()
-      } else {
-        console.warn('浏览器不支持平面检测，使用模拟模式')
-        // 如果不支持平面检测，使用模拟模式
-        setIsARDetecting(true)
-        isARDetectingRef.current = true
-        simulateARDetection()
-      }
-      
-      // 渲染循环
-      const onXRFrame = (time, frame) => {
-        const pose = frame.getViewerPose(refSpace)
-        if (pose) {
-          const view = pose.views[0]
-          camera.matrix.fromArray(view.transform.matrix)
-          camera.updateMatrixWorld(true)
-          renderer.render(scene, camera)
-        }
-        session.requestAnimationFrame(onXRFrame)
-      }
-      
-      session.requestAnimationFrame(onXRFrame)
-      setIsCameraActive(true)
+      // 先尝试启动普通摄像头（更可靠）
+      await startNormalCamera()
       
     } catch (err) {
-      console.error('启动AR失败:', err)
-      setError('启动AR失败: ' + err.message)
-      // 降级到普通摄像头
-      startNormalCamera()
+      console.error('启动失败:', err)
+      setError('启动失败: ' + err.message)
     }
   }
 
@@ -778,7 +690,14 @@ sceneData.planes.forEach(plane => {
                   ref={videoRef}
                   autoPlay
                   playsInline
+                  muted
                   className={styles.video}
+                  style={{ 
+                    display: isCameraActive ? 'block' : 'none',
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover'
+                  }}
                 />
                 <canvas 
                   ref={canvasRef}
@@ -791,11 +710,10 @@ sceneData.planes.forEach(plane => {
                     <button 
                       className={styles.startCameraBtn}
                       onClick={startARSession}
-                      disabled={!isSupported}
                     >
-                      {isSupported ? '🥽 启动AR检测' : '❌ AR不支持'}
+                      📷 启动摄像头
                     </button>
-                    <p className={styles.hint}>移动手机自动检测平面并拍照</p>
+                    <p className={styles.hint}>点击按钮允许摄像头权限，然后移动手机检测平面</p>
                   </div>
                 )}
                 
