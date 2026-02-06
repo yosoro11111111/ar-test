@@ -40,9 +40,18 @@ export function WebXRARSceneRecorder({
       
       sessionRef.current = session
       
-      // 创建渲染器
+      // 先获取XR兼容的WebGL上下文
+      const gl = canvasRef.current.getContext('webgl2', { xrCompatible: true }) 
+        || canvasRef.current.getContext('webgl', { xrCompatible: true })
+      
+      if (!gl) {
+        throw new Error('无法创建WebGL上下文')
+      }
+      
+      // 创建渲染器，使用已有的WebGL上下文
       const renderer = new THREE.WebGLRenderer({
         canvas: canvasRef.current,
+        context: gl,
         alpha: true,
         antialias: true
       })
@@ -55,7 +64,6 @@ export function WebXRARSceneRecorder({
       cameraRef.current = camera
       
       // 手动创建XRWebGLLayer并设置渲染状态
-      const gl = renderer.getContext()
       const baseLayer = new XRWebGLLayer(session, gl)
       
       await session.updateRenderState({
