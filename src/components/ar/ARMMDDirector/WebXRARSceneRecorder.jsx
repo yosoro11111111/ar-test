@@ -212,7 +212,7 @@ export function WebXRARSceneRecorder({
       lastCaptureTimeRef.current = now
       
       setCapturedCount(capturedImagesRef.current.length)
-      setDebugInfo(`已拍摄 ${capturedImagesRef.current.length}/${MAX_CAPTURES} 张 (移动了 ${distance?.toFixed(2) || 0}m)`)
+      setDebugInfo(`已拍摄 ${capturedImagesRef.current.length}/${MAX_CAPTURES} 张 (移动了 ${distance.toFixed(2)}m)`)
       
       if (capturedImagesRef.current.length >= MAX_CAPTURES) {
         stopCapture()
