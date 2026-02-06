@@ -791,69 +791,67 @@ export function ARMMDDirector() {
         </div>
       </header>
       
-      {/* 主内容区 */}
-      <div className={styles.main}>
-        <div className={styles.centerArea}>
-          {!previewOpen ? (
-            <div className={styles.previewPlaceholder}>
-              <button 
-                className={styles.showPreviewBtn}
-                onClick={() => setPreviewOpen(true)}
-              >
-                <span className={styles.previewIcon}>👁️</span>
-                <span>点击显示预览</span>
-              </button>
+      {/* 预览区域 - 在时间轴上方 */}
+      <div className={styles.previewArea}>
+        {!previewOpen ? (
+          <div className={styles.previewPlaceholder}>
+            <button 
+              className={styles.showPreviewBtn}
+              onClick={() => setPreviewOpen(true)}
+            >
+              <span className={styles.previewIcon}>👁️</span>
+              <span>点击预览</span>
+            </button>
+          </div>
+        ) : (
+          <div className={styles.previewContainer}>
+            <div className={styles.previewHeader}>
+              <span>🎬 3D 预览</span>
+              <div className={styles.previewControls}>
+                <button 
+                  className={styles.controlBtn}
+                  onClick={() => setIsPlaying(!isPlaying)}
+                  title={isPlaying ? '暂停' : '播放'}
+                >
+                  {isPlaying ? '⏸️' : '▶️'}
+                </button>
+                <button 
+                  className={styles.closePreviewBtn}
+                  onClick={() => {
+                    setPreviewOpen(false)
+                    setIsPlaying(false)
+                    // 清理Three.js
+                    cleanup()
+                    rendererRef.current = null
+                    sceneRef.current = null
+                    cameraRef.current = null
+                    characterManagerRef.current = null
+                  }}
+                  title="退出预览"
+                >
+                  ✕ 退出
+                </button>
+              </div>
             </div>
-          ) : (
-            <div className={styles.previewContainer}>
-              <div className={styles.previewHeader}>
-                <span>🎬 3D 预览</span>
-                <div className={styles.previewControls}>
-                  <button 
-                    className={styles.controlBtn}
-                    onClick={() => setIsPlaying(!isPlaying)}
-                    title={isPlaying ? '暂停' : '播放'}
-                  >
-                    {isPlaying ? '⏸️' : '▶️'}
-                  </button>
-                  <button 
-                    className={styles.closePreviewBtn}
-                    onClick={() => {
-                      setPreviewOpen(false)
-                      setIsPlaying(false)
-                      // 清理Three.js
-                      cleanup()
-                      rendererRef.current = null
-                      sceneRef.current = null
-                      cameraRef.current = null
-                      characterManagerRef.current = null
-                    }}
-                    title="关闭预览"
-                  >
-                    ✕ 关闭
-                  </button>
+            <canvas ref={canvasRef} className={styles.previewCanvas} />
+            
+            {/* 导出进度条 */}
+            {isExporting && (
+              <div className={styles.exportProgressOverlay}>
+                <div className={styles.exportProgressBox}>
+                  <div className={styles.exportProgressTitle}>🎬 {exportStage || '正在导出...'}</div>
+                  <div className={styles.exportProgressBar}>
+                    <div 
+                      className={styles.exportProgressFill} 
+                      style={{ width: `${exportProgress}%` }}
+                    />
+                  </div>
+                  <div className={styles.exportProgressText}>{exportProgress}%</div>
                 </div>
               </div>
-              <canvas ref={canvasRef} className={styles.previewCanvas} />
-              
-              {/* 导出进度条 */}
-              {isExporting && (
-                <div className={styles.exportProgressOverlay}>
-                  <div className={styles.exportProgressBox}>
-                    <div className={styles.exportProgressTitle}>🎬 {exportStage || '正在导出...'}</div>
-                    <div className={styles.exportProgressBar}>
-                      <div 
-                        className={styles.exportProgressFill} 
-                        style={{ width: `${exportProgress}%` }}
-                      />
-                    </div>
-                    <div className={styles.exportProgressText}>{exportProgress}%</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
       
       {/* 时间轴 */}
