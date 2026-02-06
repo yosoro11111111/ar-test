@@ -33,7 +33,14 @@ export function WebXRARSceneRecorder({
   // 启动AR会话
   const startARSession = async () => {
     try {
-      // 先创建渲染器
+      // 请求AR会话
+      const session = await navigator.xr.requestSession('immersive-ar', {
+        requiredFeatures: ['local-floor']
+      })
+      
+      sessionRef.current = session
+      
+      // 创建渲染器
       const renderer = new THREE.WebGLRenderer({
         canvas: canvasRef.current,
         alpha: true,
@@ -41,37 +48,47 @@ export function WebXRARSceneRecorder({
       })
       renderer.setSize(window.innerWidth, window.innerHeight)
       renderer.setPixelRatio(window.devicePixelRatio)
-      renderer.xr.enabled = true
       rendererRef.current = renderer
       
       // 创建相机
       const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
       cameraRef.current = camera
       
-      // 请求AR会话 - 简化配置
-      const session = await navigator.xr.requestSession('immersive-ar', {
-        requiredFeatures: ['local-floor']
+      // 手动创建XRWebGLLayer并设置渲染状态
+      const gl = renderer.getContext()
+      const baseLayer = new XRWebGLLayer(session, gl)
+      
+      await session.updateRenderState({
+        baseLayer: baseLayer
       })
       
-      sessionRef.current = session
-      
-      // 等待会话准备好再设置
-      await new Promise(resolve => setTimeout(resolve, 100))
-      
-      // 使用Three.js的XR支持
-      await renderer.xr.setSession(session)
+      // 设置参考空间
+      const referenceSpace = await session.requestReferenceSpace('local-floor')
       
       // 启动渲染循环
-      renderer.setAnimationLoop(() => {
-        if (rendererRef.current && cameraRef.current) {
-          // 获取相机位置
-          const xrCamera = renderer.xr.getCamera(camera)
-          if (xrCamera) {
-            cameraRef.current.position.copy(xrCamera.position)
-            cameraRef.current.quaternion.copy(xrCamera.quaternion)
-          }
+      const onXRFrame = (time, frame) => {
+        if (!sessionRef.current) return
+        
+        const pose = frame.getViewerPose(referenceSpace)
+        if (pose && cameraRef.current) {
+          const view = pose.views[0]
+          cameraRef.current.matrix.fromArray(view.transform.matrix)
+          cameraRef.current.matrix.decompose(
+            cameraRef.current.position,
+            cameraRef.current.quaternion,
+            cameraRef.current.scale
+          )
         }
-      })
+        
+        // 渲染
+        if (rendererRef.current) {
+          rendererRef.current.render(new THREE.Scene(), cameraRef.current)
+        }
+        
+        session.requestAnimationFrame(onXRFrame)
+      }
+      
+      session.requestAnimationFrame(onXRFrame)
       
       setIsSessionActive(true)
       setDebugInfo('AR会话已启动，点击"开始拍摄"')
