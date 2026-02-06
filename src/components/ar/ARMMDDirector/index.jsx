@@ -1024,7 +1024,7 @@ export function ARMMDDirector() {
                     {coordinatePickerMode === 'position' ? '📷 选择摄像机位置' : '🎯 选择目标点'}
                   </span>
                   <span className={styles.pickerCoords}>
-                    X: {pickerPreviewPosition.x.toFixed(1)} Y: {pickerPreviewPosition.y.toFixed(1)} Z: {pickerPreviewPosition.z.toFixed(1)}
+                    X: {(pickerPreviewPosition?.x ?? 0).toFixed(1)} Y: {(pickerPreviewPosition?.y ?? 0).toFixed(1)} Z: {(pickerPreviewPosition?.z ?? 0).toFixed(1)}
                   </span>
                 </div>
                 <div className={styles.pickerActions}>
