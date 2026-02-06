@@ -178,10 +178,11 @@ export function WebXRARSceneRecorder({
             
             // 调试：显示检测到的位置
             if (frameCountRef.current % 30 === 0) {
-              console.log('Hit detected at:', hitPos.x.toFixed(2), hitPos.y.toFixed(2), hitPos.z.toFixed(2))
+              console.log('Hit detected at:', hitPos.x.toFixed(2), hitPos.y.toFixed(2), hitPos.z.toFixed(2), 'isAutoDetecting:', isAutoDetecting)
             }
             
             // 自动检测模式：记录新平面
+            console.log('Checking auto detect:', isAutoDetecting, 'hasHit:', hasHit)
             if (isAutoDetecting) {
               // 使用更宽松的网格来判断是否为新位置（0.5米网格）
               const gridSize = 0.5
