@@ -1167,6 +1167,12 @@ export function ARMMDDirector() {
             })
             
             sceneGroup.add(planesGroup)
+            
+            // 调试：检查planesGroup
+            console.log('planesGroup已添加:', {
+              planesGroupChildren: planesGroup.children.length,
+              sceneGroupChildren: sceneGroup.children.length
+            })
           }
           
           // 添加光照
