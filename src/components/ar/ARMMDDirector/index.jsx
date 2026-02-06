@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as THREE from 'three'
 import JSZip from 'jszip'
@@ -16,6 +16,8 @@ import { calculatePositionOnPath } from './positionPresets'
 import { getMusicManager, destroyMusicManager } from './MusicManager'
 import { PropManager, createPresetProp } from './PropManager'
 import { EffectManager, PRESET_EFFECTS } from './EffectManager'
+import { ProjectWizard } from './ProjectWizard'
+import { QuickActions } from './QuickActions'
 
 /**
  * AR MMD Director - 新轨道系统版本
@@ -41,6 +43,11 @@ export function ARMMDDirector() {
   const propManagerRef = useRef(null)
   const effectManagerRef = useRef(null)
   const animationFrameRef = useRef(null)
+  
+  // 摄像机预览引用
+  const cameraPreviewRef = useRef(null)
+  const cameraPreviewRendererRef = useRef(null)
+  const cameraPreviewCameraRef = useRef(null)
   
   // 预览控制
   const [previewScale, setPreviewScale] = useState(1) // 画布显示缩放
@@ -82,6 +89,7 @@ export function ARMMDDirector() {
   const [previewOpen, setPreviewOpen] = useState(false)
   const [showPreviewModal, setShowPreviewModal] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [showProjectWizard, setShowProjectWizard] = useState(true) // 默认显示项目向导
   
   // 检测移动端
   useEffect(() => {
@@ -112,6 +120,11 @@ export function ARMMDDirector() {
     characters: [],
     tracks: []
   })
+  
+  // 检测是否有摄像机轨道
+  const hasCameraTrack = useMemo(() => {
+    return project.tracks.some(track => track.type === 'camera')
+  }, [project.tracks])
   
   // 时间轴状态
   const [currentTime, setCurrentTime] = useState(0)
@@ -160,68 +173,6 @@ export function ARMMDDirector() {
       saveToHistory(project)
     }
   }, [])
-  
-  // 键盘快捷键
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      // 如果在输入框中，不处理快捷键
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
-      
-      if (e.ctrlKey || e.metaKey) {
-        switch(e.key.toLowerCase()) {
-          case 'z':
-            e.preventDefault()
-            if (e.shiftKey) {
-              redo()
-            } else {
-              undo()
-            }
-            break
-          case 's':
-            e.preventDefault()
-            saveProject()
-            break
-          case 'c':
-            if (e.shiftKey) {
-              e.preventDefault()
-              copySelectedClips()
-            }
-            break
-          case 'v':
-            if (e.shiftKey) {
-              e.preventDefault()
-              pasteClips()
-            }
-            break
-        }
-      } else {
-        switch(e.key) {
-          case ' ':
-            e.preventDefault()
-            togglePlay()
-            break
-          case 'Delete':
-          case 'Backspace':
-            if (editingCell) {
-              e.preventDefault()
-              deleteCell(editingCell.trackId, editingCell.cell.id)
-            }
-            break
-          case 'ArrowLeft':
-            e.preventDefault()
-            setCurrentTime(prev => Math.max(0, prev - 0.1))
-            break
-          case 'ArrowRight':
-            e.preventDefault()
-            setCurrentTime(prev => Math.min(project.duration, prev + 0.1))
-            break
-        }
-      }
-    }
-    
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [undo, redo, saveProject, togglePlay, editingCell, deleteCell, project.duration])
   
   // 初始化Three.js - 只在previewOpen变为true时初始化
   useEffect(() => {
@@ -343,6 +294,32 @@ export function ARMMDDirector() {
     // 初始化特效管理器
     effectManagerRef.current = new EffectManager(scene)
     
+    // 初始化摄像机预览（如果有摄像机轨道）
+    if (hasCameraTrack && cameraPreviewRef.current) {
+      const previewWidth = cameraPreviewRef.current.clientWidth || 400
+      const previewHeight = cameraPreviewRef.current.clientHeight || 300
+      const previewAspect = previewWidth / previewHeight
+      
+      // 创建摄像机预览相机
+      const cameraPreviewCamera = new THREE.PerspectiveCamera(60, previewAspect, 0.1, 1000)
+      cameraPreviewCamera.position.set(0, 5, 10)
+      cameraPreviewCamera.lookAt(0, 0, 0)
+      cameraPreviewCameraRef.current = cameraPreviewCamera
+      
+      // 创建摄像机预览渲染器
+      const cameraPreviewRenderer = new THREE.WebGLRenderer({
+        canvas: cameraPreviewRef.current,
+        antialias: false,
+        preserveDrawingBuffer: false,
+        alpha: false
+      })
+      cameraPreviewRenderer.setSize(previewWidth, previewHeight)
+      cameraPreviewRenderer.setClearColor(0x1a1a2e, 1)
+      cameraPreviewRendererRef.current = cameraPreviewRenderer
+      
+      console.log('Camera preview initialized:', previewWidth, previewHeight)
+    }
+    
     // 加载所有角色，并在加载完成后应用当前时间轴状态
     console.log('Loading characters:', project.characters.length)
     const loadPromises = project.characters.map(char => loadCharacter(char))
@@ -359,7 +336,14 @@ export function ARMMDDirector() {
       if (rendererRef.current && sceneRef.current && cameraRef.current) {
         characterManagerRef.current?.update(0.016)
         effectManagerRef.current?.update(0.016)
+        
+        // 渲染主画布（舞台画面）
         rendererRef.current.render(sceneRef.current, cameraRef.current)
+        
+        // 渲染摄像机预览画布（如果有摄像机轨道）
+        if (hasCameraTrack && cameraPreviewRendererRef.current && cameraPreviewCameraRef.current) {
+          cameraPreviewRendererRef.current.render(sceneRef.current, cameraPreviewCameraRef.current)
+        }
       } else {
         console.log('Missing ref:', { 
           renderer: !!rendererRef.current, 
@@ -517,18 +501,74 @@ export function ARMMDDirector() {
     }))
   }
   
-  // 添加片段到轨道
-  const addCell = (trackId) => {
+  // 添加片段到轨道 - 智能片段创建
+  const addCell = (trackId, options = {}) => {
     // 获取轨道类型
     const track = project.tracks.find(t => t.id === trackId)
     const trackType = track?.type || 'unknown'
     
+    // 智能默认设置
+    const startTime = options.startTime !== undefined ? options.startTime : currentTime
+    let defaultDuration = 5
+    let defaultData = { name: '' }
+    
+    // 根据轨道类型设置智能默认值
+    switch(trackType) {
+      case 'action':
+        defaultDuration = 3
+        defaultData = { 
+          name: '动作片段',
+          actionName: 'idle',
+          loop: true 
+        }
+        break
+      case 'camera':
+        defaultDuration = 5
+        defaultData = {
+          name: '摄像机片段',
+          keyframes: [
+            { time: 0, position: { x: 0, y: 5, z: 10 }, target: { x: 0, y: 0, z: 0 }, fov: 60, easing: 'linear' },
+            { time: 5, position: { x: 0, y: 5, z: 10 }, target: { x: 0, y: 0, z: 0 }, fov: 60, easing: 'linear' }
+          ]
+        }
+        break
+      case 'music':
+        defaultDuration = project.duration - startTime
+        defaultData = { name: '音乐片段', audioFile: null }
+        break
+      case 'effect':
+        defaultDuration = 2
+        defaultData = { name: '特效片段', effectType: 'sparkle' }
+        break
+      case 'position':
+        defaultDuration = 3
+        defaultData = { 
+          name: '位置片段',
+          pathType: 'linear',
+          points: [{ x: 0, z: 0 }, { x: 2, z: 0 }]
+        }
+        break
+      case 'prop':
+        defaultDuration = project.duration - startTime
+        defaultData = { name: '道具片段', propId: null }
+        break
+      case 'scene':
+        defaultDuration = project.duration - startTime
+        defaultData = { name: '场景片段', backgroundImage: null }
+        break
+      case 'characterScale':
+      case 'backgroundScale':
+        defaultDuration = 3
+        defaultData = { name: '缩放片段', startScale: 1, endScale: 1.5 }
+        break
+    }
+    
     const newClip = {
       id: `clip_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       type: 'clip',
-      startTime: currentTime,
-      duration: 5,
-      data: { name: '' }
+      startTime,
+      duration: options.duration || defaultDuration,
+      data: { ...defaultData, ...options.data }
     }
 
     setProject(prev => ({
@@ -539,6 +579,9 @@ export function ARMMDDirector() {
           : track
       )
     }))
+
+    // 保存到历史
+    saveToHistory(project)
 
     // 打开编辑弹窗 - 传入trackType
     setEditingCell({ trackId, trackType, cell: newClip })
@@ -866,6 +909,14 @@ export function ARMMDDirector() {
         cameraRef.current.lookAt(target.x, target.y, target.z)
         cameraRef.current.fov = fov
         cameraRef.current.updateProjectionMatrix()
+        
+        // 同时更新摄像机预览相机
+        if (cameraPreviewCameraRef.current) {
+          cameraPreviewCameraRef.current.position.set(position.x, position.y, position.z)
+          cameraPreviewCameraRef.current.lookAt(target.x, target.y, target.z)
+          cameraPreviewCameraRef.current.fov = fov
+          cameraPreviewCameraRef.current.updateProjectionMatrix()
+        }
       }
     })
     
@@ -981,6 +1032,68 @@ export function ARMMDDirector() {
     })
     return Math.max(maxTime, project.duration)
   }
+  
+  // 键盘快捷键 - 放在所有依赖函数定义之后
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // 如果在输入框中，不处理快捷键
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      
+      if (e.ctrlKey || e.metaKey) {
+        switch(e.key.toLowerCase()) {
+          case 'z':
+            e.preventDefault()
+            if (e.shiftKey) {
+              redo()
+            } else {
+              undo()
+            }
+            break
+          case 's':
+            e.preventDefault()
+            saveProject()
+            break
+          case 'c':
+            if (e.shiftKey) {
+              e.preventDefault()
+              copySelectedClips()
+            }
+            break
+          case 'v':
+            if (e.shiftKey) {
+              e.preventDefault()
+              pasteClips()
+            }
+            break
+        }
+      } else {
+        switch(e.key) {
+          case ' ':
+            e.preventDefault()
+            togglePlay()
+            break
+          case 'Delete':
+          case 'Backspace':
+            if (editingCell) {
+              e.preventDefault()
+              deleteCell(editingCell.trackId, editingCell.cell.id)
+            }
+            break
+          case 'ArrowLeft':
+            e.preventDefault()
+            setCurrentTime(prev => Math.max(0, prev - 0.1))
+            break
+          case 'ArrowRight':
+            e.preventDefault()
+            setCurrentTime(prev => Math.min(project.duration, prev + 0.1))
+            break
+        }
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [undo, redo, saveProject, togglePlay, editingCell, deleteCell, project.duration])
   
   // 导出GIF/视频/ZIP
   const [exportProgress, setExportProgress] = useState(0)
@@ -1266,9 +1379,35 @@ export function ARMMDDirector() {
     }
   }
   
+  // 处理项目向导完成
+  const handleProjectWizardComplete = (wizardData) => {
+    setProject(prev => ({
+      ...prev,
+      name: wizardData.name,
+      duration: wizardData.duration,
+      backgroundImage: wizardData.backgroundType === 'image' ? wizardData.backgroundImage : null
+    }))
+    setCanvasSettings(wizardData.canvasSettings)
+    setShowProjectWizard(false)
+    
+    // 如果选择了纯色背景，设置背景颜色
+    if (wizardData.backgroundType === 'color') {
+      // 将在场景初始化时应用
+    }
+  }
+  
   return (
     <div className={styles.container}>
-      {/* 顶部工具栏 */}
+      {/* 项目向导 */}
+      {showProjectWizard && (
+        <ProjectWizard
+          isOpen={showProjectWizard}
+          onComplete={handleProjectWizardComplete}
+          onCancel={() => setShowProjectWizard(false)}
+        />
+      )}
+      
+      {/* 顶部工具栏 - 简化版 */}
       <header className={styles.header}>
         <div className={styles.headerLeft}>
           <button 
@@ -1278,15 +1417,49 @@ export function ARMMDDirector() {
           >
             ←
           </button>
-          <h1 className={styles.title}>AR MMD Director</h1>
+          <div className={styles.projectInfo}>
+            <h1 className={styles.title}>{project.name}</h1>
+            <span className={styles.projectMeta}>{canvasSettings.width}×{canvasSettings.height} | {project.duration}秒</span>
+          </div>
+        </div>
+        
+        <div className={styles.headerCenter}>
+          {/* 快速添加按钮组 */}
+          <div className={styles.quickAddGroup}>
+            <button 
+              className={styles.quickAddBtn} 
+              onClick={() => setShowCharacterModal(true)}
+              title="添加角色"
+            >
+              🎭 <span>角色</span>
+            </button>
+            <button 
+              className={styles.quickAddBtn} 
+              onClick={() => setShowTrackTypeModal(true)}
+              title="添加轨道"
+            >
+              ➕ <span>轨道</span>
+            </button>
+          </div>
         </div>
         
         <div className={styles.headerRight}>
-          <button className={styles.iconBtn} onClick={saveProject} title="保存">
+          <button className={styles.iconBtn} onClick={undo} title="撤销 (Ctrl+Z)" disabled={historyIndex <= 0}>
+            ↩️
+          </button>
+          <button className={styles.iconBtn} onClick={redo} title="重做 (Ctrl+Shift+Z)" disabled={historyIndex >= history.length - 1}>
+            ↪️
+          </button>
+          <div className={styles.divider} />
+          <button className={styles.iconBtn} onClick={saveProject} title="保存 (Ctrl+S)">
             💾
           </button>
-          <button className={styles.iconBtn} onClick={() => setShowSettingsModal(true)} title="设置">
-            ⚙️
+          <button 
+            className={`${styles.iconBtn} ${styles.exportBtn}`} 
+            onClick={() => setShowSettingsModal(true)} 
+            title="导出"
+          >
+            📤
           </button>
         </div>
       </header>
@@ -1320,137 +1493,157 @@ export function ARMMDDirector() {
             </button>
           </div>
         ) : (
-          <div 
-            className={styles.previewContainer} 
-            ref={previewContainerRef}
-            style={{ 
-              transform: `scale(${previewScale})`,
-              transformOrigin: 'center center'
-            }}
-          >
-            <div className={styles.previewHeader}>
-              <div className={styles.previewTitle}>
-                <span>🎬 3D 预览</span>
-                <span className={styles.canvasResolution}>
-                  {canvasSettings.width}×{canvasSettings.height}
-                </span>
+          <div className={styles.dualPreviewContainer}>
+            {/* 舞台画面预览 */}
+            <div 
+              className={styles.stagePreviewContainer}
+              style={{ 
+                flex: hasCameraTrack ? '1' : 'none',
+                width: hasCameraTrack ? 'auto' : '100%'
+              }}
+            >
+              <div className={styles.previewHeader}>
+                <div className={styles.previewTitle}>
+                  <span>🎬 舞台画面</span>
+                  <span className={styles.canvasResolution}>
+                    {canvasSettings.width}×{canvasSettings.height}
+                  </span>
+                </div>
+                <div className={styles.previewControls}>
+                  {/* 画布设置按钮 */}
+                  <button 
+                    className={styles.settingsBtn}
+                    onClick={() => setShowCanvasSettings(true)}
+                    title="画布设置"
+                  >
+                    ⚙️ 画布
+                  </button>
+                  
+                  {/* 摄像机缩放控制 - 调整视角远近 */}
+                  <div className={styles.zoomControls}>
+                    <span className={styles.zoomLabel}>视角:</span>
+                    <button 
+                      className={styles.zoomBtn}
+                      onClick={() => setCameraZoom(Math.max(0.1, cameraZoom - 0.1))}
+                      title="拉远视角"
+                    >
+                      🎥➖
+                    </button>
+                    <span className={styles.zoomValue}>{cameraZoom.toFixed(1)}x</span>
+                    <button 
+                      className={styles.zoomBtn}
+                      onClick={() => setCameraZoom(Math.min(3, cameraZoom + 0.1))}
+                      title="拉近视角"
+                    >
+                      🎥➕
+                    </button>
+                  </div>
+                  
+                  {/* 角色缩放控制 - 调整人物模型大小 */}
+                  <div className={styles.zoomControls}>
+                    <span className={styles.zoomLabel}>人物:</span>
+                    <button 
+                      className={styles.zoomBtn}
+                      onClick={() => setCharacterScale(Math.max(0.5, characterScale - 0.1))}
+                      title="缩小人物模型"
+                    >
+                      👤➖
+                    </button>
+                    <span className={styles.zoomValue}>{characterScale.toFixed(1)}x</span>
+                    <button 
+                      className={styles.zoomBtn}
+                      onClick={() => setCharacterScale(Math.min(5, characterScale + 0.1))}
+                      title="放大人物模型"
+                    >
+                      👤➕
+                    </button>
+                  </div>
+                  
+                  <div className={styles.controlDivider} />
+                  
+                  <button 
+                    className={styles.controlBtn}
+                    onClick={() => setIsPlaying(!isPlaying)}
+                    title={isPlaying ? '暂停' : '播放'}
+                  >
+                    {isPlaying ? '⏸️' : '▶️'}
+                  </button>
+                  <button 
+                    className={styles.closePreviewBtn}
+                    onClick={() => {
+                      setPreviewOpen(false)
+                      setIsPlaying(false)
+                      cleanup()
+                      rendererRef.current = null
+                      sceneRef.current = null
+                      cameraRef.current = null
+                      characterManagerRef.current = null
+                    }}
+                    title="退出预览"
+                  >
+                    ✕ 退出
+                  </button>
+                </div>
               </div>
-              <div className={styles.previewControls}>
-                {/* 画布设置按钮 */}
-                <button 
-                  className={styles.settingsBtn}
-                  onClick={() => setShowCanvasSettings(true)}
-                  title="画布设置"
-                >
-                  ⚙️ 画布
-                </button>
+              <div className={styles.canvasWrapper}>
+                <canvas 
+                  ref={canvasRef} 
+                  className={`${styles.previewCanvas} ${coordinatePickerMode ? styles.pickerMode : ''}`}
+                  onClick={coordinatePickerMode ? handleCanvasClickForCoordinate : undefined}
+                />
                 
-                {/* 摄像机缩放控制 - 调整视角远近 */}
-                <div className={styles.zoomControls}>
-                  <span className={styles.zoomLabel}>视角:</span>
-                  <button 
-                    className={styles.zoomBtn}
-                    onClick={() => setCameraZoom(Math.max(0.1, cameraZoom - 0.1))}
-                    title="拉远视角"
-                  >
-                    🎥➖
-                  </button>
-                  <span className={styles.zoomValue}>{cameraZoom.toFixed(1)}x</span>
-                  <button 
-                    className={styles.zoomBtn}
-                    onClick={() => setCameraZoom(Math.min(3, cameraZoom + 0.1))}
-                    title="拉近视角"
-                  >
-                    🎥➕
-                  </button>
-                </div>
-                
-                {/* 角色缩放控制 - 调整人物模型大小 */}
-                <div className={styles.zoomControls}>
-                  <span className={styles.zoomLabel}>人物:</span>
-                  <button 
-                    className={styles.zoomBtn}
-                    onClick={() => setCharacterScale(Math.max(0.5, characterScale - 0.1))}
-                    title="缩小人物模型"
-                  >
-                    👤➖
-                  </button>
-                  <span className={styles.zoomValue}>{characterScale.toFixed(1)}x</span>
-                  <button 
-                    className={styles.zoomBtn}
-                    onClick={() => setCharacterScale(Math.min(5, characterScale + 0.1))}
-                    title="放大人物模型"
-                  >
-                    👤➕
-                  </button>
-                </div>
-                
-                <div className={styles.controlDivider} />
-                
-                <button 
-                  className={styles.controlBtn}
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  title={isPlaying ? '暂停' : '播放'}
-                >
-                  {isPlaying ? '⏸️' : '▶️'}
-                </button>
-                <button 
-                  className={styles.closePreviewBtn}
-                  onClick={() => {
-                    setPreviewOpen(false)
-                    setIsPlaying(false)
-                    // 清理Three.js
-                    cleanup()
-                    rendererRef.current = null
-                    sceneRef.current = null
-                    cameraRef.current = null
-                    characterManagerRef.current = null
-                  }}
-                  title="退出预览"
-                >
-                  ✕ 退出
-                </button>
+                {/* 坐标选择模式覆盖层 */}
+                {coordinatePickerMode && (
+                  <div className={styles.coordinatePickerOverlay}>
+                    <div className={styles.pickerInfo}>
+                      <span className={styles.pickerTitle}>
+                        {coordinatePickerMode === 'position' ? '📷 选择摄像机位置' : '🎯 选择目标点'}
+                      </span>
+                      <span className={styles.pickerCoords}>
+                        X: {(pickerPreviewPosition?.x ?? 0).toFixed(1)} Y: {(pickerPreviewPosition?.y ?? 0).toFixed(1)} Z: {(pickerPreviewPosition?.z ?? 0).toFixed(1)}
+                      </span>
+                    </div>
+                    <div className={styles.pickerActions}>
+                      <button 
+                        className={styles.pickerConfirmBtn}
+                        onClick={() => {
+                          if (coordinatePickerCallbackRef.current) {
+                            coordinatePickerCallbackRef.current(pickerPreviewPosition)
+                          }
+                          setCoordinatePickerMode(null)
+                          coordinatePickerCallbackRef.current = null
+                        }}
+                      >
+                        ✓ 确认选择
+                      </button>
+                      <button 
+                        className={styles.pickerCancelBtn}
+                        onClick={() => {
+                          setCoordinatePickerMode(null)
+                          coordinatePickerCallbackRef.current = null
+                        }}
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-            <canvas 
-              ref={canvasRef} 
-              className={`${styles.previewCanvas} ${coordinatePickerMode ? styles.pickerMode : ''}`}
-              onClick={coordinatePickerMode ? handleCanvasClickForCoordinate : undefined}
-            />
             
-            {/* 坐标选择模式覆盖层 */}
-            {coordinatePickerMode && (
-              <div className={styles.coordinatePickerOverlay}>
-                <div className={styles.pickerInfo}>
-                  <span className={styles.pickerTitle}>
-                    {coordinatePickerMode === 'position' ? '📷 选择摄像机位置' : '🎯 选择目标点'}
-                  </span>
-                  <span className={styles.pickerCoords}>
-                    X: {(pickerPreviewPosition?.x ?? 0).toFixed(1)} Y: {(pickerPreviewPosition?.y ?? 0).toFixed(1)} Z: {(pickerPreviewPosition?.z ?? 0).toFixed(1)}
-                  </span>
+            {/* 摄像机画面预览 - 只有添加了摄像机轨道才显示 */}
+            {hasCameraTrack && (
+              <div className={styles.cameraPreviewContainer}>
+                <div className={styles.previewHeader}>
+                  <div className={styles.previewTitle}>
+                    <span>📷 摄像机画面</span>
+                  </div>
                 </div>
-                <div className={styles.pickerActions}>
-                  <button 
-                    className={styles.pickerConfirmBtn}
-                    onClick={() => {
-                      if (coordinatePickerCallbackRef.current) {
-                        coordinatePickerCallbackRef.current(pickerPreviewPosition)
-                      }
-                      setCoordinatePickerMode(null)
-                      coordinatePickerCallbackRef.current = null
-                    }}
-                  >
-                    ✓ 确认选择
-                  </button>
-                  <button 
-                    className={styles.pickerCancelBtn}
-                    onClick={() => {
-                      setCoordinatePickerMode(null)
-                      coordinatePickerCallbackRef.current = null
-                    }}
-                  >
-                    取消
-                  </button>
+                <div className={styles.canvasWrapper}>
+                  <canvas 
+                    ref={cameraPreviewRef}
+                    className={styles.previewCanvas}
+                  />
                 </div>
               </div>
             )}
@@ -1474,29 +1667,69 @@ export function ARMMDDirector() {
         )}
       </div>
       
-      {/* 时间轴 */}
-      <Timeline
-        project={project}
-        tracks={project.tracks}
-        characters={project.characters}
-        currentTime={currentTime}
-        duration={project.duration}
-        scale={timelineScale}
-        onTimeChange={setCurrentTime}
-        onAddCharacter={() => setShowCharacterModal(true)}
-        onAddTrack={handleAddTrack}
-        onAddCell={addCell}
-        onEditCell={(trackId, trackType, cell) => {
-          setEditingCell({ trackId, trackType, cell })
-          setShowCellEditModal(true)
-        }}
-        onCellUpdate={updateCell}
-        onDeleteCell={deleteCell}
-        onDeleteCharacter={deleteCharacter}
-        onDeleteTrack={deleteTrack}
-        isPlaying={isPlaying}
-        onPlayPause={togglePlay}
-      />
+      {/* 主工作区 - 左侧快捷操作 + 时间轴 */}
+      <div className={styles.workspace}>
+        {/* 左侧快捷操作栏 */}
+        <QuickActions
+          hasCharacters={project.characters.length > 0}
+          onAction={(actionId) => {
+            switch(actionId) {
+              case 'character':
+                setShowCharacterModal(true)
+                break
+              case 'action':
+              case 'camera':
+              case 'effect':
+              case 'music':
+              case 'prop':
+              case 'position':
+              case 'background':
+                // 创建对应类型的轨道
+                const trackType = actionId === 'background' ? 'scene' : actionId
+                const trackName = {
+                  action: '动作轨道',
+                  camera: '摄像机轨道',
+                  effect: '特效轨道',
+                  music: '音乐轨道',
+                  prop: '道具轨道',
+                  position: '位置轨道',
+                  scene: '场景轨道'
+                }[trackType] || '新轨道'
+                
+                const newTrack = createTrack(trackType, trackName)
+                setProject(prev => ({
+                  ...prev,
+                  tracks: [...prev.tracks, newTrack]
+                }))
+                break
+            }
+          }}
+        />
+        
+        {/* 时间轴 */}
+        <Timeline
+          project={project}
+          tracks={project.tracks}
+          characters={project.characters}
+          currentTime={currentTime}
+          duration={project.duration}
+          scale={timelineScale}
+          onTimeChange={setCurrentTime}
+          onAddCharacter={() => setShowCharacterModal(true)}
+          onAddTrack={handleAddTrack}
+          onAddCell={addCell}
+          onEditCell={(trackId, trackType, cell) => {
+            setEditingCell({ trackId, trackType, cell })
+            setShowCellEditModal(true)
+          }}
+          onCellUpdate={updateCell}
+          onDeleteCell={deleteCell}
+          onDeleteCharacter={deleteCharacter}
+          onDeleteTrack={deleteTrack}
+          isPlaying={isPlaying}
+          onPlayPause={togglePlay}
+        />
+      </div>
       
       {/* 移动端预览弹窗 */}
       {showPreviewModal && isMobile && (

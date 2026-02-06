@@ -361,7 +361,18 @@ export function Timeline({
                             </div>
 
                             {/* 轨道内容区域 */}
-                            <div className={styles.trackLane}>
+                            <div 
+                              className={styles.trackLane}
+                              onDoubleClick={(e) => {
+                                e.stopPropagation()
+                                // 计算双击位置对应的时间
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                const x = e.clientX - rect.left + timelineRef.current.scrollLeft - TOTAL_HEADER_WIDTH
+                                const time = Math.max(0, pixelsToTime(x))
+                                // 创建智能片段
+                                onAddCell(track.id, { startTime: time })
+                              }}
+                            >
                               {track.clips?.map((clip) => (
                                 <div
                                   key={clip.id}
