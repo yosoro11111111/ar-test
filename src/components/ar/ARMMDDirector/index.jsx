@@ -952,9 +952,9 @@ export function ARMMDDirector() {
               const centerZ = planes.reduce((sum, p) => sum + p.worldPosition.z, 0) / planes.length
               
               targetPosition = {
-                x: centerX + 3,
-                y: centerY + 4,
-                z: centerZ + 5
+                x: centerX + 8,
+                y: centerY + 6,
+                z: centerZ + 10
               }
               lookAtPosition = { x: centerX, y: centerY, z: centerZ }
               
@@ -1062,15 +1062,12 @@ export function ARMMDDirector() {
               const mesh = new THREE.Mesh(geometry, material)
               
               // 放大平面（乘以缩放因子）
-              const scaleFactor = 10
-              // 给每个平面不同的 y 高度，产生3D层次感
-              const yOffset = index * 0.5
+              // 使用原始大小，不缩放
               mesh.position.set(
-                worldPosition.x * scaleFactor,
-                (worldPosition.y + yOffset) * scaleFactor,
-                worldPosition.z * scaleFactor
+                worldPosition.x,
+                worldPosition.y + index * 0.1, // 轻微的高度偏移
+                worldPosition.z
               )
-              mesh.scale.set(scaleFactor, scaleFactor, scaleFactor)
               
               mesh.rotation.set(
                 (rotation?.x || -90) * Math.PI / 180,
