@@ -1104,9 +1104,9 @@ export function ARMMDDirector() {
                 stagePosition.z
               )
               
-              // 设置旋转
+              // 设置旋转（AR拍摄时图片是垂直的，不需要旋转）
               mesh.rotation.set(
-                (rotation?.x || -90) * Math.PI / 180,
+                0, // 不旋转X轴，保持垂直
                 (rotation?.y || 0) * Math.PI / 180,
                 (rotation?.z || 0) * Math.PI / 180
               )
