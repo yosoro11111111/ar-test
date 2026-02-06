@@ -978,6 +978,9 @@ export function ARMMDDirector() {
               }
             }
             
+            // 调试：检查 planeImages
+            console.log('sceneData.planeImages:', sceneData.planeImages?.length, sceneData.planeImages?.[0]?.substring(0, 50))
+            
             planes.forEach((planeData, index) => {
               const { worldPosition, realSize, rotation, polygon } = planeData
               
@@ -1000,6 +1003,7 @@ export function ARMMDDirector() {
               
               // 获取平面图片
               const planeImage = sceneData.planeImages?.[index]
+              console.log(`平面 ${index + 1} 图片:`, planeImage ? '有' : '无', planeImage?.substring(0, 50))
               
               // 创建材质 - 如果有图片则使用图片纹理
               let material
