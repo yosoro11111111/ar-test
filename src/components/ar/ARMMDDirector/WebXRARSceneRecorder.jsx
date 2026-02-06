@@ -4,7 +4,7 @@ import styles from './WebXRARSceneRecorder.module.css'
 import JSZip from 'jszip'
 
 /**
- * AR全景拍摄组件 - 使用WebXR AR
+ * AR全景拍摄组件 - AR追踪位置 + 普通摄像头拍摄画面
  */
 
 export function WebXRARSceneRecorder({
@@ -13,13 +13,13 @@ export function WebXRARSceneRecorder({
   onSceneRecorded
 }) {
   const canvasRef = useRef(null)
+  const videoRef = useRef(null)
   const sessionRef = useRef(null)
   const rendererRef = useRef(null)
   const cameraRef = useRef(null)
+  const streamRef = useRef(null)
   const captureIntervalRef = useRef(null)
   const capturedImagesRef = useRef([])
-  const shouldCaptureRef = useRef(false)
-  const lastCaptureTimeRef = useRef(0)
   
   const [isSessionActive, setIsSessionActive] = useState(false)
   const [isCapturing, setIsCapturing] = useState(false)
@@ -35,10 +35,27 @@ export function WebXRARSceneRecorder({
   // UI容器ref
   const uiContainerRef = useRef(null)
   
-  // 启动AR会话
+  // 启动AR会话和普通摄像头
   const startARSession = async () => {
     try {
-      // 请求AR会话 - 添加dom-overlay支持
+      // 1. 先启动普通摄像头
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      })
+      
+      streamRef.current = stream
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+      }
+      
+      // 2. 请求AR会话（用于追踪位置）
       const session = await navigator.xr.requestSession('immersive-ar', {
         requiredFeatures: ['local-floor'],
         optionalFeatures: ['dom-overlay'],
@@ -47,7 +64,7 @@ export function WebXRARSceneRecorder({
       
       sessionRef.current = session
       
-      // 先获取XR兼容的WebGL上下文
+      // 3. 创建渲染器（用于AR追踪）
       const gl = canvasRef.current.getContext('webgl2', { xrCompatible: true }) 
         || canvasRef.current.getContext('webgl', { xrCompatible: true })
       
@@ -55,34 +72,27 @@ export function WebXRARSceneRecorder({
         throw new Error('无法创建WebGL上下文')
       }
       
-      // 创建渲染器，使用已有的WebGL上下文
-      // preserveDrawingBuffer: true 确保可以捕获画面
       const renderer = new THREE.WebGLRenderer({
         canvas: canvasRef.current,
         context: gl,
         alpha: true,
-        antialias: true,
-        preserveDrawingBuffer: true
+        antialias: true
       })
       renderer.setSize(window.innerWidth, window.innerHeight)
       renderer.setPixelRatio(window.devicePixelRatio)
       rendererRef.current = renderer
       
-      // 创建相机
+      // 4. 创建相机
       const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
       cameraRef.current = camera
       
-      // 手动创建XRWebGLLayer并设置渲染状态
+      // 5. 设置XR渲染
       const baseLayer = new XRWebGLLayer(session, gl)
+      await session.updateRenderState({ baseLayer })
       
-      await session.updateRenderState({
-        baseLayer: baseLayer
-      })
-      
-      // 设置参考空间
+      // 6. 设置参考空间并启动渲染循环
       const referenceSpace = await session.requestReferenceSpace('local-floor')
       
-      // 启动渲染循环
       const onXRFrame = (time, frame) => {
         if (!sessionRef.current) return
         
@@ -97,37 +107,17 @@ export function WebXRARSceneRecorder({
           )
         }
         
-        // 获取渲染层
-        const baseLayer = session.renderState.baseLayer
-        if (baseLayer && rendererRef.current) {
-          const gl = rendererRef.current.getContext()
-          
-          // 绑定到XR层的framebuffer进行渲染
-          gl.bindFramebuffer(gl.FRAMEBUFFER, baseLayer.framebuffer)
-          rendererRef.current.render(new THREE.Scene(), cameraRef.current)
-          
-          // 处理拍摄 - 在渲染完成后捕获
-          if (shouldCaptureRef.current) {
-            const now = Date.now()
-            if (now - lastCaptureTimeRef.current >= CAPTURE_INTERVAL) {
-              lastCaptureTimeRef.current = now
-              // 从canvas捕获画面
-              captureFrameFromCanvas()
-            }
-          }
-        }
-        
         session.requestAnimationFrame(onXRFrame)
       }
       
       session.requestAnimationFrame(onXRFrame)
       
       setIsSessionActive(true)
-      setDebugInfo('AR会话已启动，点击"开始拍摄"')
+      setDebugInfo('AR和摄像头已启动，点击"开始拍摄"')
       
     } catch (err) {
-      console.error('启动AR会话失败:', err)
-      setError('AR启动失败: ' + err.message)
+      console.error('启动失败:', err)
+      setError('启动失败: ' + err.message)
     }
   }
   
@@ -141,27 +131,35 @@ export function WebXRARSceneRecorder({
     setIsCapturing(true)
     setCapturedCount(0)
     capturedImagesRef.current = []
-    shouldCaptureRef.current = true
-    lastCaptureTimeRef.current = 0
     
     setDebugInfo(`开始拍摄，每${CAPTURE_INTERVAL/1000}秒拍摄一张，共${MAX_CAPTURES}张`)
+    
+    captureIntervalRef.current = setInterval(() => {
+      captureFrame()
+    }, CAPTURE_INTERVAL)
   }
   
-  // 从canvas捕获帧
-  const captureFrameFromCanvas = () => {
+  // 拍摄单帧 - 从普通摄像头捕获
+  const captureFrame = () => {
     if (capturedImagesRef.current.length >= MAX_CAPTURES) {
       stopCapture()
       return
     }
     
-    if (!rendererRef.current || !cameraRef.current) return
+    if (!videoRef.current || !cameraRef.current) return
     
     try {
-      // 从canvas获取图像数据
-      const canvas = rendererRef.current.domElement
+      // 从普通摄像头视频元素捕获画面
+      const video = videoRef.current
+      const canvas = document.createElement('canvas')
+      canvas.width = video.videoWidth || 1920
+      canvas.height = video.videoHeight || 1080
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      
       const imageData = canvas.toDataURL('image/jpeg', 0.9)
       
-      // 记录相机位置
+      // 记录AR相机位置
       const cameraPosition = {
         x: cameraRef.current.position.x,
         y: cameraRef.current.position.y,
@@ -196,7 +194,10 @@ export function WebXRARSceneRecorder({
   
   // 停止拍摄
   const stopCapture = () => {
-    shouldCaptureRef.current = false
+    if (captureIntervalRef.current) {
+      clearInterval(captureIntervalRef.current)
+      captureIntervalRef.current = null
+    }
     
     setIsCapturing(false)
     setDebugInfo(`拍摄完成！共${capturedImagesRef.current.length}张图片`)
@@ -250,7 +251,7 @@ export function WebXRARSceneRecorder({
         format: 'arcjpack',
         name: sceneName || `AR全景场景_${capturedImages.length}张`,
         capturedAt: new Date().toISOString(),
-        captureMethod: 'webxr-ar',
+        captureMethod: 'ar-camera-hybrid',
         captureInterval: CAPTURE_INTERVAL,
         totalCaptures: capturedImages.length,
         planes,
@@ -269,7 +270,7 @@ export function WebXRARSceneRecorder({
         renderConfig: {
           layout: 'panorama',
           scaleFactor: SCALE_FACTOR,
-          description: '全景拍摄布局，根据相机移动轨迹排列'
+          description: '全景拍摄布局，AR追踪位置+摄像头拍摄画面'
         }
       }
       
@@ -328,15 +329,21 @@ export function WebXRARSceneRecorder({
   const closeARSession = () => {
     stopCapture()
     
-    if (rendererRef.current) {
-      rendererRef.current.setAnimationLoop(null)
-      rendererRef.current.dispose()
-      rendererRef.current = null
+    // 停止普通摄像头
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
     }
     
+    // 停止WebXR会话
     if (sessionRef.current) {
       sessionRef.current.end()
       sessionRef.current = null
+    }
+    
+    if (rendererRef.current) {
+      rendererRef.current.dispose()
+      rendererRef.current = null
     }
     
     setIsSessionActive(false)
@@ -351,103 +358,106 @@ export function WebXRARSceneRecorder({
   return (
     <div className={styles.overlay}>
       <div className={styles.container}>
+        {/* 普通摄像头视频 */}
+        <video 
+          ref={videoRef}
+          className={styles.video}
+          autoPlay
+          playsInline
+          muted
+        />
+        
+        {/* AR画布（隐藏，只用于追踪） */}
         <canvas 
           ref={canvasRef} 
           className={styles.arCanvas}
+          style={{ display: 'none' }}
         />
         
-        {/* DOM Overlay 容器 - 用于在AR画面上显示UI */}
+        {/* DOM Overlay 容器 */}
         <div 
           ref={uiContainerRef}
           className={styles.uiOverlay}
-          style={{ 
-            position: 'fixed',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            zIndex: 999999,
-            pointerEvents: 'auto'
-          }}
         >
-        <div className={styles.controls}>
-          <h2>📷 AR全景拍摄</h2>
-          
-          {error && (
-            <div className={styles.error}>{error}</div>
-          )}
-          
-          <div className={styles.inputGroup}>
-            <label>场景名称:</label>
-            <input
-              type="text"
-              value={sceneName}
-              onChange={(e) => setSceneName(e.target.value)}
-              placeholder="输入场景名称"
-            />
-          </div>
-          
-          <div className={styles.status}>
-            <p>状态: {isSessionActive ? '🟢 AR已连接' : '🔴 未连接'}</p>
-            <p>已拍摄: {capturedCount}/{MAX_CAPTURES} 张</p>
-            <p className={styles.debug}>{debugInfo}</p>
-          </div>
-          
-          <div className={styles.buttons}>
-            {!isSessionActive ? (
-              <button 
-                className={styles.primaryBtn}
-                onClick={startARSession}
-              >
-                启动AR相机
-              </button>
-            ) : (
-              <>
-                {!isCapturing ? (
-                  <button 
-                    className={styles.primaryBtn}
-                    onClick={startCapture}
-                    disabled={capturedCount >= MAX_CAPTURES}
-                  >
-                    开始拍摄
-                  </button>
-                ) : (
-                  <button 
-                    className={styles.dangerBtn}
-                    onClick={stopCapture}
-                  >
-                    停止拍摄
-                  </button>
-                )}
-                
-                <button 
-                  className={styles.secondaryBtn}
-                  onClick={exportScene}
-                  disabled={capturedCount === 0 || isExporting}
-                >
-                  {isExporting ? '导出中...' : '导出场景'}
-                </button>
-              </>
+          <div className={styles.controls}>
+            <h2>📷 AR全景拍摄</h2>
+            
+            {error && (
+              <div className={styles.error}>{error}</div>
             )}
             
-            <button 
-              className={styles.closeBtn}
-              onClick={closeARSession}
-            >
-              关闭
-            </button>
-          </div>
-          
-          <div className={styles.instructions}>
-            <h3>使用说明:</h3>
-            <ol>
-              <li>点击"启动AR相机"</li>
-              <li>允许摄像头和AR权限</li>
-              <li>点击"开始拍摄"开始自动拍摄</li>
-              <li>缓慢移动相机，每0.5秒自动拍摄一张</li>
-              <li>拍摄{MAX_CAPTURES}张后自动停止</li>
-              <li>点击"导出场景"保存</li>
-            </ol>
-          </div>
+            <div className={styles.inputGroup}>
+              <label>场景名称:</label>
+              <input
+                type="text"
+                value={sceneName}
+                onChange={(e) => setSceneName(e.target.value)}
+                placeholder="输入场景名称"
+              />
+            </div>
+            
+            <div className={styles.status}>
+              <p>状态: {isSessionActive ? '🟢 AR已连接' : '🔴 未连接'}</p>
+              <p>已拍摄: {capturedCount}/{MAX_CAPTURES} 张</p>
+              <p className={styles.debug}>{debugInfo}</p>
+            </div>
+            
+            <div className={styles.buttons}>
+              {!isSessionActive ? (
+                <button 
+                  className={styles.primaryBtn}
+                  onClick={startARSession}
+                >
+                  启动AR相机
+                </button>
+              ) : (
+                <>
+                  {!isCapturing ? (
+                    <button 
+                      className={styles.primaryBtn}
+                      onClick={startCapture}
+                      disabled={capturedCount >= MAX_CAPTURES}
+                    >
+                      开始拍摄
+                    </button>
+                  ) : (
+                    <button 
+                      className={styles.dangerBtn}
+                      onClick={stopCapture}
+                    >
+                      停止拍摄
+                    </button>
+                  )}
+                  
+                  <button 
+                    className={styles.secondaryBtn}
+                    onClick={exportScene}
+                    disabled={capturedCount === 0 || isExporting}
+                  >
+                    {isExporting ? '导出中...' : '导出场景'}
+                  </button>
+                </>
+              )}
+              
+              <button 
+                className={styles.closeBtn}
+                onClick={closeARSession}
+              >
+                关闭
+              </button>
+            </div>
+            
+            <div className={styles.instructions}>
+              <h3>使用说明:</h3>
+              <ol>
+                <li>点击"启动AR相机"</li>
+                <li>允许摄像头和AR权限</li>
+                <li>点击"开始拍摄"开始自动拍摄</li>
+                <li>缓慢移动相机，每0.5秒自动拍摄一张</li>
+                <li>拍摄{MAX_CAPTURES}张后自动停止</li>
+                <li>点击"导出场景"保存</li>
+              </ol>
+            </div>
           </div>
         </div>
       </div>
