@@ -4,12 +4,13 @@ import styles from './WebXRARSceneRecorder.module.css'
 import JSZip from 'jszip'
 
 /**
- * WebXR AR场景录制组件 - 修复版
+ * WebXR AR场景录制组件 - 自动检测地面版本
  * 
- * 修复内容：
- * 1. 修复平面检测问题 - 改进hit test逻辑
- * 2. 修复数据保存问题
- * 3. 添加调试信息
+ * 功能：
+ * 1. 自动检测并记录所有地面平面
+ * 2. 显示检测到的平面列表
+ * 3. 用户可以选择删除不需要的平面
+ * 4. 导出选中的平面
  */
 
 export function WebXRARSceneRecorder({
@@ -25,18 +26,17 @@ export function WebXRARSceneRecorder({
   const referenceSpaceRef = useRef(null)
   const hitTestSourceRef = useRef(null)
   const planesRef = useRef([])
-  const placementIndicatorRef = useRef(null)
-  const selectEventHandlerRef = useRef(null)
+  const detectedPlanesRef = useRef(new Map()) // 存储检测到的平面位置
   const frameCountRef = useRef(0)
   
   const [isSupported, setIsSupported] = useState(false)
   const [isSessionActive, setIsSessionActive] = useState(false)
   const [planes, setPlanes] = useState([])
-  const [isPlacing, setIsPlacing] = useState(false)
   const [sceneName, setSceneName] = useState('')
   const [error, setError] = useState(null)
   const [showInstructions, setShowInstructions] = useState(true)
-  const [hitTestWorking, setHitTestWorking] = useState(false)
+  const [isAutoDetecting, setIsAutoDetecting] = useState(false)
+  const [detectedCount, setDetectedCount] = useState(0)
   const [isExporting, setIsExporting] = useState(false)
   const [debugInfo, setDebugInfo] = useState('')
 
@@ -70,7 +70,6 @@ export function WebXRARSceneRecorder({
     setDebugInfo('正在启动AR...')
     
     try {
-      // 请求AR会话
       const session = await navigator.xr.requestSession('immersive-ar', {
         requiredFeatures: ['hit-test', 'local-floor'],
         optionalFeatures: ['dom-overlay'],
@@ -78,16 +77,13 @@ export function WebXRARSceneRecorder({
       })
       
       sessionRef.current = session
-      setDebugInfo('AR会话已启动')
       
-      // 获取WebGL上下文
       const gl = canvasRef.current.getContext('webgl2', { 
         xrCompatible: true, alpha: true, antialias: true 
       }) || canvasRef.current.getContext('webgl', { 
         xrCompatible: true, alpha: true, antialias: true 
       })
       
-      // 创建渲染器
       const renderer = new THREE.WebGLRenderer({
         canvas: canvasRef.current,
         context: gl,
@@ -100,7 +96,6 @@ export function WebXRARSceneRecorder({
       renderer.shadowMap.enabled = true
       rendererRef.current = renderer
       
-      // 配置XR渲染层
       const baseLayer = new XRWebGLLayer(session, gl)
       await session.updateRenderState({ 
         baseLayer, 
@@ -108,11 +103,9 @@ export function WebXRARSceneRecorder({
         depthFar: 1000 
       })
       
-      // 创建场景
       const scene = new THREE.Scene()
       sceneRef.current = scene
       
-      // 添加灯光
       const ambientLight = new THREE.AmbientLight(0xffffff, 0.6)
       scene.add(ambientLight)
       
@@ -121,36 +114,18 @@ export function WebXRARSceneRecorder({
       dirLight.castShadow = true
       scene.add(dirLight)
       
-      // 创建相机
       const camera = new THREE.PerspectiveCamera(
         75, window.innerWidth / window.innerHeight, 0.1, 1000
       )
       cameraRef.current = camera
       
-      // 获取参考空间
       const referenceSpace = await session.requestReferenceSpace('local-floor')
       referenceSpaceRef.current = referenceSpace
-      setDebugInfo('参考空间已获取')
       
-      // 设置Hit Test
       const viewerSpace = await session.requestReferenceSpace('viewer')
       const hitTestSource = await session.requestHitTestSource({ space: viewerSpace })
       hitTestSourceRef.current = hitTestSource
-      setDebugInfo('Hit test已设置')
       
-      // 创建放置指示器
-      placementIndicatorRef.current = createPlacementIndicator()
-      placementIndicatorRef.current.visible = false
-      scene.add(placementIndicatorRef.current)
-      
-      // 绑定select事件（点击屏幕）
-      const onSelect = () => {
-        handleSelect()
-      }
-      selectEventHandlerRef.current = onSelect
-      session.addEventListener('select', onSelect)
-      
-      // 开始渲染循环
       setIsSessionActive(true)
       frameCountRef.current = 0
       renderLoop(session, renderer, scene, camera, referenceSpace, hitTestSource)
@@ -162,37 +137,6 @@ export function WebXRARSceneRecorder({
     }
   }
 
-  // 创建放置指示器
-  const createPlacementIndicator = () => {
-    const group = new THREE.Group()
-    
-    // 外圆环
-    const ringGeo = new THREE.RingGeometry(0.12, 0.14, 64)
-    const ringMat = new THREE.MeshBasicMaterial({ 
-      color: 0x00ff88, 
-      transparent: true, 
-      opacity: 0.9, 
-      side: THREE.DoubleSide 
-    })
-    const ring = new THREE.Mesh(ringGeo, ringMat)
-    ring.rotation.x = -Math.PI / 2
-    group.add(ring)
-    
-    // 中心点
-    const dotGeo = new THREE.CircleGeometry(0.04, 32)
-    const dotMat = new THREE.MeshBasicMaterial({ 
-      color: 0x00ff88, 
-      transparent: true, 
-      opacity: 0.9 
-    })
-    const dot = new THREE.Mesh(dotGeo, dotMat)
-    dot.rotation.x = -Math.PI / 2
-    dot.position.y = 0.001
-    group.add(dot)
-    
-    return group
-  }
-
   // 渲染循环
   const renderLoop = (session, renderer, scene, camera, referenceSpace, hitTestSource) => {
     const loop = (time, frame) => {
@@ -201,75 +145,52 @@ export function WebXRARSceneRecorder({
       const pose = frame.getViewerPose(referenceSpace)
       
       if (pose) {
-        // 每帧递增计数器
         frameCountRef.current++
         
-        // 获取视图和渲染层
         const view = pose.views[0]
         const glLayer = session.renderState.baseLayer
         
-        // 绑定帧缓冲（必须在渲染前）
         const gl = renderer.getContext()
         gl.bindFramebuffer(gl.FRAMEBUFFER, glLayer.framebuffer)
         
-        // 设置视口
         const viewport = glLayer.getViewport(view)
         gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height)
         
-        // 更新相机
         camera.matrix.fromArray(view.transform.matrix)
         camera.matrix.decompose(camera.position, camera.quaternion, camera.scale)
         
-        // Hit Test - 检测地面
+        // Hit Test - 自动检测地面
         let hitResults = []
-        let hitTestError = null
         try {
           hitResults = frame.getHitTestResults(hitTestSource)
         } catch (e) {
-          hitTestError = e.message
+          // 忽略错误
         }
         
-        const hasHit = hitResults.length > 0
-        
-        if (hasHit) {
+        if (hitResults.length > 0 && isAutoDetecting) {
           const hitPose = hitResults[0].getPose(referenceSpace)
-          if (hitPose && placementIndicatorRef.current) {
-            placementIndicatorRef.current.visible = true
-            placementIndicatorRef.current.position.set(
-              hitPose.transform.position.x,
-              hitPose.transform.position.y,
-              hitPose.transform.position.z
-            )
+          if (hitPose) {
+            const pos = hitPose.transform.position
+            const key = `${Math.round(pos.x)},${Math.round(pos.y)},${Math.round(pos.z)}`
             
-            // 每60帧更新一次状态（约1秒）
-            if (frameCountRef.current % 60 === 0) {
-              setHitTestWorking(true)
-              setDebugInfo(`检测到地面: x=${hitPose.transform.position.x.toFixed(2)}, y=${hitPose.transform.position.y.toFixed(2)}, z=${hitPose.transform.position.z.toFixed(2)}`)
-            }
-          }
-        } else {
-          if (placementIndicatorRef.current) {
-            placementIndicatorRef.current.visible = false
-          }
-          
-          // 每60帧更新一次状态
-          if (frameCountRef.current % 60 === 0) {
-            setHitTestWorking(false)
-            if (hitTestError) {
-              setDebugInfo(`Hit test错误: ${hitTestError}`)
-            } else {
-              setDebugInfo('未检测到地面，请移动手机扫描地面')
+            // 如果这个位置还没有记录过，添加新平面
+            if (!detectedPlanesRef.current.has(key)) {
+              addDetectedPlane(pos)
+              detectedPlanesRef.current.set(key, true)
             }
           }
         }
         
-        // 渲染场景
-        renderer.render(scene, camera)
-      } else {
-        // 每60帧更新一次状态
+        // 每60帧更新状态
         if (frameCountRef.current % 60 === 0) {
-          setDebugInfo('无法获取相机姿态')
+          if (isAutoDetecting) {
+            setDebugInfo(`自动检测中... 已发现 ${planes.length} 个平面`)
+          } else {
+            setDebugInfo('移动手机扫描环境，点击"开始检测"自动记录地面')
+          }
         }
+        
+        renderer.render(scene, camera)
       }
       
       session.requestAnimationFrame(loop)
@@ -278,34 +199,9 @@ export function WebXRARSceneRecorder({
     session.requestAnimationFrame(loop)
   }
 
-  // 处理选择/放置
-  const handleSelect = () => {
-    console.log('handleSelect called', { isPlacing, indicatorVisible: placementIndicatorRef.current?.visible })
-    
-    if (!isPlacing) {
-      console.log('Not in placing mode')
-      return
-    }
-    
-    if (!placementIndicatorRef.current || !placementIndicatorRef.current.visible) {
-      console.log('Placement indicator not visible')
-      setError('请将手机对准地面，等待绿色圆圈出现后再点击')
-      setTimeout(() => setError(null), 3000)
-      return
-    }
-    
-    const position = placementIndicatorRef.current.position.clone()
-    console.log('Placing plane at position:', position)
-    
-    addPlaneAtPosition(position)
-  }
-
-  // 在指定位置添加平面
-  const addPlaneAtPosition = (position) => {
-    if (!sceneRef.current) {
-      console.error('Scene not available')
-      return
-    }
+  // 添加检测到的平面
+  const addDetectedPlane = (position) => {
+    if (!sceneRef.current) return
     
     const planeId = `plane_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     
@@ -321,12 +217,12 @@ export function WebXRARSceneRecorder({
       size: { width: 2, height: 2 }
     }
     
-    // 在场景中创建可视化平面
+    // 创建可视化平面
     const geometry = new THREE.PlaneGeometry(planeData.size.width, planeData.size.height)
     const material = new THREE.MeshBasicMaterial({
       color: 0x00ff88,
       transparent: true,
-      opacity: 0.4,
+      opacity: 0.3,
       side: THREE.DoubleSide
     })
     const mesh = new THREE.Mesh(geometry, material)
@@ -339,7 +235,9 @@ export function WebXRARSceneRecorder({
     const wireframe = new THREE.LineSegments(edges, lineMaterial)
     mesh.add(wireframe)
     
-    // 添加标签
+    // 添加序号标签
+    updatePlaneLabels(sceneRef.current, planes.length + 1)
+    
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
     canvas.width = 128
@@ -364,43 +262,109 @@ export function WebXRARSceneRecorder({
     const newPlanes = [...planes, planeData]
     setPlanes(newPlanes)
     planesRef.current = newPlanes
-    
-    // 自动退出放置模式
-    setIsPlacing(false)
-    
-    setDebugInfo(`已添加平面 ${newPlanes.length}: x=${position.x.toFixed(2)}, y=${position.y.toFixed(2)}, z=${position.z.toFixed(2)}`)
-    
-    console.log('Plane added successfully:', planeData)
-    console.log('Total planes:', newPlanes.length)
+    setDetectedCount(newPlanes.length)
   }
 
-  // 删除最后一个平面
-  const removeLastPlane = () => {
-    if (planes.length === 0) return
-    
-    const lastPlane = planes[planes.length - 1]
-    if (lastPlane.mesh && sceneRef.current) {
-      sceneRef.current.remove(lastPlane.mesh)
+  // 更新所有平面标签
+  const updatePlaneLabels = (scene, count) => {
+    // 重新编号所有平面
+    planesRef.current.forEach((plane, index) => {
+      if (plane.mesh) {
+        const sprite = plane.mesh.children.find(c => c.type === 'Sprite')
+        if (sprite && sprite.material.map) {
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          canvas.width = 128
+          canvas.height = 64
+          ctx.fillStyle = '#00ff88'
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+          ctx.fillStyle = '#000'
+          ctx.font = 'bold 32px Arial'
+          ctx.textAlign = 'center'
+          ctx.fillText(`${index + 1}`, 64, 44)
+          
+          const texture = new THREE.CanvasTexture(canvas)
+          sprite.material.map.dispose()
+          sprite.material.map = texture
+          sprite.material.needsUpdate = true
+        }
+      }
+    })
+  }
+
+  // 删除指定平面
+  const removePlane = (index) => {
+    const plane = planes[index]
+    if (plane.mesh && sceneRef.current) {
+      sceneRef.current.remove(plane.mesh)
     }
     
-    const newPlanes = planes.slice(0, -1)
+    const newPlanes = planes.filter((_, i) => i !== index)
+    // 重新编号
+    newPlanes.forEach((p, i) => {
+      if (p.mesh) {
+        const sprite = p.mesh.children.find(c => c.type === 'Sprite')
+        if (sprite && sprite.material.map) {
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')
+          canvas.width = 128
+          canvas.height = 64
+          ctx.fillStyle = '#00ff88'
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
+          ctx.fillStyle = '#000'
+          ctx.font = 'bold 32px Arial'
+          ctx.textAlign = 'center'
+          ctx.fillText(`${i + 1}`, 64, 44)
+          
+          const texture = new THREE.CanvasTexture(canvas)
+          sprite.material.map.dispose()
+          sprite.material.map = texture
+          sprite.material.needsUpdate = true
+        }
+      }
+    })
+    
     setPlanes(newPlanes)
     planesRef.current = newPlanes
-    
-    setDebugInfo(`已删除平面，剩余 ${newPlanes.length} 个`)
+    setDetectedCount(newPlanes.length)
+  }
+
+  // 开始/停止自动检测
+  const toggleAutoDetect = () => {
+    if (isAutoDetecting) {
+      setIsAutoDetecting(false)
+      setDebugInfo(`检测完成！共发现 ${planes.length} 个平面`)
+    } else {
+      setIsAutoDetecting(true)
+      detectedPlanesRef.current.clear()
+      setDebugInfo('开始自动检测地面...')
+    }
+  }
+
+  // 清除所有平面
+  const clearAllPlanes = () => {
+    planes.forEach(plane => {
+      if (plane.mesh && sceneRef.current) {
+        sceneRef.current.remove(plane.mesh)
+      }
+    })
+    setPlanes([])
+    planesRef.current = []
+    detectedPlanesRef.current.clear()
+    setDetectedCount(0)
+    setDebugInfo('已清除所有平面')
   }
 
   // 导出场景
   const exportScene = async () => {
     if (planes.length === 0) {
-      setError('请先标记至少一个平面')
+      setError('请先检测至少一个平面')
       return
     }
     
     setIsExporting(true)
     
     try {
-      // 准备场景数据 - 使用planesRef确保获取最新数据
       const currentPlanes = planesRef.current
       
       const sceneData = {
@@ -422,8 +386,6 @@ export function WebXRARSceneRecorder({
         }
       }
       
-      console.log('Exporting scene data:', sceneData)
-      
       const zip = new JSZip()
       zip.file('manifest.json', JSON.stringify({
         version: '2.0',
@@ -440,7 +402,6 @@ export function WebXRARSceneRecorder({
       
       const content = await zip.generateAsync({ type: 'blob' })
       
-      // 下载文件
       const url = URL.createObjectURL(content)
       const a = document.createElement('a')
       a.href = url
@@ -450,13 +411,10 @@ export function WebXRARSceneRecorder({
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
       
-      console.log('Export successful')
-      
       if (onSceneRecorded) {
         onSceneRecorded(sceneData)
       }
       
-      // 显示成功提示
       alert(`场景导出成功！\n包含 ${currentPlanes.length} 个平面\n文件名: ${sceneData.name.replace(/\s+/g, '_')}.webxrar`)
       
     } catch (err) {
@@ -469,12 +427,6 @@ export function WebXRARSceneRecorder({
 
   // 结束会话
   const endSession = () => {
-    // 移除事件监听
-    if (sessionRef.current && selectEventHandlerRef.current) {
-      sessionRef.current.removeEventListener('select', selectEventHandlerRef.current)
-      selectEventHandlerRef.current = null
-    }
-    
     if (sessionRef.current) {
       sessionRef.current.end()
       sessionRef.current = null
@@ -486,9 +438,10 @@ export function WebXRARSceneRecorder({
     }
     
     planesRef.current = []
+    detectedPlanesRef.current.clear()
     setPlanes([])
     setIsSessionActive(false)
-    setIsPlacing(false)
+    setIsAutoDetecting(false)
     setDebugInfo('')
   }
 
@@ -508,20 +461,16 @@ export function WebXRARSceneRecorder({
 
   return (
     <div className={styles.overlay}>
-      {/* WebXR Canvas */}
       <canvas ref={canvasRef} className={styles.arCanvas} />
       
-      {/* DOM Overlay UI */}
       <div id="ar-overlay" className={styles.arOverlay}>
         {/* 顶部栏 */}
         <div className={styles.topBar}>
           <button className={styles.closeBtn} onClick={handleClose}>✕</button>
           <div className={styles.info}>
-            <span>平面: {planes.length}</span>
-            {isSessionActive && (
-              <span className={hitTestWorking ? styles.working : styles.notWorking}>
-                {hitTestWorking ? '✓ 检测中' : '⟳ 扫描中'}
-              </span>
+            <span>平面: {detectedCount}</span>
+            {isAutoDetecting && (
+              <span className={styles.detecting}>🔍 检测中</span>
             )}
           </div>
           {!isSessionActive && (
@@ -555,21 +504,33 @@ export function WebXRARSceneRecorder({
           <div className={styles.instructions}>
             <h3>📖 使用说明</h3>
             <ol>
-              <li>移动手机扫描地面</li>
-              <li>等待出现绿色圆圈</li>
-              <li>点击"添加平面"</li>
-              <li>点击屏幕放置标记</li>
+              <li>点击"开始检测"自动扫描地面</li>
+              <li>缓慢移动手机扫描不同区域</li>
+              <li>系统自动记录发现的平面</li>
+              <li>在列表中删除不需要的平面</li>
+              <li>点击"导出"保存场景</li>
             </ol>
             <button onClick={() => setShowInstructions(false)}>我知道了</button>
           </div>
         )}
         
-        {/* 放置模式提示 */}
-        {isPlacing && (
-          <div className={styles.placingTip}>
-            {hitTestWorking 
-              ? '✓ 对准地面，点击屏幕放置' 
-              : '⟳ 请移动手机扫描地面...'}
+        {/* 平面列表 */}
+        {isSessionActive && planes.length > 0 && (
+          <div className={styles.planeList}>
+            <h4>检测到的平面 ({planes.length})</h4>
+            <div className={styles.planeItems}>
+              {planes.map((plane, index) => (
+                <div key={plane.id} className={styles.planeItem}>
+                  <span>平面 {index + 1}</span>
+                  <button 
+                    className={styles.deleteBtn}
+                    onClick={() => removePlane(index)}
+                  >
+                    🗑️
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         )}
         
@@ -588,18 +549,18 @@ export function WebXRARSceneRecorder({
             
             <div className={styles.actionButtons}>
               <button 
-                className={`${styles.actionBtn} ${isPlacing ? styles.active : ''}`}
-                onClick={() => setIsPlacing(!isPlacing)}
+                className={`${styles.actionBtn} ${isAutoDetecting ? styles.active : ''}`}
+                onClick={toggleAutoDetect}
               >
-                {isPlacing ? '✓ 点击放置' : '➕ 添加平面'}
+                {isAutoDetecting ? '⏹️ 停止检测' : '🔍 开始检测'}
               </button>
               
               <button 
                 className={styles.actionBtn}
-                onClick={removeLastPlane}
+                onClick={clearAllPlanes}
                 disabled={planes.length === 0}
               >
-                ➖ 删除 ({planes.length})
+                🗑️ 清除全部
               </button>
               
               <button 
