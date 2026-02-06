@@ -149,7 +149,7 @@ export function SceneManagerModal({ onSelect, onClose }) {
             📦 导入场景包
             <input
               type="file"
-              accept=".arpack,.arscene,.json,.mmdscene.json"
+              accept=".arpack,.arscene,.arscene2,.webxrar,.json,.mmdscene.json"
               onChange={(e) => e.target.files?.[0] && importScene(e.target.files[0])}
               style={{ display: 'none' }}
             />
@@ -193,7 +193,10 @@ export function SceneManagerModal({ onSelect, onClose }) {
                     <span className={styles.sceneName}>{scene.name}</span>
                   )}
                   <span className={styles.sceneType}>
-                    {scene.type === 'image' ? '🖼️ 图片' : '📹 AR场景'}
+                    {scene.type === 'image' ? '🖼️ 图片' : 
+                     scene.type === 'webxr-ar' ? '🥽 WebXR AR' : 
+                     scene.type === 'real-ar' ? '📷 真实AR' :
+                     scene.type === 'true-ar' ? '📷 真实AR+' : '📹 AR场景'}
                   </span>
                 </div>
 
