@@ -8,6 +8,7 @@ import { ActionSelectModal } from './ActionSelectModal'
 import { MusicSelectorModal } from './MusicSelectorModal'
 import { PropSelectorModal } from './PropSelectorModal'
 import { ActionPresetEditor } from './ActionPresetEditor'
+import { CameraEditor } from './CameraEditor'
 import { loadPresetsFromStorage, calculatePresetDuration } from './actionPresets'
 
 /**
@@ -24,6 +25,7 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
   const [showPropSelector, setShowPropSelector] = useState(false)
   const [showActionPresetEditor, setShowActionPresetEditor] = useState(false)
   const [showActionPresetSelector, setShowActionPresetSelector] = useState(false)
+  const [showCameraEditor, setShowCameraEditor] = useState(false)
   const [savedPresets, setSavedPresets] = useState([])
 
   // 加载保存的预设
@@ -344,6 +346,25 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
               </div>
             </div>
           )}
+
+          {/* 摄像机轨道 - 关键帧编辑 */}
+          {(trackTypeProp || trackType) === 'camera' && (
+            <div className={styles.section}>
+              <label className={styles.label}>摄像机关键帧</label>
+              <button
+                className={styles.editCameraBtn}
+                onClick={() => setShowCameraEditor(true)}
+              >
+                <span>🎥</span>
+                <span>{clipData.data.keyframes?.length > 0 ? '编辑关键帧' : '创建关键帧'}</span>
+              </button>
+              {clipData.data.keyframes?.length > 0 && (
+                <div className={styles.cameraInfo}>
+                  <span>已设置 {clipData.data.keyframes.length} 个关键帧</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className={styles.footer}>
@@ -510,6 +531,20 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
             </div>
           </div>
         </div>
+      )}
+
+      {/* 摄像机编辑器弹窗 */}
+      {showCameraEditor && (
+        <CameraEditor
+          clip={clipData}
+          onSave={(cameraData) => {
+            updateData('keyframes', cameraData.keyframes)
+            updateData('duration', cameraData.duration)
+            setClipData(prev => ({ ...prev, duration: cameraData.duration }))
+            setShowCameraEditor(false)
+          }}
+          onClose={() => setShowCameraEditor(false)}
+        />
       )}
     </div>
   )

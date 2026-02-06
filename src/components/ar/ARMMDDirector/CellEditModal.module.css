@@ -622,6 +622,38 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
+/* 摄像机轨道 */
+.editCameraBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px;
+  border: 2px dashed rgba(255, 107, 107, 0.3);
+  background: rgba(255, 107, 107, 0.05);
+  border-radius: 12px;
+  color: #ff6b6b;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.editCameraBtn:hover {
+  border-color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.cameraInfo {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: rgba(255, 107, 107, 0.1);
+  border-radius: 8px;
+  color: #ff6b6b;
+  font-size: 13px;
+}
+
 /* 底部按钮 */
 .footer {
   display: flex;

@@ -63,6 +63,14 @@ export const TRACK_TYPES = {
     icon: '🖼️',
     color: '#d299c2',
     description: '调整背景视角'
+  },
+  // 摄像机轨道 - 关键帧动画
+  CAMERA: {
+    id: 'camera',
+    name: '摄像机',
+    icon: '🎥',
+    color: '#ff6b6b',
+    description: '摄像机运动和关键帧'
   }
 }
 
@@ -160,6 +168,22 @@ export const createClip = (type, startTime = 0, duration = 2) => {
         data: {
           startScale: 1,
           endScale: 1
+        }
+      }
+    case 'camera':
+      return {
+        ...baseClip,
+        data: {
+          keyframes: [
+            {
+              time: 0,
+              position: { x: 0, y: 5, z: 10 },
+              target: { x: 0, y: 0, z: 0 },
+              fov: 60,
+              easing: 'linear'
+            }
+          ],
+          preset: null // 预设机位: front, back, left, right, top, isometric
         }
       }
     default:
