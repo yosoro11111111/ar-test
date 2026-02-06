@@ -346,12 +346,14 @@ export function CameraEditor({ clip, onSave, onClose }) {
 // 坐标选择器组件
 function CoordinatePicker({ mode, currentValue, onSelect, onClose }) {
   const canvasRef = useRef(null)
+  const selectedPointRef = useRef({ x: 0, y: 0, z: 0 }) // 使用ref存储选中点
   const [view, setView] = useState('top') // top, front, side
   const [scale, setScale] = useState(20) // 像素/单位
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [selectedPoint, setSelectedPoint] = useState({ x: 0, y: 0, z: 0 })
+  const [renderTrigger, setRenderTrigger] = useState(0) // 用于强制重绘
 
   // 世界坐标范围
   const WORLD_SIZE = 20 // -10 到 10
@@ -384,8 +386,8 @@ function CoordinatePicker({ mode, currentValue, onSelect, onClose }) {
     }
   }
 
-  // 绘制网格和坐标轴
-  const draw = useCallback(() => {
+  // 绘制网格和坐标轴 - 使用ref获取最新值避免闭包问题
+  const drawCanvas = () => {
     const canvas = canvasRef.current
     if (!canvas) return
     
@@ -462,20 +464,23 @@ function CoordinatePicker({ mode, currentValue, onSelect, onClose }) {
       ctx.fillText(y.toString(), centerX - 8, canvasY + 3)
     }
     
+    // 获取当前选中的点（使用ref避免闭包）
+    const currentPoint = selectedPointRef.current
+    
     // 绘制当前选择的点
     let pointX, pointY, label
     if (view === 'top') {
-      pointX = selectedPoint.x
-      pointY = selectedPoint.z
-      label = `X: ${selectedPoint.x.toFixed(1)}, Z: ${selectedPoint.z.toFixed(1)}`
+      pointX = currentPoint.x
+      pointY = currentPoint.z
+      label = `X: ${currentPoint.x.toFixed(1)}, Z: ${currentPoint.z.toFixed(1)}`
     } else if (view === 'front') {
-      pointX = selectedPoint.x
-      pointY = selectedPoint.y
-      label = `X: ${selectedPoint.x.toFixed(1)}, Y: ${selectedPoint.y.toFixed(1)}`
+      pointX = currentPoint.x
+      pointY = currentPoint.y
+      label = `X: ${currentPoint.x.toFixed(1)}, Y: ${currentPoint.y.toFixed(1)}`
     } else {
-      pointX = selectedPoint.z
-      pointY = selectedPoint.y
-      label = `Z: ${selectedPoint.z.toFixed(1)}, Y: ${selectedPoint.y.toFixed(1)}`
+      pointX = currentPoint.z
+      pointY = currentPoint.y
+      label = `Z: ${currentPoint.z.toFixed(1)}, Y: ${currentPoint.y.toFixed(1)}`
     }
     
     const canvasPoint = worldToCanvas(pointX, pointY)
@@ -505,7 +510,7 @@ function CoordinatePicker({ mode, currentValue, onSelect, onClose }) {
     ctx.textAlign = 'left'
     const viewNames = { top: '俯视图 (X-Z平面)', front: '正视图 (X-Y平面)', side: '侧视图 (Z-Y平面)' }
     ctx.fillText(viewNames[view], 10, 25)
-  }, [view, scale, offset, selectedPoint, mode])
+  }
 
   // 初始化画布大小
   useEffect(() => {
@@ -517,18 +522,25 @@ function CoordinatePicker({ mode, currentValue, onSelect, onClose }) {
     
     // 初始化选中点
     if (currentValue) {
-      setSelectedPoint({
+      const newPoint = {
         x: currentValue.x || 0,
         y: currentValue.y || 0,
         z: currentValue.z || 0
-      })
+      }
+      selectedPointRef.current = newPoint
+      setSelectedPoint(newPoint)
     }
   }, [currentValue])
+  
+  // 同步ref和state
+  useEffect(() => {
+    selectedPointRef.current = selectedPoint
+  }, [selectedPoint])
 
   // 绘制
   useEffect(() => {
-    draw()
-  }, [draw])
+    drawCanvas()
+  }, [renderTrigger, view, scale, offset, mode])
 
   // 处理画布点击
   const handleCanvasClick = (e) => {
@@ -548,6 +560,9 @@ function CoordinatePicker({ mode, currentValue, onSelect, onClose }) {
     } else {
       setSelectedPoint(prev => ({ ...prev, z: worldPos.x, y: worldPos.y }))
     }
+    
+    // 强制重绘
+    setRenderTrigger(prev => prev + 1)
   }
 
   // 处理滚轮缩放
@@ -557,12 +572,13 @@ function CoordinatePicker({ mode, currentValue, onSelect, onClose }) {
     setScale(prev => Math.max(5, Math.min(100, prev * delta)))
   }
 
-  // 确认选择
+  // 确认选择 - 使用ref获取最新值
   const handleConfirm = () => {
+    const current = selectedPointRef.current
     onSelect({
-      x: selectedPoint.x,
-      y: selectedPoint.y,
-      z: selectedPoint.z
+      x: current.x,
+      y: current.y,
+      z: current.z
     })
   }
 
