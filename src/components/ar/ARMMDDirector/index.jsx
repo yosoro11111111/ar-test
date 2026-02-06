@@ -278,16 +278,28 @@ export function ARMMDDirector() {
     if (!confirm('确定要删除这个角色吗？相关的轨道数据也会被删除。')) {
       return
     }
-    
+
     // 从场景中移除角色
     if (characterManagerRef.current) {
       characterManagerRef.current.removeCharacter(characterId)
     }
-    
+
     setProject(prev => ({
       ...prev,
       characters: prev.characters.filter(c => c.id !== characterId),
       tracks: prev.tracks.filter(t => t.characterId !== characterId)
+    }))
+  }
+
+  // 删除轨道
+  const deleteTrack = (trackId) => {
+    if (!confirm('确定要删除这个轨道吗？')) {
+      return
+    }
+
+    setProject(prev => ({
+      ...prev,
+      tracks: prev.tracks.filter(t => t.id !== trackId)
     }))
   }
   
@@ -867,20 +879,24 @@ export function ARMMDDirector() {
       
       {/* 时间轴 */}
       <Timeline
+        project={project}
         tracks={project.tracks}
+        characters={project.characters}
         currentTime={currentTime}
         duration={project.duration}
         scale={timelineScale}
         onTimeChange={setCurrentTime}
         onAddCharacter={() => setShowCharacterModal(true)}
+        onAddTrack={openTrackTypeModal}
         onAddCell={addCell}
-        onEditCell={(trackId, subTrackType, cell) => {
-          setEditingCell({ trackId, subTrackType, cell })
+        onEditCell={(trackId, cell) => {
+          setEditingCell({ trackId, cell })
           setShowCellEditModal(true)
         }}
         onCellUpdate={updateCell}
         onDeleteCell={deleteCell}
         onDeleteCharacter={deleteCharacter}
+        onDeleteTrack={deleteTrack}
         isPlaying={isPlaying}
         onPlayPause={togglePlay}
       />

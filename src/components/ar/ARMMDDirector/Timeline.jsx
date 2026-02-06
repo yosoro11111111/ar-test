@@ -1,21 +1,27 @@
-import React, { useRef, useState, useCallback } from 'react'
+import React, { useRef, useState, useCallback, useMemo } from 'react'
+import { TRACK_TYPES, getTrackTypeInfo } from './trackTypes'
 import styles from './Timeline.module.css'
 
 /**
- * 时间轴组件 - 每个角色3条子轨道（场景/动作/特效）
+ * 时间轴组件 - 新版
+ * 支持灵活的轨道系统，每个角色可以有多个不同类型的轨道
  */
-export function Timeline({ 
-  tracks, 
-  currentTime, 
-  duration, 
-  scale, 
+export function Timeline({
+  project,
+  tracks,
+  characters,
+  currentTime,
+  duration,
+  scale,
   onTimeChange,
   onAddCharacter,
+  onAddTrack,
   onAddCell,
   onEditCell,
   onCellUpdate,
   onDeleteCell,
   onDeleteCharacter,
+  onDeleteTrack,
   isPlaying,
   onPlayPause
 }) {
@@ -23,7 +29,8 @@ export function Timeline({
   const [dragState, setDragState] = useState(null)
   const [resizeState, setResizeState] = useState(null)
   const [draggingCell, setDraggingCell] = useState(null)
-  
+  const [selectedCharacter, setSelectedCharacter] = useState(null)
+
   // 格式化时间
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60)
@@ -31,26 +38,30 @@ export function Timeline({
     const ms = Math.floor((seconds % 1) * 100)
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`
   }
-  
-  // 总头部宽度 = 角色头部(200) + 子轨道头部(120)
-  const TOTAL_HEADER_WIDTH = 320
-  
+
+  // 角色列宽度
+  const CHARACTER_COL_WIDTH = 200
+  // 轨道类型列宽度
+  const TRACK_TYPE_COL_WIDTH = 120
+  // 总头部宽度
+  const TOTAL_HEADER_WIDTH = CHARACTER_COL_WIDTH + TRACK_TYPE_COL_WIDTH
+
   // 获取时间轴宽度
   const getTimelineWidth = () => {
     if (!timelineRef.current) return 0
     return timelineRef.current.clientWidth - TOTAL_HEADER_WIDTH
   }
-  
+
   // 时间转像素
   const timeToPixels = (time) => {
     return (time / duration) * getTimelineWidth()
   }
-  
+
   // 像素转时间
   const pixelsToTime = (pixels) => {
     return (pixels / getTimelineWidth()) * duration
   }
-  
+
   // 时间轴点击
   const handleTimelineClick = (e) => {
     if (!timelineRef.current || dragState || resizeState) return
@@ -60,15 +71,14 @@ export function Timeline({
     const time = pixelsToTime(x)
     onTimeChange(Math.max(0, Math.min(time, duration)))
   }
-  
+
   // 开始拖拽
-  const handleCellDragStart = (e, trackId, subTrackType, cell) => {
+  const handleCellDragStart = (e, trackId, cell) => {
     e.stopPropagation()
     e.preventDefault()
-    
+
     setDragState({
       trackId,
-      subTrackType,
       cellId: cell.id,
       startX: e.clientX,
       initialStartTime: cell.startTime,
@@ -76,53 +86,52 @@ export function Timeline({
     })
     setDraggingCell(cell.id)
   }
-  
+
   // 开始缩放
-  const handleCellResizeStart = (e, trackId, subTrackType, cell) => {
+  const handleCellResizeStart = (e, trackId, cell) => {
     e.stopPropagation()
     e.preventDefault()
-    
+
     setResizeState({
       trackId,
-      subTrackType,
       cellId: cell.id,
       startX: e.clientX,
       initialStartTime: cell.startTime,
       initialDuration: cell.duration
     })
   }
-  
+
   // 鼠标移动
   const handleMouseMove = useCallback((e) => {
     if (!timelineRef.current) return
-    
+
     const timelineWidth = getTimelineWidth()
     const pixelsPerSecond = timelineWidth / duration
-    
+
     if (dragState) {
       const deltaX = e.clientX - dragState.startX
       const deltaTime = deltaX / pixelsPerSecond
       const newStartTime = Math.max(0, Math.min(duration - dragState.duration, dragState.initialStartTime + deltaTime))
-      
-      onCellUpdate(dragState.trackId, dragState.subTrackType, dragState.cellId, { startTime: newStartTime })
+
+      onCellUpdate(dragState.trackId, dragState.cellId, { startTime: newStartTime })
     }
-    
+
     if (resizeState) {
       const deltaX = e.clientX - resizeState.startX
       const deltaTime = deltaX / pixelsPerSecond
       const newDuration = Math.max(0.5, Math.min(duration - resizeState.initialStartTime, resizeState.initialDuration + deltaTime))
-      
-      onCellUpdate(resizeState.trackId, resizeState.subTrackType, resizeState.cellId, { duration: newDuration })
+
+      onCellUpdate(resizeState.trackId, resizeState.cellId, { duration: newDuration })
     }
   }, [dragState, resizeState, duration, onCellUpdate])
-  
+
   // 鼠标释放
   const handleMouseUp = useCallback(() => {
     setDragState(null)
     setResizeState(null)
     setDraggingCell(null)
   }, [])
-  
+
   // 生成时间刻度
   const generateTicks = () => {
     const ticks = []
@@ -132,60 +141,54 @@ export function Timeline({
     }
     return ticks
   }
-  
-  // 获取子轨道颜色
-  const getSubTrackColor = (type) => {
-    switch(type) {
-      case 'scene': return '#4ade80'
-      case 'action': return '#f093fb'
-      case 'effect': return '#fbbf24'
-      default: return '#667eea'
-    }
+
+  // 按角色分组轨道
+  const tracksByCharacter = useMemo(() => {
+    const grouped = {}
+    characters.forEach(char => {
+      grouped[char.id] = tracks.filter(track => track.characterId === char.id)
+    })
+    return grouped
+  }, [tracks, characters])
+
+  // 获取单元格显示名称
+  const getCellDisplayName = (cell, trackType) => {
+    if (cell.data?.name) return cell.data.name
+    const typeInfo = getTrackTypeInfo(trackType)
+    return `未命名${typeInfo?.name || '片段'}`
   }
-  
-  // 获取子轨道图标
-  const getSubTrackIcon = (type) => {
-    switch(type) {
-      case 'scene': return '🗺️'
-      case 'action': return '🎭'
-      case 'effect': return '✨'
-      case 'scale': return '🔍'
-      case 'bgScale': return '🖼️'
-      default: return ''
-    }
-  }
-  
+
   return (
     <div className={styles.timelineContainer}>
       {/* 时间轴头部 */}
       <div className={styles.timelineHeader}>
         <div className={styles.headerLeft}>
           <button className={styles.addBtn} onClick={onAddCharacter} title="添加角色">
-            ➕
+            ➕ 添加角色
           </button>
-          <button 
+          <button
             className={`${styles.playBtn} ${isPlaying ? styles.playing : ''}`}
             onClick={onPlayPause}
           >
             {isPlaying ? '⏸️' : '▶️'}
           </button>
         </div>
-        
+
         <div className={styles.timeDisplay}>
           {formatTime(currentTime)} / {formatTime(duration)}
         </div>
-        
+
         <div className={styles.timelineControls}>
           <button className={styles.zoomBtn}>-</button>
           <span className={styles.zoomLevel}>{Math.round(scale * 100)}%</span>
           <button className={styles.zoomBtn}>+</button>
         </div>
       </div>
-      
+
       {/* 时间刻度 */}
       <div className={styles.timeRuler}>
         {generateTicks().map(tick => (
-          <div 
+          <div
             key={tick}
             className={styles.tick}
             style={{ left: `${TOTAL_HEADER_WIDTH + timeToPixels(tick)}px` }}
@@ -194,126 +197,156 @@ export function Timeline({
           </div>
         ))}
       </div>
-      
+
       {/* 轨道列表 */}
-      <div 
-        className={styles.tracksContainer} 
-        ref={timelineRef} 
+      <div
+        className={styles.tracksContainer}
+        ref={timelineRef}
         onClick={handleTimelineClick}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
-        {tracks.length === 0 ? (
+        {characters.length === 0 ? (
           <div className={styles.emptyTracks}>
-            <p>点击 ➕ 添加角色</p>
+            <p>点击 ➕ 添加角色开始创作</p>
           </div>
         ) : (
-          tracks.map((track) => (
-            <div key={track.id} className={styles.characterTrack}>
-              {/* 角色头部 */}
-              <div className={styles.characterHeader}>
-                <div 
-                  className={styles.trackColor}
-                  style={{ backgroundColor: track.characterColor }}
-                />
-                <span className={styles.trackName}>
-                  {track.characterName}
-                </span>
-                <button 
-                  className={styles.deleteCharacterBtn}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onDeleteCharacter(track.characterId)
-                  }}
-                  title="删除角色"
-                >
-                  🗑️
-                </button>
-              </div>
-              
-              {/* 5条子轨道 */}
-              <div className={styles.subTracks}>
-                {['scene', 'action', 'effect', 'scale', 'bgScale'].map((subTrackType) => (
-                  <div key={subTrackType} className={styles.subTrack}>
-                    {/* 子轨道头部 */}
-                    <div className={styles.subTrackHeader}>
-                      <span className={styles.subTrackIcon}>{getSubTrackIcon(subTrackType)}</span>
-                      <span className={styles.subTrackName}>
-                        {subTrackType === 'scene' ? '场景' : 
-                         subTrackType === 'action' ? '动作' : 
-                         subTrackType === 'effect' ? '特效' :
-                         subTrackType === 'scale' ? '人物缩放' : '背景缩放'}
-                      </span>
-                      <button 
-                        className={styles.subTrackAddBtn}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onAddCell(track.id, subTrackType)
-                        }}
-                        title={`添加${subTrackType === 'scene' ? '场景' : 
-                                 subTrackType === 'action' ? '动作' : 
-                                 subTrackType === 'effect' ? '特效' :
-                                 subTrackType === 'scale' ? '人物缩放' : '背景缩放'}`}
-                      >
-                        +
-                      </button>
+          characters.map((character) => {
+            const characterTracks = tracksByCharacter[character.id] || []
+
+            return (
+              <div key={character.id} className={styles.characterSection}>
+                {/* 角色头部 */}
+                <div className={styles.characterHeader}>
+                  <div
+                    className={styles.characterColor}
+                    style={{ backgroundColor: character.color }}
+                  />
+                  <span className={styles.characterName}>
+                    {character.name}
+                  </span>
+                  <button
+                    className={styles.addTrackBtn}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onAddTrack(character.id)
+                    }}
+                    title="添加轨道"
+                  >
+                    ➕
+                  </button>
+                  <button
+                    className={styles.deleteCharacterBtn}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onDeleteCharacter(character.id)
+                    }}
+                    title="删除角色"
+                  >
+                    🗑️
+                  </button>
+                </div>
+
+                {/* 角色的轨道列表 */}
+                <div className={styles.tracksList}>
+                  {characterTracks.length === 0 ? (
+                    <div className={styles.emptyTracksHint}>
+                      点击 ➕ 添加轨道
                     </div>
-                    
-                    {/* 子轨道内容 */}
-                    <div className={styles.subTrackLane}>
-                      {track[subTrackType]?.map((cell) => (
-                        <div
-                          key={cell.id}
-                          className={`${styles.cell} ${draggingCell === cell.id ? styles.dragging : ''}`}
-                          style={{
-                            left: `${timeToPixels(cell.startTime)}px`,
-                            width: `${timeToPixels(cell.duration)}px`,
-                            backgroundColor: getSubTrackColor(subTrackType)
-                          }}
-                          onMouseDown={(e) => handleCellDragStart(e, track.id, subTrackType, cell)}
-                          onClick={(e) => {
-                            if (!dragState && !resizeState) {
-                              e.stopPropagation()
-                              onEditCell(track.id, subTrackType, cell)
-                            }
-                          }}
-                        >
-                          <div className={styles.cellContent}>
-                            <span className={styles.cellName}>
-                              {cell.name || `未命名${subTrackType === 'scene' ? '场景' : subTrackType === 'action' ? '动作' : '特效'}`}
+                  ) : (
+                    characterTracks.map((track) => {
+                      const trackTypeInfo = getTrackTypeInfo(track.type)
+
+                      return (
+                        <div key={track.id} className={styles.trackRow}>
+                          {/* 轨道类型头部 */}
+                          <div className={styles.trackTypeHeader}>
+                            <span className={styles.trackTypeIcon}>
+                              {trackTypeInfo?.icon || '📦'}
                             </span>
-                            <span className={styles.cellDuration}>{Math.round(cell.duration)}s</span>
+                            <span className={styles.trackTypeName}>
+                              {trackTypeInfo?.name || track.type}
+                            </span>
+                            <button
+                              className={styles.addCellBtn}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onAddCell(track.id)
+                              }}
+                              title={`添加${trackTypeInfo?.name || '片段'}`}
+                            >
+                              +
+                            </button>
+                            <button
+                              className={styles.deleteTrackBtn}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onDeleteTrack(track.id)
+                              }}
+                              title="删除轨道"
+                            >
+                              ×
+                            </button>
                           </div>
-                          
-                          {/* 删除按钮 */}
-                          <button 
-                            className={styles.cellDeleteBtn}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onDeleteCell(track.id, subTrackType, cell.id)
-                            }}
-                          >
-                            ×
-                          </button>
-                          
-                          {/* 缩放手柄 */}
-                          <div 
-                            className={styles.resizeHandle}
-                            onMouseDown={(e) => handleCellResizeStart(e, track.id, subTrackType, cell)}
-                          />
+
+                          {/* 轨道内容区域 */}
+                          <div className={styles.trackLane}>
+                            {track.clips?.map((clip) => (
+                              <div
+                                key={clip.id}
+                                className={`${styles.clip} ${draggingCell === clip.id ? styles.dragging : ''}`}
+                                style={{
+                                  left: `${timeToPixels(clip.startTime)}px`,
+                                  width: `${timeToPixels(clip.duration)}px`,
+                                  backgroundColor: trackTypeInfo?.color || '#667eea'
+                                }}
+                                onMouseDown={(e) => handleCellDragStart(e, track.id, clip)}
+                                onClick={(e) => {
+                                  if (!dragState && !resizeState) {
+                                    e.stopPropagation()
+                                    onEditCell(track.id, clip)
+                                  }
+                                }}
+                              >
+                                <div className={styles.clipContent}>
+                                  <span className={styles.clipName}>
+                                    {getCellDisplayName(clip, track.type)}
+                                  </span>
+                                  <span className={styles.clipDuration}>{Math.round(clip.duration)}s</span>
+                                </div>
+
+                                {/* 删除按钮 */}
+                                <button
+                                  className={styles.clipDeleteBtn}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    onDeleteCell(track.id, clip.id)
+                                  }}
+                                >
+                                  ×
+                                </button>
+
+                                {/* 缩放手柄 */}
+                                <div
+                                  className={styles.resizeHandle}
+                                  onMouseDown={(e) => handleCellResizeStart(e, track.id, clip)}
+                                />
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+                      )
+                    })
+                  )}
+                </div>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
-        
+
         {/* 播放头 */}
-        <div 
+        <div
           className={styles.playhead}
           style={{ left: `${TOTAL_HEADER_WIDTH + timeToPixels(currentTime)}px` }}
         >
