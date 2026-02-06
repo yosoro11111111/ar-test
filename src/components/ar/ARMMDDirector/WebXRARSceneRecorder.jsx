@@ -30,12 +30,17 @@ export function WebXRARSceneRecorder({
   const MAX_CAPTURES = 20
   const CAPTURE_INTERVAL = 500
   
+  // UI容器ref
+  const uiContainerRef = useRef(null)
+  
   // 启动AR会话
   const startARSession = async () => {
     try {
-      // 请求AR会话
+      // 请求AR会话 - 添加dom-overlay支持
       const session = await navigator.xr.requestSession('immersive-ar', {
-        requiredFeatures: ['local-floor']
+        requiredFeatures: ['local-floor'],
+        optionalFeatures: ['dom-overlay'],
+        domOverlay: { root: uiContainerRef.current }
       })
       
       sessionRef.current = session
@@ -332,6 +337,19 @@ export function WebXRARSceneRecorder({
           className={styles.arCanvas}
         />
         
+        {/* DOM Overlay 容器 - 用于在AR画面上显示UI */}
+        <div 
+          ref={uiContainerRef}
+          className={styles.uiOverlay}
+          style={{ 
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 999999,
+            pointerEvents: 'auto'
+          }}
+        >
         <div className={styles.controls}>
           <h2>📷 AR全景拍摄</h2>
           
@@ -410,6 +428,7 @@ export function WebXRARSceneRecorder({
               <li>拍摄{MAX_CAPTURES}张后自动停止</li>
               <li>点击"导出场景"保存</li>
             </ol>
+          </div>
           </div>
         </div>
       </div>
