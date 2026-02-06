@@ -6,6 +6,7 @@ import { PositionTrackEditor } from './PositionTrackEditor'
 import { SceneManagerModal } from './SceneManagerModal'
 import { ActionSelectModal } from './ActionSelectModal'
 import { MusicSelectorModal } from './MusicSelectorModal'
+import { PropSelectorModal } from './PropSelectorModal'
 
 /**
  * 片段编辑弹窗 - 新版
@@ -18,6 +19,7 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
   const [showSceneManager, setShowSceneManager] = useState(false)
   const [showActionSelector, setShowActionSelector] = useState(false)
   const [showMusicSelector, setShowMusicSelector] = useState(false)
+  const [showPropSelector, setShowPropSelector] = useState(false)
 
   // 片段数据
   const [clipData, setClipData] = useState({
@@ -257,6 +259,50 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
               )}
             </div>
           )}
+
+          {/* 道具轨道 - 选择道具 */}
+          {(trackTypeProp || trackType) === 'prop' && (
+            <div className={styles.section}>
+              <label className={styles.label}>3D道具</label>
+              <button
+                className={styles.selectPropBtn}
+                onClick={() => setShowPropSelector(true)}
+              >
+                <span>📦</span>
+                <span>{clipData.data.propName || '选择道具'}</span>
+              </button>
+              {clipData.data.propId && (
+                <div className={styles.selectedProp}>
+                  <span>已选择: {clipData.data.propName}</span>
+                  <span className={styles.propTypeBadge}>
+                    {clipData.data.propType === 'primitive' ? '基础形状' : 
+                     clipData.data.propType === 'uploaded' ? '自定义模型' : '3D模型'}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 背景缩放轨道 */}
+          {(trackTypeProp || trackType) === 'bgScale' && (
+            <div className={styles.section}>
+              <label className={styles.label}>背景缩放比例</label>
+              <div className={styles.bgScaleInput}>
+                <input
+                  type="number"
+                  value={clipData.data.scale || 1}
+                  onChange={(e) => updateData('scale', parseFloat(e.target.value) || 1)}
+                  min="0.1"
+                  max="10"
+                  step="0.1"
+                />
+                <span>倍</span>
+              </div>
+              <div className={styles.bgScaleHint}>
+                调整背景场景的缩放比例，1为原始大小
+              </div>
+            </div>
+          )}
         </div>
 
         <div className={styles.footer}>
@@ -323,6 +369,20 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
             setShowMusicSelector(false)
           }}
           onClose={() => setShowMusicSelector(false)}
+        />
+      )}
+
+      {/* 道具选择器弹窗 */}
+      {showPropSelector && (
+        <PropSelectorModal
+          onSelect={(prop) => {
+            updateData('propId', prop.id)
+            updateData('propName', prop.name)
+            updateData('propType', prop.type)
+            updateData('propData', prop)
+            setShowPropSelector(false)
+          }}
+          onClose={() => setShowPropSelector(false)}
         />
       )}
     </div>
