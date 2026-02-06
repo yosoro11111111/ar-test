@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import styles from './ProjectWizard.module.css'
 
 const CANVAS_PRESETS = [
@@ -6,7 +6,8 @@ const CANVAS_PRESETS = [
   { name: '9:16 竖屏', width: 1080, height: 1920, ratio: '9:16' },
   { name: '1:1 方形', width: 1080, height: 1080, ratio: '1:1' },
   { name: '4:3 传统', width: 1440, height: 1080, ratio: '4:3' },
-  { name: '2:1 宽屏', width: 1920, height: 960, ratio: '2:1' }
+  { name: '2:1 宽屏', width: 1920, height: 960, ratio: '2:1' },
+  { name: '自定义', width: 1920, height: 1080, ratio: 'custom' }
 ]
 
 const DURATION_PRESETS = [
@@ -17,14 +18,26 @@ const DURATION_PRESETS = [
   { name: '5分钟', value: 300 }
 ]
 
+// 模拟AR背景列表
+const AR_BACKGROUNDS = [
+  { id: 'ar_1', name: '客厅场景', thumbnail: '🏠', type: 'ar', date: '2024-01-15' },
+  { id: 'ar_2', name: '办公室', thumbnail: '🏢', type: 'ar', date: '2024-01-14' },
+  { id: 'ar_3', name: '户外公园', thumbnail: '🌳', type: 'ar', date: '2024-01-13' },
+  { id: 'ar_4', name: '会议室', thumbnail: '📊', type: 'ar', date: '2024-01-12' }
+]
+
 export function ProjectWizard({ isOpen, onComplete, onCancel, onImport }) {
   const [step, setStep] = useState(1)
   const [projectName, setProjectName] = useState('')
   const [duration, setDuration] = useState(60)
   const [selectedPreset, setSelectedPreset] = useState(CANVAS_PRESETS[0])
+  const [customWidth, setCustomWidth] = useState(1920)
+  const [customHeight, setCustomHeight] = useState(1080)
   const [backgroundType, setBackgroundType] = useState('color')
   const [backgroundColor, setBackgroundColor] = useState('#1a1a2e')
   const [backgroundImage, setBackgroundImage] = useState(null)
+  const [selectedARBackground, setSelectedARBackground] = useState(null)
+  const [showARRecorder, setShowARRecorder] = useState(false)
 
   if (!isOpen) return null
 
@@ -32,19 +45,24 @@ export function ProjectWizard({ isOpen, onComplete, onCancel, onImport }) {
     if (step < 3) {
       setStep(step + 1)
     } else {
-      // 完成
+      // 完成 - 使用自定义尺寸或预设尺寸
+      const isCustom = selectedPreset.ratio === 'custom'
+      const finalWidth = isCustom ? customWidth : selectedPreset.width
+      const finalHeight = isCustom ? customHeight : selectedPreset.height
+      
       onComplete({
         name: projectName || '新项目',
         duration,
         canvasSettings: {
-          width: selectedPreset.width,
-          height: selectedPreset.height,
-          aspectRatio: selectedPreset.ratio,
+          width: finalWidth,
+          height: finalHeight,
+          aspectRatio: isCustom ? `${customWidth}:${customHeight}` : selectedPreset.ratio,
           pixelRatio: 1
         },
         backgroundType,
         backgroundColor,
-        backgroundImage
+        backgroundImage,
+        arBackground: selectedARBackground
       })
     }
   }
@@ -152,15 +170,47 @@ export function ProjectWizard({ isOpen, onComplete, onCancel, onImport }) {
                           {preset.ratio === '1:1' && '⬜'}
                           {preset.ratio === '4:3' && '📺'}
                           {preset.ratio === '2:1' && '🎬'}
+                          {preset.ratio === 'custom' && '⚙️'}
                         </div>
                       </div>
                       <div className={styles.presetInfo}>
                         <div className={styles.presetName}>{preset.name}</div>
-                        <div className={styles.presetSize}>{preset.width}×{preset.height}</div>
+                        <div className={styles.presetSize}>
+                          {preset.ratio === 'custom' ? '自定义' : `${preset.width}×${preset.height}`}
+                        </div>
                       </div>
                     </button>
                   ))}
                 </div>
+                
+                {/* 自定义尺寸输入 */}
+                {selectedPreset.ratio === 'custom' && (
+                  <div className={styles.customSizeInputs}>
+                    <div className={styles.sizeInputGroup}>
+                      <label>宽度</label>
+                      <input
+                        type="number"
+                        value={customWidth}
+                        onChange={(e) => setCustomWidth(parseInt(e.target.value) || 1920)}
+                        className={styles.sizeInput}
+                        min={100}
+                        max={7680}
+                      />
+                    </div>
+                    <span className={styles.sizeSeparator}>×</span>
+                    <div className={styles.sizeInputGroup}>
+                      <label>高度</label>
+                      <input
+                        type="number"
+                        value={customHeight}
+                        onChange={(e) => setCustomHeight(parseInt(e.target.value) || 1080)}
+                        className={styles.sizeInput}
+                        min={100}
+                        max={4320}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -181,6 +231,12 @@ export function ProjectWizard({ isOpen, onComplete, onCancel, onImport }) {
                     onClick={() => setBackgroundType('image')}
                   >
                     🖼️ 图片背景
+                  </button>
+                  <button
+                    className={`${styles.typeBtn} ${backgroundType === 'ar' ? styles.active : ''}`}
+                    onClick={() => setBackgroundType('ar')}
+                  >
+                    📹 AR背景
                   </button>
                   <button
                     className={`${styles.typeBtn} ${backgroundType === 'transparent' ? styles.active : ''}`}
@@ -240,6 +296,70 @@ export function ProjectWizard({ isOpen, onComplete, onCancel, onImport }) {
                         <img src={backgroundImage} alt="背景预览" />
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {backgroundType === 'ar' && (
+                <div className={styles.formGroup}>
+                  <label>AR背景设置</label>
+                  
+                  {/* AR操作按钮 */}
+                  <div className={styles.arActions}>
+                    <label className={styles.arActionBtn}>
+                      📁 导入AR场景
+                      <input
+                        type="file"
+                        accept=".arpack,.arscene"
+                        onChange={(e) => {
+                          const file = e.target.files[0]
+                          if (file) {
+                            // 处理导入
+                            console.log('导入AR场景:', file.name)
+                          }
+                          e.target.value = ''
+                        }}
+                        style={{ display: 'none' }}
+                      />
+                    </label>
+                    <button 
+                      className={styles.arActionBtn}
+                      onClick={() => setShowARRecorder(true)}
+                    >
+                      📹 拍摄AR场景
+                    </button>
+                    <button 
+                      className={styles.arActionBtn}
+                      onClick={() => console.log('选择AR场景')}
+                    >
+                      🗺️ 选择AR场景
+                    </button>
+                  </div>
+
+                  {/* AR背景列表 */}
+                  <div className={styles.arBackgroundList}>
+                    <div className={styles.listHeader}>
+                      <span>可用AR背景</span>
+                      <span className={styles.listCount}>{AR_BACKGROUNDS.length} 个</span>
+                    </div>
+                    <div className={styles.arList}>
+                      {AR_BACKGROUNDS.map((arBg) => (
+                        <div
+                          key={arBg.id}
+                          className={`${styles.arItem} ${selectedARBackground?.id === arBg.id ? styles.selected : ''}`}
+                          onClick={() => setSelectedARBackground(arBg)}
+                        >
+                          <div className={styles.arThumbnail}>{arBg.thumbnail}</div>
+                          <div className={styles.arInfo}>
+                            <div className={styles.arName}>{arBg.name}</div>
+                            <div className={styles.arDate}>{arBg.date}</div>
+                          </div>
+                          {selectedARBackground?.id === arBg.id && (
+                            <div className={styles.arSelected}>✓</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
