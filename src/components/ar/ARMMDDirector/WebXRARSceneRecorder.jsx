@@ -373,175 +373,137 @@ export function WebXRARSceneRecorder({
     try {
       const currentPlanes = planesRef.current
       
-      // 构建完整的3D场景数据
-      const sceneData = {
-        version: '2.0',
-        type: 'webxr-ar-scene',
-        name: sceneName || `WebXR场景_${currentPlanes.length}平面`,
-        capturedAt: new Date().toISOString(),
-        // 平面数据 - 用于重建3D场景
-        planes: currentPlanes.map((p, index) => ({
+      // 线性偏移布局参数（用于3D舞台渲染）
+      const X_SPACING = 4      // 每平面水平间隔4米
+      const Z_OFFSET = 10      // 整体前移10米
+      const Y_LAYER_HEIGHT = 3 // 每层高度差3米
+      
+      // 计算舞台坐标（线性偏移，保持相对位置）
+      const stagePlanes = currentPlanes.map((p, index) => {
+        // 水平排列：0, 4, 8, 12, 16
+        // 垂直分层：前3个在底层，后2个在上层
+        const xPos = index * X_SPACING
+        const yPos = Math.floor(index / 3) * Y_LAYER_HEIGHT
+        const zPos = p.position.z + Z_OFFSET
+        
+        return {
           id: p.id,
-          index: index + 1, // 序号
+          index: index + 1,
           type: p.type,
-          position: p.position, // {x, y, z}
-          rotation: p.rotation, // {x, y, z}
-          size: p.size, // {width, height}
-          // 完整的变换矩阵数据
-          transform: {
-            translation: [p.position.x, p.position.y, p.position.z],
-            rotation: [p.rotation.x, p.rotation.y, p.rotation.z],
-            scale: [1, 1, 1]
+          // 原始AR坐标
+          originalPosition: p.position,
+          originalRotation: p.rotation,
+          originalSize: p.size,
+          // 舞台坐标（用于3D渲染）
+          worldPosition: { x: xPos, y: yPos, z: zPos },
+          realSize: p.size,
+          rotation: p.rotation,
+          // 锚点（用于角色放置）
+          anchorPoints: [
+            { id: `${p.id}_center`, name: '中心', type: 'center', position: { x: 0, y: 0, z: 0 } },
+            { id: `${p.id}_corner_1`, name: '左上角', type: 'corner', position: { x: -p.size.width/2, y: 0, z: -p.size.height/2 } },
+            { id: `${p.id}_corner_2`, name: '右上角', type: 'corner', position: { x: p.size.width/2, y: 0, z: -p.size.height/2 } },
+            { id: `${p.id}_corner_3`, name: '左下角', type: 'corner', position: { x: -p.size.width/2, y: 0, z: p.size.height/2 } },
+            { id: `${p.id}_corner_4`, name: '右下角', type: 'corner', position: { x: p.size.width/2, y: 0, z: p.size.height/2 } }
+          ],
+          planeIndex: index
+        }
+      })
+      
+      // 构建 .arcjpack 格式的场景数据
+      const sceneData = {
+        version: '4.0',
+        type: 'ar-multi-plane-scene',
+        format: 'arcjpack',
+        name: sceneName || `AR多平面场景_${currentPlanes.length}个平面`,
+        capturedAt: new Date().toISOString(),
+        // 使用舞台坐标的平面数据
+        planes: stagePlanes,
+        // 场景边界
+        sceneBounds: {
+          center: {
+            x: (stagePlanes.length - 1) * X_SPACING / 2,
+            y: Math.floor((stagePlanes.length - 1) / 3) * Y_LAYER_HEIGHT / 2,
+            z: Z_OFFSET
+          },
+          size: {
+            width: (stagePlanes.length - 1) * X_SPACING + 4,
+            height: Math.floor((stagePlanes.length - 1) / 3) * Y_LAYER_HEIGHT + 3,
+            depth: 10
           }
-        })),
-        // 场景元数据
-        sceneBounds: calculateSceneBounds(currentPlanes),
-        // 相机配置
-        camera: { 
-          fov: 75, 
-          position: { x: 0, y: 1.6, z: 0 }, // 假设人眼高度1.6米
-          target: { x: 0, y: 0, z: -3 }
         },
-        // WebXR配置
-        webxrData: {
-          referenceSpace: 'local-floor',
-          features: ['hit-test'],
-          gridSize: 0.3
+        // 相机配置（用于3D渲染）
+        camera: {
+          position: { 
+            x: (stagePlanes.length - 1) * X_SPACING / 2, 
+            y: 8, 
+            z: Z_OFFSET + 25 
+          },
+          lookAt: { 
+            x: (stagePlanes.length - 1) * X_SPACING / 2, 
+            y: Math.floor((stagePlanes.length - 1) / 3) * Y_LAYER_HEIGHT / 2, 
+            z: Z_OFFSET 
+          }
         },
-        // 3D重建说明
-        reconstruction: {
-          method: 'hit-test-sampling',
-          description: '通过WebXR hit-test在真实环境中采样的地面平面',
-          planeSpacing: 0.3, // 采样间隔0.3米
-          totalSamples: detectedPlanesRef.current.size
+        // 渲染配置
+        renderConfig: {
+          layout: 'linear-offset',
+          xSpacing: X_SPACING,
+          yLayerHeight: Y_LAYER_HEIGHT,
+          zOffset: Z_OFFSET,
+          description: '线性偏移布局，水平排列+垂直分层'
+        },
+        // 保留原始AR数据
+        arData: {
+          originalPlanes: currentPlanes.map((p, index) => ({
+            id: p.id,
+            position: p.position,
+            rotation: p.rotation,
+            size: p.size,
+            timestamp: Date.now() + index
+          })),
+          captureInfo: {
+            method: 'webxr-hit-test',
+            referenceSpace: 'local-floor',
+            planeCount: currentPlanes.length
+          }
         }
       }
       
-      // 同时生成一个可以直接使用的Three.js场景配置
-      const threeJsScene = {
-        metadata: {
-          version: 4.5,
-          type: 'Object',
-          generator: 'WebXRARRecorder'
-        },
-        scene: {
-          type: 'Scene',
-          children: currentPlanes.map((p, index) => ({
-            type: 'Mesh',
-            name: `Plane_${index + 1}`,
-            geometry: {
-              type: 'PlaneGeometry',
-              width: p.size.width,
-              height: p.size.height
-            },
-            material: {
-              type: 'MeshBasicMaterial',
-              color: 0x00ff88,
-              transparent: true,
-              opacity: 0.3
-            },
-            position: [p.position.x, p.position.y, p.position.z],
-            rotation: [p.rotation.x * Math.PI / 180, p.rotation.y * Math.PI / 180, p.rotation.z * Math.PI / 180]
-          }))
-        }
-      }
-      
+      // 创建ZIP文件（.arcjpack格式）
       const zip = new JSZip()
       
-      // manifest.json
+      // 1. manifest.json
       zip.file('manifest.json', JSON.stringify({
-        version: '2.0',
-        type: 'webxr-ar-scene-pack',
+        version: '4.0',
+        type: 'arcjpack',
+        format: 'ar-cinematic-pack',
         createdAt: new Date().toISOString(),
-        metadata: { 
-          name: sceneData.name, 
-          type: 'webxr-ar', 
-          planeCount: currentPlanes.length 
+        metadata: {
+          name: sceneData.name,
+          type: 'ar-multi-plane',
+          planeCount: currentPlanes.length,
+          layout: 'linear-offset'
         }
       }, null, 2))
       
-      // scene.json - 主要场景数据
+      // 2. scene.json - 主要场景数据（包含舞台坐标）
       zip.file('scene.json', JSON.stringify(sceneData, null, 2))
       
-      // threejs-scene.json - Three.js可直接加载的场景
-      zip.file('threejs-scene.json', JSON.stringify(threeJsScene, null, 2))
+      // 3. 捕获场景截图作为背景（如果有）
+      // 注意：这里需要实际捕获图片，暂时跳过
       
-      // planes.csv - 便于查看的CSV格式
-      const csvHeader = 'index,id,type,x,y,z,rotationX,rotationY,rotationZ,width,height\n'
-      const csvData = currentPlanes.map((p, i) => 
-        `${i+1},${p.id},${p.type},${p.position.x},${p.position.y},${p.position.z},${p.rotation.x},${p.rotation.y},${p.rotation.z},${p.size.width},${p.size.height}`
-      ).join('\n')
-      zip.file('planes.csv', csvHeader + csvData)
+      // 4. 创建空的images文件夹（用于后续添加平面图片）
+      zip.folder('images')
       
-      // README.md - 使用说明
-      zip.file('README.md', `# ${sceneData.name}
-
-## 场景信息
-- 平面数量: ${currentPlanes.length}
-- 录制时间: ${sceneData.capturedAt}
-- 采样间隔: 0.3米
-
-## 文件说明
-
-### scene.json
-主要场景数据，包含所有平面的位置、旋转、大小信息。
-
-### threejs-scene.json
-Three.js场景配置文件，可直接导入Three.js编辑器。
-
-### planes.csv
-CSV格式的平面数据，便于在Excel或其他工具中查看。
-
-## 如何使用
-
-### 在Three.js中重建场景
-\`\`\`javascript
-import * as THREE from 'three'
-
-// 加载scene.json
-const sceneData = await fetch('scene.json').then(r => r.json())
-
-// 重建场景
-const scene = new THREE.Scene()
-
-sceneData.planes.forEach(plane => {
-  const geometry = new THREE.PlaneGeometry(plane.size.width, plane.size.height)
-  const material = new THREE.MeshBasicMaterial({
-    color: 0x00ff88,
-    transparent: true,
-    opacity: 0.3,
-    side: THREE.DoubleSide
-  })
-  const mesh = new THREE.Mesh(geometry, material)
-  mesh.position.set(plane.position.x, plane.position.y, plane.position.z)
-  mesh.rotation.set(
-    plane.rotation.x * Math.PI / 180,
-    plane.rotation.y * Math.PI / 180,
-    plane.rotation.z * Math.PI / 180
-  )
-  scene.add(mesh)
-})
-\`\`\`
-
-### 放置3D模型
-在检测到的平面上放置模型：
-\`\`\`javascript
-// 使用第一个平面的位置
-const firstPlane = sceneData.planes[0]
-model.position.set(
-  firstPlane.position.x,
-  firstPlane.position.y + 1, // 在平面上方1米
-  firstPlane.position.z
-)
-\`\`\`
-`)
-      
+      // 生成ZIP文件
       const content = await zip.generateAsync({ type: 'blob' })
       
+      // 下载文件
       const url = URL.createObjectURL(content)
       const a = document.createElement('a')
       a.href = url
-      a.download = `${sceneData.name.replace(/\s+/g, '_')}.webxrar`
+      a.download = `${sceneData.name.replace(/\s+/g, '_')}.arcjpack`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -551,7 +513,7 @@ model.position.set(
         onSceneRecorded(sceneData)
       }
       
-      alert(`场景导出成功！\n包含 ${currentPlanes.length} 个平面\n文件名: ${sceneData.name.replace(/\s+/g, '_')}.webxrar\n\n导出的文件包含:\n- scene.json (场景数据)\n- threejs-scene.json (Three.js场景)\n- planes.csv (CSV数据)\n- README.md (使用说明)`)
+      alert(`场景导出成功！\n包含 ${currentPlanes.length} 个平面\n文件名: ${sceneData.name.replace(/\s+/g, '_')}.arcjpack\n\n布局信息:\n- 水平间隔: ${X_SPACING}米\n- 垂直分层: ${Y_LAYER_HEIGHT}米\n- 整体前移: ${Z_OFFSET}米`)
       
     } catch (err) {
       console.error('导出失败:', err)
