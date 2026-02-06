@@ -930,24 +930,8 @@ export function ARMMDDirector() {
             // 计算场景边界和中心
             const sceneBounds = sceneData.sceneBounds
             
-            if (sceneBounds && sceneBounds.center) {
-              // 使用场景边界计算最佳相机位置
-              const center = sceneBounds.center
-              const size = sceneBounds.size || { width: 4, height: 4, depth: 4 }
-              const maxDim = Math.max(size.width, size.height, size.depth)
-              
-              // 根据场景大小计算相机距离
-              const distance = maxDim * 1.5
-              
-              targetPosition = {
-                x: center.x + distance * 0.5,
-                y: center.y + distance * 0.8,
-                z: center.z + distance
-              }
-              lookAtPosition = center
-              
-              console.log('根据场景边界调整相机:', { center, size, distance })
-            } else if (planes.length > 0) {
+            // 优先使用平面布局计算相机位置（适用于线性偏移布局）
+            if (planes.length > 0) {
               // 新的平面布局：水平排列 0,4,8,12,16，垂直分层 0,0,0,3,3
               const X_SPACING = 4
               const Y_LAYER_HEIGHT = 3
