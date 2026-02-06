@@ -140,6 +140,7 @@ async function importARCJPackScene(zip, manifest) {
     // 时间轴渲染数据
     data: {
       ...sceneData,
+      type: 'arcjpack',  // 确保类型正确
       image: imageDataUrl,
       planeImages,
       // MMD渲染配置
