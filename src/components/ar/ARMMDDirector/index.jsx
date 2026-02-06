@@ -2331,16 +2331,6 @@ export function ARMMDDirector() {
         />
       )}
 
-      {/* 手机录制场景按钮 - 固定在右下角 */}
-      <button 
-        className={styles.mobileRecordBtn}
-        onClick={() => setShowMobileRecorder(true)}
-        title="手机拍摄AR场景"
-      >
-        <span className={styles.mobileRecordIcon}>📱</span>
-        <span className={styles.mobileRecordText}>手机拍场景</span>
-      </button>
-
       {/* 场景管理弹窗 */}
       {showSceneManager && (
         <SceneManagerModal

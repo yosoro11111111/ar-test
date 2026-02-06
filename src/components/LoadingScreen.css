@@ -353,6 +353,31 @@
   transform: translateY(0);
 }
 
+/* 手机拍场景按钮 */
+.mobile-record-button {
+  position: relative;
+  padding: 14px 40px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #000;
+  background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 255, 136, 0.4);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.mobile-record-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 40px rgba(0, 255, 136, 0.5);
+}
+
+.mobile-record-button:active {
+  transform: translateY(0);
+}
+
 .button-glow {
   position: absolute;
   top: 50%;

@@ -126,6 +126,10 @@ export const LoadingScreen = ({ onComplete, isMobile }) => {
               <span>🎬 MMD导演</span>
               <div className="button-glow" />
             </button>
+            <button className="mobile-record-button" onClick={() => window.location.href = '/ar-director/mobile-record'}>
+              <span>📱 手机拍场景</span>
+              <div className="button-glow" />
+            </button>
           </div>
         )}
       </div>

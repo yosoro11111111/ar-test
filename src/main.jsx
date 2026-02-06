@@ -14,6 +14,7 @@ import { ARExportPro } from './components/ar/ARExportPro/index.jsx'
 import { ARImageImport } from './components/ar/ARImageImport/index.jsx'
 import { ARMMDDirector } from './components/ar/ARMMDDirector/index.jsx'
 import { ARSceneRecorderNew } from './components/ar/ARSceneRecorderNew.jsx'
+import { MobileRecordPage } from './components/ar/MobileRecordPage.jsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -33,6 +34,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/ar-director/import-image" element={<ARImageImport />} />
         <Route path="/ar-director/mmd" element={<ARMMDDirector />} />
         <Route path="/ar-director/record" element={<ARSceneRecorderNew />} />
+        <Route path="/ar-director/mobile-record" element={<MobileRecordPage />} />
         
         {/* 旧版兼容 */}
         <Route path="/ar-director/edit/:projectId" element={<ARTimelineEditorPage />} />
