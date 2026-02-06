@@ -61,7 +61,7 @@ export function ARMMDDirector() {
   // 预览控制
   const [previewScale, setPreviewScale] = useState(1) // 画布显示缩放
   const [cameraZoom, setCameraZoom] = useState(1.5) // 摄像机缩放 (0.1-3.0)，默认1.5让人物更大
-  const [characterScale, setCharacterScale] = useState(2.0)
+  const [characterScale, setCharacterScale] = useState(5.0)  // 增大人物比例
   const previewContainerRef = useRef(null)
   
   // 坐标选择模式
