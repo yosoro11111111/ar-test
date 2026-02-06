@@ -3,6 +3,8 @@ import styles from './CellEditModal.module.css'
 import { getAllVRMActions } from '../../../data/vrmaActions'
 import { getTrackTypeInfo } from './trackTypes'
 import { PositionTrackEditor } from './PositionTrackEditor'
+import { SceneManagerModal } from './SceneManagerModal'
+import { ActionSelectModal } from './ActionSelectModal'
 
 /**
  * 片段编辑弹窗 - 新版
@@ -12,6 +14,8 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
   const [actions, setActions] = useState([])
   const [trackType, setTrackType] = useState(trackTypeProp || null)
   const [showPositionEditor, setShowPositionEditor] = useState(false)
+  const [showSceneManager, setShowSceneManager] = useState(false)
+  const [showActionSelector, setShowActionSelector] = useState(false)
 
   // 片段数据
   const [clipData, setClipData] = useState({
@@ -133,14 +137,14 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
               <div className={styles.sceneSelector}>
                 <button
                   className={styles.sceneBtn}
-                  onClick={() => updateData('sceneId', 'default')}
+                  onClick={() => setShowSceneManager(true)}
                 >
                   <span className={styles.sceneIcon}>🖼️</span>
                   <span>选择场景图片</span>
                 </button>
                 {clipData.data.sceneId && (
                   <div className={styles.selectedScene}>
-                    已选择: {clipData.data.sceneId}
+                    已选择: {clipData.data.sceneName || clipData.data.sceneId}
                   </div>
                 )}
               </div>
@@ -151,25 +155,21 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
           {(trackTypeProp || trackType) === 'action' && (
             <div className={styles.section}>
               <label className={styles.label}>选择动作</label>
-              <div className={styles.actionList}>
-                {actions.slice(0, 20).map(action => (
-                  <div
-                    key={action.id}
-                    className={`${styles.actionItem} ${clipData.data.actionId === action.id ? styles.selected : ''}`}
-                    onClick={() => {
-                      updateData('actionId', action.id)
-                      updateData('actionName', action.name)
-                    }}
-                  >
-                    <span className={styles.actionName}>{action.name}</span>
-                  </div>
-                ))}
-                {actions.length > 20 && (
-                  <div className={styles.moreHint}>
-                    还有 {actions.length - 20} 个动作...
-                  </div>
-                )}
-              </div>
+              <button
+                className={styles.selectActionBtn}
+                onClick={() => setShowActionSelector(true)}
+              >
+                <span>🎭</span>
+                <span>{clipData.data.actionName || '选择动作'}</span>
+              </button>
+              {clipData.data.actionId && (
+                <div className={styles.selectedAction}>
+                  <span>已选择: {clipData.data.actionName}</span>
+                  {clipData.data.actionCategory && (
+                    <span className={styles.actionCategoryBadge}>{clipData.data.actionCategory}</span>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -274,6 +274,33 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
             setShowPositionEditor(false)
           }}
           onClose={() => setShowPositionEditor(false)}
+        />
+      )}
+
+      {/* 场景管理器弹窗 */}
+      {showSceneManager && (
+        <SceneManagerModal
+          onSelect={(scene) => {
+            updateData('sceneId', scene.id)
+            updateData('sceneName', scene.name)
+            updateData('sceneData', scene.data)
+            setShowSceneManager(false)
+          }}
+          onClose={() => setShowSceneManager(false)}
+        />
+      )}
+
+      {/* 动作选择器弹窗 */}
+      {showActionSelector && (
+        <ActionSelectModal
+          onSelect={(action) => {
+            updateData('actionId', action.id)
+            updateData('actionName', action.name)
+            updateData('actionCategory', action.category)
+            updateData('actionData', action)
+            setShowActionSelector(false)
+          }}
+          onClose={() => setShowActionSelector(false)}
         />
       )}
     </div>

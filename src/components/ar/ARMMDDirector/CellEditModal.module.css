@@ -331,6 +331,50 @@
   font-size: 13px;
 }
 
+/* 动作轨道 */
+.selectActionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px;
+  border: 2px dashed rgba(240, 147, 251, 0.3);
+  background: rgba(240, 147, 251, 0.05);
+  border-radius: 12px;
+  color: #f093fb;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.selectActionBtn:hover {
+  border-color: #f093fb;
+  background: rgba(240, 147, 251, 0.1);
+}
+
+.selectedAction {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: rgba(240, 147, 251, 0.1);
+  border-radius: 8px;
+  color: #f093fb;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.actionCategoryBadge {
+  background: rgba(240, 147, 251, 0.2);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  color: #f093fb;
+  font-size: 13px;
+}
+
 /* 底部按钮 */
 .footer {
   display: flex;
