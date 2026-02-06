@@ -343,8 +343,7 @@ export function ARMMDDirector() {
     dirLight.castShadow = true
     scene.add(dirLight)
     
-    const gridHelper = new THREE.GridHelper(50, 50, 0x444444, 0x222222)
-    scene.add(gridHelper)
+    // 注意：网格辅助线在ARCJPack场景中被移除，以显示真实的AR环境
     
     characterManagerRef.current = new MultiCharacterManager(scene)
     
@@ -1033,28 +1032,38 @@ export function ARMMDDirector() {
                   metalness: 0.1
                 })
                 
-                // 加载平面图片作为纹理
-                const textureLoader = new THREE.TextureLoader()
-                textureLoader.load(planeImage, (loadedTexture) => {
-                  // 纹理加载完成后更新材质
-                  loadedTexture.wrapS = THREE.ClampToEdgeWrapping
-                  loadedTexture.wrapT = THREE.ClampToEdgeWrapping
-                  loadedTexture.colorSpace = THREE.SRGBColorSpace
-                  material.map = loadedTexture
-                  material.needsUpdate = true
-                  console.log(`平面 ${index + 1} 纹理加载完成并应用到材质`)
+                // 创建图片元素来验证数据
+                const img = new Image()
+                img.onload = () => {
+                  console.log(`平面 ${index + 1} 图片验证成功:`, img.width, 'x', img.height)
                   
-                  // 强制场景渲染更新
-                  if (sceneRef.current) {
-                    sceneRef.current.traverse((child) => {
-                      if (child.isMesh && child.material) {
-                        child.material.needsUpdate = true
-                      }
-                    })
-                  }
-                }, undefined, (error) => {
-                  console.error(`平面 ${index + 1} 纹理加载失败:`, error)
-                })
+                  // 加载平面图片作为纹理
+                  const textureLoader = new THREE.TextureLoader()
+                  textureLoader.load(planeImage, (loadedTexture) => {
+                    // 纹理加载完成后更新材质
+                    loadedTexture.wrapS = THREE.ClampToEdgeWrapping
+                    loadedTexture.wrapT = THREE.ClampToEdgeWrapping
+                    loadedTexture.colorSpace = THREE.SRGBColorSpace
+                    material.map = loadedTexture
+                    material.needsUpdate = true
+                    console.log(`平面 ${index + 1} 纹理加载完成并应用到材质`)
+                    
+                    // 强制场景渲染更新
+                    if (sceneRef.current) {
+                      sceneRef.current.traverse((child) => {
+                        if (child.isMesh && child.material) {
+                          child.material.needsUpdate = true
+                        }
+                      })
+                    }
+                  }, undefined, (error) => {
+                    console.error(`平面 ${index + 1} 纹理加载失败:`, error)
+                  })
+                }
+                img.onerror = (err) => {
+                  console.error(`平面 ${index + 1} 图片验证失败:`, err)
+                }
+                img.src = planeImage
               } else {
                 // 备用：使用彩色材质
                 const colors = [0x00ff88, 0x4488ff, 0xff6b6b, 0xffd93d, 0x6bcf7f, 0x9b59b6]
