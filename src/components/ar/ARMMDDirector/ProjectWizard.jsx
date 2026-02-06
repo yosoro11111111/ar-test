@@ -310,7 +310,7 @@ export function ProjectWizard({ isOpen, onComplete, onCancel, onImport, onOpenAR
                       📁 导入AR场景
                       <input
                         type="file"
-                        accept=".arpack,.arscene,.arscene2"
+                        accept=".arpack,.arscene,.arscene2,.webxrar"
                         onChange={async (e) => {
                           const file = e.target.files[0]
                           if (file) {
@@ -328,6 +328,11 @@ export function ProjectWizard({ isOpen, onComplete, onCancel, onImport, onOpenAR
                                 date: new Date().toISOString().split('T')[0],
                                 ...scene
                               })
+                              
+                              // 如果是WebXR场景，显示提示
+                              if (scene.type === 'webxr-ar') {
+                                alert('WebXR场景已导入！播放时将使用真实AR模式。')
+                              }
                             } catch (err) {
                               console.error('导入失败:', err)
                               alert('导入AR场景失败: ' + err.message)

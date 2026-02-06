@@ -1,0 +1,249 @@
+/* WebXR AR场景录制组件样式 */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 99999;
+}
+
+.arCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.arOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.arOverlay > * {
+  pointer-events: auto;
+}
+
+/* 顶部栏 */
+.topBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 100;
+}
+
+.closeBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.info {
+  display: flex;
+  gap: 16px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.info span {
+  background: rgba(0,255,136,0.3);
+  padding: 6px 12px;
+  border-radius: 16px;
+}
+
+.startBtn {
+  padding: 10px 20px;
+  background: #00ff88;
+  color: #000;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.startBtn:disabled {
+  opacity: 0.5;
+}
+
+/* 错误提示 */
+.errorToast {
+  position: absolute;
+  top: 70px;
+  left: 16px;
+  right: 16px;
+  background: rgba(239,68,68,0.95);
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 100;
+}
+
+.errorToast button {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 18px;
+}
+
+/* 使用说明 */
+.instructions {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.9);
+  padding: 24px;
+  border-radius: 16px;
+  max-width: 80%;
+  text-align: center;
+  z-index: 50;
+}
+
+.instructions h3 {
+  color: #00ff88;
+  margin: 0 0 16px 0;
+  font-size: 18px;
+}
+
+.instructions ol {
+  color: #fff;
+  text-align: left;
+  padding-left: 20px;
+  margin: 0 0 20px 0;
+  line-height: 1.8;
+  font-size: 14px;
+}
+
+.instructions button {
+  background: #00ff88;
+  color: #000;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 24px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* 放置模式提示 */
+.placingTip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,255,136,0.9);
+  color: #000;
+  padding: 12px 24px;
+  border-radius: 24px;
+  font-size: 16px;
+  font-weight: 600;
+  z-index: 40;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50% { transform: translate(-50%, -50%) scale(1.05); }
+}
+
+/* 底部控制面板 */
+.controlPanel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(0,0,0,0.95);
+  border-radius: 20px 20px 0 0;
+  padding: 16px;
+  z-index: 100;
+}
+
+.inputGroup {
+  margin-bottom: 12px;
+}
+
+.sceneInput {
+  width: 100%;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 10px;
+  color: #fff;
+  font-size: 15px;
+}
+
+.sceneInput::placeholder {
+  color: rgba(255,255,255,0.5);
+}
+
+.actionButtons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.actionBtn {
+  padding: 14px 8px;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.actionBtn.active {
+  background: #00ff88;
+  color: #000;
+  border-color: #00ff88;
+}
+
+.actionBtn:disabled {
+  opacity: 0.4;
+}
+
+.actionBtn.export {
+  background: linear-gradient(135deg, #f093fb, #f5576c);
+  border: none;
+}
+
+/* 不支持提示 */
+.notSupported {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.9);
+  padding: 32px 24px;
+  border-radius: 16px;
+  text-align: center;
+  max-width: 80%;
+}
+
+.notSupported h3 {
+  color: #ff6b6b;
+  margin: 0 0 16px 0;
+}
+
+.notSupported p {
+  color: #fff;
+  margin: 8px 0;
+  font-size: 14px;
+}

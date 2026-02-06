@@ -22,6 +22,8 @@ import { exportProject, importProject, downloadFile } from './ProjectIO'
 import { ARSceneRecorder } from './ARSceneRecorder'
 import { RealARSceneRecorder } from './RealARSceneRecorder'
 import { TrueARSceneRecorder } from './TrueARSceneRecorder'
+import { WebXRARSceneRecorder } from './WebXRARSceneRecorder'
+import { WebXRARPlayer } from './WebXRARPlayer'
 import { SceneManagerModal } from './SceneManagerModal'
 
 /**
@@ -120,6 +122,10 @@ export function ARMMDDirector() {
   // AR录制状态
   const [showARRecorder, setShowARRecorder] = useState(false)
   const [arSceneData, setARSceneData] = useState(null)
+  
+  // WebXR AR播放器状态
+  const [showWebXRPlayer, setShowWebXRPlayer] = useState(false)
+  const [webXRSceneData, setWebXRSceneData] = useState(null)
   
   // 项目数据
   const [project, setProject] = useState({
@@ -1470,7 +1476,8 @@ export function ARMMDDirector() {
       
       // 判断AR场景类型
       const arType = wizardData.arBackground.type || wizardData.arBackground.backgroundType || 'ar'
-      const isRealAR = arType === 'real-ar' || arType === 'true-ar'
+      const isRealAR = arType === 'real-ar' || arType === 'true-ar' || arType === 'webxr-ar'
+      const isWebXR = arType === 'webxr-ar'
       
       sceneTrack.clips = [{
         ...createClip('scene', 0, wizardData.duration),
@@ -1485,7 +1492,9 @@ export function ARMMDDirector() {
             image: isRealAR ? (wizardData.arBackground.data?.image || wizardData.arBackground.image) : null,
             planes: isRealAR ? (wizardData.arBackground.data?.planes || wizardData.arBackground.planes) : null,
             camera: isRealAR ? (wizardData.arBackground.data?.camera || wizardData.arBackground.camera) : null,
-            referenceDistance: wizardData.arBackground.referenceDistance || 3
+            referenceDistance: wizardData.arBackground.referenceDistance || 3,
+            // WebXR特有数据
+            webxrData: isWebXR ? (wizardData.arBackground.data?.webxrData || wizardData.arBackground.webxrData) : null
           }
         }
       }]
@@ -2103,15 +2112,27 @@ export function ARMMDDirector() {
 
       {/* AR场景录制弹窗 */}
       {showARRecorder && (
-        <TrueARSceneRecorder
+        <WebXRARSceneRecorder
           isOpen={showARRecorder}
           onClose={() => setShowARRecorder(false)}
           onSceneRecorded={(sceneData) => {
             setARSceneData(sceneData)
-            // 将真实AR场景数据关联到项目
-            console.log('真实AR场景录制完成:', sceneData)
+            // 将WebXR场景数据关联到项目
+            console.log('WebXR场景录制完成:', sceneData)
             // 可以在这里自动添加到场景列表
           }}
+        />
+      )}
+
+      {/* WebXR AR播放器 */}
+      {showWebXRPlayer && (
+        <WebXRARPlayer
+          isOpen={showWebXRPlayer}
+          onClose={() => setShowWebXRPlayer(false)}
+          sceneData={webXRSceneData}
+          project={project}
+          currentTime={currentTime}
+          isPlaying={isPlaying}
         />
       )}
 

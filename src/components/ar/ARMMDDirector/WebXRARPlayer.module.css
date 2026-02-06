@@ -1,0 +1,239 @@
+/* WebXR AR MMD播放器样式 */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 99999;
+}
+
+.arCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.arOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.arOverlay > * {
+  pointer-events: auto;
+}
+
+/* 顶部栏 */
+.topBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 100;
+}
+
+.closeBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: #fff;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.info {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.info span {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  background: rgba(0,255,136,0.3);
+  padding: 6px 12px;
+  border-radius: 16px;
+}
+
+.playing {
+  background: rgba(102,126,234,0.5) !important;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.startBtn {
+  padding: 10px 20px;
+  background: #00ff88;
+  color: #000;
+  border: none;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.startBtn:disabled {
+  opacity: 0.5;
+}
+
+/* 错误提示 */
+.errorToast {
+  position: absolute;
+  top: 70px;
+  left: 16px;
+  right: 16px;
+  background: rgba(239,68,68,0.95);
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 100;
+}
+
+.errorToast button {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 18px;
+}
+
+/* 加载中 */
+.loadingOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.9);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  color: #fff;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255,255,255,0.1);
+  border-top-color: #00ff88;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 放置提示 */
+.placementTip {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.9);
+  padding: 32px 24px;
+  border-radius: 16px;
+  text-align: center;
+  max-width: 80%;
+  z-index: 40;
+}
+
+.placementTip h3 {
+  color: #00ff88;
+  margin: 0 0 16px 0;
+  font-size: 20px;
+}
+
+.placementTip p {
+  color: #fff;
+  margin: 8px 0;
+  font-size: 15px;
+}
+
+.placementTip button {
+  margin-top: 20px;
+  background: #00ff88;
+  color: #000;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 24px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* 播放控制 */
+.controls {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(0,0,0,0.8);
+  padding: 12px 24px;
+  border-radius: 32px;
+  z-index: 100;
+}
+
+.controlBtn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #00ff88;
+  border: none;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.timeDisplay {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+  font-family: monospace;
+  min-width: 60px;
+  text-align: center;
+}
+
+/* 不支持提示 */
+.notSupported {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0,0,0,0.9);
+  padding: 32px 24px;
+  border-radius: 16px;
+  text-align: center;
+  max-width: 80%;
+}
+
+.notSupported h3 {
+  color: #ff6b6b;
+  margin: 0 0 16px 0;
+}
+
+.notSupported p {
+  color: #fff;
+  margin: 8px 0;
+  font-size: 14px;
+}

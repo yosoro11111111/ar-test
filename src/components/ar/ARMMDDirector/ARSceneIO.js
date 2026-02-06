@@ -6,6 +6,7 @@ import JSZip from 'jszip'
  * 支持格式:
  * 1. .arpack (v1.0) - 旧版AR场景包
  * 2. .arscene2 (v2.0) - 新版真实AR场景包
+ * 3. .webxrar (v2.0) - WebXR AR场景包
  * 
  * v2.0 文件结构:
  * scene.arscene2 (ZIP)
@@ -139,7 +140,9 @@ export async function importARScenePack(file) {
   const manifest = JSON.parse(await manifestFile.async('text'))
   
   // 根据版本处理
-  if (manifest.version === ARSCENE2_VERSION || 
+  if (manifest.type === 'webxr-ar-scene-pack') {
+    return importWebXRARScene(zip, manifest)
+  } else if (manifest.version === ARSCENE2_VERSION || 
       manifest.type === 'real-ar-scene-pack' || 
       manifest.type === 'true-ar-scene-pack') {
     return importRealARScene(zip, manifest)
@@ -271,7 +274,8 @@ export function downloadFile(blob, filename) {
 export function isARScenePack(file) {
   return file.name.endsWith('.arpack') || 
          file.name.endsWith('.arscene') || 
-         file.name.endsWith('.arscene2')
+         file.name.endsWith('.arscene2') ||
+         file.name.endsWith('.webxrar')
 }
 
 /**
@@ -301,25 +305,57 @@ export function getSceneThumbnail(scene) {
 }
 
 /**
+ * 导入WebXR AR场景
+ */
+async function importWebXRARScene(zip, manifest) {
+  const sceneFile = zip.file('scene.json')
+  if (!sceneFile) {
+    throw new Error('无效的场景包：缺少场景数据')
+  }
+  
+  const sceneData = JSON.parse(await sceneFile.async('text'))
+  
+  const scene = {
+    id: `webxr_scene_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    name: `${manifest.metadata?.name || sceneData.name || 'WebXR AR场景'} (导入)`,
+    type: 'webxr-ar',
+    createdAt: new Date().toISOString(),
+    importedAt: new Date().toISOString(),
+    data: sceneData,
+    backgroundType: 'webxr-ar',
+    arBackground: {
+      id: sceneData.id || `webxr_${Date.now()}`,
+      name: sceneData.name || 'WebXR AR场景',
+      type: 'webxr-ar',
+      planes: sceneData.planes || [],
+      camera: sceneData.camera,
+      webxrData: sceneData.webxrData || {}
+    }
+  }
+  
+  return scene
+}
+
+/**
  * 转换真实AR场景为项目背景格式
  * @param {Object} realARScene - 真实AR场景对象
  * @returns {Object} - 项目背景格式
  */
 export function convertRealARToProjectBackground(realARScene) {
-  if (!realARScene || realARScene.type !== 'real-ar') {
-    return null
-  }
+  if (!realARScene) return null
   
   const data = realARScene.data || {}
+  const sceneType = realARScene.type || 'real-ar'
   
   return {
     id: realARScene.id,
     name: realARScene.name,
-    type: 'real-ar',
-    backgroundType: 'real-ar',
+    type: sceneType,
+    backgroundType: sceneType,
     image: data.image,
     planes: data.planes || [],
     camera: data.camera || { fov: 60, position: { x: 0, y: 0, z: 5 } },
+    webxrData: data.webxrData,
     arData: {
       version: data.version || '2.0',
       type: data.type || 'real-ar-scene',
