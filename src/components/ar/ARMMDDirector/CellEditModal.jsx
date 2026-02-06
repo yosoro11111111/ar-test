@@ -65,8 +65,8 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
     }
   }
 
-  // 获取轨道类型信息
-  const trackTypeInfo = getTrackTypeInfo(trackType)
+  // 获取轨道类型信息 - 直接使用传入的trackTypeProp
+  const trackTypeInfo = getTrackTypeInfo(trackTypeProp || trackType)
 
   // 更新数据字段
   const updateData = (key, value) => {
