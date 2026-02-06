@@ -326,21 +326,48 @@ export function WebXRARSceneRecorder({
       // 生成ZIP文件
       const content = await zip.generateAsync({ type: 'blob' })
       
-      // 下载文件
-      const url = URL.createObjectURL(content)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `${sceneData.name.replace(/\s+/g, '_')}.arcjpack`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      
-      if (onSceneRecorded) {
-        onSceneRecorded(sceneData)
+      // 转换为base64保存到本地存储
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        const base64data = reader.result
+        
+        // 保存到场景列表
+        const savedScenes = JSON.parse(localStorage.getItem('mmd-scenes') || '[]')
+        const newScene = {
+          id: `panorama_${Date.now()}`,
+          name: sceneData.name,
+          type: 'arcjpack',
+          format: 'ar-cinematic-pack',
+          createdAt: new Date().toISOString(),
+          data: {
+            ...sceneData,
+            image: capturedImages[0]?.imageData, // 使用第一张图片作为缩略图
+            planeImages: capturedImages.map(img => img.imageData)
+          },
+          // 保存ZIP文件的base64数据，方便后续导出
+          arcjpackData: base64data
+        }
+        
+        savedScenes.push(newScene)
+        localStorage.setItem('mmd-scenes', JSON.stringify(savedScenes))
+        
+        // 同时下载文件
+        const url = URL.createObjectURL(content)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${sceneData.name.replace(/\s+/g, '_')}.arcjpack`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+        
+        if (onSceneRecorded) {
+          onSceneRecorded(newScene)
+        }
+        
+        alert(`场景导出成功！\n包含 ${capturedImages.length} 张图片\n已保存到场景列表，可在时间轴上使用\n文件名: ${sceneData.name.replace(/\s+/g, '_')}.arcjpack`)
       }
-      
-      alert(`场景导出成功！\n包含 ${capturedImages.length} 张图片\n文件名: ${sceneData.name.replace(/\s+/g, '_')}.arcjpack`)
+      reader.readAsDataURL(content)
       
     } catch (err) {
       console.error('导出失败:', err)

@@ -1,25 +1,24 @@
 import React from 'react'
-import { ARSceneCameraRecorder } from './ARMMDDirector/ARSceneCameraRecorder'
+import { WebXRARSceneRecorder } from './ARMMDDirector/WebXRARSceneRecorder'
 import { useNavigate } from 'react-router-dom'
 import styles from './MobileRecordPage.module.css'
 
 /**
  * 手机场景录制页面
- * 独立的页面用于手机录制AR场景
+ * 使用新的AR全景相机录制场景
  */
 export function MobileRecordPage() {
   const navigate = useNavigate()
 
   const handleSceneRecorded = (sceneData) => {
     console.log('场景录制完成:', sceneData)
-    // 可以选择跳转到MMD导演页面或保存到本地
-    alert('场景录制完成！已保存到本地。')
-    navigate('/ar-director/mmd')
+    alert('场景录制完成！文件已下载，请到MMD导演页面导入。')
+    // 录制完成后留在当前页面，让用户手动关闭
   }
 
   return (
     <div className={styles.page}>
-      <ARSceneCameraRecorder
+      <WebXRARSceneRecorder
         isOpen={true}
         onClose={() => navigate('/ar-director')}
         onSceneRecorded={handleSceneRecorded}
