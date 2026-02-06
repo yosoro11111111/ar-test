@@ -864,8 +864,8 @@ export function ARMMDDirector() {
         onAddCharacter={() => setShowCharacterModal(true)}
         onAddTrack={handleAddTrack}
         onAddCell={addCell}
-        onEditCell={(trackId, cell) => {
-          setEditingCell({ trackId, cell })
+        onEditCell={(trackId, trackType, cell) => {
+          setEditingCell({ trackId, trackType, cell })
           setShowCellEditModal(true)
         }}
         onCellUpdate={updateCell}
@@ -888,7 +888,8 @@ export function ARMMDDirector() {
       {showCellEditModal && (
         <CellEditModal
           trackId={editingCell?.trackId}
-          clip={editingCell?.clip}
+          trackType={editingCell?.trackType}
+          clip={editingCell?.cell}
           onSave={(trackId, clipId, data) => {
             updateCell(trackId, clipId, data)
           }}

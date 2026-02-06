@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react'
 import styles from './CellEditModal.module.css'
 import { getAllVRMActions } from '../../../data/vrmaActions'
 import { getTrackTypeInfo } from './trackTypes'
+import { PositionTrackEditor } from './PositionTrackEditor'
 
 /**
  * 片段编辑弹窗 - 新版
  * 支持编辑各种类型的片段
  */
-export function CellEditModal({ trackId, clip, onSave, onDelete, onClose }) {
+export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave, onDelete, onClose }) {
   const [actions, setActions] = useState([])
-  const [trackType, setTrackType] = useState(null)
+  const [trackType, setTrackType] = useState(trackTypeProp || null)
+  const [showPositionEditor, setShowPositionEditor] = useState(false)
 
   // 片段数据
   const [clipData, setClipData] = useState({
@@ -22,14 +24,32 @@ export function CellEditModal({ trackId, clip, onSave, onDelete, onClose }) {
 
   // 获取轨道类型
   useEffect(() => {
-    // 从trackId推断轨道类型
+    // 优先使用传入的trackTypeProp
+    if (trackTypeProp) {
+      setTrackType(trackTypeProp)
+      return
+    }
+    // 从trackId推断轨道类型（新格式：track_{characterId}_{type}_{timestamp}）
     if (trackId) {
+      const parts = trackId.split('_')
+      if (parts.length >= 3) {
+        // 尝试从第3个部分获取类型
+        const typeFromId = parts[2]
+        if (typeFromId) {
+          setTrackType(typeFromId)
+          return
+        }
+      }
+      // 兼容旧格式
       if (trackId.includes('_scene')) setTrackType('scene')
       else if (trackId.includes('_action')) setTrackType('action')
       else if (trackId.includes('_effect')) setTrackType('effect')
+      else if (trackId.includes('_position')) setTrackType('position')
+      else if (trackId.includes('_scale')) setTrackType('scale')
+      else if (trackId.includes('_music')) setTrackType('music')
       else setTrackType('unknown')
     }
-  }, [trackId])
+  }, [trackId, trackTypeProp])
 
   // 加载动作列表
   useEffect(() => {
@@ -193,6 +213,62 @@ export function CellEditModal({ trackId, clip, onSave, onDelete, onClose }) {
               </div>
             </div>
           )}
+
+          {/* 位置轨道 - 编辑路径 */}
+          {trackType === 'position' && (
+            <div className={styles.section}>
+              <label className={styles.label}>移动路径</label>
+              <button
+                className={styles.editPathBtn}
+                onClick={() => setShowPositionEditor(true)}
+              >
+                <span>🗺️</span>
+                <span>{clipData.data.pathData ? '编辑路径' : '创建路径'}</span>
+              </button>
+              {clipData.data.pathData && (
+                <div className={styles.pathInfo}>
+                  <span>已设置路径: {clipData.data.presetId || '自定义'}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 缩放轨道 - 设置缩放值 */}
+          {trackType === 'scale' && (
+            <div className={styles.section}>
+              <label className={styles.label}>缩放比例</label>
+              <div className={styles.scaleInput}>
+                <input
+                  type="number"
+                  value={clipData.data.scale || 1}
+                  onChange={(e) => updateData('scale', parseFloat(e.target.value) || 1)}
+                  min="0.1"
+                  max="5"
+                  step="0.1"
+                />
+                <span>倍</span>
+              </div>
+            </div>
+          )}
+
+          {/* 音乐轨道 - 选择音乐 */}
+          {trackType === 'music' && (
+            <div className={styles.section}>
+              <label className={styles.label}>背景音乐</label>
+              <button
+                className={styles.selectMusicBtn}
+                onClick={() => updateData('musicId', 'default')}
+              >
+                <span>🎵</span>
+                <span>选择音乐文件</span>
+              </button>
+              {clipData.data.musicId && (
+                <div className={styles.selectedMusic}>
+                  <span>已选择音乐</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <div className={styles.footer}>
@@ -207,6 +283,18 @@ export function CellEditModal({ trackId, clip, onSave, onDelete, onClose }) {
           </div>
         </div>
       </div>
+
+      {/* 位置编辑器弹窗 */}
+      {showPositionEditor && (
+        <PositionTrackEditor
+          clip={clipData}
+          onSave={(updatedClip) => {
+            setClipData(updatedClip)
+            setShowPositionEditor(false)
+          }}
+          onClose={() => setShowPositionEditor(false)}
+        />
+      )}
     </div>
   )
 }

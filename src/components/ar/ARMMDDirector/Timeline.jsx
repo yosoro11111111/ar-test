@@ -356,7 +356,7 @@ export function Timeline({
                                   onClick={(e) => {
                                     if (!dragState && !resizeState) {
                                       e.stopPropagation()
-                                      onEditCell(track.id, clip)
+                                      onEditCell(track.id, track.type, clip)
                                     }
                                   }}
                                 >
