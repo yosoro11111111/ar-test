@@ -4,13 +4,15 @@ import styles from './WebXRARSceneRecorder.module.css'
 import JSZip from 'jszip'
 
 /**
- * WebXR AR全景拍摄组件
+ * AR全景拍摄组件 - 支持WebXR AR和普通摄像头
  * 
  * 功能：
- * 1. 用户移动相机，每0.5秒自动拍摄一张图片
- * 2. 记录每张图片的相机位置
- * 3. 拍摄20张图片后自动停止
- * 4. 根据相机位置拼接3D场景
+ * 1. 优先使用WebXR AR模式（支持6DoF追踪）
+ * 2. 不支持时使用普通摄像头（手动移动）
+ * 3. 每0.5秒自动拍摄一张图片
+ * 4. 记录每张图片的位置
+ * 5. 拍摄20张图片后自动停止
+ * 6. 根据位置拼接3D场景
  */
 
 export function WebXRARSceneRecorder({
@@ -19,6 +21,7 @@ export function WebXRARSceneRecorder({
   onSceneRecorded
 }) {
   const canvasRef = useRef(null)
+  const videoRef = useRef(null)
   const sessionRef = useRef(null)
   const rendererRef = useRef(null)
   const sceneRef = useRef(null)
@@ -26,7 +29,8 @@ export function WebXRARSceneRecorder({
   const referenceSpaceRef = useRef(null)
   const captureIntervalRef = useRef(null)
   const capturedImagesRef = useRef([])
-  const frameCountRef = useRef(0)
+  const streamRef = useRef(null)
+  const mockCameraRef = useRef({ x: 0, y: 0, z: 0 })
   
   const [isSupported, setIsSupported] = useState(false)
   const [isSessionActive, setIsSessionActive] = useState(false)
@@ -36,37 +40,68 @@ export function WebXRARSceneRecorder({
   const [error, setError] = useState(null)
   const [isExporting, setIsExporting] = useState(false)
   const [debugInfo, setDebugInfo] = useState('')
+  const [useNormalCamera, setUseNormalCamera] = useState(false)
   
   const MAX_CAPTURES = 20
   const CAPTURE_INTERVAL = 500 // 0.5秒
   
-  // 检查WebXR支持
+  // 检查支持情况
   useEffect(() => {
     if (!isOpen) return
     
     const checkSupport = async () => {
-      if (!navigator.xr) {
-        setError('浏览器不支持WebXR')
-        return
-      }
-      
-      try {
-        const isARSupported = await navigator.xr.isSessionSupported('immersive-ar')
-        setIsSupported(isARSupported)
-        if (!isARSupported) {
-          setError('设备不支持AR功能')
+      // 检查WebXR支持
+      if (navigator.xr) {
+        try {
+          const isARSupported = await navigator.xr.isSessionSupported('immersive-ar')
+          setIsSupported(isARSupported)
+        } catch (err) {
+          setIsSupported(false)
         }
-      } catch (err) {
-        setError('检查WebXR支持失败: ' + err.message)
+      } else {
+        setIsSupported(false)
       }
     }
     
     checkSupport()
   }, [isOpen])
   
+  // 启动普通摄像头
+  const startNormalCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        },
+        audio: false
+      })
+      
+      streamRef.current = stream
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream
+        await videoRef.current.play()
+      }
+      
+      setUseNormalCamera(true)
+      setIsSessionActive(true)
+      setDebugInfo('摄像头已启动，点击"开始拍摄"')
+      
+    } catch (err) {
+      console.error('启动摄像头失败:', err)
+      setError('启动摄像头失败: ' + err.message)
+    }
+  }
+  
   // 启动AR会话
   const startARSession = async () => {
-    if (!canvasRef.current || !isSupported) return
+    if (!isSupported) {
+      // 不支持WebXR，使用普通摄像头
+      await startNormalCamera()
+      return
+    }
     
     try {
       // 请求AR会话
@@ -108,7 +143,9 @@ export function WebXRARSceneRecorder({
       
     } catch (err) {
       console.error('启动AR会话失败:', err)
-      setError('启动AR会话失败: ' + err.message)
+      // AR启动失败，尝试普通摄像头
+      setDebugInfo('AR启动失败，尝试普通摄像头...')
+      await startNormalCamera()
     }
   }
   
@@ -145,13 +182,14 @@ export function WebXRARSceneRecorder({
   // 开始拍摄
   const startCapture = () => {
     if (!isSessionActive) {
-      setError('请先启动AR会话')
+      setError('请先启动摄像头')
       return
     }
     
     setIsCapturing(true)
     setCapturedCount(0)
     capturedImagesRef.current = []
+    mockCameraRef.current = { x: 0, y: 0, z: 0 }
     
     setDebugInfo(`开始拍摄，每${CAPTURE_INTERVAL/1000}秒拍摄一张，共${MAX_CAPTURES}张`)
     
@@ -168,23 +206,49 @@ export function WebXRARSceneRecorder({
       return
     }
     
-    if (!rendererRef.current || !cameraRef.current) return
+    let imageData
+    let cameraPosition
+    let cameraRotation
     
-    // 捕获当前画面
-    const canvas = rendererRef.current.domElement
-    const imageData = canvas.toDataURL('image/jpeg', 0.9)
-    
-    // 记录相机位置
-    const cameraPosition = {
-      x: cameraRef.current.position.x,
-      y: cameraRef.current.position.y,
-      z: cameraRef.current.position.z
-    }
-    
-    const cameraRotation = {
-      x: cameraRef.current.rotation.x,
-      y: cameraRef.current.rotation.y,
-      z: cameraRef.current.rotation.z
+    if (useNormalCamera && videoRef.current) {
+      // 使用普通摄像头拍摄
+      const canvas = document.createElement('canvas')
+      canvas.width = videoRef.current.videoWidth || 1280
+      canvas.height = videoRef.current.videoHeight || 720
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height)
+      imageData = canvas.toDataURL('image/jpeg', 0.9)
+      
+      // 模拟相机位置（根据拍摄顺序排列成弧形）
+      const angle = (capturedImagesRef.current.length / MAX_CAPTURES) * Math.PI * 2
+      const radius = 5
+      mockCameraRef.current = {
+        x: Math.cos(angle) * radius,
+        y: 0,
+        z: Math.sin(angle) * radius
+      }
+      
+      cameraPosition = { ...mockCameraRef.current }
+      cameraRotation = { x: 0, y: -angle * 180 / Math.PI, z: 0 }
+      
+    } else if (rendererRef.current && cameraRef.current) {
+      // 使用WebXR拍摄
+      const canvas = rendererRef.current.domElement
+      imageData = canvas.toDataURL('image/jpeg', 0.9)
+      
+      cameraPosition = {
+        x: cameraRef.current.position.x,
+        y: cameraRef.current.position.y,
+        z: cameraRef.current.position.z
+      }
+      
+      cameraRotation = {
+        x: cameraRef.current.rotation.x,
+        y: cameraRef.current.rotation.y,
+        z: cameraRef.current.rotation.z
+      }
+    } else {
+      return
     }
     
     // 保存图片和位置
@@ -271,7 +335,7 @@ export function WebXRARSceneRecorder({
         format: 'arcjpack',
         name: sceneName || `AR全景场景_${capturedImages.length}张`,
         capturedAt: new Date().toISOString(),
-        captureMethod: 'camera-movement',
+        captureMethod: useNormalCamera ? 'normal-camera' : 'webxr-ar',
         captureInterval: CAPTURE_INTERVAL,
         totalCaptures: capturedImages.length,
         planes,
@@ -326,48 +390,21 @@ export function WebXRARSceneRecorder({
       // 生成ZIP文件
       const content = await zip.generateAsync({ type: 'blob' })
       
-      // 转换为base64保存到本地存储
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        const base64data = reader.result
-        
-        // 保存到场景列表
-        const savedScenes = JSON.parse(localStorage.getItem('mmd-scenes') || '[]')
-        const newScene = {
-          id: `panorama_${Date.now()}`,
-          name: sceneData.name,
-          type: 'arcjpack',
-          format: 'ar-cinematic-pack',
-          createdAt: new Date().toISOString(),
-          data: {
-            ...sceneData,
-            image: capturedImages[0]?.imageData, // 使用第一张图片作为缩略图
-            planeImages: capturedImages.map(img => img.imageData)
-          },
-          // 保存ZIP文件的base64数据，方便后续导出
-          arcjpackData: base64data
-        }
-        
-        savedScenes.push(newScene)
-        localStorage.setItem('mmd-scenes', JSON.stringify(savedScenes))
-        
-        // 同时下载文件
-        const url = URL.createObjectURL(content)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `${sceneData.name.replace(/\s+/g, '_')}.arcjpack`
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        URL.revokeObjectURL(url)
-        
-        if (onSceneRecorded) {
-          onSceneRecorded(newScene)
-        }
-        
-        alert(`场景导出成功！\n包含 ${capturedImages.length} 张图片\n已保存到场景列表，可在时间轴上使用\n文件名: ${sceneData.name.replace(/\s+/g, '_')}.arcjpack`)
+      // 下载文件
+      const url = URL.createObjectURL(content)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${sceneData.name.replace(/\s+/g, '_')}.arcjpack`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      
+      if (onSceneRecorded) {
+        onSceneRecorded(sceneData)
       }
-      reader.readAsDataURL(content)
+      
+      alert(`场景导出成功！\n包含 ${capturedImages.length} 张图片\n文件名: ${sceneData.name.replace(/\s+/g, '_')}.arcjpack`)
       
     } catch (err) {
       console.error('导出失败:', err)
@@ -381,6 +418,13 @@ export function WebXRARSceneRecorder({
   const closeARSession = () => {
     stopCapture()
     
+    // 停止普通摄像头
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop())
+      streamRef.current = null
+    }
+    
+    // 停止WebXR会话
     if (sessionRef.current) {
       sessionRef.current.end()
       sessionRef.current = null
@@ -392,6 +436,7 @@ export function WebXRARSceneRecorder({
     }
     
     setIsSessionActive(false)
+    setUseNormalCamera(false)
     setCapturedCount(0)
     capturedImagesRef.current = []
     
@@ -403,10 +448,22 @@ export function WebXRARSceneRecorder({
   return (
     <div className={styles.overlay}>
       <div className={styles.container}>
-        {/* AR画布 */}
+        {/* 视频元素（普通摄像头模式） */}
+        {useNormalCamera && (
+          <video 
+            ref={videoRef}
+            className={styles.video}
+            autoPlay
+            playsInline
+            muted
+          />
+        )}
+        
+        {/* AR画布（WebXR模式） */}
         <canvas 
           ref={canvasRef} 
           className={styles.arCanvas}
+          style={{ display: useNormalCamera ? 'none' : 'block' }}
         />
         
         {/* UI控制面板 */}
@@ -428,7 +485,7 @@ export function WebXRARSceneRecorder({
           </div>
           
           <div className={styles.status}>
-            <p>状态: {isSessionActive ? '🟢 已连接' : '🔴 未连接'}</p>
+            <p>状态: {isSessionActive ? (useNormalCamera ? '📹 普通摄像头' : '🟢 AR模式') : '🔴 未连接'}</p>
             <p>已拍摄: {capturedCount}/{MAX_CAPTURES} 张</p>
             <p className={styles.debug}>{debugInfo}</p>
           </div>
@@ -438,9 +495,8 @@ export function WebXRARSceneRecorder({
               <button 
                 className={styles.primaryBtn}
                 onClick={startARSession}
-                disabled={!isSupported}
               >
-                启动AR相机
+                {isSupported ? '启动AR相机' : '启动普通摄像头'}
               </button>
             ) : (
               <>
@@ -482,7 +538,7 @@ export function WebXRARSceneRecorder({
           <div className={styles.instructions}>
             <h3>使用说明:</h3>
             <ol>
-              <li>点击"启动AR相机"连接设备</li>
+              <li>点击"启动{isSupported ? 'AR相机' : '普通摄像头'}"</li>
               <li>点击"开始拍摄"开始自动拍摄</li>
               <li>缓慢移动相机，每0.5秒自动拍摄一张</li>
               <li>拍摄{MAX_CAPTURES}张后自动停止</li>
