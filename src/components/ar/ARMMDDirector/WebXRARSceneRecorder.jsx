@@ -373,18 +373,25 @@ export function WebXRARSceneRecorder({
     try {
       const currentPlanes = planesRef.current
       
-      // 线性偏移布局参数（用于3D舞台渲染）
-      const X_SPACING = 4      // 每平面水平间隔4米
-      const Z_OFFSET = 10      // 整体前移10米
-      const Y_LAYER_HEIGHT = 3 // 每层高度差3米
+      // 使用AR真实位置关系计算舞台坐标
+      // 1. 找到第一个平面作为参考点（原点）
+      const referencePlane = currentPlanes[0]
+      const refPos = referencePlane.position
       
-      // 计算舞台坐标（线性偏移，保持相对位置）
+      // 2. 计算所有平面相对于参考点的位置（放大坐标以便观察）
+      const SCALE_FACTOR = 5  // 放大5倍，让偏差更明显
+      const Z_OFFSET = 10     // 整体前移，避免负数Z
+      
       const stagePlanes = currentPlanes.map((p, index) => {
-        // 水平排列：0, 4, 8, 12, 16
-        // 垂直分层：前3个在底层，后2个在上层
-        const xPos = index * X_SPACING
-        const yPos = Math.floor(index / 3) * Y_LAYER_HEIGHT
-        const zPos = p.position.z + Z_OFFSET
+        // 计算相对位置（相对于第一个平面）
+        const relativeX = (p.position.x - refPos.x) * SCALE_FACTOR
+        const relativeY = (p.position.y - refPos.y) * SCALE_FACTOR  // 保持Y方向偏差
+        const relativeZ = (p.position.z - refPos.z) * SCALE_FACTOR + Z_OFFSET
+        
+        // 计算相对旋转（相对于第一个平面）
+        const relativeRotX = p.rotation.x - refPos.x
+        const relativeRotY = p.rotation.y - refPos.y
+        const relativeRotZ = p.rotation.z - refPos.z
         
         return {
           id: p.id,
@@ -394,10 +401,24 @@ export function WebXRARSceneRecorder({
           originalPosition: p.position,
           originalRotation: p.rotation,
           originalSize: p.size,
-          // 舞台坐标（用于3D渲染）
-          worldPosition: { x: xPos, y: yPos, z: zPos },
+          // 相对位置（AR偏差）
+          relativePosition: {
+            x: (p.position.x - refPos.x),
+            y: (p.position.y - refPos.y),
+            z: (p.position.z - refPos.z)
+          },
+          // 舞台坐标（放大后的相对位置）
+          worldPosition: { 
+            x: relativeX, 
+            y: relativeY, 
+            z: relativeZ 
+          },
           realSize: p.size,
-          rotation: p.rotation,
+          rotation: { 
+            x: relativeRotX, 
+            y: relativeRotY, 
+            z: relativeRotZ 
+          },
           // 锚点（用于角色放置）
           anchorPoints: [
             { id: `${p.id}_center`, name: '中心', type: 'center', position: { x: 0, y: 0, z: 0 } },
@@ -419,39 +440,38 @@ export function WebXRARSceneRecorder({
         capturedAt: new Date().toISOString(),
         // 使用舞台坐标的平面数据
         planes: stagePlanes,
-        // 场景边界
+        // 场景边界（基于AR实际位置）
         sceneBounds: {
           center: {
-            x: (stagePlanes.length - 1) * X_SPACING / 2,
-            y: Math.floor((stagePlanes.length - 1) / 3) * Y_LAYER_HEIGHT / 2,
-            z: Z_OFFSET
+            x: stagePlanes.reduce((sum, p) => sum + p.worldPosition.x, 0) / stagePlanes.length,
+            y: stagePlanes.reduce((sum, p) => sum + p.worldPosition.y, 0) / stagePlanes.length,
+            z: stagePlanes.reduce((sum, p) => sum + p.worldPosition.z, 0) / stagePlanes.length
           },
           size: {
-            width: (stagePlanes.length - 1) * X_SPACING + 4,
-            height: Math.floor((stagePlanes.length - 1) / 3) * Y_LAYER_HEIGHT + 3,
-            depth: 10
+            width: Math.max(...stagePlanes.map(p => Math.abs(p.worldPosition.x))) * 2 + 4,
+            height: Math.max(...stagePlanes.map(p => Math.abs(p.worldPosition.y))) * 2 + 4,
+            depth: Math.max(...stagePlanes.map(p => Math.abs(p.worldPosition.z))) * 2 + 4
           }
         },
         // 相机配置（用于3D渲染）
         camera: {
           position: { 
-            x: (stagePlanes.length - 1) * X_SPACING / 2, 
-            y: 8, 
-            z: Z_OFFSET + 25 
+            x: 15, 
+            y: 10, 
+            z: 30 
           },
           lookAt: { 
-            x: (stagePlanes.length - 1) * X_SPACING / 2, 
-            y: Math.floor((stagePlanes.length - 1) / 3) * Y_LAYER_HEIGHT / 2, 
+            x: 0, 
+            y: 0, 
             z: Z_OFFSET 
           }
         },
         // 渲染配置
         renderConfig: {
-          layout: 'linear-offset',
-          xSpacing: X_SPACING,
-          yLayerHeight: Y_LAYER_HEIGHT,
+          layout: 'ar-relative',
+          scaleFactor: SCALE_FACTOR,
           zOffset: Z_OFFSET,
-          description: '线性偏移布局，水平排列+垂直分层'
+          description: 'AR相对位置布局，保持真实空间关系'
         },
         // 保留原始AR数据
         arData: {
