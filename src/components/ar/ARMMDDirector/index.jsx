@@ -539,7 +539,9 @@ export function ARMMDDirector() {
         defaultDuration = 3
         defaultData = { 
           name: '动作片段',
-          actionName: 'idle',
+          actionId: null,
+          actionName: '',
+          actionData: null,
           loop: true 
         }
         break
@@ -791,7 +793,8 @@ export function ARMMDDirector() {
           time >= clip.startTime && time <= clip.startTime + clip.duration
         )
         
-        console.log('当前时间:', time, '活跃片段:', activeClip?.id, '数据:', activeClip?.data)
+        console.log('当前时间:', time, '活跃片段:', activeClip?.id)
+        console.log('片段完整数据:', JSON.stringify(activeClip?.data, null, 2))
         
         if (activeClip?.data?.actionData) {
           const actionKey = `${char.id}_${activeClip.id}`
