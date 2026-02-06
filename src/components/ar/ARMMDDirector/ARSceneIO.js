@@ -134,11 +134,12 @@ async function importARCJPackScene(zip, manifest) {
     console.log('jpg文件数量:', allFiles.length)
     
     // 获取 plane_X.jpg 文件并按数字排序
+    // 注意：文件名包含路径 'images/plane_X.jpg'
     const planeFiles = allFiles
-      .filter(f => f.name.match(/^plane_\d+\.jpg$/))
+      .filter(f => f.name.match(/plane_\d+\.jpg$/))
       .sort((a, b) => {
-        const numA = parseInt(a.name.match(/\d+/)[0])
-        const numB = parseInt(b.name.match(/\d+/)[0])
+        const numA = parseInt(a.name.match(/plane_(\d+)\.jpg$/)[1])
+        const numB = parseInt(b.name.match(/plane_(\d+)\.jpg$/)[1])
         return numA - numB
       })
     
