@@ -62,6 +62,7 @@ export function ARMMDDirector() {
   const [previewScale, setPreviewScale] = useState(1) // 画布显示缩放
   const [cameraZoom, setCameraZoom] = useState(1.5) // 摄像机缩放 (0.1-3.0)，默认1.5让人物更大
   const [characterScale, setCharacterScale] = useState(5.0)  // 增大人物比例
+  const [planeImageScale, setPlaneImageScale] = useState(1.0)  // 平面图片缩放比例
   const previewContainerRef = useRef(null)
   
   // 坐标选择模式
@@ -246,6 +247,13 @@ export function ARMMDDirector() {
       updateSceneAtTime(currentTime)
     }
   }, [currentTime, previewOpen, isPlaying])
+  
+  // 当平面图片缩放比例变化时重新渲染场景
+  useEffect(() => {
+    if (previewOpen && !isPlaying) {
+      updateSceneAtTime(currentTime)
+    }
+  }, [planeImageScale])
 
   // 初始化摄像机预览（当hasCameraTrack变化时）
   useEffect(() => {
@@ -1102,6 +1110,10 @@ export function ARMMDDirector() {
                 (rotation?.y || 0) * Math.PI / 180,
                 (rotation?.z || 0) * Math.PI / 180
               )
+              
+              // 应用平面图片缩放
+              mesh.scale.setScalar(planeImageScale)
+              
               mesh.castShadow = true
               mesh.receiveShadow = true
               mesh.userData = { 
@@ -2411,6 +2423,26 @@ export function ARMMDDirector() {
                       title="放大人物模型"
                     >
                       👤➕
+                    </button>
+                  </div>
+                  
+                  {/* 平面图片缩放控制 - 调整AR平面图片大小 */}
+                  <div className={styles.zoomControls}>
+                    <span className={styles.zoomLabel}>平面:</span>
+                    <button 
+                      className={styles.zoomBtn}
+                      onClick={() => setPlaneImageScale(Math.max(0.5, planeImageScale - 0.2))}
+                      title="缩小平面图片"
+                    >
+                      🖼️➖
+                    </button>
+                    <span className={styles.zoomValue}>{planeImageScale.toFixed(1)}x</span>
+                    <button 
+                      className={styles.zoomBtn}
+                      onClick={() => setPlaneImageScale(Math.min(5, planeImageScale + 0.2))}
+                      title="放大平面图片"
+                    >
+                      🖼️➕
                     </button>
                   </div>
                   
