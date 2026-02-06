@@ -189,43 +189,53 @@ export function ARSceneCameraRecorder({
 
   // 模拟AR平面检测（用于不支持AR的设备）
   const simulateARDetection = () => {
-    console.log('开始模拟平面检测 - 手动模式')
+    console.log('开始模拟平面检测')
     setIsARDetecting(true)
     isARDetectingRef.current = true
+    let count = 0
     
-    // 不再自动检测，等待用户点击"检测平面"按钮
-    // 这样可以手动控制检测时机
-  }
-  
-  // 手动检测平面
-  const manualDetectPlane = () => {
-    if (!isARDetectingRef.current) {
-      console.log('检测未开始')
-      return
-    }
-    
-    const count = detectedPlanesRef.current.size
-    
-    // 模拟检测到平面
-    const mockPlane = {
-      uuid: `mock_plane_${count}_${Date.now()}`,
-      polygon: [
-        { x: -1, y: 0, z: -1 },
-        { x: 1, y: 0, z: -1 },
-        { x: 1, y: 0, z: 1 },
-        { x: -1, y: 0, z: 1 }
-      ],
-      center: { 
-        x: (Math.random() - 0.5) * 2, 
-        y: 0, 
-        z: -2 - count * 0.8 
-      },
-      extent: { width: 2, height: 2 }
-    }
-    
-    console.log(`手动检测平面 ${count + 1}`)
-    setDetectedPlaneCount(prev => prev + 1)
-    captureNormalPhoto(mockPlane)
+    // 等待视频准备好后再开始检测
+    const waitForVideo = setInterval(() => {
+      if (!videoRef.current || !videoRef.current.videoWidth) {
+        console.log('等待视频准备好...')
+        return
+      }
+      
+      clearInterval(waitForVideo)
+      console.log('视频已准备好，开始检测平面')
+      
+      // 开始检测循环
+      const detectInterval = setInterval(() => {
+        if (count >= 5 || !isARDetectingRef.current) {
+          console.log('停止模拟检测')
+          clearInterval(detectInterval)
+          return
+        }
+        
+        console.log(`模拟检测平面 ${count + 1}`)
+        
+        // 模拟检测到平面
+        const mockPlane = {
+          uuid: `mock_plane_${count}_${Date.now()}`,
+          polygon: [
+            { x: -1, y: 0, z: -1 },
+            { x: 1, y: 0, z: -1 },
+            { x: 1, y: 0, z: 1 },
+            { x: -1, y: 0, z: 1 }
+          ],
+          center: { 
+            x: (Math.random() - 0.5) * 2, 
+            y: 0, 
+            z: -2 - count * 0.8 
+          },
+          extent: { width: 2, height: 2 }
+        }
+        
+        setDetectedPlaneCount(prev => prev + 1)
+        captureNormalPhoto(mockPlane)
+        count++
+      }, 3000) // 每3秒检测一个平面
+    }, 500)
   }
 
   // AR拍照
@@ -795,13 +805,6 @@ sceneData.planes.forEach(plane => {
               
               {isCameraActive && (
                 <div className={styles.cameraControls}>
-                  <button 
-                    className={styles.detectBtn}
-                    onClick={manualDetectPlane}
-                    disabled={isCapturing}
-                  >
-                    🎯 检测当前平面
-                  </button>
                   <button 
                     className={styles.finishBtn}
                     onClick={finishCapture}
