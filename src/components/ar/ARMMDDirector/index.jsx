@@ -213,7 +213,7 @@ export function ARMMDDirector() {
     }
   }
   
-  // 添加角色 - 新轨道系统
+  // 添加角色 - 兼容旧Timeline格式
   const addCharacters = (selectedCharacters) => {
     const newCharacters = selectedCharacters.map(char => ({
       id: `char_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -226,14 +226,19 @@ export function ARMMDDirector() {
       color: `hsl(${Math.random() * 360}, 70%, 60%)`
     }))
 
-    // 为新角色创建默认轨道（场景、动作）
-    const newTracks = []
-    newCharacters.forEach(char => {
-      // 场景轨道
-      newTracks.push(createTrack(char.id, 'scene'))
-      // 动作轨道
-      newTracks.push(createTrack(char.id, 'action'))
-    })
+    // 为新角色创建兼容旧格式的轨道
+    const newTracks = newCharacters.map(char => ({
+      id: `track_${char.id}`,
+      type: 'character',
+      characterId: char.id,
+      characterName: char.name,
+      characterColor: char.color,
+      scene: [],
+      action: [],
+      effect: [],
+      scale: [],
+      bgScale: []
+    }))
 
     setProject(prev => ({
       ...prev,
