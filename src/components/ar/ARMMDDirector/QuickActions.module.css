@@ -5,6 +5,8 @@
   border: 1px solid #2a2a35;
   width: 80px;
   flex-shrink: 0;
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
 }
 
 .title {

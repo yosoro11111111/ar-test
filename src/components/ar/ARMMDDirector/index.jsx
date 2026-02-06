@@ -231,7 +231,46 @@ export function ARMMDDirector() {
       updateSceneAtTime(currentTime)
     }
   }, [currentTime, previewOpen, isPlaying])
-  
+
+  // 初始化摄像机预览（当hasCameraTrack变化时）
+  useEffect(() => {
+    if (!hasCameraTrack || !cameraPreviewRef.current || !sceneRef.current) return
+
+    // 延迟初始化以确保canvas已经渲染
+    const timer = setTimeout(() => {
+      const previewWidth = cameraPreviewRef.current.clientWidth || 400
+      const previewHeight = cameraPreviewRef.current.clientHeight || 300
+      const previewAspect = previewWidth / previewHeight
+
+      // 创建摄像机预览相机
+      const cameraPreviewCamera = new THREE.PerspectiveCamera(60, previewAspect, 0.1, 1000)
+      cameraPreviewCamera.position.set(0, 5, 10)
+      cameraPreviewCamera.lookAt(0, 0, 0)
+      cameraPreviewCameraRef.current = cameraPreviewCamera
+
+      // 创建摄像机预览渲染器
+      const cameraPreviewRenderer = new THREE.WebGLRenderer({
+        canvas: cameraPreviewRef.current,
+        antialias: true,
+        preserveDrawingBuffer: false,
+        alpha: false
+      })
+      cameraPreviewRenderer.setSize(previewWidth, previewHeight)
+      cameraPreviewRenderer.setClearColor(0x1a1a2e, 1)
+      cameraPreviewRendererRef.current = cameraPreviewRenderer
+
+      console.log('Camera preview initialized:', previewWidth, previewHeight)
+    }, 100)
+
+    return () => {
+      clearTimeout(timer)
+      if (cameraPreviewRendererRef.current) {
+        cameraPreviewRendererRef.current.dispose()
+        cameraPreviewRendererRef.current = null
+      }
+    }
+  }, [hasCameraTrack])
+
   const initThreeJS = () => {
     if (!canvasRef.current) {
       console.error('Canvas ref is null')
@@ -299,32 +338,6 @@ export function ARMMDDirector() {
     
     // 初始化特效管理器
     effectManagerRef.current = new EffectManager(scene)
-    
-    // 初始化摄像机预览（如果有摄像机轨道）
-    if (hasCameraTrack && cameraPreviewRef.current) {
-      const previewWidth = cameraPreviewRef.current.clientWidth || 400
-      const previewHeight = cameraPreviewRef.current.clientHeight || 300
-      const previewAspect = previewWidth / previewHeight
-      
-      // 创建摄像机预览相机
-      const cameraPreviewCamera = new THREE.PerspectiveCamera(60, previewAspect, 0.1, 1000)
-      cameraPreviewCamera.position.set(0, 5, 10)
-      cameraPreviewCamera.lookAt(0, 0, 0)
-      cameraPreviewCameraRef.current = cameraPreviewCamera
-      
-      // 创建摄像机预览渲染器
-      const cameraPreviewRenderer = new THREE.WebGLRenderer({
-        canvas: cameraPreviewRef.current,
-        antialias: false,
-        preserveDrawingBuffer: false,
-        alpha: false
-      })
-      cameraPreviewRenderer.setSize(previewWidth, previewHeight)
-      cameraPreviewRenderer.setClearColor(0x1a1a2e, 1)
-      cameraPreviewRendererRef.current = cameraPreviewRenderer
-      
-      console.log('Camera preview initialized:', previewWidth, previewHeight)
-    }
     
     // 加载所有角色，并在加载完成后应用当前时间轴状态
     console.log('Loading characters:', project.characters.length)
@@ -777,19 +790,26 @@ export function ARMMDDirector() {
           const actionKey = `${char.id}_${activeClip.id}`
           const currentActionKey = currentActionsRef.current[char.id]
           
+          console.log('动作片段激活:', actionKey, '当前:', currentActionKey, '数据:', activeClip.data.actionData)
+          
           if (actionKey !== currentActionKey) {
             currentActionsRef.current[char.id] = actionKey
             
             // 使用actionData中的信息播放动作
             const actionData = activeClip.data.actionData
-            if (actionData.filePath || actionData.url) {
-              loadVRMAAction(actionData.filePath || actionData.url, character.vrm).then(result => {
+            const filePath = actionData.filePath || actionData.url
+            console.log('加载动作:', filePath)
+            
+            if (filePath) {
+              loadVRMAAction(filePath, character.vrm).then(result => {
+                console.log('动作加载结果:', result)
                 if (result?.clip) {
                   characterManagerRef.current.playCharacterAction(
                     char.id,
                     result.clip,
                     { loop: true, transitionDuration: 0.3 }
                   )
+                  console.log('动作播放成功:', char.id)
                 }
               }).catch(err => {
                 console.error('加载动作失败:', err)
