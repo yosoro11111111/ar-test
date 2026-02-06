@@ -21,6 +21,7 @@ export function WebXRARSceneRecorder({
   const capturedImagesRef = useRef([])
   const lastCaptureTimeRef = useRef(0)
   const isCapturingRef = useRef(false)
+  const lastVideoFrameRef = useRef(null)
   
   const [isSessionActive, setIsSessionActive] = useState(false)
   const [isCapturing, setIsCapturing] = useState(false)
@@ -217,6 +218,23 @@ export function WebXRARSceneRecorder({
           return
         }
         
+        // 创建小canvas来检查画面是否有变化
+        const checkCanvas = document.createElement('canvas')
+        checkCanvas.width = 100
+        checkCanvas.height = 100
+        const checkCtx = checkCanvas.getContext('2d')
+        checkCtx.drawImage(video, 0, 0, 100, 100)
+        const currentFrameData = checkCanvas.toDataURL('image/jpeg', 0.1)
+        
+        // 检查是否与上一帧相同
+        if (lastVideoFrameRef.current === currentFrameData) {
+          console.log('视频帧未变化，跳过')
+          return
+        }
+        
+        lastVideoFrameRef.current = currentFrameData
+        
+        // 创建完整分辨率的canvas
         const canvas = document.createElement('canvas')
         canvas.width = video.videoWidth || 1920
         canvas.height = video.videoHeight || 1080
