@@ -20,6 +20,7 @@ export function WebXRARSceneRecorder({
   const streamRef = useRef(null)
   const capturedImagesRef = useRef([])
   const lastCaptureTimeRef = useRef(0)
+  const isCapturingRef = useRef(false)
   
   const [isSessionActive, setIsSessionActive] = useState(false)
   const [isCapturing, setIsCapturing] = useState(false)
@@ -129,6 +130,7 @@ export function WebXRARSceneRecorder({
     }
     
     setIsCapturing(true)
+    isCapturingRef.current = true
     setCapturedCount(0)
     capturedImagesRef.current = []
     lastCaptureTimeRef.current = 0
@@ -137,7 +139,7 @@ export function WebXRARSceneRecorder({
 
     // 使用 requestAnimationFrame 循环来拍摄，确保捕获到最新帧
     const captureLoop = () => {
-      if (!isCapturing || capturedImagesRef.current.length >= MAX_CAPTURES) {
+      if (!isCapturingRef.current || capturedImagesRef.current.length >= MAX_CAPTURES) {
         return
       }
       
@@ -227,6 +229,7 @@ export function WebXRARSceneRecorder({
   
   // 停止拍摄
   const stopCapture = () => {
+    isCapturingRef.current = false
     setIsCapturing(false)
     setDebugInfo(`拍摄完成！共${capturedImagesRef.current.length}张图片`)
   }
