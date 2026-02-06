@@ -173,7 +173,14 @@ export function WebXRARSceneRecorder({
       return
     }
     
-    if (!videoRef.current || !cameraRef.current) return
+    if (!cameraRef.current) return
+    
+    // 直接获取视频元素（避免闭包缓存问题）
+    const video = document.querySelector('video')
+    if (!video) {
+      console.log('未找到视频元素')
+      return
+    }
     
     // 获取当前相机位置
     const currentPosition = {
@@ -198,10 +205,10 @@ export function WebXRARSceneRecorder({
           // 添加时间戳水印
           ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
           ctx.font = '30px Arial'
-          ctx.fillText(new Date().toISOString(), 20, 50)
+          ctx.fillText(`IMG_${capturedImagesRef.current.length}_${Date.now()}`, 20, 50)
           
           imageData = canvas.toDataURL('image/jpeg', 0.9)
-          console.log('使用 ImageCapture 拍摄')
+          console.log('使用 ImageCapture 拍摄，序号:', capturedImagesRef.current.length)
         } catch (e) {
           console.log('ImageCapture 失败，使用视频元素:', e)
           imageCaptureRef.current = null
@@ -210,8 +217,6 @@ export function WebXRARSceneRecorder({
       
       // 如果 ImageCapture 失败，使用视频元素
       if (!imageData) {
-        const video = videoRef.current
-        
         // 确保视频已经准备好并且有数据
         if (video.readyState < 2 || video.paused) {
           console.log('视频未准备好或已暂停，跳过')
@@ -229,10 +234,10 @@ export function WebXRARSceneRecorder({
         // 添加时间戳水印
         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
         ctx.font = '30px Arial'
-        ctx.fillText(new Date().toISOString(), 20, 50)
+        ctx.fillText(`IMG_${capturedImagesRef.current.length}_${Date.now()}`, 20, 50)
         
         imageData = canvas.toDataURL('image/jpeg', 0.9)
-        console.log('使用视频元素拍摄')
+        console.log('使用视频元素拍摄，序号:', capturedImagesRef.current.length)
       }
       
       // 记录AR相机位置
