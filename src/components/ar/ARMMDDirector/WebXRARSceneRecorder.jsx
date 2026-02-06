@@ -4,13 +4,12 @@ import styles from './WebXRARSceneRecorder.module.css'
 import JSZip from 'jszip'
 
 /**
- * WebXR AR场景录制组件 - 自动检测地面版本
+ * WebXR AR场景录制组件 - 修复版
  * 
  * 功能：
  * 1. 自动检测并记录所有地面平面
- * 2. 显示检测到的平面列表
- * 3. 用户可以选择删除不需要的平面
- * 4. 导出选中的平面
+ * 2. 持续检测，不会停止
+ * 3. 导出包含完整3D场景数据
  */
 
 export function WebXRARSceneRecorder({
@@ -26,9 +25,10 @@ export function WebXRARSceneRecorder({
   const referenceSpaceRef = useRef(null)
   const hitTestSourceRef = useRef(null)
   const planesRef = useRef([])
-  const detectedPlanesRef = useRef(new Map()) // 存储检测到的平面位置
+  const detectedPlanesRef = useRef(new Map())
   const frameCountRef = useRef(0)
-  const isAutoDetectingRef = useRef(false) // 使用ref来避免闭包问题
+  const isAutoDetectingRef = useRef(false)
+  const planeCountRef = useRef(0) // 使用ref跟踪平面数量
   
   const [isSupported, setIsSupported] = useState(false)
   const [isSessionActive, setIsSessionActive] = useState(false)
@@ -41,10 +41,14 @@ export function WebXRARSceneRecorder({
   const [isExporting, setIsExporting] = useState(false)
   const [debugInfo, setDebugInfo] = useState('')
   
-  // 同步isAutoDetecting状态到ref
+  // 同步状态到ref
   useEffect(() => {
     isAutoDetectingRef.current = isAutoDetecting
   }, [isAutoDetecting])
+  
+  useEffect(() => {
+    planeCountRef.current = planes.length
+  }, [planes])
 
   // 检查WebXR支持
   useEffect(() => {
@@ -182,16 +186,10 @@ export function WebXRARSceneRecorder({
           if (hitPose) {
             hitPos = hitPose.transform.position
             
-            // 调试：显示检测到的位置
-            if (frameCountRef.current % 30 === 0) {
-              console.log('Hit detected at:', hitPos.x.toFixed(2), hitPos.y.toFixed(2), hitPos.z.toFixed(2), 'isAutoDetecting:', isAutoDetectingRef.current)
-            }
-            
-            // 自动检测模式：记录新平面（使用ref获取最新值）
-            console.log('Checking auto detect:', isAutoDetectingRef.current, 'hasHit:', hasHit)
+            // 自动检测模式：记录新平面
             if (isAutoDetectingRef.current) {
-              // 使用更宽松的网格来判断是否为新位置（0.5米网格）
-              const gridSize = 0.5
+              // 使用更小的网格（0.3米）来检测更多平面
+              const gridSize = 0.3
               const key = `${Math.floor(hitPos.x / gridSize)},${Math.floor(hitPos.y / gridSize)},${Math.floor(hitPos.z / gridSize)}`
               
               if (!detectedPlanesRef.current.has(key)) {
@@ -205,11 +203,11 @@ export function WebXRARSceneRecorder({
         
         // 每60帧更新状态
         if (frameCountRef.current % 60 === 0) {
-          if (isAutoDetecting) {
+          if (isAutoDetectingRef.current) {
             if (hasHit && hitPos) {
-              setDebugInfo(`检测中... 已发现 ${planes.length} 个平面 | 当前: x=${hitPos.x.toFixed(1)}, y=${hitPos.y.toFixed(1)}, z=${hitPos.z.toFixed(1)}`)
+              setDebugInfo(`检测中... 已发现 ${planeCountRef.current} 个平面 | 当前: x=${hitPos.x.toFixed(1)}, y=${hitPos.y.toFixed(1)}, z=${hitPos.z.toFixed(1)}`)
             } else {
-              setDebugInfo(`检测中... 已发现 ${planes.length} 个平面 | 请将手机对准地面`)
+              setDebugInfo(`检测中... 已发现 ${planeCountRef.current} 个平面 | 请将手机对准地面`)
             }
           } else {
             setDebugInfo('点击"开始检测"自动记录地面')
@@ -228,6 +226,8 @@ export function WebXRARSceneRecorder({
   // 添加检测到的平面
   const addDetectedPlane = (position) => {
     if (!sceneRef.current) return
+    
+    const currentCount = planeCountRef.current
     
     const planeId = `plane_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     
@@ -262,8 +262,6 @@ export function WebXRARSceneRecorder({
     mesh.add(wireframe)
     
     // 添加序号标签
-    updatePlaneLabels(sceneRef.current, planes.length + 1)
-    
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
     canvas.width = 128
@@ -273,7 +271,7 @@ export function WebXRARSceneRecorder({
     ctx.fillStyle = '#000'
     ctx.font = 'bold 32px Arial'
     ctx.textAlign = 'center'
-    ctx.fillText(`${planes.length + 1}`, 64, 44)
+    ctx.fillText(`${currentCount + 1}`, 64, 44)
     
     const texture = new THREE.CanvasTexture(canvas)
     const spriteMaterial = new THREE.SpriteMaterial({ map: texture })
@@ -285,47 +283,22 @@ export function WebXRARSceneRecorder({
     sceneRef.current.add(mesh)
     planeData.mesh = mesh
     
-    const newPlanes = [...planes, planeData]
-    setPlanes(newPlanes)
+    const newPlanes = [...planesRef.current, planeData]
     planesRef.current = newPlanes
+    setPlanes(newPlanes)
     setDetectedCount(newPlanes.length)
-  }
-
-  // 更新所有平面标签
-  const updatePlaneLabels = (scene, count) => {
-    // 重新编号所有平面
-    planesRef.current.forEach((plane, index) => {
-      if (plane.mesh) {
-        const sprite = plane.mesh.children.find(c => c.type === 'Sprite')
-        if (sprite && sprite.material.map) {
-          const canvas = document.createElement('canvas')
-          const ctx = canvas.getContext('2d')
-          canvas.width = 128
-          canvas.height = 64
-          ctx.fillStyle = '#00ff88'
-          ctx.fillRect(0, 0, canvas.width, canvas.height)
-          ctx.fillStyle = '#000'
-          ctx.font = 'bold 32px Arial'
-          ctx.textAlign = 'center'
-          ctx.fillText(`${index + 1}`, 64, 44)
-          
-          const texture = new THREE.CanvasTexture(canvas)
-          sprite.material.map.dispose()
-          sprite.material.map = texture
-          sprite.material.needsUpdate = true
-        }
-      }
-    })
+    
+    console.log(`Plane ${currentCount + 1} added, total: ${newPlanes.length}`)
   }
 
   // 删除指定平面
   const removePlane = (index) => {
-    const plane = planes[index]
+    const plane = planesRef.current[index]
     if (plane.mesh && sceneRef.current) {
       sceneRef.current.remove(plane.mesh)
     }
     
-    const newPlanes = planes.filter((_, i) => i !== index)
+    const newPlanes = planesRef.current.filter((_, i) => i !== index)
     // 重新编号
     newPlanes.forEach((p, i) => {
       if (p.mesh) {
@@ -350,40 +323,47 @@ export function WebXRARSceneRecorder({
       }
     })
     
-    setPlanes(newPlanes)
     planesRef.current = newPlanes
+    setPlanes(newPlanes)
     setDetectedCount(newPlanes.length)
+    
+    // 从检测记录中移除该位置
+    const removedPlane = planes[index]
+    if (removedPlane) {
+      const gridSize = 0.3
+      const key = `${Math.floor(removedPlane.position.x / gridSize)},${Math.floor(removedPlane.position.y / gridSize)},${Math.floor(removedPlane.position.z / gridSize)}`
+      detectedPlanesRef.current.delete(key)
+    }
   }
 
   // 开始/停止自动检测
   const toggleAutoDetect = () => {
     if (isAutoDetecting) {
       setIsAutoDetecting(false)
-      setDebugInfo(`检测完成！共发现 ${planes.length} 个平面`)
+      setDebugInfo(`检测完成！共发现 ${planesRef.current.length} 个平面`)
     } else {
       setIsAutoDetecting(true)
-      detectedPlanesRef.current.clear()
       setDebugInfo('开始自动检测地面...')
     }
   }
 
   // 清除所有平面
   const clearAllPlanes = () => {
-    planes.forEach(plane => {
+    planesRef.current.forEach(plane => {
       if (plane.mesh && sceneRef.current) {
         sceneRef.current.remove(plane.mesh)
       }
     })
-    setPlanes([])
     planesRef.current = []
+    setPlanes([])
     detectedPlanesRef.current.clear()
     setDetectedCount(0)
     setDebugInfo('已清除所有平面')
   }
 
-  // 导出场景
+  // 导出场景 - 包含完整的3D重建数据
   const exportScene = async () => {
-    if (planes.length === 0) {
+    if (planesRef.current.length === 0) {
       setError('请先检测至少一个平面')
       return
     }
@@ -393,26 +373,82 @@ export function WebXRARSceneRecorder({
     try {
       const currentPlanes = planesRef.current
       
+      // 构建完整的3D场景数据
       const sceneData = {
         version: '2.0',
         type: 'webxr-ar-scene',
         name: sceneName || `WebXR场景_${currentPlanes.length}平面`,
         capturedAt: new Date().toISOString(),
-        planes: currentPlanes.map(p => ({
+        // 平面数据 - 用于重建3D场景
+        planes: currentPlanes.map((p, index) => ({
           id: p.id,
+          index: index + 1, // 序号
           type: p.type,
-          position: p.position,
-          rotation: p.rotation,
-          size: p.size
+          position: p.position, // {x, y, z}
+          rotation: p.rotation, // {x, y, z}
+          size: p.size, // {width, height}
+          // 完整的变换矩阵数据
+          transform: {
+            translation: [p.position.x, p.position.y, p.position.z],
+            rotation: [p.rotation.x, p.rotation.y, p.rotation.z],
+            scale: [1, 1, 1]
+          }
         })),
-        camera: { fov: 75, position: { x: 0, y: 0, z: 0 } },
+        // 场景元数据
+        sceneBounds: calculateSceneBounds(currentPlanes),
+        // 相机配置
+        camera: { 
+          fov: 75, 
+          position: { x: 0, y: 1.6, z: 0 }, // 假设人眼高度1.6米
+          target: { x: 0, y: 0, z: -3 }
+        },
+        // WebXR配置
         webxrData: {
           referenceSpace: 'local-floor',
-          features: ['hit-test']
+          features: ['hit-test'],
+          gridSize: 0.3
+        },
+        // 3D重建说明
+        reconstruction: {
+          method: 'hit-test-sampling',
+          description: '通过WebXR hit-test在真实环境中采样的地面平面',
+          planeSpacing: 0.3, // 采样间隔0.3米
+          totalSamples: detectedPlanesRef.current.size
+        }
+      }
+      
+      // 同时生成一个可以直接使用的Three.js场景配置
+      const threeJsScene = {
+        metadata: {
+          version: 4.5,
+          type: 'Object',
+          generator: 'WebXRARRecorder'
+        },
+        scene: {
+          type: 'Scene',
+          children: currentPlanes.map((p, index) => ({
+            type: 'Mesh',
+            name: `Plane_${index + 1}`,
+            geometry: {
+              type: 'PlaneGeometry',
+              width: p.size.width,
+              height: p.size.height
+            },
+            material: {
+              type: 'MeshBasicMaterial',
+              color: 0x00ff88,
+              transparent: true,
+              opacity: 0.3
+            },
+            position: [p.position.x, p.position.y, p.position.z],
+            rotation: [p.rotation.x * Math.PI / 180, p.rotation.y * Math.PI / 180, p.rotation.z * Math.PI / 180]
+          }))
         }
       }
       
       const zip = new JSZip()
+      
+      // manifest.json
       zip.file('manifest.json', JSON.stringify({
         version: '2.0',
         type: 'webxr-ar-scene-pack',
@@ -424,7 +460,81 @@ export function WebXRARSceneRecorder({
         }
       }, null, 2))
       
+      // scene.json - 主要场景数据
       zip.file('scene.json', JSON.stringify(sceneData, null, 2))
+      
+      // threejs-scene.json - Three.js可直接加载的场景
+      zip.file('threejs-scene.json', JSON.stringify(threeJsScene, null, 2))
+      
+      // planes.csv - 便于查看的CSV格式
+      const csvHeader = 'index,id,type,x,y,z,rotationX,rotationY,rotationZ,width,height\n'
+      const csvData = currentPlanes.map((p, i) => 
+        `${i+1},${p.id},${p.type},${p.position.x},${p.position.y},${p.position.z},${p.rotation.x},${p.rotation.y},${p.rotation.z},${p.size.width},${p.size.height}`
+      ).join('\n')
+      zip.file('planes.csv', csvHeader + csvData)
+      
+      // README.md - 使用说明
+      zip.file('README.md', `# ${sceneData.name}
+
+## 场景信息
+- 平面数量: ${currentPlanes.length}
+- 录制时间: ${sceneData.capturedAt}
+- 采样间隔: 0.3米
+
+## 文件说明
+
+### scene.json
+主要场景数据，包含所有平面的位置、旋转、大小信息。
+
+### threejs-scene.json
+Three.js场景配置文件，可直接导入Three.js编辑器。
+
+### planes.csv
+CSV格式的平面数据，便于在Excel或其他工具中查看。
+
+## 如何使用
+
+### 在Three.js中重建场景
+\`\`\`javascript
+import * as THREE from 'three'
+
+// 加载scene.json
+const sceneData = await fetch('scene.json').then(r => r.json())
+
+// 重建场景
+const scene = new THREE.Scene()
+
+sceneData.planes.forEach(plane => {
+  const geometry = new THREE.PlaneGeometry(plane.size.width, plane.size.height)
+  const material = new THREE.MeshBasicMaterial({
+    color: 0x00ff88,
+    transparent: true,
+    opacity: 0.3,
+    side: THREE.DoubleSide
+  })
+  const mesh = new THREE.Mesh(geometry, material)
+  mesh.position.set(plane.position.x, plane.position.y, plane.position.z)
+  mesh.rotation.set(
+    plane.rotation.x * Math.PI / 180,
+    plane.rotation.y * Math.PI / 180,
+    plane.rotation.z * Math.PI / 180
+  )
+  scene.add(mesh)
+})
+\`\`\`
+
+### 放置3D模型
+在检测到的平面上放置模型：
+\`\`\`javascript
+// 使用第一个平面的位置
+const firstPlane = sceneData.planes[0]
+model.position.set(
+  firstPlane.position.x,
+  firstPlane.position.y + 1, // 在平面上方1米
+  firstPlane.position.z
+)
+\`\`\`
+`)
       
       const content = await zip.generateAsync({ type: 'blob' })
       
@@ -441,13 +551,37 @@ export function WebXRARSceneRecorder({
         onSceneRecorded(sceneData)
       }
       
-      alert(`场景导出成功！\n包含 ${currentPlanes.length} 个平面\n文件名: ${sceneData.name.replace(/\s+/g, '_')}.webxrar`)
+      alert(`场景导出成功！\n包含 ${currentPlanes.length} 个平面\n文件名: ${sceneData.name.replace(/\s+/g, '_')}.webxrar\n\n导出的文件包含:\n- scene.json (场景数据)\n- threejs-scene.json (Three.js场景)\n- planes.csv (CSV数据)\n- README.md (使用说明)`)
       
     } catch (err) {
       console.error('导出失败:', err)
       setError('导出失败: ' + err.message)
     } finally {
       setIsExporting(false)
+    }
+  }
+  
+  // 计算场景边界
+  const calculateSceneBounds = (planes) => {
+    if (planes.length === 0) return null
+    
+    const xs = planes.map(p => p.position.x)
+    const ys = planes.map(p => p.position.y)
+    const zs = planes.map(p => p.position.z)
+    
+    return {
+      min: { x: Math.min(...xs), y: Math.min(...ys), z: Math.min(...zs) },
+      max: { x: Math.max(...xs), y: Math.max(...ys), z: Math.max(...zs) },
+      center: { 
+        x: (Math.min(...xs) + Math.max(...xs)) / 2,
+        y: (Math.min(...ys) + Math.max(...ys)) / 2,
+        z: (Math.min(...zs) + Math.max(...zs)) / 2
+      },
+      size: {
+        x: Math.max(...xs) - Math.min(...xs),
+        y: Math.max(...ys) - Math.min(...ys),
+        z: Math.max(...zs) - Math.min(...zs)
+      }
     }
   }
 
@@ -468,6 +602,7 @@ export function WebXRARSceneRecorder({
     setPlanes([])
     setIsSessionActive(false)
     setIsAutoDetecting(false)
+    isAutoDetectingRef.current = false
     setDebugInfo('')
   }
 
@@ -534,7 +669,7 @@ export function WebXRARSceneRecorder({
               <li>缓慢移动手机扫描不同区域</li>
               <li>系统自动记录发现的平面</li>
               <li>在列表中删除不需要的平面</li>
-              <li>点击"导出"保存场景</li>
+              <li>点击"导出"保存完整场景</li>
             </ol>
             <button onClick={() => setShowInstructions(false)}>我知道了</button>
           </div>
