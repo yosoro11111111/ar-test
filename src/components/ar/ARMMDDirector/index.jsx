@@ -894,20 +894,15 @@ export function ARMMDDirector() {
           }
         }
         // 处理ARCJPack场景 - 时间轴和MMD预览专用
-        else if (sceneData.type === 'arcjpack' && sceneData.image) {
+        else if (sceneData.type === 'arcjpack') {
           // 清除之前的场景
           const existingScene = sceneRef.current.getObjectByName('arcjpack-scene')
           if (existingScene) {
             sceneRef.current.remove(existingScene)
           }
           
-          // 加载背景图片
-          const textureLoader = new THREE.TextureLoader()
-          textureLoader.load(sceneData.image, (texture) => {
-            if (sceneRef.current) {
-              sceneRef.current.background = texture
-            }
-          })
+          // 设置纯色背景，不使用图片背景
+          sceneRef.current.background = new THREE.Color(0x1a1a2e)
           
           // 创建场景组
           const sceneGroup = new THREE.Group()
@@ -1068,9 +1063,11 @@ export function ARMMDDirector() {
               
               // 放大平面（乘以缩放因子）
               const scaleFactor = 10
+              // 给每个平面不同的 y 高度，产生3D层次感
+              const yOffset = index * 0.5
               mesh.position.set(
                 worldPosition.x * scaleFactor,
-                worldPosition.y * scaleFactor,
+                (worldPosition.y + yOffset) * scaleFactor,
                 worldPosition.z * scaleFactor
               )
               mesh.scale.set(scaleFactor, scaleFactor, scaleFactor)
