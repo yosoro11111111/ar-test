@@ -283,50 +283,67 @@ export function ARSceneCameraRecorder({
 
   // 普通拍照
   const captureNormalPhoto = (mockPlane) => {
-    if (!videoRef.current || !canvasRef.current) return
+    if (!videoRef.current) {
+      console.error('videoRef.current 为空')
+      return
+    }
     
     setIsCapturing(true)
     
     const video = videoRef.current
-    const canvas = canvasRef.current
     
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
+    // 创建临时 canvas 来捕获视频帧
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth || 1920
+    canvas.height = video.videoHeight || 1080
     
     const ctx = canvas.getContext('2d')
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-    
-    const imageData = canvas.toDataURL('image/jpeg', 0.9)
-    
-    // 模拟平面在图片中的位置
-    const imagePosition = {
-      x: canvas.width / 2 - 150,
-      y: canvas.height / 2 - 100,
-      width: 300,
-      height: 200
+    if (!ctx) {
+      console.error('无法获取 canvas context')
+      setIsCapturing(false)
+      return
     }
     
-    const planeData = {
-      id: `plane_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      index: planes.length + 1,
-      imagePosition,
-      worldPosition: mockPlane.center,
-      realSize: {
-        width: mockPlane.extent?.width || 2,
-        height: mockPlane.extent?.height || 2
-      },
-      rotation: { x: -90, y: 0, z: 0 },
-      polygon: mockPlane.polygon
+    try {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      
+      const imageData = canvas.toDataURL('image/jpeg', 0.9)
+      
+      // 模拟平面在图片中的位置
+      const imagePosition = {
+        x: canvas.width / 2 - 150,
+        y: canvas.height / 2 - 100,
+        width: 300,
+        height: 200
+      }
+      
+      const planeData = {
+        id: `plane_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        index: planes.length + 1,
+        imagePosition,
+        worldPosition: mockPlane.center,
+        realSize: {
+          width: mockPlane.extent?.width || 2,
+          height: mockPlane.extent?.height || 2
+        },
+        rotation: { x: -90, y: 0, z: 0 },
+        polygon: mockPlane.polygon
+      }
+      
+      setCapturedImages(prev => [...prev, {
+        id: Date.now(),
+        image: imageData,
+        plane: planeData
+      }])
+      
+      setPlanes(prev => [...prev, planeData])
+      console.log(`已捕获平面 ${planes.length + 1} 的照片`)
+      
+    } catch (err) {
+      console.error('拍照失败:', err)
+    } finally {
+      setIsCapturing(false)
     }
-    
-    setCapturedImages(prev => [...prev, {
-      id: Date.now(),
-      image: imageData,
-      plane: planeData
-    }])
-    
-    setPlanes(prev => [...prev, planeData])
-    setIsCapturing(false)
   }
 
   // 计算平面在图片中的位置
