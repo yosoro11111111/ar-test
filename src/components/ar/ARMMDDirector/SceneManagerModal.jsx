@@ -55,12 +55,12 @@ export function SceneManagerModal({ onSelect, onClose }) {
     setEditingName(null)
   }
 
-  // 导出场景包 - 使用新的ARPack格式
+  // 导出场景包 - 使用 arcjpack 格式
   const exportScene = async (scene) => {
     try {
-      // 使用新的ARPack格式导出
+      // 使用 arcjpack 格式导出
       const blob = await exportARScenePack(scene)
-      downloadFile(blob, `${scene.name}.arpack`)
+      downloadFile(blob, `${scene.name}.arcjpack`)
       console.log('场景导出成功:', scene.name)
     } catch (error) {
       console.error('导出场景失败:', error)

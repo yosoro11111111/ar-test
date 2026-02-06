@@ -11,6 +11,66 @@ import JSZip from 'jszip'
  */
 
 /**
+ * 导出AR场景包 - arcjpack 格式
+ * @param {Object} scene - 场景对象
+ * @returns {Promise<Blob>} - ZIP文件Blob
+ */
+export async function exportARScenePack(scene) {
+  const zip = new JSZip()
+  
+  // 1. 创建清单文件
+  const manifest = {
+    version: '4.0',
+    type: 'arcjpack',
+    format: 'ar-cinematic-pack',
+    createdAt: new Date().toISOString(),
+    metadata: {
+      name: scene.name,
+      type: 'ar-multi-plane',
+      planeCount: scene.data?.planes?.length || 0
+    }
+  }
+  zip.file('manifest.json', JSON.stringify(manifest, null, 2))
+  
+  // 2. 准备场景数据
+  const sceneData = {
+    version: '4.0',
+    type: 'ar-multi-plane-scene',
+    format: 'arcjpack',
+    name: scene.name,
+    capturedAt: scene.createdAt || new Date().toISOString(),
+    planes: scene.data?.planes || [],
+    camera: scene.data?.camera,
+    sceneBounds: scene.data?.sceneBounds,
+    renderConfig: scene.data?.renderConfig
+  }
+  zip.file('scene.json', JSON.stringify(sceneData, null, 2))
+  
+  // 3. 添加场景图片
+  if (scene.data?.image) {
+    const imageData = scene.data.image
+    if (imageData.startsWith('data:')) {
+      const base64Data = imageData.split(',')[1]
+      zip.file('scene.jpg', base64Data, { base64: true })
+    }
+  }
+  
+  // 4. 添加平面图片
+  if (scene.data?.planeImages && scene.data.planeImages.length > 0) {
+    const imagesFolder = zip.folder('images')
+    scene.data.planeImages.forEach((imgData, index) => {
+      if (imgData.startsWith('data:')) {
+        const base64Data = imgData.split(',')[1]
+        imagesFolder.file(`plane_${index}.jpg`, base64Data, { base64: true })
+      }
+    })
+  }
+  
+  // 5. 生成ZIP文件
+  return await zip.generateAsync({ type: 'blob' })
+}
+
+/**
  * 导入AR场景包 - 仅支持 .arcjpack 格式
  * @param {File} file - 场景包文件
  * @returns {Promise<Object>} - 场景对象
