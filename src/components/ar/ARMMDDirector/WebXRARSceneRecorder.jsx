@@ -167,7 +167,7 @@ export function WebXRARSceneRecorder({
   }
   
   // 拍摄单帧 - 从普通摄像头捕获
-  const captureFrame = (now) => {
+  const captureFrame = async (now) => {
     if (capturedImagesRef.current.length >= MAX_CAPTURES) {
       stopCapture()
       return
