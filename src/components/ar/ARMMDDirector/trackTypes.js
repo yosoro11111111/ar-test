@@ -174,5 +174,6 @@ export const getTrackTypeList = () => {
 
 // 获取轨道类型信息
 export const getTrackTypeInfo = (typeId) => {
+  if (!typeId) return null
   return TRACK_TYPES[typeId.toUpperCase()] || null
 }

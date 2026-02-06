@@ -269,26 +269,14 @@ export function ARMMDDirector() {
     }
   }
 
-  // 打开轨道类型选择弹窗
-  const openTrackTypeModal = (characterId) => {
-    const character = project.characters.find(c => c.id === characterId)
-    setSelectedCharacterForTrack(character)
-    setShowTrackTypeModal(true)
-  }
-
-  // 添加新轨道
-  const handleAddTrack = (trackType) => {
-    if (!selectedCharacterForTrack) return
-
-    const newTrack = createTrack(selectedCharacterForTrack.id, trackType)
+  // 添加新轨道 - 直接添加，不需要弹窗
+  const handleAddTrack = (characterId, trackType) => {
+    const newTrack = createTrack(characterId, trackType)
 
     setProject(prev => ({
       ...prev,
       tracks: [...prev.tracks, newTrack]
     }))
-
-    setShowTrackTypeModal(false)
-    setSelectedCharacterForTrack(null)
   }
   
   // 删除角色
@@ -906,7 +894,7 @@ export function ARMMDDirector() {
         scale={timelineScale}
         onTimeChange={setCurrentTime}
         onAddCharacter={() => setShowCharacterModal(true)}
-        onAddTrack={openTrackTypeModal}
+        onAddTrack={handleAddTrack}
         onAddCell={addCell}
         onEditCell={(trackId, cell) => {
           setEditingCell({ trackId, cell })

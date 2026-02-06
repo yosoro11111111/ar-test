@@ -168,6 +168,26 @@
   z-index: 10;
 }
 
+.expandBtn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.expandBtn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
 .characterColor {
   width: 12px;
   height: 12px;
@@ -180,6 +200,14 @@
   font-size: 14px;
   font-weight: 600;
   color: #fff;
+}
+
+.trackCount {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 4px 10px;
+  border-radius: 12px;
 }
 
 .addTrackBtn {
@@ -202,6 +230,11 @@
   color: #fff;
 }
 
+.addTrackBtn.active {
+  background: rgba(102, 126, 234, 0.6);
+  color: #fff;
+}
+
 .deleteCharacterBtn {
   width: 28px;
   height: 28px;
@@ -220,6 +253,75 @@
 .deleteCharacterBtn:hover {
   background: rgba(255, 100, 100, 0.4);
   color: #ff6464;
+}
+
+/* 内联轨道选择器 */
+.trackSelector {
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 12px 16px;
+}
+
+.trackSelectorHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.closeSelector {
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeSelector:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+}
+
+.trackSelectorGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+}
+
+.trackSelectorItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.trackSelectorItem:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--track-color, rgba(255, 255, 255, 0.3));
+  transform: translateY(-2px);
+}
+
+.trackSelectorIcon {
+  font-size: 20px;
+}
+
+.trackSelectorName {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.8);
 }
 
 /* 轨道列表 */
