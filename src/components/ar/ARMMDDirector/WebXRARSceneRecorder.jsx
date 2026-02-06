@@ -97,17 +97,23 @@ export function WebXRARSceneRecorder({
           )
         }
         
-        // 渲染
-        if (rendererRef.current) {
+        // 获取渲染层
+        const baseLayer = session.renderState.baseLayer
+        if (baseLayer && rendererRef.current) {
+          const gl = rendererRef.current.getContext()
+          
+          // 绑定到XR层的framebuffer进行渲染
+          gl.bindFramebuffer(gl.FRAMEBUFFER, baseLayer.framebuffer)
           rendererRef.current.render(new THREE.Scene(), cameraRef.current)
-        }
-        
-        // 处理拍摄 - 在渲染完成后捕获
-        if (shouldCaptureRef.current) {
-          const now = Date.now()
-          if (now - lastCaptureTimeRef.current >= CAPTURE_INTERVAL) {
-            lastCaptureTimeRef.current = now
-            captureFrame()
+          
+          // 处理拍摄 - 在渲染完成后捕获
+          if (shouldCaptureRef.current) {
+            const now = Date.now()
+            if (now - lastCaptureTimeRef.current >= CAPTURE_INTERVAL) {
+              lastCaptureTimeRef.current = now
+              // 从XR层读取像素数据
+              captureFrameFromXR(gl, baseLayer)
+            }
           }
         }
         
@@ -141,45 +147,89 @@ export function WebXRARSceneRecorder({
     setDebugInfo(`开始拍摄，每${CAPTURE_INTERVAL/1000}秒拍摄一张，共${MAX_CAPTURES}张`)
   }
   
-  // 拍摄单帧
-  const captureFrame = () => {
+  // 从XR层捕获帧
+  const captureFrameFromXR = (gl, baseLayer) => {
     if (capturedImagesRef.current.length >= MAX_CAPTURES) {
       stopCapture()
       return
     }
     
-    if (!rendererRef.current || !cameraRef.current) return
+    if (!cameraRef.current) return
     
-    // 捕获当前画面
-    const canvas = rendererRef.current.domElement
-    const imageData = canvas.toDataURL('image/jpeg', 0.9)
-    
-    // 记录相机位置
-    const cameraPosition = {
-      x: cameraRef.current.position.x,
-      y: cameraRef.current.position.y,
-      z: cameraRef.current.position.z
-    }
-    
-    const cameraRotation = {
-      x: cameraRef.current.rotation.x,
-      y: cameraRef.current.rotation.y,
-      z: cameraRef.current.rotation.z
-    }
-    
-    capturedImagesRef.current.push({
-      index: capturedImagesRef.current.length,
-      imageData,
-      cameraPosition,
-      cameraRotation,
-      timestamp: Date.now()
-    })
-    
-    setCapturedCount(capturedImagesRef.current.length)
-    setDebugInfo(`已拍摄 ${capturedImagesRef.current.length}/${MAX_CAPTURES} 张`)
-    
-    if (capturedImagesRef.current.length >= MAX_CAPTURES) {
-      stopCapture()
+    try {
+      // 获取视口尺寸
+      const viewport = baseLayer.getViewport({
+        eye: 'none',
+        projectionMatrix: new Float32Array(16),
+        transform: { 
+          inverse: { matrix: new Float32Array(16) },
+          matrix: new Float32Array(16),
+          orientation: new Float32Array(4),
+          position: new Float32Array(3)
+        }
+      }) || { width: 1920, height: 1080 }
+      
+      const width = viewport.width || 1920
+      const height = viewport.height || 1080
+      
+      // 读取像素数据
+      const pixels = new Uint8Array(width * height * 4)
+      gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+      
+      // 创建canvas并绘制像素数据
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      const imageData = ctx.createImageData(width, height)
+      
+      // 翻转Y轴（WebGL和Canvas的Y轴方向相反）
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const srcIdx = ((height - 1 - y) * width + x) * 4
+          const dstIdx = (y * width + x) * 4
+          imageData.data[dstIdx] = pixels[srcIdx]
+          imageData.data[dstIdx + 1] = pixels[srcIdx + 1]
+          imageData.data[dstIdx + 2] = pixels[srcIdx + 2]
+          imageData.data[dstIdx + 3] = pixels[srcIdx + 3]
+        }
+      }
+      
+      ctx.putImageData(imageData, 0, 0)
+      
+      // 转换为JPEG
+      const jpegData = canvas.toDataURL('image/jpeg', 0.9)
+      
+      // 记录相机位置
+      const cameraPosition = {
+        x: cameraRef.current.position.x,
+        y: cameraRef.current.position.y,
+        z: cameraRef.current.position.z
+      }
+      
+      const cameraRotation = {
+        x: cameraRef.current.rotation.x,
+        y: cameraRef.current.rotation.y,
+        z: cameraRef.current.rotation.z
+      }
+      
+      capturedImagesRef.current.push({
+        index: capturedImagesRef.current.length,
+        imageData: jpegData,
+        cameraPosition,
+        cameraRotation,
+        timestamp: Date.now()
+      })
+      
+      setCapturedCount(capturedImagesRef.current.length)
+      setDebugInfo(`已拍摄 ${capturedImagesRef.current.length}/${MAX_CAPTURES} 张`)
+      
+      if (capturedImagesRef.current.length >= MAX_CAPTURES) {
+        stopCapture()
+      }
+    } catch (err) {
+      console.error('捕获帧失败:', err)
+      setDebugInfo('捕获失败: ' + err.message)
     }
   }
   
