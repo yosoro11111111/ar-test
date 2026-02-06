@@ -54,16 +54,22 @@
 
 .info {
   display: flex;
-  gap: 16px;
+  gap: .info span {
   color: #fff;
   font-size: 14px;
   font-weight: 500;
-}
-
-.info span {
   background: rgba(0,255,136,0.3);
   padding: 6px 12px;
   border-radius: 16px;
+}
+
+.working {
+  background: rgba(0,255,136,0.5) !important;
+  color: #000 !important;
+}
+
+.notWorking {
+  background: rgba(255,193,7,0.5) !important;
 }
 
 .startBtn {
