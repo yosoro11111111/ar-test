@@ -15,6 +15,7 @@ import { ARImageImport } from './components/ar/ARImageImport/index.jsx'
 import { ARMMDDirector } from './components/ar/ARMMDDirector/index.jsx'
 import { ARSceneRecorderNew } from './components/ar/ARSceneRecorderNew.jsx'
 import { MobileRecordPage } from './components/ar/MobileRecordPage.jsx'
+import { WebXRARSceneRecorder } from './components/ar/ARMMDDirector/WebXRARSceneRecorder.jsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -33,7 +34,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/ar-director/export-pro/:sceneId" element={<ARExportPro />} />
         <Route path="/ar-director/import-image" element={<ARImageImport />} />
         <Route path="/ar-director/mmd" element={<ARMMDDirector />} />
-        <Route path="/ar-director/record" element={<ARSceneRecorderNew />} />
+        <Route path="/ar-director/record" element={<WebXRARSceneRecorder isOpen={true} onClose={() => window.location.href='/ar-director'} onSceneRecorded={(data) => console.log('场景录制完成:', data)} />} />
         <Route path="/ar-director/mobile-record" element={<MobileRecordPage />} />
         
         {/* 旧版兼容 */}
