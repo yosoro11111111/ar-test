@@ -94,68 +94,6 @@ export function ARMMDDirector() {
     return () => window.removeEventListener('resize', checkMobile)
   }, [])
   
-  // 键盘快捷键
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      // 如果在输入框中，不处理快捷键
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
-      
-      if (e.ctrlKey || e.metaKey) {
-        switch(e.key.toLowerCase()) {
-          case 'z':
-            e.preventDefault()
-            if (e.shiftKey) {
-              redo()
-            } else {
-              undo()
-            }
-            break
-          case 's':
-            e.preventDefault()
-            saveProject()
-            break
-          case 'c':
-            if (e.shiftKey) {
-              e.preventDefault()
-              copySelectedClips()
-            }
-            break
-          case 'v':
-            if (e.shiftKey) {
-              e.preventDefault()
-              pasteClips()
-            }
-            break
-        }
-      } else {
-        switch(e.key) {
-          case ' ':
-            e.preventDefault()
-            togglePlay()
-            break
-          case 'Delete':
-          case 'Backspace':
-            if (editingCell) {
-              e.preventDefault()
-              deleteCell(editingCell.trackId, editingCell.cell.id)
-            }
-            break
-          case 'ArrowLeft':
-            e.preventDefault()
-            setCurrentTime(prev => Math.max(0, prev - 0.1))
-            break
-          case 'ArrowRight':
-            e.preventDefault()
-            setCurrentTime(prev => Math.min(project.duration, prev + 0.1))
-            break
-        }
-      }
-    }
-    
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [undo, redo, saveProject, togglePlay, editingCell, deleteCell, project.duration])
-  
   // 弹窗状态
   const [showCharacterModal, setShowCharacterModal] = useState(false)
   const [showCellEditModal, setShowCellEditModal] = useState(false)
@@ -223,6 +161,68 @@ export function ARMMDDirector() {
     }
   }, [])
   
+  // 键盘快捷键
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // 如果在输入框中，不处理快捷键
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      
+      if (e.ctrlKey || e.metaKey) {
+        switch(e.key.toLowerCase()) {
+          case 'z':
+            e.preventDefault()
+            if (e.shiftKey) {
+              redo()
+            } else {
+              undo()
+            }
+            break
+          case 's':
+            e.preventDefault()
+            saveProject()
+            break
+          case 'c':
+            if (e.shiftKey) {
+              e.preventDefault()
+              copySelectedClips()
+            }
+            break
+          case 'v':
+            if (e.shiftKey) {
+              e.preventDefault()
+              pasteClips()
+            }
+            break
+        }
+      } else {
+        switch(e.key) {
+          case ' ':
+            e.preventDefault()
+            togglePlay()
+            break
+          case 'Delete':
+          case 'Backspace':
+            if (editingCell) {
+              e.preventDefault()
+              deleteCell(editingCell.trackId, editingCell.cell.id)
+            }
+            break
+          case 'ArrowLeft':
+            e.preventDefault()
+            setCurrentTime(prev => Math.max(0, prev - 0.1))
+            break
+          case 'ArrowRight':
+            e.preventDefault()
+            setCurrentTime(prev => Math.min(project.duration, prev + 0.1))
+            break
+        }
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [undo, redo, saveProject, togglePlay, editingCell, deleteCell, project.duration])
+  
   // 初始化Three.js - 只在previewOpen变为true时初始化
   useEffect(() => {
     if (previewOpen && !rendererRef.current) {
@@ -242,13 +242,15 @@ export function ARMMDDirector() {
   useEffect(() => {
     if (isPlaying && previewOpen) {
       const startTime = performance.now() - currentTime * 1000
+      const endTime = getTimelineEndTime() // 获取时间轴最大时间
       
       const playLoop = () => {
         const elapsed = (performance.now() - startTime) / 1000
         
-        if (elapsed >= project.duration) {
+        if (elapsed >= endTime) {
+          // 到达时间轴末尾，停止播放并返回0秒
           setIsPlaying(false)
-          setCurrentTime(project.duration)
+          setCurrentTime(0)
         } else {
           setCurrentTime(elapsed)
           updateSceneAtTime(elapsed)
