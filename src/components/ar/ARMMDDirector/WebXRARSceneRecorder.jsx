@@ -18,7 +18,6 @@ export function WebXRARSceneRecorder({
   const rendererRef = useRef(null)
   const cameraRef = useRef(null)
   const streamRef = useRef(null)
-  const captureIntervalRef = useRef(null)
   const capturedImagesRef = useRef([])
   const lastCaptureTimeRef = useRef(0)
   
@@ -136,25 +135,31 @@ export function WebXRARSceneRecorder({
     
     setDebugInfo(`开始拍摄，每${CAPTURE_INTERVAL/1000}秒拍摄一张，共${MAX_CAPTURES}张\n请移动相机拍摄不同角度`)
 
-    captureIntervalRef.current = setInterval(() => {
-      captureFrame()
-    }, CAPTURE_INTERVAL)
+    // 使用 requestAnimationFrame 循环来拍摄，确保捕获到最新帧
+    const captureLoop = () => {
+      if (!isCapturing || capturedImagesRef.current.length >= MAX_CAPTURES) {
+        return
+      }
+      
+      const now = Date.now()
+      if (now - lastCaptureTimeRef.current >= CAPTURE_INTERVAL) {
+        captureFrame(now)
+      }
+      
+      requestAnimationFrame(captureLoop)
+    }
+    
+    requestAnimationFrame(captureLoop)
   }
   
   // 拍摄单帧 - 从普通摄像头捕获
-  const captureFrame = () => {
+  const captureFrame = (now) => {
     if (capturedImagesRef.current.length >= MAX_CAPTURES) {
       stopCapture()
       return
     }
     
     if (!videoRef.current || !cameraRef.current) return
-    
-    // 检查时间间隔
-    const now = Date.now()
-    if (now - lastCaptureTimeRef.current < CAPTURE_INTERVAL) {
-      return
-    }
     
     // 获取当前相机位置
     const currentPosition = {
@@ -222,11 +227,6 @@ export function WebXRARSceneRecorder({
   
   // 停止拍摄
   const stopCapture = () => {
-    if (captureIntervalRef.current) {
-      clearInterval(captureIntervalRef.current)
-      captureIntervalRef.current = null
-    }
-    
     setIsCapturing(false)
     setDebugInfo(`拍摄完成！共${capturedImagesRef.current.length}张图片`)
   }
