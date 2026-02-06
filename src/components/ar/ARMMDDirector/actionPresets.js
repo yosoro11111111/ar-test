@@ -188,6 +188,251 @@ export const PRESET_TAGS = [
   { id: 'other', name: '其他', icon: '📦', color: '#888' }
 ]
 
+// 20个默认动作合集预设
+export const DEFAULT_PRESETS = [
+  {
+    id: 'preset_dance_basic',
+    name: '基础舞蹈合集',
+    description: '包含基础舞蹈动作，适合初学者',
+    actions: [
+      { actionId: 'dance.vrma', actionData: { name: '舞蹈', category: 'dance' }, startTime: 0, duration: 3 },
+      { actionId: 'wave.vrma', actionData: { name: '挥手', category: 'gesture' }, startTime: 3, duration: 2 },
+      { actionId: 'happy.vrma', actionData: { name: '开心', category: 'emotion' }, startTime: 5, duration: 2 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_fight_combo',
+    name: '战斗连击合集',
+    description: '连续战斗动作组合',
+    actions: [
+      { actionId: 'fight.vrma', actionData: { name: '战斗', category: 'fight' }, startTime: 0, duration: 2 },
+      { actionId: 'jump.vrma', actionData: { name: '跳跃', category: 'movement' }, startTime: 2, duration: 1.5 },
+      { actionId: 'run.vrma', actionData: { name: '跑步', category: 'movement' }, startTime: 3.5, duration: 2 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_idle_various',
+    name: '待机动作合集',
+    description: '各种待机姿势',
+    actions: [
+      { actionId: 'idle.vrma', actionData: { name: '待机', category: 'idle' }, startTime: 0, duration: 3 },
+      { actionId: 'stand.vrma', actionData: { name: '站立', category: 'idle' }, startTime: 3, duration: 2 },
+      { actionId: 'sit.vrma', actionData: { name: '坐下', category: 'idle' }, startTime: 5, duration: 3 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_emotion_set',
+    name: '情感表达合集',
+    description: '丰富的情感表达动作',
+    actions: [
+      { actionId: 'happy.vrma', actionData: { name: '开心', category: 'emotion' }, startTime: 0, duration: 2 },
+      { actionId: 'sad.vrma', actionData: { name: '悲伤', category: 'emotion' }, startTime: 2, duration: 2.5 },
+      { actionId: 'wave.vrma', actionData: { name: '挥手', category: 'gesture' }, startTime: 4.5, duration: 1.5 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_sport_fitness',
+    name: '健身运动合集',
+    description: '健身相关动作',
+    actions: [
+      { actionId: 'run.vrma', actionData: { name: '跑步', category: 'sport' }, startTime: 0, duration: 3 },
+      { actionId: 'jump.vrma', actionData: { name: '跳跃', category: 'sport' }, startTime: 3, duration: 1.5 },
+      { actionId: 'walk.vrma', actionData: { name: '走路', category: 'movement' }, startTime: 4.5, duration: 2.5 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_greeting',
+    name: '问候礼仪合集',
+    description: '各种问候动作',
+    actions: [
+      { actionId: 'wave.vrma', actionData: { name: '挥手', category: 'gesture' }, startTime: 0, duration: 2 },
+      { actionId: 'stand.vrma', actionData: { name: '站立', category: 'idle' }, startTime: 2, duration: 1.5 },
+      { actionId: 'happy.vrma', actionData: { name: '开心', category: 'emotion' }, startTime: 3.5, duration: 2 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_walk_cycle',
+    name: '行走循环合集',
+    description: '各种行走方式',
+    actions: [
+      { actionId: 'walk.vrma', actionData: { name: '走路', category: 'movement' }, startTime: 0, duration: 3 },
+      { actionId: 'run.vrma', actionData: { name: '跑步', category: 'movement' }, startTime: 3, duration: 2.5 },
+      { actionId: 'idle.vrma', actionData: { name: '待机', category: 'idle' }, startTime: 5.5, duration: 2 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_performance',
+    name: '表演动作合集',
+    description: '舞台表演动作',
+    actions: [
+      { actionId: 'dance.vrma', actionData: { name: '舞蹈', category: 'dance' }, startTime: 0, duration: 4 },
+      { actionId: 'happy.vrma', actionData: { name: '开心', category: 'emotion' }, startTime: 4, duration: 2 },
+      { actionId: 'wave.vrma', actionData: { name: '挥手', category: 'gesture' }, startTime: 6, duration: 2 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_daily_life',
+    name: '日常生活合集',
+    description: '日常动作组合',
+    actions: [
+      { actionId: 'sit.vrma', actionData: { name: '坐下', category: 'idle' }, startTime: 0, duration: 2.5 },
+      { actionId: 'stand.vrma', actionData: { name: '站立', category: 'idle' }, startTime: 2.5, duration: 1.5 },
+      { actionId: 'walk.vrma', actionData: { name: '走路', category: 'movement' }, startTime: 4, duration: 3 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_action_movie',
+    name: '动作电影合集',
+    description: '电影风格动作',
+    actions: [
+      { actionId: 'fight.vrma', actionData: { name: '战斗', category: 'fight' }, startTime: 0, duration: 2.5 },
+      { actionId: 'jump.vrma', actionData: { name: '跳跃', category: 'movement' }, startTime: 2.5, duration: 1.5 },
+      { actionId: 'run.vrma', actionData: { name: '跑步', category: 'movement' }, startTime: 4, duration: 3 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_cute_style',
+    name: '可爱风格合集',
+    description: '萌系可爱动作',
+    actions: [
+      { actionId: 'happy.vrma', actionData: { name: '开心', category: 'emotion' }, startTime: 0, duration: 2.5 },
+      { actionId: 'wave.vrma', actionData: { name: '挥手', category: 'gesture' }, startTime: 2.5, duration: 2 },
+      { actionId: 'jump.vrma', actionData: { name: '跳跃', category: 'movement' }, startTime: 4.5, duration: 1.5 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_cool_style',
+    name: '酷炫风格合集',
+    description: '帅气酷炫动作',
+    actions: [
+      { actionId: 'fight.vrma', actionData: { name: '战斗', category: 'fight' }, startTime: 0, duration: 2.5 },
+      { actionId: 'dance.vrma', actionData: { name: '舞蹈', category: 'dance' }, startTime: 2.5, duration: 3.5 },
+      { actionId: 'run.vrma', actionData: { name: '跑步', category: 'movement' }, startTime: 6, duration: 2.5 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_relax',
+    name: '放松休闲合集',
+    description: '轻松休闲动作',
+    actions: [
+      { actionId: 'idle.vrma', actionData: { name: '待机', category: 'idle' }, startTime: 0, duration: 3.5 },
+      { actionId: 'sit.vrma', actionData: { name: '坐下', category: 'idle' }, startTime: 3.5, duration: 3 },
+      { actionId: 'happy.vrma', actionData: { name: '开心', category: 'emotion' }, startTime: 6.5, duration: 2 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_energetic',
+    name: '活力四射合集',
+    description: '充满活力的动作',
+    actions: [
+      { actionId: 'run.vrma', actionData: { name: '跑步', category: 'movement' }, startTime: 0, duration: 2.5 },
+      { actionId: 'jump.vrma', actionData: { name: '跳跃', category: 'movement' }, startTime: 2.5, duration: 1.5 },
+      { actionId: 'dance.vrma', actionData: { name: '舞蹈', category: 'dance' }, startTime: 4, duration: 4 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_sad_story',
+    name: '悲伤故事合集',
+    description: '情感深沉的动作',
+    actions: [
+      { actionId: 'sad.vrma', actionData: { name: '悲伤', category: 'emotion' }, startTime: 0, duration: 3.5 },
+      { actionId: 'sit.vrma', actionData: { name: '坐下', category: 'idle' }, startTime: 3.5, duration: 2.5 },
+      { actionId: 'idle.vrma', actionData: { name: '待机', category: 'idle' }, startTime: 6, duration: 3 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_celebration',
+    name: '庆祝动作合集',
+    description: '庆祝胜利的动作',
+    actions: [
+      { actionId: 'happy.vrma', actionData: { name: '开心', category: 'emotion' }, startTime: 0, duration: 2.5 },
+      { actionId: 'jump.vrma', actionData: { name: '跳跃', category: 'movement' }, startTime: 2.5, duration: 1.5 },
+      { actionId: 'wave.vrma', actionData: { name: '挥手', category: 'gesture' }, startTime: 4, duration: 2.5 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_training',
+    name: '训练动作合集',
+    description: '训练相关动作',
+    actions: [
+      { actionId: 'run.vrma', actionData: { name: '跑步', category: 'sport' }, startTime: 0, duration: 3 },
+      { actionId: 'fight.vrma', actionData: { name: '战斗', category: 'fight' }, startTime: 3, duration: 2.5 },
+      { actionId: 'jump.vrma', actionData: { name: '跳跃', category: 'sport' }, startTime: 5.5, duration: 1.5 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_street_dance',
+    name: '街舞合集',
+    description: '街头舞蹈动作',
+    actions: [
+      { actionId: 'dance.vrma', actionData: { name: '舞蹈', category: 'dance' }, startTime: 0, duration: 4 },
+      { actionId: 'run.vrma', actionData: { name: '跑步', category: 'movement' }, startTime: 4, duration: 2 },
+      { actionId: 'wave.vrma', actionData: { name: '挥手', category: 'gesture' }, startTime: 6, duration: 2 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_morning_routine',
+    name: '晨间 routine 合集',
+    description: '早晨日常动作',
+    actions: [
+      { actionId: 'idle.vrma', actionData: { name: '待机', category: 'idle' }, startTime: 0, duration: 2 },
+      { actionId: 'stand.vrma', actionData: { name: '站立', category: 'idle' }, startTime: 2, duration: 1.5 },
+      { actionId: 'walk.vrma', actionData: { name: '走路', category: 'movement' }, startTime: 3.5, duration: 2.5 },
+      { actionId: 'happy.vrma', actionData: { name: '开心', category: 'emotion' }, startTime: 6, duration: 2 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  },
+  {
+    id: 'preset_night_out',
+    name: '夜间外出合集',
+    description: '夜晚活动动作',
+    actions: [
+      { actionId: 'walk.vrma', actionData: { name: '走路', category: 'movement' }, startTime: 0, duration: 3 },
+      { actionId: 'dance.vrma', actionData: { name: '舞蹈', category: 'dance' }, startTime: 3, duration: 4 },
+      { actionId: 'wave.vrma', actionData: { name: '挥手', category: 'gesture' }, startTime: 7, duration: 2 }
+    ],
+    createdAt: Date.now(),
+    updatedAt: Date.now()
+  }
+]
+
 // 本地存储预设
 const STORAGE_KEY = 'mmd_action_presets'
 
@@ -202,10 +447,16 @@ export const savePresetsToStorage = (presets) => {
 export const loadPresetsFromStorage = () => {
   try {
     const data = localStorage.getItem(STORAGE_KEY)
-    return data ? JSON.parse(data) : []
+    // 如果没有数据，返回默认预设
+    if (!data) {
+      return DEFAULT_PRESETS
+    }
+    const savedPresets = JSON.parse(data)
+    // 合并默认预设和用户保存的预设
+    return [...DEFAULT_PRESETS, ...savedPresets.filter(p => !DEFAULT_PRESETS.find(dp => dp.id === p.id))]
   } catch (e) {
     console.error('加载预设失败:', e)
-    return []
+    return DEFAULT_PRESETS
   }
 }
 

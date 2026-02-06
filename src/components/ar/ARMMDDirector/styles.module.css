@@ -86,9 +86,9 @@
   align-items: center;
   justify-content: center;
   background: #0a0a0f;
-  padding: 16px;
-  min-height: 300px;
-  max-height: 60vh;
+  padding: 20px;
+  min-height: 400px;
+  max-height: 70vh;
 }
 
 .previewPlaceholder {
@@ -121,9 +121,9 @@
 
 .previewContainer {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1400px;
   height: 100%;
-  max-height: 55vh;
+  max-height: 65vh;
   background: #15151a;
   border-radius: 16px;
   overflow: hidden;
