@@ -1,27 +1,26 @@
-/* 真实AR场景录制组件样式 */
+/* 真实AR场景录制组件样式 - 修复版 */
 
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 0.95);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  padding: 20px;
+  z-index: 10000;
+  padding: 0;
 }
 
 .modal {
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  border-radius: 16px;
+  border-radius: 0;
   width: 100%;
-  max-width: 1200px;
-  max-height: 90vh;
+  height: 100%;
+  max-width: none;
+  max-height: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
 /* 头部 */
@@ -29,17 +28,19 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.5);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
 }
 
 .header h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
   color: #fff;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .closeBtn {
@@ -51,72 +52,28 @@
   border-radius: 50%;
   cursor: pointer;
   font-size: 18px;
-  transition: all 0.2s;
-}
-
-.closeBtn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: rotate(90deg);
-}
-
-/* 步骤指示器 */
-.steps {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px 24px;
-  gap: 8px;
-  background: rgba(0, 0, 0, 0.2);
 }
 
-.step {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 14px;
-  transition: all 0.3s;
-}
-
-.step.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+/* 错误提示横幅 */
+.errorBanner {
+  background: rgba(239, 68, 68, 0.9);
   color: #fff;
-}
-
-.stepNumber {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: bold;
-}
-
-.step.active .stepNumber {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-.stepLine {
-  width: 40px;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-/* 错误提示 */
-.error {
-  margin: 16px 24px 0;
   padding: 12px 16px;
-  background: rgba(239, 68, 68, 0.2);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 8px;
-  color: #fca5a5;
-  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.errorBanner button {
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
 }
 
 /* 主内容区 */
@@ -124,34 +81,71 @@
   display: flex;
   flex: 1;
   overflow: hidden;
-  padding: 20px;
-  gap: 20px;
+  flex-direction: column;
 }
 
 /* AR视图区 */
 .arViewArea {
   flex: 1;
-  background: #000;
-  border-radius: 12px;
-  overflow: hidden;
   position: relative;
-  min-height: 400px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: #000;
+  overflow: hidden;
+  min-height: 0;
 }
 
+/* 视频层 */
 .video {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
+  z-index: 1;
 }
 
-/* 预览覆盖层 */
+/* AR Canvas叠加层 */
+.arCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* 加载中 */
+.loadingOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  color: #fff;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #00ff88;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* 完成预览 */
 .previewOverlay {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.85);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -160,92 +154,72 @@
 
 .previewContent {
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  padding: 40px;
+  padding: 32px 24px;
   border-radius: 16px;
   text-align: center;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  max-width: 90%;
 }
 
 .previewContent h3 {
   color: #00ff88;
-  font-size: 24px;
-  margin: 0 0 16px 0;
+  font-size: 22px;
+  margin: 0 0 12px 0;
 }
 
 .previewContent p {
   color: rgba(255, 255, 255, 0.8);
   margin: 8px 0;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 /* 控制面板 */
 .controls {
-  width: 320px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 12px 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
+  max-height: 35vh;
   overflow-y: auto;
-  padding-right: 8px;
-}
-
-.controls::-webkit-scrollbar {
-  width: 6px;
-}
-
-.controls::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 3px;
-}
-
-.controls::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
+  flex-shrink: 0;
 }
 
 .formGroup {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .formGroup label {
   color: rgba(255, 255, 255, 0.7);
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 13px;
 }
 
 .input {
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
   color: #fff;
   font-size: 14px;
-  transition: all 0.2s;
-}
-
-.input:focus {
-  outline: none;
-  border-color: #667eea;
-  background: rgba(255, 255, 255, 0.1);
 }
 
 .input:disabled {
   opacity: 0.5;
-  cursor: not-allowed;
 }
 
 /* 平面列表 */
 .planeList {
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 12px;
-  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 12px;
 }
 
 .planeList h4 {
-  margin: 0 0 12px 0;
+  margin: 0 0 10px 0;
   color: rgba(255, 255, 255, 0.9);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .planeItem {
@@ -253,21 +227,16 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
   margin-bottom: 8px;
   cursor: pointer;
-  transition: all 0.2s;
   border: 2px solid transparent;
-}
-
-.planeItem:hover {
-  background: rgba(255, 255, 255, 0.1);
 }
 
 .planeItem.selected {
   border-color: #00ff88;
-  background: rgba(0, 255, 136, 0.1);
+  background: rgba(0, 255, 136, 0.15);
 }
 
 .planeItem span {
@@ -276,145 +245,123 @@
 }
 
 .deleteBtn {
-  background: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.3);
   border: none;
-  color: #fca5a5;
-  width: 28px;
-  height: 28px;
+  color: #fff;
+  width: 32px;
+  height: 32px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-.deleteBtn:hover:not(:disabled) {
-  background: rgba(239, 68, 68, 0.4);
-}
-
-.deleteBtn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
+  font-size: 16px;
 }
 
 /* 平面编辑器 */
 .planeEditor {
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 12px;
-  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 12px;
 }
 
 .planeEditor h4 {
-  margin: 0 0 12px 0;
+  margin: 0 0 10px 0;
   color: rgba(255, 255, 255, 0.9);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .formRow {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .formRow label {
   color: rgba(255, 255, 255, 0.6);
   font-size: 13px;
-  width: 60px;
+  width: 50px;
 }
 
 .numberInput {
   flex: 1;
   padding: 8px 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 6px;
   color: #fff;
   font-size: 14px;
 }
 
-.numberInput:focus {
-  outline: none;
-  border-color: #667eea;
-}
-
 /* 使用说明 */
 .instructions {
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 12px;
-  padding: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 12px;
 }
 
 .instructions h4 {
-  margin: 0 0 12px 0;
+  margin: 0 0 8px 0;
   color: rgba(255, 255, 255, 0.9);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .instructions ol {
   margin: 0;
-  padding-left: 20px;
+  padding-left: 18px;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 13px;
-  line-height: 1.8;
-}
-
-.instructions li {
-  margin-bottom: 4px;
+  font-size: 12px;
+  line-height: 1.7;
 }
 
 /* 底部操作栏 */
 .footer {
-  padding: 16px 24px;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.7);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
 }
 
 .actionControls,
 .exportControls {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
 }
 
 /* 按钮样式 */
 .switchBtn,
 .resetBtn {
-  padding: 12px 20px;
+  padding: 14px 12px;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 10px;
   color: #fff;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
 }
 
-.switchBtn:hover,
-.resetBtn:hover {
-  background: rgba(255, 255, 255, 0.2);
+.switchBtn:disabled,
+.resetBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .placeBtn {
-  padding: 12px 20px;
-  background: rgba(0, 255, 136, 0.1);
+  padding: 14px 12px;
+  background: rgba(0, 255, 136, 0.15);
   border: 2px solid #00ff88;
   border-radius: 10px;
   color: #00ff88;
   font-size: 14px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  font-weight: 600;
-}
-
-.placeBtn:hover {
-  background: rgba(0, 255, 136, 0.2);
 }
 
 .placeBtn.active {
@@ -422,8 +369,13 @@
   color: #000;
 }
 
+.placeBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .exportBtn {
-  padding: 12px 24px;
+  padding: 14px 12px;
   background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
   border: none;
   border-radius: 10px;
@@ -431,24 +383,20 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-}
-
-.exportBtn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(245, 87, 108, 0.4);
+  grid-column: span 2;
 }
 
 .exportBtn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .newBtn {
-  padding: 12px 24px;
+  padding: 14px 12px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
   border-radius: 10px;
@@ -456,30 +404,16 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.newBtn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
 }
 
 .closeBtn2 {
-  padding: 12px 24px;
+  padding: 14px 12px;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 10px;
   color: #fff;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s;
-}
-
-.closeBtn2:hover {
-  background: rgba(255, 255, 255, 0.2);
 }
 
 /* 提示信息 */
@@ -488,240 +422,83 @@
   bottom: 100px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.85);
   color: #00ff88;
-  padding: 12px 24px;
+  padding: 12px 20px;
   border-radius: 8px;
   font-size: 14px;
-  pointer-events: none;
-  animation: pulse 2s infinite;
   z-index: 100;
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.7;
-  }
-}
-
-/* 响应式 - 平板 */
-@media (max-width: 1024px) {
-  .content {
-    flex-direction: column;
-  }
-  
-  .controls {
-    width: 100%;
-    max-height: 250px;
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-  
-  .formGroup,
-  .planeList,
-  .planeEditor,
-  .instructions {
-    flex: 1;
-    min-width: 200px;
-  }
-  
-  .arViewArea {
-    min-height: 350px;
-  }
-}
-
-/* 响应式 - 手机 */
-@media (max-width: 768px) {
-  .overlay {
-    padding: 0;
-  }
-  
-  .modal {
-    max-height: 100vh;
-    border-radius: 0;
-  }
-  
-  .header {
-    padding: 12px 16px;
-  }
-  
-  .header h2 {
-    font-size: 16px;
-  }
-  
-  .steps {
-    padding: 12px;
-    gap: 4px;
-  }
-  
-  .step {
-    padding: 6px 10px;
-    font-size: 12px;
-  }
-  
-  .stepLine {
-    width: 20px;
-  }
-  
-  .content {
-    padding: 12px;
-    gap: 12px;
-    flex-direction: column;
-  }
-  
-  .arViewArea {
-    min-height: 300px;
-    order: 1;
-  }
-  
-  .controls {
-    width: 100%;
-    max-height: 200px;
-    order: 2;
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .formGroup,
-  .planeList,
-  .planeEditor,
-  .instructions {
-    min-width: auto;
-  }
-  
-  .planeList,
-  .planeEditor,
-  .instructions {
-    padding: 12px;
-  }
-  
-  .planeItem {
-    padding: 8px 10px;
-  }
-  
-  .footer {
-    padding: 12px;
-  }
-  
-  .actionControls,
-  .exportControls {
-    gap: 8px;
-  }
-  
-  .switchBtn,
-  .resetBtn,
-  .placeBtn,
-  .exportBtn,
-  .newBtn,
-  .closeBtn2 {
-    padding: 10px 14px;
-    font-size: 13px;
-    flex: 1;
-    min-width: 100px;
-    justify-content: center;
-  }
-  
-  .previewContent {
-    padding: 24px;
-    margin: 16px;
-  }
-  
-  .previewContent h3 {
-    font-size: 18px;
-  }
-  
-  .previewContent p {
-    font-size: 14px;
-  }
-  
-  .tip {
-    bottom: 80px;
-    padding: 10px 16px;
-    font-size: 13px;
-    width: 90%;
-    text-align: center;
-  }
-}
-
-/* 小屏幕手机 */
-@media (max-width: 480px) {
-  .header h2 {
-    font-size: 14px;
-  }
-  
-  .closeBtn {
-    width: 32px;
-    height: 32px;
-    font-size: 16px;
-  }
-  
-  .arViewArea {
-    min-height: 250px;
-  }
-  
-  .controls {
-    max-height: 180px;
-  }
-  
-  .formRow {
-    gap: 8px;
-  }
-  
-  .formRow label {
-    width: 50px;
-    font-size: 12px;
-  }
-  
-  .numberInput {
-    padding: 6px 8px;
-    font-size: 13px;
-  }
-  
-  .actionControls {
-    flex-direction: column;
-  }
-  
-  .switchBtn,
-  .resetBtn,
-  .placeBtn,
-  .exportBtn {
-    width: 100%;
-  }
+  white-space: nowrap;
 }
 
 /* 横屏模式 */
-@media (max-height: 600px) and (orientation: landscape) {
-  .overlay {
-    padding: 8px;
-  }
-  
-  .modal {
-    max-height: 95vh;
-  }
-  
+@media (orientation: landscape) and (max-height: 500px) {
   .content {
     flex-direction: row;
   }
   
   .arViewArea {
-    min-height: 200px;
     flex: 2;
   }
   
   .controls {
     width: 280px;
     max-height: none;
+    flex: 1;
   }
   
-  .steps {
-    padding: 8px;
+  .footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 280px;
+    background: rgba(0, 0, 0, 0.8);
+  }
+}
+
+/* 平板 */
+@media (min-width: 768px) {
+  .overlay {
+    padding: 20px;
   }
   
-  .step {
-    padding: 4px 8px;
-    font-size: 11px;
+  .modal {
+    border-radius: 16px;
+    max-width: 1000px;
+    max-height: 90vh;
+    height: auto;
+  }
+  
+  .content {
+    flex-direction: row;
+  }
+  
+  .arViewArea {
+    flex: 2;
+    min-height: 400px;
+  }
+  
+  .controls {
+    width: 300px;
+    max-height: none;
+  }
+  
+  .actionControls {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  .exportBtn {
+    grid-column: span 1;
+  }
+}
+
+/* 桌面 */
+@media (min-width: 1024px) {
+  .modal {
+    max-width: 1200px;
+  }
+  
+  .controls {
+    width: 320px;
   }
 }
