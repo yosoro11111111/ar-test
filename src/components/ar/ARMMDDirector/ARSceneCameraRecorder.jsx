@@ -189,37 +189,43 @@ export function ARSceneCameraRecorder({
 
   // 模拟AR平面检测（用于不支持AR的设备）
   const simulateARDetection = () => {
-    console.log('开始模拟平面检测')
+    console.log('开始模拟平面检测 - 手动模式')
     setIsARDetecting(true)
     isARDetectingRef.current = true
-    let count = 0
     
-    const detectInterval = setInterval(() => {
-      if (count >= 3 || !isARDetectingRef.current) {
-        console.log('停止模拟检测')
-        clearInterval(detectInterval)
-        return
-      }
-      
-      console.log(`模拟检测平面 ${count + 1}`)
-      
-      // 模拟检测到平面
-      const mockPlane = {
-        uuid: `mock_plane_${count}`,
-        polygon: [
-          { x: -1, y: 0, z: -1 },
-          { x: 1, y: 0, z: -1 },
-          { x: 1, y: 0, z: 1 },
-          { x: -1, y: 0, z: 1 }
-        ],
-        center: { x: 0, y: 0, z: -2 - count * 0.5 },
-        extent: { width: 2, height: 2 }
-      }
-      
-      setDetectedPlaneCount(prev => prev + 1)
-      captureNormalPhoto(mockPlane)
-      count++
-    }, 2000)
+    // 不再自动检测，等待用户点击"检测平面"按钮
+    // 这样可以手动控制检测时机
+  }
+  
+  // 手动检测平面
+  const manualDetectPlane = () => {
+    if (!isARDetectingRef.current) {
+      console.log('检测未开始')
+      return
+    }
+    
+    const count = detectedPlanesRef.current.size
+    
+    // 模拟检测到平面
+    const mockPlane = {
+      uuid: `mock_plane_${count}_${Date.now()}`,
+      polygon: [
+        { x: -1, y: 0, z: -1 },
+        { x: 1, y: 0, z: -1 },
+        { x: 1, y: 0, z: 1 },
+        { x: -1, y: 0, z: 1 }
+      ],
+      center: { 
+        x: (Math.random() - 0.5) * 2, 
+        y: 0, 
+        z: -2 - count * 0.8 
+      },
+      extent: { width: 2, height: 2 }
+    }
+    
+    console.log(`手动检测平面 ${count + 1}`)
+    setDetectedPlaneCount(prev => prev + 1)
+    captureNormalPhoto(mockPlane)
   }
 
   // AR拍照
@@ -288,14 +294,22 @@ export function ARSceneCameraRecorder({
       return
     }
     
-    setIsCapturing(true)
-    
     const video = videoRef.current
+    
+    // 检查视频是否准备好
+    if (!video.videoWidth || !video.videoHeight) {
+      console.error('视频尺寸为0，等待视频加载...')
+      // 延迟1秒后重试
+      setTimeout(() => captureNormalPhoto(mockPlane), 1000)
+      return
+    }
+    
+    setIsCapturing(true)
     
     // 创建临时 canvas 来捕获视频帧
     const canvas = document.createElement('canvas')
-    canvas.width = video.videoWidth || 1920
-    canvas.height = video.videoHeight || 1080
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
     
     const ctx = canvas.getContext('2d')
     if (!ctx) {
@@ -305,9 +319,23 @@ export function ARSceneCameraRecorder({
     }
     
     try {
+      // 绘制视频帧
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
       
-      const imageData = canvas.toDataURL('image/jpeg', 0.9)
+      // 检查画布是否为空（黑色）
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const isBlack = imageData.data.every((val, i) => i % 4 === 3 || val === 0)
+      
+      if (isBlack) {
+        console.warn('图片为黑色，可能是视频还没准备好，1秒后重试')
+        setTimeout(() => {
+          setIsCapturing(false)
+          captureNormalPhoto(mockPlane)
+        }, 1000)
+        return
+      }
+      
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
       
       // 模拟平面在图片中的位置
       const imagePosition = {
@@ -332,7 +360,7 @@ export function ARSceneCameraRecorder({
       
       setCapturedImages(prev => [...prev, {
         id: Date.now(),
-        image: imageData,
+        image: dataUrl,
         plane: planeData
       }])
       
@@ -767,6 +795,13 @@ sceneData.planes.forEach(plane => {
               
               {isCameraActive && (
                 <div className={styles.cameraControls}>
+                  <button 
+                    className={styles.detectBtn}
+                    onClick={manualDetectPlane}
+                    disabled={isCapturing}
+                  >
+                    🎯 检测当前平面
+                  </button>
                   <button 
                     className={styles.finishBtn}
                     onClick={finishCapture}

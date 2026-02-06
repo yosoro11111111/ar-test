@@ -199,6 +199,30 @@
   padding: 20px;
   display: flex;
   justify-content: center;
+  gap: 16px;
+}
+
+.detectBtn {
+  padding: 16px 32px;
+  background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
+  color: #000;
+  border: none;
+  border-radius: 30px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.detectBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 255, 136, 0.4);
+}
+
+.detectBtn:disabled {
+  background: #444;
+  color: #888;
+  cursor: not-allowed;
 }
 
 .finishBtn {
