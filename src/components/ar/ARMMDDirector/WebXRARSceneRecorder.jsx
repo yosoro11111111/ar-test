@@ -204,6 +204,22 @@ export function WebXRARSceneRecorder({
         // 每帧递增计数器
         frameCountRef.current++
         
+        // 获取视图和渲染层
+        const view = pose.views[0]
+        const glLayer = session.renderState.baseLayer
+        
+        // 绑定帧缓冲（必须在渲染前）
+        const gl = renderer.getContext()
+        gl.bindFramebuffer(gl.FRAMEBUFFER, glLayer.framebuffer)
+        
+        // 设置视口
+        const viewport = glLayer.getViewport(view)
+        gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height)
+        
+        // 更新相机
+        camera.matrix.fromArray(view.transform.matrix)
+        camera.matrix.decompose(camera.position, camera.quaternion, camera.scale)
+        
         // Hit Test - 检测地面
         let hitResults = []
         let hitTestError = null
@@ -247,19 +263,8 @@ export function WebXRARSceneRecorder({
           }
         }
         
-        // 更新相机
-        const view = pose.views[0]
-        camera.matrix.fromArray(view.transform.matrix)
-        camera.matrix.decompose(camera.position, camera.quaternion, camera.scale)
-        
-        // 绑定帧缓冲
-        const glLayer = session.renderState.baseLayer
-        const gl = renderer.getContext()
-        gl.bindFramebuffer(gl.FRAMEBUFFER, glLayer.framebuffer)
-        
-        // 设置视口
-        const viewport = glLayer.getViewport(view)
-        gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height)
+        // 渲染场景
+        renderer.render(scene, camera)
       } else {
         // 每60帧更新一次状态
         if (frameCountRef.current % 60 === 0) {
@@ -267,7 +272,6 @@ export function WebXRARSceneRecorder({
         }
       }
       
-      renderer.render(scene, camera)
       session.requestAnimationFrame(loop)
     }
     
