@@ -166,11 +166,25 @@ export function WebXRARSceneRecorder({
     try {
       // 从普通摄像头视频元素捕获画面
       const video = videoRef.current
+      
+      // 确保视频已经准备好
+      if (video.readyState < 2) {
+        console.log('视频未准备好，跳过')
+        return
+      }
+      
       const canvas = document.createElement('canvas')
       canvas.width = video.videoWidth || 1920
       canvas.height = video.videoHeight || 1080
       const ctx = canvas.getContext('2d')
+      
+      // 绘制当前视频帧
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+      
+      // 添加时间戳水印，确保每张图片都不同
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
+      ctx.font = '30px Arial'
+      ctx.fillText(new Date().toISOString(), 20, 50)
       
       const imageData = canvas.toDataURL('image/jpeg', 0.9)
       
