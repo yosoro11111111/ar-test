@@ -54,7 +54,11 @@
 
 .info {
   display: flex;
-  gap: .info span {
+  gap: 16px;
+  align-items: center;
+}
+
+.info span {
   color: #fff;
   font-size: 14px;
   font-weight: 500;
