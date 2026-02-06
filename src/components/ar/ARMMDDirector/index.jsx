@@ -1023,9 +1023,19 @@ export function ARMMDDirector() {
                   // 纹理加载完成后更新材质
                   loadedTexture.wrapS = THREE.ClampToEdgeWrapping
                   loadedTexture.wrapT = THREE.ClampToEdgeWrapping
+                  loadedTexture.colorSpace = THREE.SRGBColorSpace
                   material.map = loadedTexture
                   material.needsUpdate = true
                   console.log(`平面 ${index + 1} 纹理加载完成并应用到材质`)
+                  
+                  // 强制场景渲染更新
+                  if (sceneRef.current) {
+                    sceneRef.current.traverse((child) => {
+                      if (child.isMesh && child.material) {
+                        child.material.needsUpdate = true
+                      }
+                    })
+                  }
                 }, undefined, (error) => {
                   console.error(`平面 ${index + 1} 纹理加载失败:`, error)
                 })
@@ -1058,6 +1068,9 @@ export function ARMMDDirector() {
                 anchorPoints: planeData.anchorPoints || [],
                 hasTexture: !!planeImage
               }
+              
+              // 调试：打印平面位置和大小
+              console.log(`平面 ${index + 1} 位置:`, worldPosition, '大小:', realSize, '旋转:', rotation)
               
               // 边框（仅在无纹理时显示，或半透明）
               const colors = [0x00ff88, 0x4488ff, 0xff6b6b, 0xffd93d, 0x6bcf7f, 0x9b59b6]
