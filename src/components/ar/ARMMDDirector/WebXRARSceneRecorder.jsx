@@ -158,9 +158,9 @@ export function WebXRARSceneRecorder({
     
     try {
       // 使用固定的分辨率（从canvas获取）
-      const canvas = rendererRef.current.domElement
-      const width = canvas.width || 1920
-      const height = canvas.height || 1080
+      const sourceCanvas = rendererRef.current.domElement
+      const width = sourceCanvas.width || 1920
+      const height = sourceCanvas.height || 1080
       
       // 读取像素数据
       const pixels = new Uint8Array(width * height * 4)
