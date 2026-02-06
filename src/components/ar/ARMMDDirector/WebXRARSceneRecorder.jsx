@@ -127,6 +127,11 @@ export function WebXRARSceneRecorder({
       renderer.autoClear = false
       rendererRef.current = renderer
       
+      // 设置渲染状态 - 关键：让AR背景显示
+      session.updateRenderState({
+        baseLayer: new XRWebGLLayer(session, renderer.getContext())
+      })
+      
       // 设置参考空间
       const referenceSpace = await session.requestReferenceSpace('local-floor')
       referenceSpaceRef.current = referenceSpace
@@ -151,6 +156,18 @@ export function WebXRARSceneRecorder({
     const session = frame.session
     const referenceSpace = referenceSpaceRef.current
     
+    // 获取渲染层
+    const baseLayer = session.renderState.baseLayer
+    if (!baseLayer) {
+      session.requestAnimationFrame(onXRFrame)
+      return
+    }
+    
+    // 绑定帧缓冲区
+    const gl = rendererRef.current.getContext()
+    const framebuffer = baseLayer.framebuffer
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer)
+    
     // 获取相机姿态
     const pose = frame.getViewerPose(referenceSpace)
     
@@ -163,6 +180,10 @@ export function WebXRARSceneRecorder({
         cameraRef.current.quaternion,
         cameraRef.current.scale
       )
+      
+      // 设置视口
+      const viewport = baseLayer.getViewport(view)
+      rendererRef.current.setViewport(viewport.x, viewport.y, viewport.width, viewport.height)
     }
     
     // 渲染场景
