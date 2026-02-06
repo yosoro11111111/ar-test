@@ -25,6 +25,7 @@ import { TrueARSceneRecorder } from './TrueARSceneRecorder'
 import { WebXRARSceneRecorder } from './WebXRARSceneRecorder'
 import { WebXRARPlayer } from './WebXRARPlayer'
 import { ARScenePreview } from './ARScenePreview'
+import { ARSceneCameraRecorder } from './ARSceneCameraRecorder'
 import { SceneManagerModal } from './SceneManagerModal'
 
 /**
@@ -123,6 +124,9 @@ export function ARMMDDirector() {
   // AR录制状态
   const [showARRecorder, setShowARRecorder] = useState(false)
   const [arSceneData, setARSceneData] = useState(null)
+  
+  // 手机场景录制状态
+  const [showMobileRecorder, setShowMobileRecorder] = useState(false)
   
   // WebXR AR播放器状态
   const [showWebXRPlayer, setShowWebXRPlayer] = useState(false)
@@ -2283,6 +2287,38 @@ export function ARMMDDirector() {
         />
       )}
 
+      {/* 手机场景录制弹窗 */}
+      {showMobileRecorder && (
+        <ARSceneCameraRecorder
+          isOpen={showMobileRecorder}
+          onClose={() => setShowMobileRecorder(false)}
+          onSceneRecorded={(sceneData) => {
+            console.log('手机场景录制完成:', sceneData)
+            // 自动创建场景轨道
+            const sceneTrack = createTrack(null, 'scene')
+            sceneTrack.clips = [{
+              ...createClip('scene', 0, project.duration),
+              data: {
+                name: sceneData.name,
+                sceneId: `arcamera_${Date.now()}`,
+                sceneData: {
+                  type: 'ar-camera',
+                  image: sceneData.image,
+                  planes: sceneData.planes,
+                  camera: sceneData.camera
+                }
+              }
+            }]
+            setProject(prev => ({
+              ...prev,
+              tracks: [sceneTrack, ...prev.tracks]
+            }))
+            setShowMobileRecorder(false)
+            alert('场景已添加到时间轴！')
+          }}
+        />
+      )}
+
       {/* WebXR AR播放器 */}
       {showWebXRPlayer && (
         <WebXRARPlayer
@@ -2294,6 +2330,16 @@ export function ARMMDDirector() {
           isPlaying={isPlaying}
         />
       )}
+
+      {/* 手机录制场景按钮 - 固定在右下角 */}
+      <button 
+        className={styles.mobileRecordBtn}
+        onClick={() => setShowMobileRecorder(true)}
+        title="手机拍摄AR场景"
+      >
+        <span className={styles.mobileRecordIcon}>📱</span>
+        <span className={styles.mobileRecordText}>手机拍场景</span>
+      </button>
 
       {/* 场景管理弹窗 */}
       {showSceneManager && (
