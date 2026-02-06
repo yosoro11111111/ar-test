@@ -206,7 +206,7 @@ export function WebXRARSceneRecorder({
           }
         }
       } catch (e) {
-        console.log('ImageCapture 失败，使用视频元素:', e.message)
+        console.log('ImageCapture 失败，使用视频元素:', e?.message || e)
       }
       
       // 如果 ImageCapture 失败，使用视频元素
@@ -262,7 +262,7 @@ export function WebXRARSceneRecorder({
       }
     } catch (err) {
       console.error('捕获帧失败:', err)
-      setDebugInfo('捕获失败: ' + err.message)
+      setDebugInfo('捕获失败: ' + (err?.message || String(err)))
     }
   }
   
