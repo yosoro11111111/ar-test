@@ -1113,8 +1113,9 @@ export function ARMMDDirector() {
           dirLight.shadow.camera.far = 50
           
           // 根据场景大小调整阴影范围
-          if (sceneBounds && sceneBounds.size) {
-            const shadowSize = Math.max(sceneBounds.size.width, sceneBounds.size.depth) * 0.8
+          const arcjpackSceneBounds = sceneData.sceneBounds
+          if (arcjpackSceneBounds && arcjpackSceneBounds.size) {
+            const shadowSize = Math.max(arcjpackSceneBounds.size.width, arcjpackSceneBounds.size.depth) * 0.8
             dirLight.shadow.camera.left = -shadowSize
             dirLight.shadow.camera.right = shadowSize
             dirLight.shadow.camera.top = shadowSize
