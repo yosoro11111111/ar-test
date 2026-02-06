@@ -35,6 +35,11 @@ export function ARMMDDirector() {
   const characterManagerRef = useRef(null)
   const animationFrameRef = useRef(null)
   
+  // 预览控制
+  const [previewScale, setPreviewScale] = useState(1)
+  const [characterScale, setCharacterScale] = useState(1.5)
+  const previewContainerRef = useRef(null)
+  
   // 面板状态
   const [previewOpen, setPreviewOpen] = useState(false)
   
@@ -342,98 +347,139 @@ export function ARMMDDirector() {
   
   // 更新时间轴
   const updateSceneAtTime = (time) => {
+    if (!characterManagerRef.current) return
+    
+    // 按轨道类型分组处理
+    const tracksByType = {}
     project.tracks.forEach(track => {
-      if (track.type === 'character') {
-        const character = characterManagerRef.current?.getCharacter(track.characterId)
-        if (!character) return
+      if (!tracksByType[track.type]) {
+        tracksByType[track.type] = []
+      }
+      tracksByType[track.type].push(track)
+    })
+    
+    // 处理场景轨道 - 应用背景
+    const sceneTracks = tracksByType['scene'] || []
+    sceneTracks.forEach(track => {
+      const activeClip = track.clips?.find(clip => 
+        time >= clip.startTime && time <= clip.startTime + clip.duration
+      )
+      
+      if (activeClip?.data?.sceneData?.imageUrl && sceneRef.current) {
+        const textureLoader = new THREE.TextureLoader()
+        textureLoader.load(activeClip.data.sceneData.imageUrl, (texture) => {
+          if (sceneRef.current) {
+            sceneRef.current.background = texture
+          }
+        })
+      }
+    })
+    
+    // 处理背景缩放轨道
+    const bgScaleTracks = tracksByType['bgScale'] || []
+    bgScaleTracks.forEach(track => {
+      const activeClip = track.clips?.find(clip => 
+        time >= clip.startTime && time <= clip.startTime + clip.duration
+      )
+      
+      if (activeClip?.data?.scale && cameraRef.current) {
+        const baseFov = 60
+        const newFov = baseFov / activeClip.data.scale
+        cameraRef.current.fov = Math.max(20, Math.min(120, newFov))
+        cameraRef.current.updateProjectionMatrix()
+      }
+    })
+    
+    // 处理角色相关轨道
+    project.characters.forEach(char => {
+      const character = characterManagerRef.current.getCharacter(char.id)
+      if (!character || !character.vrm) return
+      
+      // 获取该角色的所有轨道
+      const charTracks = project.tracks.filter(t => t.characterId === char.id)
+      
+      // 处理位置轨道
+      const positionTrack = charTracks.find(t => t.type === 'position')
+      if (positionTrack) {
+        const activeClip = positionTrack.clips?.find(clip => 
+          time >= clip.startTime && time <= clip.startTime + clip.duration
+        )
         
-        // 应用场景
-        const activeScene = track.scene.find(s => time >= s.startTime && time <= s.startTime + s.duration)
-        
-        // 应用背景（只在场景变化时更新）
-        if (activeScene?.sceneId && activeScene.sceneId !== currentSceneRef.current) {
-          currentSceneRef.current = activeScene.sceneId
-          if (activeScene.sceneData?.imageUrl && sceneRef.current) {
-            const textureLoader = new THREE.TextureLoader()
-            textureLoader.load(activeScene.sceneData.imageUrl, (texture) => {
-              if (sceneRef.current) {
-                sceneRef.current.background = texture
-                console.log('Background updated:', activeScene.name)
-              }
-            })
+        if (activeClip?.data?.pathData) {
+          const path = activeClip.data.pathData
+          const progress = (time - activeClip.startTime) / activeClip.duration
+          // 简单的线性插值
+          if (path.startPosition && path.endPosition) {
+            const x = path.startPosition.x + (path.endPosition.x - path.startPosition.x) * progress
+            const y = path.startPosition.y + (path.endPosition.y - path.startPosition.y) * progress
+            const z = path.startPosition.z + (path.endPosition.z - path.startPosition.z) * progress
+            character.vrm.scene.position.set(x, y, z)
           }
         }
-        
-        // 应用背景缩放动画
-        const activeBgScale = track.bgScale?.find(s => time >= s.startTime && time <= s.startTime + s.duration)
-        if (activeBgScale && sceneRef.current?.background) {
-          const progress = (time - activeBgScale.startTime) / activeBgScale.duration
-          const startScale = activeBgScale.startValue ?? 1
-          const endScale = activeBgScale.endValue ?? 1
-          const currentScale = startScale + (endScale - startScale) * progress
-          // 通过调整camera来模拟背景缩放效果
-          const baseFov = 60
-          const newFov = baseFov / currentScale
-          cameraRef.current.fov = Math.max(20, Math.min(120, newFov))
-          cameraRef.current.updateProjectionMatrix()
-        }
-        
-        if (activeScene?.position) {
-          character.vrm.scene.position.set(
-            activeScene.position.x,
-            activeScene.position.y,
-            activeScene.position.z
-          )
-        }
-        
-        // 应用缩放动画
-        const activeScale = track.scale?.find(s => time >= s.startTime && time <= s.startTime + s.duration)
-        if (activeScale) {
-          // 计算缩放值（支持起始值和结束值的渐变）
-          const progress = (time - activeScale.startTime) / activeScale.duration
-          const startScale = activeScale.startValue ?? 1
-          const endScale = activeScale.endValue ?? 1
-          const currentScale = startScale + (endScale - startScale) * progress
-          character.vrm.scene.scale.setScalar(currentScale)
-          character.vrm.scene.visible = currentScale > 0.01 // 缩放小于0.01时隐藏
-        } else {
-          // 没有缩放动画时恢复默认
-          character.vrm.scene.scale.setScalar(1)
-          character.vrm.scene.visible = true
-        }
-        
-        // 应用动作 - 只在动作变化时加载
-        const activeAction = track.action.find(a => time >= a.startTime && time <= a.startTime + a.duration)
-        const actionKey = `${track.characterId}_${activeAction?.id}`
-        const currentActionKey = currentActionsRef.current[track.characterId]
-        
-        if (activeAction?.filePath && actionKey !== currentActionKey) {
-          // 动作发生变化，加载新动作
-          currentActionsRef.current[track.characterId] = actionKey
-          
-          loadVRMAAction(activeAction.filePath, character.vrm).then(result => {
-            if (result?.clip) {
-              characterManagerRef.current.playCharacterAction(
-                track.characterId,
-                result.clip,
-                { loop: true, transitionDuration: 0.3 }
-              )
-            }
-          }).catch(err => {
-            console.error('加载动作失败:', err)
-          })
-        } else if (!activeAction && currentActionKey) {
-          // 没有动作了，停止播放
-          currentActionsRef.current[track.characterId] = null
-          characterManagerRef.current.stopCharacterAction?.(track.characterId)
-        }
-        
-        // 应用特效
-        const activeEffect = track.effect.find(e => time >= e.startTime && time <= e.startTime + e.duration)
-        if (activeEffect) {
-          // 特效逻辑
-        }
       }
+      
+      // 处理缩放轨道
+      const scaleTrack = charTracks.find(t => t.type === 'scale')
+      if (scaleTrack) {
+        const activeClip = scaleTrack.clips?.find(clip => 
+          time >= clip.startTime && time <= clip.startTime + clip.duration
+        )
+        
+        if (activeClip?.data?.scale) {
+          const scale = activeClip.data.scale * characterScale
+          character.vrm.scene.scale.setScalar(scale)
+        } else {
+          character.vrm.scene.scale.setScalar(characterScale)
+        }
+      } else {
+        // 没有缩放轨道时使用默认缩放
+        character.vrm.scene.scale.setScalar(characterScale)
+      }
+      
+      // 处理动作轨道
+      const actionTracks = charTracks.filter(t => t.type === 'action')
+      actionTracks.forEach(track => {
+        const activeClip = track.clips?.find(clip => 
+          time >= clip.startTime && time <= clip.startTime + clip.duration
+        )
+        
+        if (activeClip?.data?.actionData) {
+          const actionKey = `${char.id}_${activeClip.id}`
+          const currentActionKey = currentActionsRef.current[char.id]
+          
+          if (actionKey !== currentActionKey) {
+            currentActionsRef.current[char.id] = actionKey
+            
+            // 使用actionData中的信息播放动作
+            const actionData = activeClip.data.actionData
+            if (actionData.filePath || actionData.url) {
+              loadVRMAAction(actionData.filePath || actionData.url, character.vrm).then(result => {
+                if (result?.clip) {
+                  characterManagerRef.current.playCharacterAction(
+                    char.id,
+                    result.clip,
+                    { loop: true, transitionDuration: 0.3 }
+                  )
+                }
+              }).catch(err => {
+                console.error('加载动作失败:', err)
+              })
+            }
+          }
+        }
+      })
+      
+      // 处理特效轨道
+      const effectTracks = charTracks.filter(t => t.type === 'effect')
+      effectTracks.forEach(track => {
+        const activeClip = track.clips?.find(clip => 
+          time >= clip.startTime && time <= clip.startTime + clip.duration
+        )
+        
+        if (activeClip?.data?.effectId) {
+          // 特效逻辑 - 可以在这里添加粒子效果等
+        }
+      })
     })
   }
   
@@ -804,10 +850,54 @@ export function ARMMDDirector() {
             </button>
           </div>
         ) : (
-          <div className={styles.previewContainer}>
+          <div 
+            className={styles.previewContainer} 
+            ref={previewContainerRef}
+            style={{ 
+              transform: `scale(${previewScale})`,
+              transformOrigin: 'center center'
+            }}
+          >
             <div className={styles.previewHeader}>
               <span>🎬 3D 预览</span>
               <div className={styles.previewControls}>
+                {/* 画布缩放控制 */}
+                <div className={styles.zoomControls}>
+                  <button 
+                    className={styles.zoomBtn}
+                    onClick={() => setPreviewScale(Math.max(0.5, previewScale - 0.1))}
+                    title="缩小"
+                  >
+                    ➖
+                  </button>
+                  <span className={styles.zoomValue}>{Math.round(previewScale * 100)}%</span>
+                  <button 
+                    className={styles.zoomBtn}
+                    onClick={() => setPreviewScale(Math.min(2, previewScale + 0.1))}
+                    title="放大"
+                  >
+                    ➕
+                  </button>
+                </div>
+                {/* 角色缩放控制 */}
+                <div className={styles.zoomControls}>
+                  <span className={styles.zoomLabel}>人物:</span>
+                  <button 
+                    className={styles.zoomBtn}
+                    onClick={() => setCharacterScale(Math.max(0.5, characterScale - 0.1))}
+                    title="缩小人物"
+                  >
+                    👤➖
+                  </button>
+                  <span className={styles.zoomValue}>{characterScale.toFixed(1)}x</span>
+                  <button 
+                    className={styles.zoomBtn}
+                    onClick={() => setCharacterScale(Math.min(3, characterScale + 0.1))}
+                    title="放大人物"
+                  >
+                    👤➕
+                  </button>
+                </div>
                 <button 
                   className={styles.controlBtn}
                   onClick={() => setIsPlaying(!isPlaying)}
