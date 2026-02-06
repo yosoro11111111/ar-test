@@ -372,7 +372,48 @@
   border-radius: 10px;
   font-size: 11px;
   color: #f093fb;
+}
+
+/* 音乐轨道 */
+.selectMusicBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px;
+  border: 2px dashed rgba(250, 112, 154, 0.3);
+  background: rgba(250, 112, 154, 0.05);
+  border-radius: 12px;
+  color: #fa709a;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.selectMusicBtn:hover {
+  border-color: #fa709a;
+  background: rgba(250, 112, 154, 0.1);
+}
+
+.selectedMusic {
+  margin-top: 10px;
+  padding: 10px 14px;
+  background: rgba(250, 112, 154, 0.1);
+  border-radius: 8px;
+  color: #fa709a;
   font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.musicDuration {
+  background: rgba(250, 112, 154, 0.2);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
 }
 
 /* 底部按钮 */

@@ -5,6 +5,7 @@ import { getTrackTypeInfo } from './trackTypes'
 import { PositionTrackEditor } from './PositionTrackEditor'
 import { SceneManagerModal } from './SceneManagerModal'
 import { ActionSelectModal } from './ActionSelectModal'
+import { MusicSelectorModal } from './MusicSelectorModal'
 
 /**
  * 片段编辑弹窗 - 新版
@@ -16,6 +17,7 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
   const [showPositionEditor, setShowPositionEditor] = useState(false)
   const [showSceneManager, setShowSceneManager] = useState(false)
   const [showActionSelector, setShowActionSelector] = useState(false)
+  const [showMusicSelector, setShowMusicSelector] = useState(false)
 
   // 片段数据
   const [clipData, setClipData] = useState({
@@ -238,14 +240,19 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
               <label className={styles.label}>背景音乐</label>
               <button
                 className={styles.selectMusicBtn}
-                onClick={() => updateData('musicId', 'default')}
+                onClick={() => setShowMusicSelector(true)}
               >
                 <span>🎵</span>
-                <span>选择音乐文件</span>
+                <span>{clipData.data.musicName || '选择音乐文件'}</span>
               </button>
               {clipData.data.musicId && (
                 <div className={styles.selectedMusic}>
-                  <span>已选择音乐</span>
+                  <span>已选择: {clipData.data.musicName}</span>
+                  {clipData.data.musicDuration && (
+                    <span className={styles.musicDuration}>
+                      {Math.round(clipData.data.musicDuration)}s
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -301,6 +308,21 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
             setShowActionSelector(false)
           }}
           onClose={() => setShowActionSelector(false)}
+        />
+      )}
+
+      {/* 音乐选择器弹窗 */}
+      {showMusicSelector && (
+        <MusicSelectorModal
+          onSelect={(music) => {
+            updateData('musicId', music.id)
+            updateData('musicName', music.name)
+            updateData('musicUrl', music.url)
+            updateData('musicDuration', music.duration)
+            updateData('musicFile', music.file)
+            setShowMusicSelector(false)
+          }}
+          onClose={() => setShowMusicSelector(false)}
         />
       )}
     </div>
