@@ -2608,9 +2608,27 @@ export function ARMMDDirector() {
       {showSceneManager && (
         <SceneManagerModal
           onSelect={(scene) => {
-            // 处理选择的场景
+            // 处理选择的场景 - 添加到时间轴
             console.log('选择场景:', scene)
+            
+            // 创建场景轨道
+            const sceneTrack = createTrack(null, 'scene')
+            sceneTrack.clips = [{
+              ...createClip('scene', 0, project.duration),
+              data: {
+                name: scene.name,
+                sceneId: scene.id || `scene_${Date.now()}`,
+                sceneData: scene.data || scene
+              }
+            }]
+            
+            setProject(prev => ({
+              ...prev,
+              tracks: [sceneTrack, ...prev.tracks]
+            }))
+            
             setShowSceneManager(false)
+            alert('场景已添加到时间轴！')
           }}
           onClose={() => setShowSceneManager(false)}
         />
