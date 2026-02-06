@@ -1220,10 +1220,13 @@ export function ARMMDDirector() {
           
           sceneRef.current.add(sceneGroup)
           
+          // 调试：检查场景组是否正确添加
           console.log('ARCJPack场景加载完成:', {
             planes: planes.length,
-            camera: mmdConfig.camera,
-            characterPlacement: mmdConfig.characterPlacement
+            sceneGroupChildren: sceneGroup.children.length,
+            sceneGroupPosition: sceneGroup.position,
+            camera: targetPosition,
+            lookAt: lookAtPosition
           })
         }
         // 处理AR多平面场景 - 真实多平面3D环境
