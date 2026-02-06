@@ -909,6 +909,13 @@ export function ARMMDDirector() {
           const mmdConfig = sceneData.mmdRenderConfig || {}
           const planes = mmdConfig.planes3D || sceneData.planes || []
           
+          console.log('渲染平面数据:', planes.map((p, i) => ({
+            index: i,
+            worldPosition: p.worldPosition,
+            realSize: p.realSize,
+            rotation: p.rotation
+          })))
+          
           // 创建多平面3D环境
           if (planes.length > 0) {
             const planesGroup = new THREE.Group()
