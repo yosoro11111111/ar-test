@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import styles from './SceneManagerModal.module.css'
 import { exportARScenePack, importARScenePack, downloadFile, isARScenePack } from './ARSceneIO'
+import { ARSceneCameraRecorder } from './ARSceneCameraRecorder'
 
 /**
  * 场景管理弹窗 - 管理场景列表
@@ -17,6 +18,7 @@ export function SceneManagerModal({ onSelect, onClose }) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingName, setEditingName] = useState(null)
   const [newName, setNewName] = useState('')
+  const [showCameraRecorder, setShowCameraRecorder] = useState(false)
 
   // 保存场景列表到本地存储
   const saveScenes = (newScenes) => {
@@ -145,11 +147,14 @@ export function SceneManagerModal({ onSelect, onClose }) {
               style={{ display: 'none' }}
             />
           </label>
+          <button className={styles.actionBtn} onClick={() => setShowCameraRecorder(true)}>
+            📷 拍照录制
+          </button>
           <label className={styles.actionBtn}>
             📦 导入场景包
             <input
               type="file"
-              accept=".arpack,.arscene,.arscene2,.webxrar,.json,.mmdscene.json"
+              accept=".arpack,.arscene,.arscene2,.arscene3,.webxrar,.json,.mmdscene.json"
               onChange={(e) => e.target.files?.[0] && importScene(e.target.files[0])}
               style={{ display: 'none' }}
             />
@@ -196,7 +201,8 @@ export function SceneManagerModal({ onSelect, onClose }) {
                     {scene.type === 'image' ? '🖼️ 图片' : 
                      scene.type === 'webxr-ar' ? '🥽 WebXR AR' : 
                      scene.type === 'real-ar' ? '📷 真实AR' :
-                     scene.type === 'true-ar' ? '📷 真实AR+' : '📹 AR场景'}
+                     scene.type === 'true-ar' ? '📷 真实AR+' :
+                     scene.type === 'ar-camera' ? '📸 相机AR' : '📹 AR场景'}
                   </span>
                 </div>
 
@@ -260,6 +266,26 @@ export function SceneManagerModal({ onSelect, onClose }) {
           </div>
         </div>
       </div>
+      
+      {/* AR相机录制弹窗 */}
+      {showCameraRecorder && (
+        <ARSceneCameraRecorder
+          isOpen={showCameraRecorder}
+          onClose={() => setShowCameraRecorder(false)}
+          onSceneRecorded={(sceneData) => {
+            // 将录制的场景添加到列表
+            const newScene = {
+              id: `scene_${Date.now()}`,
+              name: sceneData.name || `AR场景 ${scenes.length + 1}`,
+              type: 'ar-camera',
+              data: sceneData,
+              createdAt: new Date().toISOString()
+            }
+            saveScenes([...scenes, newScene])
+            setShowCameraRecorder(false)
+          }}
+        />
+      )}
     </div>
   )
 }

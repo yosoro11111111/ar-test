@@ -140,7 +140,9 @@ export async function importARScenePack(file) {
   const manifest = JSON.parse(await manifestFile.async('text'))
   
   // 根据版本处理
-  if (manifest.type === 'webxr-ar-scene-pack') {
+  if (manifest.type === 'ar-camera-scene-pack') {
+    return importARCameraScene(zip, manifest)
+  } else if (manifest.type === 'webxr-ar-scene-pack') {
     return importWebXRARScene(zip, manifest)
   } else if (manifest.version === ARSCENE2_VERSION || 
       manifest.type === 'real-ar-scene-pack' || 
@@ -275,6 +277,7 @@ export function isARScenePack(file) {
   return file.name.endsWith('.arpack') || 
          file.name.endsWith('.arscene') || 
          file.name.endsWith('.arscene2') ||
+         file.name.endsWith('.arscene3') ||
          file.name.endsWith('.webxrar')
 }
 
@@ -330,6 +333,55 @@ async function importWebXRARScene(zip, manifest) {
       planes: sceneData.planes || [],
       camera: sceneData.camera,
       webxrData: sceneData.webxrData || {}
+    }
+  }
+  
+  return scene
+}
+
+/**
+ * 导入AR相机场景 (v3.0 - 包含图片和平面数据)
+ */
+async function importARCameraScene(zip, manifest) {
+  // 1. 读取场景数据
+  const sceneFile = zip.file('scene.json')
+  if (!sceneFile) {
+    throw new Error('无效的场景包：缺少场景数据')
+  }
+  
+  const sceneData = JSON.parse(await sceneFile.async('text'))
+  
+  // 2. 加载场景图片
+  const imageFile = zip.file('scene.jpg') || zip.file('scene.png')
+  let imageDataUrl = null
+  
+  if (imageFile) {
+    const base64Data = await imageFile.async('base64')
+    const ext = imageFile.name.split('.').pop()
+    const mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg' : 'image/png'
+    imageDataUrl = `data:${mimeType};base64,${base64Data}`
+  }
+  
+  // 3. 构建场景对象
+  const scene = {
+    id: `arcamera_scene_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    name: `${manifest.metadata?.name || sceneData.name || 'AR相机场景'} (导入)`,
+    type: 'ar-camera',
+    createdAt: new Date().toISOString(),
+    importedAt: new Date().toISOString(),
+    data: {
+      ...sceneData,
+      image: imageDataUrl
+    },
+    backgroundType: 'ar-camera',
+    arBackground: {
+      id: sceneData.id || `arcamera_${Date.now()}`,
+      name: sceneData.name || 'AR相机场景',
+      type: 'ar-camera',
+      image: imageDataUrl,
+      planes: sceneData.planes || [],
+      camera: sceneData.camera,
+      imageDimensions: sceneData.image
     }
   }
   
