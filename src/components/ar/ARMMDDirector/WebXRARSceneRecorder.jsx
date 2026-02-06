@@ -185,11 +185,11 @@ export function WebXRARSceneRecorder({
             if (isAutoDetecting) {
               // 使用更宽松的网格来判断是否为新位置（0.5米网格）
               const gridSize = 0.5
-              const key = `${Math.floor(pos.x / gridSize)},${Math.floor(pos.y / gridSize)},${Math.floor(pos.z / gridSize)}`
+              const key = `${Math.floor(hitPos.x / gridSize)},${Math.floor(hitPos.y / gridSize)},${Math.floor(hitPos.z / gridSize)}`
               
               if (!detectedPlanesRef.current.has(key)) {
-                console.log('Adding new plane at:', pos.x.toFixed(2), pos.y.toFixed(2), pos.z.toFixed(2))
-                addDetectedPlane(pos)
+                console.log('Adding new plane at:', hitPos.x.toFixed(2), hitPos.y.toFixed(2), hitPos.z.toFixed(2))
+                addDetectedPlane(hitPos)
                 detectedPlanesRef.current.set(key, true)
               }
             }
