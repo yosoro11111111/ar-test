@@ -33,16 +33,7 @@ export function WebXRARSceneRecorder({
   // 启动AR会话
   const startARSession = async () => {
     try {
-      // 请求AR会话
-      const session = await navigator.xr.requestSession('immersive-ar', {
-        requiredFeatures: ['local-floor'],
-        optionalFeatures: ['dom-overlay'],
-        domOverlay: { root: document.body }
-      })
-      
-      sessionRef.current = session
-      
-      // 创建渲染器
+      // 先创建渲染器
       const renderer = new THREE.WebGLRenderer({
         canvas: canvasRef.current,
         alpha: true,
@@ -57,8 +48,18 @@ export function WebXRARSceneRecorder({
       const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
       cameraRef.current = camera
       
+      // 请求AR会话 - 简化配置
+      const session = await navigator.xr.requestSession('immersive-ar', {
+        requiredFeatures: ['local-floor']
+      })
+      
+      sessionRef.current = session
+      
+      // 等待会话准备好再设置
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
       // 使用Three.js的XR支持
-      renderer.xr.setSession(session)
+      await renderer.xr.setSession(session)
       
       // 启动渲染循环
       renderer.setAnimationLoop(() => {
