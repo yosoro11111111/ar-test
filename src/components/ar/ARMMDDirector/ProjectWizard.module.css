@@ -377,6 +377,27 @@
   color: #fff;
 }
 
+.leftButtons {
+  display: flex;
+  gap: 10px;
+}
+
+.importBtn {
+  padding: 12px 24px;
+  background: #0a0a0f;
+  border: 1px solid #2a2a35;
+  border-radius: 10px;
+  color: #e0e0e0;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.importBtn:hover {
+  border-color: #43e97b;
+  color: #43e97b;
+}
+
 .nextBtn {
   flex: 1;
   padding: 12px 24px;

@@ -18,6 +18,7 @@ import { PropManager, createPresetProp } from './PropManager'
 import { EffectManager, PRESET_EFFECTS } from './EffectManager'
 import { ProjectWizard } from './ProjectWizard'
 import { QuickActions } from './QuickActions'
+import { exportProject, importProject, downloadFile } from './ProjectIO'
 
 /**
  * AR MMD Director - 新轨道系统版本
@@ -1396,6 +1397,32 @@ export function ARMMDDirector() {
     }
   }
   
+  // 处理项目导入
+  const handleProjectImport = async (file) => {
+    try {
+      const importedProject = await importProject(file)
+      setProject(importedProject)
+      setCanvasSettings(importedProject.canvasSettings || canvasSettings)
+      setShowProjectWizard(false)
+      alert('项目导入成功！')
+    } catch (error) {
+      console.error('项目导入失败:', error)
+      alert('项目导入失败: ' + error.message)
+    }
+  }
+  
+  // 导出项目为 .ard 文件
+  const handleExportProject = async () => {
+    try {
+      const blob = await exportProject(project)
+      downloadFile(blob, `${project.name}.ard`)
+      alert('项目导出成功！')
+    } catch (error) {
+      console.error('项目导出失败:', error)
+      alert('项目导出失败: ' + error.message)
+    }
+  }
+  
   return (
     <div className={styles.container}>
       {/* 项目向导 */}
@@ -1404,6 +1431,7 @@ export function ARMMDDirector() {
           isOpen={showProjectWizard}
           onComplete={handleProjectWizardComplete}
           onCancel={() => setShowProjectWizard(false)}
+          onImport={handleProjectImport}
         />
       )}
       
@@ -1456,8 +1484,8 @@ export function ARMMDDirector() {
           </button>
           <button 
             className={`${styles.iconBtn} ${styles.exportBtn}`} 
-            onClick={() => setShowSettingsModal(true)} 
-            title="导出"
+            onClick={handleExportProject}
+            title="导出项目 (.ard)"
           >
             📤
           </button>

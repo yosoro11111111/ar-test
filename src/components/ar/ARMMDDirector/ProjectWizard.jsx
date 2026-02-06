@@ -17,7 +17,7 @@ const DURATION_PRESETS = [
   { name: '5分钟', value: 300 }
 ]
 
-export function ProjectWizard({ isOpen, onComplete, onCancel }) {
+export function ProjectWizard({ isOpen, onComplete, onCancel, onImport }) {
   const [step, setStep] = useState(1)
   const [projectName, setProjectName] = useState('')
   const [duration, setDuration] = useState(60)
@@ -254,9 +254,30 @@ export function ProjectWizard({ isOpen, onComplete, onCancel }) {
                 ← 上一步
               </button>
             ) : (
-              <button className={styles.cancelBtn} onClick={onCancel}>
-                取消
-              </button>
+              <div className={styles.leftButtons}>
+                <button className={styles.cancelBtn} onClick={onCancel}>
+                  取消
+                </button>
+                <button 
+                  className={styles.importBtn} 
+                  onClick={() => document.getElementById('project-import').click()}
+                >
+                  📁 导入项目
+                </button>
+                <input
+                  type="file"
+                  id="project-import"
+                  accept=".ard"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files[0]
+                    if (file && onImport) {
+                      onImport(file)
+                    }
+                    e.target.value = ''
+                  }}
+                />
+              </div>
             )}
             <button className={styles.nextBtn} onClick={handleNext}>
               {step === 3 ? '✓ 创建项目' : '下一步 →'}
