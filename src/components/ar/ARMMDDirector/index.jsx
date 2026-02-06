@@ -1065,7 +1065,16 @@ export function ARMMDDirector() {
               }
               
               const mesh = new THREE.Mesh(geometry, material)
-              mesh.position.set(worldPosition.x, worldPosition.y, worldPosition.z)
+              
+              // 放大平面（乘以缩放因子）
+              const scaleFactor = 10
+              mesh.position.set(
+                worldPosition.x * scaleFactor,
+                worldPosition.y * scaleFactor,
+                worldPosition.z * scaleFactor
+              )
+              mesh.scale.set(scaleFactor, scaleFactor, scaleFactor)
+              
               mesh.rotation.set(
                 (rotation?.x || -90) * Math.PI / 180,
                 (rotation?.y || 0) * Math.PI / 180,
