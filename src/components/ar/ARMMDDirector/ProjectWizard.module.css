@@ -579,27 +579,182 @@
 /* 响应式 */
 @media (max-width: 600px) {
   .modal {
-    width: 95%;
-    max-height: 95vh;
+    width: 98%;
+    max-height: 98vh;
+    border-radius: 12px;
   }
 
-  .durationGrid {
-    grid-template-columns: repeat(3, 1fr);
+  .header {
+    padding: 12px 16px;
   }
 
-  .presetGrid {
-    grid-template-columns: 1fr;
-  }
-
-  .backgroundTypeGrid {
-    grid-template-columns: 1fr;
+  .header h2 {
+    font-size: 16px;
   }
 
   .steps {
     flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .step {
+    gap: 4px;
+  }
+
+  .stepNumber {
+    width: 20px;
+    height: 20px;
+    font-size: 11px;
+  }
+
+  .stepLabel {
+    font-size: 10px;
   }
 
   .stepLine {
     display: none;
+  }
+
+  .content {
+    padding: 12px 16px;
+  }
+
+  .formGroup label {
+    font-size: 12px;
+  }
+
+  .input,
+  .numberInput {
+    padding: 10px 12px;
+    font-size: 14px;
+  }
+
+  .durationGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .durationBtn {
+    padding: 10px;
+    font-size: 12px;
+  }
+
+  .customDuration {
+    font-size: 12px;
+  }
+
+  .presetGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .presetBtn {
+    padding: 10px;
+  }
+
+  .presetPreview {
+    width: 40px;
+    height: 30px;
+  }
+
+  .presetIcon {
+    font-size: 16px;
+  }
+
+  .presetName {
+    font-size: 12px;
+  }
+
+  .presetSize {
+    font-size: 10px;
+  }
+
+  .backgroundTypeGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .typeBtn {
+    padding: 12px;
+    font-size: 12px;
+  }
+
+  .colorInput {
+    width: 40px;
+    height: 40px;
+  }
+
+  .colorText {
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+
+  .colorPreset {
+    width: 32px;
+    height: 32px;
+  }
+
+  .customSizeInputs {
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .sizeSeparator {
+    display: none;
+  }
+
+  .arActions {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .arActionBtn {
+    min-width: auto;
+    padding: 10px;
+    font-size: 12px;
+  }
+
+  .arList {
+    max-height: 150px;
+  }
+
+  .arItem {
+    padding: 10px 12px;
+  }
+
+  .arThumbnail {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .arName {
+    font-size: 13px;
+  }
+
+  .arDate {
+    font-size: 11px;
+  }
+
+  .footer {
+    padding: 12px 16px 16px;
+  }
+
+  .buttons {
+    gap: 8px;
+  }
+
+  .backBtn,
+  .cancelBtn,
+  .importBtn {
+    padding: 10px 16px;
+    font-size: 12px;
+  }
+
+  .nextBtn {
+    padding: 10px 16px;
+    font-size: 12px;
   }
 }

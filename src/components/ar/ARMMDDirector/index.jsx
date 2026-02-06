@@ -53,8 +53,8 @@ export function ARMMDDirector() {
   
   // 预览控制
   const [previewScale, setPreviewScale] = useState(1) // 画布显示缩放
-  const [cameraZoom, setCameraZoom] = useState(0.5) // 摄像机缩放 (0.1-2.0)，默认0.5让人物更大
-  const [characterScale, setCharacterScale] = useState(1.5)
+  const [cameraZoom, setCameraZoom] = useState(1.5) // 摄像机缩放 (0.1-3.0)，默认1.5让人物更大
+  const [characterScale, setCharacterScale] = useState(2.0)
   const previewContainerRef = useRef(null)
   
   // 坐标选择模式
@@ -781,10 +781,15 @@ export function ARMMDDirector() {
       
       // 处理动作轨道
       const actionTracks = charTracks.filter(t => t.type === 'action')
+      console.log('角色动作轨道:', char.id, '轨道数:', actionTracks.length, '所有轨道:', charTracks.map(t => t.type))
+      
       actionTracks.forEach(track => {
+        console.log('检查动作轨道:', track.id, 'clips:', track.clips?.length)
         const activeClip = track.clips?.find(clip => 
           time >= clip.startTime && time <= clip.startTime + clip.duration
         )
+        
+        console.log('当前时间:', time, '活跃片段:', activeClip?.id, '数据:', activeClip?.data)
         
         if (activeClip?.data?.actionData) {
           const actionKey = `${char.id}_${activeClip.id}`
@@ -800,7 +805,7 @@ export function ARMMDDirector() {
             const filePath = actionData.filePath || actionData.url
             console.log('加载动作:', filePath)
             
-            if (filePath) {
+            if (filePath && character.vrm) {
               loadVRMAAction(filePath, character.vrm).then(result => {
                 console.log('动作加载结果:', result)
                 if (result?.clip) {
@@ -814,8 +819,12 @@ export function ARMMDDirector() {
               }).catch(err => {
                 console.error('加载动作失败:', err)
               })
+            } else {
+              console.warn('缺少filePath或vrm:', { filePath, hasVrm: !!character.vrm })
             }
           }
+        } else if (activeClip) {
+          console.log('片段没有actionData:', activeClip.data)
         }
       })
       
@@ -1407,19 +1416,68 @@ export function ARMMDDirector() {
   
   // 处理项目向导完成
   const handleProjectWizardComplete = (wizardData) => {
-    setProject(prev => ({
-      ...prev,
+    const newProject = {
+      ...project,
       name: wizardData.name,
       duration: wizardData.duration,
       backgroundImage: wizardData.backgroundType === 'image' ? wizardData.backgroundImage : null
-    }))
+    }
+    
+    // 根据背景类型创建对应的场景轨道
+    if (wizardData.backgroundType === 'image' && wizardData.backgroundImage) {
+      // 创建图片背景场景轨道
+      const sceneTrack = createTrack(null, 'scene')
+      sceneTrack.clips = [{
+        ...createClip('scene', 0, wizardData.duration),
+        data: {
+          name: '背景图片',
+          sceneId: 'bg_image',
+          sceneData: {
+            imageUrl: wizardData.backgroundImage,
+            type: 'image'
+          }
+        }
+      }]
+      newProject.tracks = [sceneTrack, ...newProject.tracks]
+    } else if (wizardData.backgroundType === 'ar' && wizardData.arBackground) {
+      // 创建AR背景场景轨道
+      const sceneTrack = createTrack(null, 'scene')
+      sceneTrack.clips = [{
+        ...createClip('scene', 0, wizardData.duration),
+        data: {
+          name: wizardData.arBackground.name,
+          sceneId: wizardData.arBackground.id,
+          sceneData: {
+            type: 'ar',
+            arData: wizardData.arBackground,
+            thumbnail: wizardData.arBackground.thumbnail
+          }
+        }
+      }]
+      newProject.tracks = [sceneTrack, ...newProject.tracks]
+    } else if (wizardData.backgroundType === 'color') {
+      // 创建纯色背景场景轨道
+      const sceneTrack = createTrack(null, 'scene')
+      sceneTrack.clips = [{
+        ...createClip('scene', 0, wizardData.duration),
+        data: {
+          name: '纯色背景',
+          sceneId: 'bg_color',
+          sceneData: {
+            color: wizardData.backgroundColor,
+            type: 'color'
+          }
+        }
+      }]
+      newProject.tracks = [sceneTrack, ...newProject.tracks]
+    }
+    
+    setProject(newProject)
     setCanvasSettings(wizardData.canvasSettings)
     setShowProjectWizard(false)
     
-    // 如果选择了纯色背景，设置背景颜色
-    if (wizardData.backgroundType === 'color') {
-      // 将在场景初始化时应用
-    }
+    // 保存到历史
+    saveToHistory(newProject)
   }
   
   // 处理项目导入
