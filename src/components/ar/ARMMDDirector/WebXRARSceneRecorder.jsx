@@ -21,7 +21,6 @@ export function WebXRARSceneRecorder({
   const capturedImagesRef = useRef([])
   const lastCaptureTimeRef = useRef(0)
   const isCapturingRef = useRef(false)
-  const imageCaptureRef = useRef(null)
   
   const [isSessionActive, setIsSessionActive] = useState(false)
   const [isCapturing, setIsCapturing] = useState(false)
@@ -55,18 +54,10 @@ export function WebXRARSceneRecorder({
       if (videoRef.current) {
         videoRef.current.srcObject = stream
         await videoRef.current.play()
-        
-        // 创建 ImageCapture 对象（如果支持）
-        try {
-          const track = stream.getVideoTracks()[0]
-          if (track && typeof ImageCapture !== 'undefined') {
-            imageCaptureRef.current = new ImageCapture(track)
-            console.log('ImageCapture 已创建')
-          }
-        } catch (e) {
-          console.log('ImageCapture 不支持:', e)
-        }
       }
+      
+      // 保存 stream 引用用于后续拍摄
+      streamRef.current = stream
       
       // 2. 请求AR会话（用于追踪位置）
       const session = await navigator.xr.requestSession('immersive-ar', {
@@ -192,27 +183,30 @@ export function WebXRARSceneRecorder({
     try {
       let imageData
       
-      // 优先使用 ImageCapture API 获取最新帧
-      if (imageCaptureRef.current) {
-        try {
-          const bitmap = await imageCaptureRef.current.grabFrame()
-          const canvas = document.createElement('canvas')
-          canvas.width = bitmap.width
-          canvas.height = bitmap.height
-          const ctx = canvas.getContext('2d')
-          ctx.drawImage(bitmap, 0, 0)
-          
-          // 添加时间戳水印
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
-          ctx.font = '30px Arial'
-          ctx.fillText(`IMG_${capturedImagesRef.current.length}_${Date.now()}`, 20, 50)
-          
-          imageData = canvas.toDataURL('image/jpeg', 0.9)
-          console.log('使用 ImageCapture 拍摄，序号:', capturedImagesRef.current.length)
-        } catch (e) {
-          console.log('ImageCapture 失败，使用视频元素:', e)
-          imageCaptureRef.current = null
+      // 尝试使用 ImageCapture API 获取最新帧（每次拍摄时重新创建）
+      try {
+        if (streamRef.current && typeof ImageCapture !== 'undefined') {
+          const track = streamRef.current.getVideoTracks()[0]
+          if (track && track.readyState === 'live') {
+            const imageCapture = new ImageCapture(track)
+            const bitmap = await imageCapture.grabFrame()
+            const canvas = document.createElement('canvas')
+            canvas.width = bitmap.width
+            canvas.height = bitmap.height
+            const ctx = canvas.getContext('2d')
+            ctx.drawImage(bitmap, 0, 0)
+            
+            // 添加时间戳水印
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
+            ctx.font = '30px Arial'
+            ctx.fillText(`IMG_${capturedImagesRef.current.length}_${Date.now()}`, 20, 50)
+            
+            imageData = canvas.toDataURL('image/jpeg', 0.9)
+            console.log('使用 ImageCapture 拍摄，序号:', capturedImagesRef.current.length)
+          }
         }
+      } catch (e) {
+        console.log('ImageCapture 失败，使用视频元素:', e.message)
       }
       
       // 如果 ImageCapture 失败，使用视频元素
