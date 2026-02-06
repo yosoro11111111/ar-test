@@ -167,22 +167,45 @@ export function ARSceneCameraRecorder({
   // 降级：普通摄像头+模拟平面检测
   const startNormalCamera = async () => {
     try {
+      console.log('请求摄像头权限...')
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'environment' },
         audio: false
       })
       
+      console.log('摄像头权限已获取')
       streamRef.current = stream
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream
+        
+        // 等待视频真正准备好
         videoRef.current.onloadedmetadata = () => {
-          setIsCameraActive(true)
-          // 模拟AR平面检测
-          simulateARDetection()
+          console.log('视频元数据已加载')
+          videoRef.current.play()
+            .then(() => {
+              console.log('视频开始播放')
+              setIsCameraActive(true)
+              // 延迟一点再开始检测，确保视频帧可用
+              setTimeout(() => {
+                simulateARDetection()
+              }, 1000)
+            })
+            .catch(err => {
+              console.error('视频播放失败:', err)
+              setError('视频播放失败: ' + err.message)
+            })
         }
+        
+        videoRef.current.onerror = (err) => {
+          console.error('视频错误:', err)
+          setError('视频加载错误')
+        }
+      } else {
+        setError('视频元素未找到')
       }
     } catch (err) {
+      console.error('启动摄像头失败:', err)
       setError('启动摄像头失败: ' + err.message)
     }
   }
@@ -194,48 +217,46 @@ export function ARSceneCameraRecorder({
     isARDetectingRef.current = true
     let count = 0
     
-    // 等待视频准备好后再开始检测
-    const waitForVideo = setInterval(() => {
-      if (!videoRef.current || !videoRef.current.videoWidth) {
-        console.log('等待视频准备好...')
+    // 确保视频已经准备好
+    if (!videoRef.current || !videoRef.current.videoWidth) {
+      console.error('视频未准备好，无法检测')
+      setError('视频未准备好，请刷新页面重试')
+      return
+    }
+    
+    console.log('视频已准备好，开始检测平面')
+    
+    // 开始检测循环
+    const detectInterval = setInterval(() => {
+      if (count >= 5 || !isARDetectingRef.current) {
+        console.log('停止模拟检测')
+        clearInterval(detectInterval)
         return
       }
       
-      clearInterval(waitForVideo)
-      console.log('视频已准备好，开始检测平面')
+      console.log(`模拟检测平面 ${count + 1}`)
       
-      // 开始检测循环
-      const detectInterval = setInterval(() => {
-        if (count >= 5 || !isARDetectingRef.current) {
-          console.log('停止模拟检测')
-          clearInterval(detectInterval)
-          return
-        }
-        
-        console.log(`模拟检测平面 ${count + 1}`)
-        
-        // 模拟检测到平面
-        const mockPlane = {
-          uuid: `mock_plane_${count}_${Date.now()}`,
-          polygon: [
-            { x: -1, y: 0, z: -1 },
-            { x: 1, y: 0, z: -1 },
-            { x: 1, y: 0, z: 1 },
-            { x: -1, y: 0, z: 1 }
-          ],
-          center: { 
-            x: (Math.random() - 0.5) * 2, 
-            y: 0, 
-            z: -2 - count * 0.8 
-          },
-          extent: { width: 2, height: 2 }
-        }
-        
-        setDetectedPlaneCount(prev => prev + 1)
-        captureNormalPhoto(mockPlane)
-        count++
-      }, 3000) // 每3秒检测一个平面
-    }, 500)
+      // 模拟检测到平面
+      const mockPlane = {
+        uuid: `mock_plane_${count}_${Date.now()}`,
+        polygon: [
+          { x: -1, y: 0, z: -1 },
+          { x: 1, y: 0, z: -1 },
+          { x: 1, y: 0, z: 1 },
+          { x: -1, y: 0, z: 1 }
+        ],
+        center: { 
+          x: (Math.random() - 0.5) * 2, 
+          y: 0, 
+          z: -2 - count * 0.8 
+        },
+        extent: { width: 2, height: 2 }
+      }
+      
+      setDetectedPlaneCount(prev => prev + 1)
+      captureNormalPhoto(mockPlane)
+      count++
+    }, 3000) // 每3秒检测一个平面
   }
 
   // AR拍照
