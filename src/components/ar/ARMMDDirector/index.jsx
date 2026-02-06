@@ -2081,25 +2081,33 @@ export function ARMMDDirector() {
       
       // 判断AR场景类型
       const arType = wizardData.arBackground.type || wizardData.arBackground.backgroundType || 'ar'
+      const isArcjpack = arType === 'arcjpack'
       const isRealAR = arType === 'real-ar' || arType === 'true-ar' || arType === 'webxr-ar'
       const isWebXR = arType === 'webxr-ar'
+      
+      // 获取场景数据
+      const sceneData = wizardData.arBackground.data || wizardData.arBackground
       
       sceneTrack.clips = [{
         ...createClip('scene', 0, wizardData.duration),
         data: {
           name: wizardData.arBackground.name,
           sceneId: wizardData.arBackground.id,
-          sceneData: {
+          sceneData: isArcjpack ? {
+            // arcjpack 类型直接使用 data 中的数据
+            ...sceneData,
+            type: 'arcjpack'
+          } : {
             type: arType,
             arData: wizardData.arBackground,
-            thumbnail: wizardData.arBackground.thumbnail || wizardData.arBackground.data?.image,
+            thumbnail: wizardData.arBackground.thumbnail || sceneData.image,
             // 真实AR场景特有数据
-            image: isRealAR ? (wizardData.arBackground.data?.image || wizardData.arBackground.image) : null,
-            planes: isRealAR ? (wizardData.arBackground.data?.planes || wizardData.arBackground.planes) : null,
-            camera: isRealAR ? (wizardData.arBackground.data?.camera || wizardData.arBackground.camera) : null,
+            image: isRealAR ? (sceneData.image || wizardData.arBackground.image) : null,
+            planes: isRealAR ? (sceneData.planes || wizardData.arBackground.planes) : null,
+            camera: isRealAR ? (sceneData.camera || wizardData.arBackground.camera) : null,
             referenceDistance: wizardData.arBackground.referenceDistance || 3,
             // WebXR特有数据
-            webxrData: isWebXR ? (wizardData.arBackground.data?.webxrData || wizardData.arBackground.webxrData) : null
+            webxrData: isWebXR ? (sceneData.webxrData || wizardData.arBackground.webxrData) : null
           }
         }
       }]
@@ -2127,6 +2135,13 @@ export function ARMMDDirector() {
     
     // 保存到历史
     saveToHistory(newProject)
+    
+    // AR背景时自动打开角色选择
+    if (wizardData.backgroundType === 'ar' && wizardData.arBackground) {
+      setTimeout(() => {
+        setShowCharacterModal(true)
+      }, 300)
+    }
   }
   
   // 处理项目导入
