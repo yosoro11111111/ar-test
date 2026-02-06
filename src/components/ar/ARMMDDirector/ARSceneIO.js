@@ -132,11 +132,18 @@ async function importARCJPackScene(zip, manifest) {
       return numA - numB
     })
     console.log('找到平面图片文件:', imageFiles.map(f => f.name))
+    console.log('imageFiles数组长度:', imageFiles.length)
+    console.log('imageFiles[0] === imageFiles[1]:', imageFiles[0] === imageFiles[1])
     
     for (let i = 0; i < imageFiles.length; i++) {
       const imgFile = imageFiles[i]
+      console.log(`处理图片[${i}]:`, imgFile.name, '对象:', imgFile)
+      
+      // 尝试用不同方式读取
       const base64Data = await imgFile.async('base64')
-      console.log(`图片[${i}] ${imgFile.name} 大小:`, base64Data.length, 'bytes, 前50字符:', base64Data.substring(0, 50))
+      console.log(`图片[${i}] ${imgFile.name} base64长度:`, base64Data.length)
+      console.log(`图片[${i}] ${imgFile.name} base64前100字符:`, base64Data.substring(0, 100))
+      
       planeImages[i] = `data:image/jpeg;base64,${base64Data}`
     }
   }
