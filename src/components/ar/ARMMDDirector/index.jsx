@@ -36,9 +36,18 @@ export function ARMMDDirector() {
   const animationFrameRef = useRef(null)
   
   // 预览控制
-  const [previewScale, setPreviewScale] = useState(1)
+  const [previewScale, setPreviewScale] = useState(0.2) // 默认20%
   const [characterScale, setCharacterScale] = useState(1.5)
   const previewContainerRef = useRef(null)
+  
+  // 画布设置
+  const [canvasSettings, setCanvasSettings] = useState({
+    width: 1920,
+    height: 1080,
+    aspectRatio: '16:9',
+    pixelRatio: 1
+  })
+  const [showCanvasSettings, setShowCanvasSettings] = useState(false)
   
   // 面板状态
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -859,26 +868,41 @@ export function ARMMDDirector() {
             }}
           >
             <div className={styles.previewHeader}>
-              <span>🎬 3D 预览</span>
+              <div className={styles.previewTitle}>
+                <span>🎬 3D 预览</span>
+                <span className={styles.canvasResolution}>
+                  {canvasSettings.width}×{canvasSettings.height}
+                </span>
+              </div>
               <div className={styles.previewControls}>
+                {/* 画布设置按钮 */}
+                <button 
+                  className={styles.settingsBtn}
+                  onClick={() => setShowCanvasSettings(true)}
+                  title="画布设置"
+                >
+                  ⚙️ 画布
+                </button>
+                
                 {/* 画布缩放控制 */}
                 <div className={styles.zoomControls}>
                   <button 
                     className={styles.zoomBtn}
-                    onClick={() => setPreviewScale(Math.max(0.5, previewScale - 0.1))}
-                    title="缩小"
+                    onClick={() => setPreviewScale(Math.max(0.1, previewScale - 0.05))}
+                    title="缩小画布"
                   >
-                    ➖
+                    🔍➖
                   </button>
                   <span className={styles.zoomValue}>{Math.round(previewScale * 100)}%</span>
                   <button 
                     className={styles.zoomBtn}
-                    onClick={() => setPreviewScale(Math.min(2, previewScale + 0.1))}
-                    title="放大"
+                    onClick={() => setPreviewScale(Math.min(1, previewScale + 0.05))}
+                    title="放大画布"
                   >
-                    ➕
+                    🔍➕
                   </button>
                 </div>
+                
                 {/* 角色缩放控制 */}
                 <div className={styles.zoomControls}>
                   <span className={styles.zoomLabel}>人物:</span>
@@ -892,12 +916,15 @@ export function ARMMDDirector() {
                   <span className={styles.zoomValue}>{characterScale.toFixed(1)}x</span>
                   <button 
                     className={styles.zoomBtn}
-                    onClick={() => setCharacterScale(Math.min(3, characterScale + 0.1))}
+                    onClick={() => setCharacterScale(Math.min(5, characterScale + 0.1))}
                     title="放大人物"
                   >
                     👤➕
                   </button>
                 </div>
+                
+                <div className={styles.controlDivider} />
+                
                 <button 
                   className={styles.controlBtn}
                   onClick={() => setIsPlaying(!isPlaying)}
@@ -1012,6 +1039,97 @@ export function ARMMDDirector() {
         onSelect={handleAddTrack}
         characterName={selectedCharacterForTrack?.name}
       />
+
+      {/* 画布设置弹窗 */}
+      {showCanvasSettings && (
+        <div className={styles.modalOverlay} onClick={() => setShowCanvasSettings(false)}>
+          <div className={styles.canvasSettingsModal} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>🎨 画布设置</h3>
+              <button className={styles.closeBtn} onClick={() => setShowCanvasSettings(false)}>✕</button>
+            </div>
+            <div className={styles.modalContent}>
+              {/* 分辨率预设 */}
+              <div className={styles.settingSection}>
+                <label className={styles.settingLabel}>分辨率预设</label>
+                <div className={styles.resolutionPresets}>
+                  {[
+                    { name: '480p', width: 854, height: 480 },
+                    { name: '720p', width: 1280, height: 720 },
+                    { name: '1080p', width: 1920, height: 1080 },
+                    { name: '4K', width: 3840, height: 2160 },
+                    { name: '手机竖屏', width: 1080, height: 1920 },
+                    { name: '正方形', width: 1080, height: 1080 }
+                  ].map(preset => (
+                    <button
+                      key={preset.name}
+                      className={`${styles.resolutionBtn} ${canvasSettings.width === preset.width && canvasSettings.height === preset.height ? styles.active : ''}`}
+                      onClick={() => setCanvasSettings({ ...canvasSettings, width: preset.width, height: preset.height })}
+                    >
+                      <span className={styles.resolutionName}>{preset.name}</span>
+                      <span className={styles.resolutionValue}>{preset.width}×{preset.height}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 自定义分辨率 */}
+              <div className={styles.settingSection}>
+                <label className={styles.settingLabel}>自定义分辨率</label>
+                <div className={styles.customResolution}>
+                  <div className={styles.inputGroup}>
+                    <label>宽度</label>
+                    <input
+                      type="number"
+                      value={canvasSettings.width}
+                      onChange={(e) => setCanvasSettings({ ...canvasSettings, width: parseInt(e.target.value) || 1920 })}
+                      min="100"
+                      max="7680"
+                    />
+                  </div>
+                  <span className={styles.resolutionX}>×</span>
+                  <div className={styles.inputGroup}>
+                    <label>高度</label>
+                    <input
+                      type="number"
+                      value={canvasSettings.height}
+                      onChange={(e) => setCanvasSettings({ ...canvasSettings, height: parseInt(e.target.value) || 1080 })}
+                      min="100"
+                      max="4320"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 像素比 */}
+              <div className={styles.settingSection}>
+                <label className={styles.settingLabel}>像素比 (DPR)</label>
+                <div className={styles.pixelRatioOptions}>
+                  {[0.5, 1, 1.5, 2].map(ratio => (
+                    <button
+                      key={ratio}
+                      className={`${styles.pixelRatioBtn} ${canvasSettings.pixelRatio === ratio ? styles.active : ''}`}
+                      onClick={() => setCanvasSettings({ ...canvasSettings, pixelRatio: ratio })}
+                    >
+                      {ratio}x
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 提示 */}
+              <div className={styles.settingHint}>
+                💡 提示：较高的分辨率会增加渲染时间和内存占用
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <button className={styles.confirmBtn} onClick={() => setShowCanvasSettings(false)}>
+                确认
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

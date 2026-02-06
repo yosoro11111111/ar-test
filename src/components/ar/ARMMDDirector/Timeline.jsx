@@ -285,16 +285,16 @@ export function Timeline({
                   </button>
                 </div>
 
-                {/* 内联轨道选择器 */}
-                {showTrackSelector === character.id && (
-                  <div className={styles.trackSelector}>
+                {/* 下拉轨道选择器 */}
+                <div className={`${styles.trackSelectorDropdown} ${showTrackSelector === character.id ? styles.show : ''}`}>
+                  <div className={styles.trackSelectorContent}>
                     <div className={styles.trackSelectorHeader}>
-                      <span>选择轨道类型</span>
+                      <span className={styles.trackSelectorTitle}>📋 选择轨道类型</span>
                       <button
                         className={styles.closeSelector}
                         onClick={() => setShowTrackSelector(null)}
                       >
-                        ×
+                        ✕
                       </button>
                     </div>
                     <div className={styles.trackSelectorGrid}>
@@ -310,11 +310,12 @@ export function Timeline({
                         >
                           <span className={styles.trackSelectorIcon}>{trackType.icon}</span>
                           <span className={styles.trackSelectorName}>{trackType.name}</span>
+                          <span className={styles.trackSelectorDesc}>{trackType.description}</span>
                         </button>
                       ))}
                     </div>
                   </div>
-                )}
+                </div>
 
                 {/* 角色的轨道列表 - 可折叠 */}
                 {isExpanded && (
