@@ -36,7 +36,8 @@ export function ARMMDDirector() {
   const animationFrameRef = useRef(null)
   
   // 预览控制
-  const [previewScale, setPreviewScale] = useState(0.2) // 默认20%
+  const [previewScale, setPreviewScale] = useState(1) // 画布显示缩放
+  const [cameraZoom, setCameraZoom] = useState(0.5) // 摄像机缩放 (0.1-2.0)，默认0.5让人物更大
   const [characterScale, setCharacterScale] = useState(1.5)
   const previewContainerRef = useRef(null)
   
@@ -152,7 +153,10 @@ export function ARMMDDirector() {
     const aspectRatio = canvasWidth / canvasHeight
     
     const camera = new THREE.PerspectiveCamera(60, aspectRatio, 0.1, 1000)
-    camera.position.set(0, 5, 10)
+    // 使用cameraZoom调整摄像机位置，值越小摄像机越近，人物显示越大
+    const baseDistance = 10
+    const distance = baseDistance / cameraZoom
+    camera.position.set(0, 5, distance)
     camera.lookAt(0, 0, 0)
     cameraRef.current = camera
     
@@ -212,6 +216,15 @@ export function ARMMDDirector() {
     animate()
     console.log('Animation loop started')
   }
+  
+  // 监听cameraZoom变化，更新摄像机位置
+  useEffect(() => {
+    if (cameraRef.current) {
+      const baseDistance = 10
+      const distance = baseDistance / cameraZoom
+      cameraRef.current.position.z = distance
+    }
+  }, [cameraZoom])
   
   const loadCharacter = async (charData) => {
     try {
@@ -884,32 +897,33 @@ export function ARMMDDirector() {
                   ⚙️ 画布
                 </button>
                 
-                {/* 画布缩放控制 */}
+                {/* 摄像机缩放控制 - 调整视角远近 */}
                 <div className={styles.zoomControls}>
+                  <span className={styles.zoomLabel}>视角:</span>
                   <button 
                     className={styles.zoomBtn}
-                    onClick={() => setPreviewScale(Math.max(0.1, previewScale - 0.05))}
-                    title="缩小画布"
+                    onClick={() => setCameraZoom(Math.max(0.1, cameraZoom - 0.1))}
+                    title="拉远视角"
                   >
-                    🔍➖
+                    🎥➖
                   </button>
-                  <span className={styles.zoomValue}>{Math.round(previewScale * 100)}%</span>
+                  <span className={styles.zoomValue}>{cameraZoom.toFixed(1)}x</span>
                   <button 
                     className={styles.zoomBtn}
-                    onClick={() => setPreviewScale(Math.min(1, previewScale + 0.05))}
-                    title="放大画布"
+                    onClick={() => setCameraZoom(Math.min(3, cameraZoom + 0.1))}
+                    title="拉近视角"
                   >
-                    🔍➕
+                    🎥➕
                   </button>
                 </div>
                 
-                {/* 角色缩放控制 */}
+                {/* 角色缩放控制 - 调整人物模型大小 */}
                 <div className={styles.zoomControls}>
                   <span className={styles.zoomLabel}>人物:</span>
                   <button 
                     className={styles.zoomBtn}
                     onClick={() => setCharacterScale(Math.max(0.5, characterScale - 0.1))}
-                    title="缩小人物"
+                    title="缩小人物模型"
                   >
                     👤➖
                   </button>
@@ -917,7 +931,7 @@ export function ARMMDDirector() {
                   <button 
                     className={styles.zoomBtn}
                     onClick={() => setCharacterScale(Math.min(5, characterScale + 0.1))}
-                    title="放大人物"
+                    title="放大人物模型"
                   >
                     👤➕
                   </button>
