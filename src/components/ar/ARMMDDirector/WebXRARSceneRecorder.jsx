@@ -161,22 +161,37 @@ export function WebXRARSceneRecorder({
         
         // Hit Test - 自动检测地面
         let hitResults = []
+        let hasHit = false
+        let hitPos = null
+        
         try {
           hitResults = frame.getHitTestResults(hitTestSource)
+          hasHit = hitResults.length > 0
         } catch (e) {
-          // 忽略错误
+          console.log('Hit test error:', e)
         }
         
-        if (hitResults.length > 0 && isAutoDetecting) {
+        if (hasHit) {
           const hitPose = hitResults[0].getPose(referenceSpace)
           if (hitPose) {
-            const pos = hitPose.transform.position
-            const key = `${Math.round(pos.x)},${Math.round(pos.y)},${Math.round(pos.z)}`
+            hitPos = hitPose.transform.position
             
-            // 如果这个位置还没有记录过，添加新平面
-            if (!detectedPlanesRef.current.has(key)) {
-              addDetectedPlane(pos)
-              detectedPlanesRef.current.set(key, true)
+            // 调试：显示检测到的位置
+            if (frameCountRef.current % 30 === 0) {
+              console.log('Hit detected at:', hitPos.x.toFixed(2), hitPos.y.toFixed(2), hitPos.z.toFixed(2))
+            }
+            
+            // 自动检测模式：记录新平面
+            if (isAutoDetecting) {
+              // 使用更宽松的网格来判断是否为新位置（0.5米网格）
+              const gridSize = 0.5
+              const key = `${Math.floor(pos.x / gridSize)},${Math.floor(pos.y / gridSize)},${Math.floor(pos.z / gridSize)}`
+              
+              if (!detectedPlanesRef.current.has(key)) {
+                console.log('Adding new plane at:', pos.x.toFixed(2), pos.y.toFixed(2), pos.z.toFixed(2))
+                addDetectedPlane(pos)
+                detectedPlanesRef.current.set(key, true)
+              }
             }
           }
         }
@@ -184,9 +199,13 @@ export function WebXRARSceneRecorder({
         // 每60帧更新状态
         if (frameCountRef.current % 60 === 0) {
           if (isAutoDetecting) {
-            setDebugInfo(`自动检测中... 已发现 ${planes.length} 个平面`)
+            if (hasHit && hitPos) {
+              setDebugInfo(`检测中... 已发现 ${planes.length} 个平面 | 当前: x=${hitPos.x.toFixed(1)}, y=${hitPos.y.toFixed(1)}, z=${hitPos.z.toFixed(1)}`)
+            } else {
+              setDebugInfo(`检测中... 已发现 ${planes.length} 个平面 | 请将手机对准地面`)
+            }
           } else {
-            setDebugInfo('移动手机扫描环境，点击"开始检测"自动记录地面')
+            setDebugInfo('点击"开始检测"自动记录地面')
           }
         }
         
