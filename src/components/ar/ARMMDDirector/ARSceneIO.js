@@ -122,15 +122,29 @@ async function importARCJPackScene(zip, manifest) {
   const planeImages = []
   const imagesFolder = zip.folder('images')
   if (imagesFolder) {
-    const imageFiles = imagesFolder.file(/^plane_\d+\.jpg$/)
+    // 获取所有图片文件，按文件名排序
+    const allFiles = imagesFolder.file(/.*\.jpg$/)
+    console.log('images文件夹所有jpg文件:', allFiles.map(f => f.name))
+    
+    const imageFiles = imagesFolder.file(/^plane_\d+\.jpg$/).sort((a, b) => {
+      const numA = parseInt(a.name.match(/\d+/)[0])
+      const numB = parseInt(b.name.match(/\d+/)[0])
+      return numA - numB
+    })
     console.log('找到平面图片文件:', imageFiles.map(f => f.name))
-    for (const imgFile of imageFiles) {
+    
+    for (let i = 0; i < imageFiles.length; i++) {
+      const imgFile = imageFiles[i]
       const base64Data = await imgFile.async('base64')
-      console.log(`图片 ${imgFile.name} 大小:`, base64Data.length, 'bytes, 前50字符:', base64Data.substring(0, 50))
-      planeImages.push(`data:image/jpeg;base64,${base64Data}`)
+      console.log(`图片[${i}] ${imgFile.name} 大小:`, base64Data.length, 'bytes, 前50字符:', base64Data.substring(0, 50))
+      planeImages[i] = `data:image/jpeg;base64,${base64Data}`
     }
   }
   console.log('加载的平面图片数量:', planeImages.length)
+  // 检查每个图片的内容是否不同
+  planeImages.forEach((img, i) => {
+    console.log(`planeImages[${i}] 长度:`, img.length, '前100字符:', img.substring(0, 100))
+  })
   
   // 4. 构建时间轴兼容的场景对象
   const scene = {
