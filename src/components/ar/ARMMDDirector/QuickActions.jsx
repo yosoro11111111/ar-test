@@ -10,6 +10,7 @@ const QUICK_ACTIONS = [
   { id: 'prop', icon: '📦', label: '道具', color: '#fee140' },
   { id: 'position', icon: '📍', label: '位置', color: '#30cfd0' },
   { id: 'background', icon: '🖼️', label: '背景', color: '#a8edea' },
+  { id: 'ar', icon: '📹', label: 'AR录制', color: '#ff6b6b' },
 ]
 
 export function QuickActions({ onAction, hasCharacters }) {

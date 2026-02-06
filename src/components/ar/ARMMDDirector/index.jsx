@@ -19,6 +19,7 @@ import { EffectManager, PRESET_EFFECTS } from './EffectManager'
 import { ProjectWizard } from './ProjectWizard'
 import { QuickActions } from './QuickActions'
 import { exportProject, importProject, downloadFile } from './ProjectIO'
+import { ARSceneRecorder } from './ARSceneRecorder'
 
 /**
  * AR MMD Director - 新轨道系统版本
@@ -111,6 +112,10 @@ export function ARMMDDirector() {
   const [selectedCharacterForTrack, setSelectedCharacterForTrack] = useState(null)
   const [editingCell, setEditingCell] = useState(null)
   const [copiedClips, setCopiedClips] = useState([])
+  
+  // AR录制状态
+  const [showARRecorder, setShowARRecorder] = useState(false)
+  const [arSceneData, setARSceneData] = useState(null)
   
   // 项目数据
   const [project, setProject] = useState({
@@ -1730,6 +1735,10 @@ export function ARMMDDirector() {
                   tracks: [...prev.tracks, newTrack]
                 }))
                 break
+              case 'ar':
+                // 打开AR录制
+                setShowARRecorder(true)
+                break
             }
           }}
         />
@@ -1969,6 +1978,20 @@ export function ARMMDDirector() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* AR场景录制弹窗 */}
+      {showARRecorder && (
+        <ARSceneRecorder
+          isOpen={showARRecorder}
+          onClose={() => setShowARRecorder(false)}
+          onSceneRecorded={(sceneData) => {
+            setARSceneData(sceneData)
+            // 可以在这里将AR场景数据关联到项目
+            console.log('AR场景录制完成:', sceneData)
+          }}
+          existingScene={arSceneData}
+        />
       )}
     </div>
   )
