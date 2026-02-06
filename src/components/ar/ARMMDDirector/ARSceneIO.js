@@ -143,14 +143,8 @@ async function importARCJPackScene(zip, manifest) {
       const fileName = imgFile.name
       console.log(`加载图片[${i}]: ${fileName}`)
       
-      // 使用 arraybuffer 读取，然后手动转换为 base64
-      const arrayBuffer = await imgFile.async('arraybuffer')
-      const bytes = new Uint8Array(arrayBuffer)
-      let binary = ''
-      for (let j = 0; j < bytes.byteLength; j++) {
-        binary += String.fromCharCode(bytes[j])
-      }
-      const base64Data = btoa(binary)
+      // 使用 base64 直接读取
+      const base64Data = await imgFile.async('base64')
       
       console.log(`图片[${i}] ${fileName} base64长度:`, base64Data.length)
       
