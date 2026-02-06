@@ -1000,22 +1000,34 @@ export function ARMMDDirector() {
             planes.forEach((planeData, index) => {
               const { worldPosition, realSize, rotation, polygon } = planeData
               
-              // 线性偏移布局参数（加法偏移，保持相对位置）
-              const X_SPACING = 4      // 每平面水平间隔4米
-              const Z_OFFSET = 10      // 整体前移10米
-              const Y_LAYER_HEIGHT = 3 // 每层高度差3米
+              // 检查是否是新格式数据（预计算的舞台坐标）
+              // 新格式：worldPosition.x 是 0, 4, 8... 这样的规律值
+              // 旧格式：worldPosition.x 是原始AR坐标（通常很小，如 0.2, 0.5）
+              const isNewFormat = worldPosition.x >= 0 && worldPosition.x % 4 === 0 && index * 4 === worldPosition.x
               
-              // 水平排列：0, 4, 8, 12, 16
-              // 垂直分层：前3个在底层，后2个在上层
-              const xPos = index * X_SPACING
-              const yPos = Math.floor(index / 3) * Y_LAYER_HEIGHT  // 0,0,0,3,3
-              const zPos = worldPosition.z + Z_OFFSET
-              
-              // 转换坐标（使用线性偏移）
-              const stagePosition = {
-                x: xPos,
-                y: yPos,
-                z: zPos
+              let stagePosition
+              if (isNewFormat) {
+                // 新格式：直接使用预计算的 worldPosition
+                stagePosition = worldPosition
+                console.log(`平面 ${index + 1} 使用新格式坐标:`, stagePosition)
+              } else {
+                // 旧格式：计算舞台坐标（线性偏移）
+                const X_SPACING = 4      // 每平面水平间隔4米
+                const Z_OFFSET = 10      // 整体前移10米
+                const Y_LAYER_HEIGHT = 3 // 每层高度差3米
+                
+                // 水平排列：0, 4, 8, 12, 16
+                // 垂直分层：前3个在底层，后2个在上层
+                const xPos = index * X_SPACING
+                const yPos = Math.floor(index / 3) * Y_LAYER_HEIGHT
+                const zPos = worldPosition.z + Z_OFFSET
+                
+                stagePosition = {
+                  x: xPos,
+                  y: yPos,
+                  z: zPos
+                }
+                console.log(`平面 ${index + 1} 使用旧格式，计算坐标:`, stagePosition, '原始:', worldPosition)
               }
               
               // 创建平面几何体（使用原始尺寸，不放大）
