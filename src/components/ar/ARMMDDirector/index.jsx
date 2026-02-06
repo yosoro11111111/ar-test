@@ -1039,7 +1039,7 @@ export function ARMMDDirector() {
               
               // 获取平面图片
               const planeImage = sceneData.planeImages?.[index]
-              console.log(`平面 ${index + 1} 图片:`, planeImage ? '有' : '无', '深度层:', depthLayer, 'Y高度:', yHeight)
+              console.log(`平面 ${index + 1} 图片:`, planeImage ? '有' : '无', '位置:', stagePosition)
               
               // 创建材质 - 使用MeshStandardMaterial支持光照
               let material
@@ -1070,7 +1070,7 @@ export function ARMMDDirector() {
                   // 替换 mesh 的材质
                   if (mesh) {
                     mesh.material = newMaterial
-                    console.log(`平面 ${index + 1} 纹理加载完成，深度层: ${depthLayer}`)
+                    console.log(`平面 ${index + 1} 纹理加载完成，位置:`, stagePosition)
                   }
                 }, undefined, (error) => {
                   console.error(`平面 ${index + 1} 纹理加载失败:`, error)
