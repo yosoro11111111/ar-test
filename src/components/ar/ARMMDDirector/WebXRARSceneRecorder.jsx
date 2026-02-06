@@ -7,10 +7,9 @@ import JSZip from 'jszip'
  * WebXR AR场景录制组件 - 修复版
  * 
  * 修复内容：
- * 1. 修复平面检测问题 - 使用更可靠的hit test
+ * 1. 修复平面检测问题 - 改进hit test逻辑
  * 2. 修复数据保存问题
- * 3. 添加更好的错误提示
- * 4. 改进用户交互
+ * 3. 添加调试信息
  */
 
 export function WebXRARSceneRecorder({
@@ -28,6 +27,7 @@ export function WebXRARSceneRecorder({
   const planesRef = useRef([])
   const placementIndicatorRef = useRef(null)
   const selectEventHandlerRef = useRef(null)
+  const frameCountRef = useRef(0)
   
   const [isSupported, setIsSupported] = useState(false)
   const [isSessionActive, setIsSessionActive] = useState(false)
@@ -36,9 +36,9 @@ export function WebXRARSceneRecorder({
   const [sceneName, setSceneName] = useState('')
   const [error, setError] = useState(null)
   const [showInstructions, setShowInstructions] = useState(true)
-  const [detectedPlanes, setDetectedPlanes] = useState(0)
   const [hitTestWorking, setHitTestWorking] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
+  const [debugInfo, setDebugInfo] = useState('')
 
   // 检查WebXR支持
   useEffect(() => {
@@ -67,6 +67,7 @@ export function WebXRARSceneRecorder({
     if (!canvasRef.current || !isSupported) return
     
     setError(null)
+    setDebugInfo('正在启动AR...')
     
     try {
       // 请求AR会话
@@ -77,6 +78,7 @@ export function WebXRARSceneRecorder({
       })
       
       sessionRef.current = session
+      setDebugInfo('AR会话已启动')
       
       // 获取WebGL上下文
       const gl = canvasRef.current.getContext('webgl2', { 
@@ -128,11 +130,13 @@ export function WebXRARSceneRecorder({
       // 获取参考空间
       const referenceSpace = await session.requestReferenceSpace('local-floor')
       referenceSpaceRef.current = referenceSpace
+      setDebugInfo('参考空间已获取')
       
       // 设置Hit Test
       const viewerSpace = await session.requestReferenceSpace('viewer')
       const hitTestSource = await session.requestHitTestSource({ space: viewerSpace })
       hitTestSourceRef.current = hitTestSource
+      setDebugInfo('Hit test已设置')
       
       // 创建放置指示器
       placementIndicatorRef.current = createPlacementIndicator()
@@ -148,11 +152,13 @@ export function WebXRARSceneRecorder({
       
       // 开始渲染循环
       setIsSessionActive(true)
+      frameCountRef.current = 0
       renderLoop(session, renderer, scene, camera, referenceSpace, hitTestSource)
       
     } catch (err) {
       console.error('启动AR失败:', err)
       setError('启动AR失败: ' + err.message)
+      setDebugInfo('启动失败: ' + err.message)
     }
   }
 
@@ -189,23 +195,27 @@ export function WebXRARSceneRecorder({
 
   // 渲染循环
   const renderLoop = (session, renderer, scene, camera, referenceSpace, hitTestSource) => {
-    let frameCount = 0
-    
     const loop = (time, frame) => {
       if (!session || session !== sessionRef.current) return
       
       const pose = frame.getViewerPose(referenceSpace)
       
       if (pose) {
+        // 每帧递增计数器
+        frameCountRef.current++
+        
         // Hit Test - 检测地面
         let hitResults = []
+        let hitTestError = null
         try {
           hitResults = frame.getHitTestResults(hitTestSource)
         } catch (e) {
-          // Hit test可能失败，忽略错误
+          hitTestError = e.message
         }
         
-        if (hitResults.length > 0) {
+        const hasHit = hitResults.length > 0
+        
+        if (hasHit) {
           const hitPose = hitResults[0].getPose(referenceSpace)
           if (hitPose && placementIndicatorRef.current) {
             placementIndicatorRef.current.visible = true
@@ -215,18 +225,25 @@ export function WebXRARSceneRecorder({
               hitPose.transform.position.z
             )
             
-            // 每30帧更新一次状态
-            frameCount++
-            if (frameCount % 30 === 0) {
+            // 每60帧更新一次状态（约1秒）
+            if (frameCountRef.current % 60 === 0) {
               setHitTestWorking(true)
+              setDebugInfo(`检测到地面: x=${hitPose.transform.position.x.toFixed(2)}, y=${hitPose.transform.position.y.toFixed(2)}, z=${hitPose.transform.position.z.toFixed(2)}`)
             }
           }
         } else {
           if (placementIndicatorRef.current) {
             placementIndicatorRef.current.visible = false
           }
-          if (frameCount % 30 === 0) {
+          
+          // 每60帧更新一次状态
+          if (frameCountRef.current % 60 === 0) {
             setHitTestWorking(false)
+            if (hitTestError) {
+              setDebugInfo(`Hit test错误: ${hitTestError}`)
+            } else {
+              setDebugInfo('未检测到地面，请移动手机扫描地面')
+            }
           }
         }
         
@@ -243,6 +260,11 @@ export function WebXRARSceneRecorder({
         // 设置视口
         const viewport = glLayer.getViewport(view)
         gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height)
+      } else {
+        // 每60帧更新一次状态
+        if (frameCountRef.current % 60 === 0) {
+          setDebugInfo('无法获取相机姿态')
+        }
       }
       
       renderer.render(scene, camera)
@@ -342,6 +364,8 @@ export function WebXRARSceneRecorder({
     // 自动退出放置模式
     setIsPlacing(false)
     
+    setDebugInfo(`已添加平面 ${newPlanes.length}: x=${position.x.toFixed(2)}, y=${position.y.toFixed(2)}, z=${position.z.toFixed(2)}`)
+    
     console.log('Plane added successfully:', planeData)
     console.log('Total planes:', newPlanes.length)
   }
@@ -358,6 +382,8 @@ export function WebXRARSceneRecorder({
     const newPlanes = planes.slice(0, -1)
     setPlanes(newPlanes)
     planesRef.current = newPlanes
+    
+    setDebugInfo(`已删除平面，剩余 ${newPlanes.length} 个`)
   }
 
   // 导出场景
@@ -459,6 +485,7 @@ export function WebXRARSceneRecorder({
     setPlanes([])
     setIsSessionActive(false)
     setIsPlacing(false)
+    setDebugInfo('')
   }
 
   // 关闭组件
@@ -489,7 +516,7 @@ export function WebXRARSceneRecorder({
             <span>平面: {planes.length}</span>
             {isSessionActive && (
               <span className={hitTestWorking ? styles.working : styles.notWorking}>
-                {hitTestWorking ? '✓ 检测中' : '⟳ 扫描地面'}
+                {hitTestWorking ? '✓ 检测中' : '⟳ 扫描中'}
               </span>
             )}
           </div>
@@ -503,6 +530,13 @@ export function WebXRARSceneRecorder({
             </button>
           )}
         </div>
+        
+        {/* 调试信息 */}
+        {isSessionActive && debugInfo && (
+          <div className={styles.debugInfo}>
+            {debugInfo}
+          </div>
+        )}
         
         {/* 错误提示 */}
         {error && (
