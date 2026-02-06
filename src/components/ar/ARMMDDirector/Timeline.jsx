@@ -150,6 +150,11 @@ export function Timeline({
     })
     return grouped
   }, [tracks, characters])
+  
+  // 获取场景轨道（没有characterId的轨道）
+  const sceneTracks = useMemo(() => {
+    return tracks.filter(track => !track.characterId && track.type === 'scene')
+  }, [tracks])
 
   // 获取单元格显示名称
   const getCellDisplayName = (cell, trackType) => {
@@ -237,6 +242,55 @@ export function Timeline({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
       >
+        {/* 场景轨道（全局轨道） */}
+        {sceneTracks.length > 0 && (
+          <div className={styles.sceneTracksSection}>
+            {sceneTracks.map((track) => {
+              const trackTypeInfo = getTrackTypeInfo(track.type)
+              return (
+                <div key={track.id} className={styles.trackRow}>
+                  <div className={styles.trackTypeHeader}>
+                    <span className={styles.trackTypeIcon}>
+                      {trackTypeInfo?.icon || '📦'}
+                    </span>
+                    <span className={styles.trackTypeName}>
+                      {trackTypeInfo?.name || track.type}
+                    </span>
+                    <button
+                      className={styles.addCellBtn}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onAddCell(track.id)
+                      }}
+                      title={`添加${trackTypeInfo?.name || '片段'}`}
+                    >
+                      +
+                    </button>
+                  </div>
+                  <div className={styles.trackLane}>
+                    {track.clips?.map((clip) => (
+                      <div
+                        key={clip.id}
+                        className={styles.cell}
+                        style={{
+                          left: `${timeToPixels(clip.startTime)}px`,
+                          width: `${timeToPixels(clip.endTime - clip.startTime)}px`
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onEditCell(track.id, track.type, clip)
+                        }}
+                      >
+                        {getCellDisplayName(clip, track.type)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+        
         {characters.length === 0 ? (
           <div className={styles.emptyTracks}>
             <p>点击 ➕ 添加角色开始创作</p>
