@@ -127,7 +127,7 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
           </div>
 
           {/* 场景轨道 - 选择背景图片 */}
-          {trackType === 'scene' && (
+          {(trackTypeProp || trackType) === 'scene' && (
             <div className={styles.section}>
               <label className={styles.label}>背景场景</label>
               <div className={styles.sceneSelector}>
@@ -148,7 +148,7 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
           )}
 
           {/* 动作轨道 - 选择VRMA动作 */}
-          {trackType === 'action' && (
+          {(trackTypeProp || trackType) === 'action' && (
             <div className={styles.section}>
               <label className={styles.label}>选择动作</label>
               <div className={styles.actionList}>
@@ -174,7 +174,7 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
           )}
 
           {/* 特效轨道 - 选择特效 */}
-          {trackType === 'effect' && (
+          {(trackTypeProp || trackType) === 'effect' && (
             <div className={styles.section}>
               <label className={styles.label}>选择特效</label>
               <div className={styles.effectGrid}>
@@ -196,7 +196,7 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
           )}
 
           {/* 位置轨道 - 编辑路径 */}
-          {trackType === 'position' && (
+          {(trackTypeProp || trackType) === 'position' && (
             <div className={styles.section}>
               <label className={styles.label}>移动路径</label>
               <button
@@ -215,7 +215,7 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
           )}
 
           {/* 缩放轨道 - 设置缩放值 */}
-          {trackType === 'scale' && (
+          {(trackTypeProp || trackType) === 'scale' && (
             <div className={styles.section}>
               <label className={styles.label}>缩放比例</label>
               <div className={styles.scaleInput}>
@@ -233,7 +233,7 @@ export function CellEditModal({ trackId, trackType: trackTypeProp, clip, onSave,
           )}
 
           {/* 音乐轨道 - 选择音乐 */}
-          {trackType === 'music' && (
+          {(trackTypeProp || trackType) === 'music' && (
             <div className={styles.section}>
               <label className={styles.label}>背景音乐</label>
               <button
