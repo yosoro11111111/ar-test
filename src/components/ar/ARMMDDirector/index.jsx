@@ -80,6 +80,19 @@ export function ARMMDDirector() {
   
   // 面板状态
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  
+  // 检测移动端
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobileDevice = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      setIsMobile(isMobileDevice)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
   
   // 弹窗状态
   const [showCharacterModal, setShowCharacterModal] = useState(false)
@@ -1111,8 +1124,24 @@ export function ARMMDDirector() {
         </div>
       </header>
       
-      {/* 预览区域 - 在时间轴上方 */}
-      <div className={styles.previewArea}>
+      {/* 移动端预览按钮 */}
+      {isMobile && (
+        <div className={styles.mobilePreviewBtnContainer}>
+          <button 
+            className={styles.mobilePreviewBtn}
+            onClick={() => {
+              setShowPreviewModal(true)
+              setPreviewOpen(true)
+            }}
+          >
+            <span>👁️</span>
+            <span>打开预览</span>
+          </button>
+        </div>
+      )}
+      
+      {/* 预览区域 - 在时间轴上方 - 桌面端显示，移动端隐藏 */}
+      <div className={`${styles.previewArea} ${isMobile ? styles.hidden : ''}`}>
         {!previewOpen ? (
           <div className={styles.previewPlaceholder}>
             <button 
@@ -1301,6 +1330,81 @@ export function ARMMDDirector() {
         isPlaying={isPlaying}
         onPlayPause={togglePlay}
       />
+      
+      {/* 移动端预览弹窗 */}
+      {showPreviewModal && isMobile && (
+        <div className={styles.mobilePreviewModal}>
+          <div className={styles.mobilePreviewHeader}>
+            <span>🎬 3D 预览</span>
+            <button 
+              className={styles.closeMobilePreview}
+              onClick={() => {
+                setShowPreviewModal(false)
+                setPreviewOpen(false)
+                setIsPlaying(false)
+                cleanup()
+              }}
+            >
+              ✕
+            </button>
+          </div>
+          <div className={styles.mobilePreviewContent}>
+            <canvas 
+              ref={canvasRef} 
+              className={styles.mobilePreviewCanvas}
+              onClick={coordinatePickerMode ? handleCanvasClickForCoordinate : undefined}
+            />
+            
+            {/* 坐标选择模式覆盖层 */}
+            {coordinatePickerMode && (
+              <div className={styles.coordinatePickerOverlay}>
+                <div className={styles.pickerInfo}>
+                  <span className={styles.pickerTitle}>
+                    {coordinatePickerMode === 'position' ? '📷 选择摄像机位置' : '🎯 选择目标点'}
+                  </span>
+                  <span className={styles.pickerCoords}>
+                    X: {(pickerPreviewPosition?.x ?? 0).toFixed(1)} Y: {(pickerPreviewPosition?.y ?? 0).toFixed(1)} Z: {(pickerPreviewPosition?.z ?? 0).toFixed(1)}
+                  </span>
+                </div>
+                <div className={styles.pickerActions}>
+                  <button 
+                    className={styles.pickerConfirmBtn}
+                    onClick={() => {
+                      if (coordinatePickerCallbackRef.current) {
+                        coordinatePickerCallbackRef.current(pickerPreviewPosition)
+                      }
+                      setCoordinatePickerMode(null)
+                      coordinatePickerCallbackRef.current = null
+                    }}
+                  >
+                    ✓ 确认
+                  </button>
+                  <button 
+                    className={styles.pickerCancelBtn}
+                    onClick={() => {
+                      setCoordinatePickerMode(null)
+                      coordinatePickerCallbackRef.current = null
+                    }}
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className={styles.mobilePreviewControls}>
+            <button 
+              className={styles.mobileControlBtn}
+              onClick={() => setIsPlaying(!isPlaying)}
+            >
+              {isPlaying ? '⏸️' : '▶️'}
+            </button>
+            <span className={styles.mobileTimeDisplay}>
+              {currentTime.toFixed(1)}s / {project.duration}s
+            </span>
+          </div>
+        </div>
+      )}
       
       {/* 角色选择弹窗 */}
       {showCharacterModal && (
