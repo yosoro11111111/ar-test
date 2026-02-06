@@ -136,8 +136,8 @@ export function WebXRARSceneRecorder({
     lastCameraPositionRef.current = null
     lastCaptureTimeRef.current = 0
     
-    setDebugInfo(`开始拍摄，每${CAPTURE_INTERVAL/1000}秒拍摄一张，共${MAX_CAPTURES}张\n请移动相机拍摄不同角度`)}
-    
+    setDebugInfo(`开始拍摄，每${CAPTURE_INTERVAL/1000}秒拍摄一张，共${MAX_CAPTURES}张\n请移动相机拍摄不同角度`)
+
     captureIntervalRef.current = setInterval(() => {
       captureFrame()
     }, CAPTURE_INTERVAL)
