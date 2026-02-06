@@ -1,8 +1,7 @@
 # 自动处理行尾符
 * text=auto
 
-# 大文件使用 Git LFS - 只保留最大的文件类型
-*.vrma filter=lfs diff=lfs merge=lfs -text
-*.vrm filter=lfs diff=lfs merge=lfs -text
+# 大文件使用 Git LFS - 只保留真正的大文件类型
+# 注意：VRM文件(<100MB)使用普通Git存储，不使用LFS
 *.mp4 filter=lfs diff=lfs merge=lfs -text
 *.zip filter=lfs diff=lfs merge=lfs -text
