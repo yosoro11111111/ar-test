@@ -21,6 +21,7 @@ import { QuickActions } from './QuickActions'
 import { exportProject, importProject, downloadFile } from './ProjectIO'
 import { ARSceneRecorder } from './ARSceneRecorder'
 import { RealARSceneRecorder } from './RealARSceneRecorder'
+import { TrueARSceneRecorder } from './TrueARSceneRecorder'
 import { SceneManagerModal } from './SceneManagerModal'
 
 /**
@@ -2101,7 +2102,7 @@ export function ARMMDDirector() {
 
       {/* AR场景录制弹窗 */}
       {showARRecorder && (
-        <RealARSceneRecorder
+        <TrueARSceneRecorder
           isOpen={showARRecorder}
           onClose={() => setShowARRecorder(false)}
           onSceneRecorded={(sceneData) => {
