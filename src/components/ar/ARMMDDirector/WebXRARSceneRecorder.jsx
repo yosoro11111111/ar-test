@@ -28,6 +28,7 @@ export function WebXRARSceneRecorder({
   const planesRef = useRef([])
   const detectedPlanesRef = useRef(new Map()) // 存储检测到的平面位置
   const frameCountRef = useRef(0)
+  const isAutoDetectingRef = useRef(false) // 使用ref来避免闭包问题
   
   const [isSupported, setIsSupported] = useState(false)
   const [isSessionActive, setIsSessionActive] = useState(false)
@@ -39,6 +40,11 @@ export function WebXRARSceneRecorder({
   const [detectedCount, setDetectedCount] = useState(0)
   const [isExporting, setIsExporting] = useState(false)
   const [debugInfo, setDebugInfo] = useState('')
+  
+  // 同步isAutoDetecting状态到ref
+  useEffect(() => {
+    isAutoDetectingRef.current = isAutoDetecting
+  }, [isAutoDetecting])
 
   // 检查WebXR支持
   useEffect(() => {
@@ -178,12 +184,12 @@ export function WebXRARSceneRecorder({
             
             // 调试：显示检测到的位置
             if (frameCountRef.current % 30 === 0) {
-              console.log('Hit detected at:', hitPos.x.toFixed(2), hitPos.y.toFixed(2), hitPos.z.toFixed(2), 'isAutoDetecting:', isAutoDetecting)
+              console.log('Hit detected at:', hitPos.x.toFixed(2), hitPos.y.toFixed(2), hitPos.z.toFixed(2), 'isAutoDetecting:', isAutoDetectingRef.current)
             }
             
-            // 自动检测模式：记录新平面
-            console.log('Checking auto detect:', isAutoDetecting, 'hasHit:', hasHit)
-            if (isAutoDetecting) {
+            // 自动检测模式：记录新平面（使用ref获取最新值）
+            console.log('Checking auto detect:', isAutoDetectingRef.current, 'hasHit:', hasHit)
+            if (isAutoDetectingRef.current) {
               // 使用更宽松的网格来判断是否为新位置（0.5米网格）
               const gridSize = 0.5
               const key = `${Math.floor(hitPos.x / gridSize)},${Math.floor(hitPos.y / gridSize)},${Math.floor(hitPos.z / gridSize)}`
