@@ -1003,7 +1003,7 @@ export function ARMMDDirector() {
               
               // 获取平面图片
               const planeImage = sceneData.planeImages?.[index]
-              console.log(`平面 ${index + 1} 图片:`, planeImage ? '有' : '无', planeImage?.substring(0, 50))
+              console.log(`平面 ${index + 1} 图片:`, planeImage ? '有' : '无', '长度:', planeImage?.length, 'hash:', planeImage ? planeImage.substring(50, 100) : 'N/A')
               
               // 创建材质 - 如果有图片则使用图片纹理
               let material

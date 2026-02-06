@@ -123,11 +123,14 @@ async function importARCJPackScene(zip, manifest) {
   const imagesFolder = zip.folder('images')
   if (imagesFolder) {
     const imageFiles = imagesFolder.file(/^plane_\d+\.jpg$/)
+    console.log('找到平面图片文件:', imageFiles.map(f => f.name))
     for (const imgFile of imageFiles) {
       const base64Data = await imgFile.async('base64')
+      console.log(`图片 ${imgFile.name} 大小:`, base64Data.length, 'bytes, 前50字符:', base64Data.substring(0, 50))
       planeImages.push(`data:image/jpeg;base64,${base64Data}`)
     }
   }
+  console.log('加载的平面图片数量:', planeImages.length)
   
   // 4. 构建时间轴兼容的场景对象
   const scene = {
