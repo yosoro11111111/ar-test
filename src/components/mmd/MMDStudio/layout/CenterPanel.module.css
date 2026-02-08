@@ -1,0 +1,107 @@
+.container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #1a1a2e;
+}
+
+/* 工具栏 */
+.toolbar {
+  display: flex;
+  gap: 16px;
+  padding: 8px 16px;
+  background: #16213e;
+  border-bottom: 1px solid #0f3460;
+}
+
+.toolGroup {
+  display: flex;
+  gap: 4px;
+}
+
+.toolButton {
+  width: 32px;
+  height: 32px;
+  background: #0f3460;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.toolButton:hover {
+  background: #e94560;
+}
+
+/* 画布容器 */
+.canvasContainer {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 覆盖信息 */
+.overlay {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.coordinates,
+.fps {
+  background: rgba(0, 0, 0, 0.6);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+/* 播放控制 */
+.playbackControls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px;
+  background: #16213e;
+  border-top: 1px solid #0f3460;
+}
+
+.playbackControls button {
+  width: 36px;
+  height: 36px;
+  background: #0f3460;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.2s;
+}
+
+.playbackControls button:hover {
+  background: #e94560;
+}
+
+.playButton {
+  width: 44px !important;
+  height: 44px !important;
+  background: #e94560 !important;
+  font-size: 20px !important;
+}
+
+.timeDisplay {
+  margin-left: 16px;
+  font-family: monospace;
+  font-size: 14px;
+  color: #eaeaea;
+}
