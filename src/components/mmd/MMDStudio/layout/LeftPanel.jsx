@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import styles from './LeftPanel.module.css'
 import { getResourceManager, getDataPackageManager } from '../../core'
+import { LocalResourceDialog } from '../components/LocalResourceLoader'
 
 /**
  * 左侧面板 - 资源库
@@ -21,6 +22,7 @@ export function LeftPanel({
   const [resources, setResources] = useState([])
   const [dataPackages, setDataPackages] = useState([])
   const [isImporting, setIsImporting] = useState(false)
+  const [showNetworkDialog, setShowNetworkDialog] = useState(false)
 
   const resourceManager = getResourceManager()
   const dataPackageManager = getDataPackageManager()
@@ -107,34 +109,26 @@ export function LeftPanel({
     }
   }
 
-  // 直接使用文件（不保存到资源库）
-  const handleUseFile = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-
-    try {
-      // 创建临时URL
-      const url = URL.createObjectURL(file)
-      
-      if (activeTab === 'characters') {
-        onAddCharacter({
-          name: file.name.replace(/\.[^/.]+$/, ''),
-          modelPath: url,
-          isLocalFile: true
-        })
-      } else if (activeTab === 'props') {
-        onAddProp({
-          name: file.name.replace(/\.[^/.]+$/, ''),
-          modelPath: url,
-          isLocalFile: true
-        })
-      }
-      
-      alert(`已添加: ${file.name}`)
-    } catch (error) {
-      console.error('添加失败:', error)
-      alert('添加失败: ' + error.message)
+  // 处理本地资源加载
+  const handleLocalLoad = (resource) => {
+    if (activeTab === 'characters') {
+      onAddCharacter({
+        name: resource.name,
+        modelPath: resource.path,
+        isLocalResource: true,
+        resourceId: resource.id
+      })
+    } else if (activeTab === 'props') {
+      onAddProp({
+        name: resource.name,
+        modelPath: resource.path,
+        isLocalResource: true,
+        resourceId: resource.id
+      })
     }
+    
+    setShowNetworkDialog(false)
+    alert(`已加载: ${resource.name}`)
   }
 
   // 搜索资源
@@ -305,15 +299,13 @@ export function LeftPanel({
           className={styles.searchInput}
         />
         <div className={styles.buttonGroup}>
-          <label className={styles.useFileButton} title="选择文件使用">
-            📁 选择文件
-            <input
-              type="file"
-              accept={getAcceptTypes()}
-              onChange={handleUseFile}
-              hidden
-            />
-          </label>
+          <button
+            className={styles.selectButton}
+            onClick={() => setShowNetworkDialog(true)}
+            title="选择资源"
+          >
+            📂 选择{getTabName(activeTab)}
+          </button>
           <label className={styles.importButton} title="导入到资源库">
             {isImporting ? '导入中...' : '+ 导入'}
             <input
@@ -349,6 +341,26 @@ export function LeftPanel({
           ))}
         </div>
       )}
+
+      {/* 本地资源对话框 */}
+      <LocalResourceDialog
+        isOpen={showNetworkDialog}
+        onClose={() => setShowNetworkDialog(false)}
+        onLoad={handleLocalLoad}
+        type={activeTab}
+        title={`选择${getTabName(activeTab)}`}
+      />
     </div>
   )
+}
+
+function getTabName(tab) {
+  const names = {
+    characters: '角色',
+    props: '道具',
+    scenes: '场景',
+    motions: '动作',
+    music: '音乐'
+  }
+  return names[tab] || '资源'
 }
