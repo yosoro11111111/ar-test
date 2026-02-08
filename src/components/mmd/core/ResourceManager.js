@@ -3,7 +3,7 @@
  */
 
 const DB_NAME = 'MMDStudio'
-const DB_VERSION = 2
+const DB_VERSION = 3  // 增加版本号强制升级
 const STORE_RESOURCES = 'resources'
 
 class ResourceManager {
