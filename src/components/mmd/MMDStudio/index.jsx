@@ -12,6 +12,9 @@ import { CenterPanel } from './layout/CenterPanel'
 import { RightPanel } from './layout/RightPanel'
 import { BottomPanel } from './layout/BottomPanel'
 
+// 引导组件
+import { OnboardingGuide, FirstTimeTips } from './components/OnboardingGuide'
+
 /**
  * MMD Studio - 主组件
  * 
@@ -306,6 +309,12 @@ export function MMDStudio() {
         selectedTrack={selectedTrack}
         onSelectTrack={setSelectedTrack}
       />
+
+      {/* 新用户引导 */}
+      <OnboardingGuide />
+
+      {/* 首次使用提示 */}
+      <FirstTimeTips />
     </div>
   )
 }

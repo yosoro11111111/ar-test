@@ -76,6 +76,18 @@ export function LeftPanel({
     }
   }
 
+  // 获取文件接受的类型
+  const getAcceptTypes = () => {
+    switch (activeTab) {
+      case 'characters': return '.vrm'
+      case 'props': return '.glb,.gltf'
+      case 'scenes': return '.glb,.gltf,.mp4,.webm,.jpg,.jpeg,.png'
+      case 'motions': return '.vrma,.bvh'
+      case 'music': return '.mp3,.wav,.ogg'
+      default: return '*'
+    }
+  }
+
   // 导入资源
   const handleImport = async (e) => {
     const files = Array.from(e.target.files)
@@ -86,11 +98,42 @@ export function LeftPanel({
       const type = getResourceTypeByTab(activeTab)
       await resourceManager.importMultiple(files, type)
       await loadResources()
+      alert(`成功导入 ${files.length} 个文件`)
     } catch (error) {
       console.error('导入失败:', error)
       alert('导入失败: ' + error.message)
     } finally {
       setIsImporting(false)
+    }
+  }
+
+  // 直接使用文件（不保存到资源库）
+  const handleUseFile = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    try {
+      // 创建临时URL
+      const url = URL.createObjectURL(file)
+      
+      if (activeTab === 'characters') {
+        onAddCharacter({
+          name: file.name.replace(/\.[^/.]+$/, ''),
+          modelPath: url,
+          isLocalFile: true
+        })
+      } else if (activeTab === 'props') {
+        onAddProp({
+          name: file.name.replace(/\.[^/.]+$/, ''),
+          modelPath: url,
+          isLocalFile: true
+        })
+      }
+      
+      alert(`已添加: ${file.name}`)
+    } catch (error) {
+      console.error('添加失败:', error)
+      alert('添加失败: ' + error.message)
     }
   }
 
@@ -261,16 +304,28 @@ export function LeftPanel({
           onChange={handleSearch}
           className={styles.searchInput}
         />
-        <label className={styles.importButton}>
-          {isImporting ? '导入中...' : '+ 导入'}
-          <input
-            type="file"
-            multiple
-            onChange={handleImport}
-            hidden
-            disabled={isImporting}
-          />
-        </label>
+        <div className={styles.buttonGroup}>
+          <label className={styles.useFileButton} title="选择文件使用">
+            📁 选择文件
+            <input
+              type="file"
+              accept={getAcceptTypes()}
+              onChange={handleUseFile}
+              hidden
+            />
+          </label>
+          <label className={styles.importButton} title="导入到资源库">
+            {isImporting ? '导入中...' : '+ 导入'}
+            <input
+              type="file"
+              multiple
+              accept={getAcceptTypes()}
+              onChange={handleImport}
+              hidden
+              disabled={isImporting}
+            />
+          </label>
+        </div>
       </div>
 
       {/* 项目中的项 */}
