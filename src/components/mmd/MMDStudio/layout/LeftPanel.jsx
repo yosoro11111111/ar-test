@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import styles from './LeftPanel.module.css'
-import { getResourceManager, getDataPackageManager } from '../../core'
 import { ResourceBrowser } from '../components/ResourceBrowser'
+import { ensureDatabase } from '../../core/dbUtils'
 
 /**
  * 左侧面板 - 资源库
@@ -24,48 +24,20 @@ export function LeftPanel({
   const [isImporting, setIsImporting] = useState(false)
   const [showNetworkDialog, setShowNetworkDialog] = useState(false)
 
-  const resourceManager = getResourceManager()
-  const dataPackageManager = getDataPackageManager()
-
-  // 初始化数据库并加载资源
+  // 初始化数据库
   useEffect(() => {
     const init = async () => {
       try {
         // 确保数据库已初始化
-        await resourceManager.ensureDB()
-        await dataPackageManager.ensureDB()
-        
-        // 加载资源
-        await loadResources()
-        await loadDataPackages()
+        await ensureDatabase()
+        console.log('数据库初始化成功')
       } catch (error) {
         console.error('初始化失败:', error)
       }
     }
     
     init()
-  }, [activeTab])
-
-  const loadResources = async () => {
-    try {
-      const type = getResourceTypeByTab(activeTab)
-      const res = await resourceManager.getResources(type)
-      setResources(res)
-    } catch (error) {
-      console.error('加载资源失败:', error)
-      setResources([])
-    }
-  }
-
-  const loadDataPackages = async () => {
-    try {
-      const packages = await dataPackageManager.getPackageList()
-      setDataPackages(packages)
-    } catch (error) {
-      console.error('加载数据包失败:', error)
-      setDataPackages([])
-    }
-  }
+  }, [])
 
   const getResourceTypeByTab = (tab) => {
     switch (tab) {
