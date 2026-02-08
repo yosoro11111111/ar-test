@@ -9,7 +9,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<MMDStudio />} />
+        <Route path="/" element={<App />} />
         <Route path="/mmd" element={<MMDStudio />} />
         <Route path="/studio" element={<MMDStudio />} />
       </Routes>
