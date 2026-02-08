@@ -3,35 +3,48 @@
  */
 
 const DB_NAME = 'MMDStudio'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const STORE_RESOURCES = 'resources'
 
 class ResourceManager {
   constructor() {
     this.db = null
     this.cache = new Map()
-    this.initDB()
   }
 
   async initDB() {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION)
       
-      request.onerror = () => reject(request.error)
+      request.onerror = () => {
+        console.error('ResourceManager IndexedDB 打开失败:', request.error)
+        reject(request.error)
+      }
+      
       request.onsuccess = () => {
         this.db = request.result
+        console.log('ResourceManager IndexedDB 打开成功')
         resolve()
       }
       
       request.onupgradeneeded = (event) => {
         const db = event.target.result
+        console.log('ResourceManager IndexedDB 升级中...')
         if (!db.objectStoreNames.contains(STORE_RESOURCES)) {
           const store = db.createObjectStore(STORE_RESOURCES, { keyPath: 'id' })
           store.createIndex('type', 'type', { unique: false })
           store.createIndex('category', 'category', { unique: false })
+          console.log('ResourceManager 创建对象存储:', STORE_RESOURCES)
         }
       }
     })
+  }
+
+  async ensureDB() {
+    if (!this.db) {
+      await this.initDB()
+    }
+    return this.db
   }
 
   /**

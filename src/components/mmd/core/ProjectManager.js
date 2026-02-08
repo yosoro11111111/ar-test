@@ -5,37 +5,65 @@ import JSZip from 'jszip'
  */
 
 const DB_NAME = 'MMDStudio'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const STORE_PROJECTS = 'projects'
 const STORE_ASSETS = 'assets'
+const STORE_RESOURCES = 'resources'
+const STORE_DATA_PACKAGES = 'dataPackages'
 
 class ProjectManager {
   constructor() {
     this.db = null
     this.currentProject = null
-    this.initDB()
   }
 
   async initDB() {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION)
       
-      request.onerror = () => reject(request.error)
+      request.onerror = () => {
+        console.error('IndexedDB 打开失败:', request.error)
+        reject(request.error)
+      }
+      
       request.onsuccess = () => {
         this.db = request.result
+        console.log('IndexedDB 打开成功')
         resolve()
       }
       
       request.onupgradeneeded = (event) => {
         const db = event.target.result
+        console.log('IndexedDB 升级中...')
+        
+        // 创建所有需要的对象存储
         if (!db.objectStoreNames.contains(STORE_PROJECTS)) {
           db.createObjectStore(STORE_PROJECTS, { keyPath: 'id' })
+          console.log('创建对象存储:', STORE_PROJECTS)
         }
         if (!db.objectStoreNames.contains(STORE_ASSETS)) {
           db.createObjectStore(STORE_ASSETS, { keyPath: 'id' })
+          console.log('创建对象存储:', STORE_ASSETS)
+        }
+        if (!db.objectStoreNames.contains(STORE_RESOURCES)) {
+          const resourceStore = db.createObjectStore(STORE_RESOURCES, { keyPath: 'id' })
+          resourceStore.createIndex('type', 'type', { unique: false })
+          resourceStore.createIndex('category', 'category', { unique: false })
+          console.log('创建对象存储:', STORE_RESOURCES)
+        }
+        if (!db.objectStoreNames.contains(STORE_DATA_PACKAGES)) {
+          db.createObjectStore(STORE_DATA_PACKAGES, { keyPath: 'id' })
+          console.log('创建对象存储:', STORE_DATA_PACKAGES)
         }
       }
     })
+  }
+
+  async ensureDB() {
+    if (!this.db) {
+      await this.initDB()
+    }
+    return this.db
   }
 
   /**

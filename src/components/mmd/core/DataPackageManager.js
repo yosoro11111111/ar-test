@@ -5,34 +5,46 @@ import JSZip from 'jszip'
  */
 
 const DB_NAME = 'MMDStudio'
-const DB_VERSION = 1
+const DB_VERSION = 2
 const STORE_DATA_PACKAGES = 'dataPackages'
 
 class DataPackageManager {
   constructor() {
     this.db = null
     this.packages = new Map()
-    this.initDB()
   }
 
   async initDB() {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION)
       
-      request.onerror = () => reject(request.error)
+      request.onerror = () => {
+        console.error('DataPackageManager IndexedDB 打开失败:', request.error)
+        reject(request.error)
+      }
+      
       request.onsuccess = () => {
         this.db = request.result
-        this.loadAllPackages()
-        resolve()
+        console.log('DataPackageManager IndexedDB 打开成功')
+        this.loadAllPackages().then(resolve).catch(reject)
       }
       
       request.onupgradeneeded = (event) => {
         const db = event.target.result
+        console.log('DataPackageManager IndexedDB 升级中...')
         if (!db.objectStoreNames.contains(STORE_DATA_PACKAGES)) {
           db.createObjectStore(STORE_DATA_PACKAGES, { keyPath: 'id' })
+          console.log('DataPackageManager 创建对象存储:', STORE_DATA_PACKAGES)
         }
       }
     })
+  }
+
+  async ensureDB() {
+    if (!this.db) {
+      await this.initDB()
+    }
+    return this.db
   }
 
   /**

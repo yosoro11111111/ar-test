@@ -25,10 +25,23 @@ export function LeftPanel({
   const resourceManager = getResourceManager()
   const dataPackageManager = getDataPackageManager()
 
-  // 加载资源
+  // 初始化数据库并加载资源
   useEffect(() => {
-    loadResources()
-    loadDataPackages()
+    const init = async () => {
+      try {
+        // 确保数据库已初始化
+        await resourceManager.ensureDB()
+        await dataPackageManager.ensureDB()
+        
+        // 加载资源
+        await loadResources()
+        await loadDataPackages()
+      } catch (error) {
+        console.error('初始化失败:', error)
+      }
+    }
+    
+    init()
   }, [activeTab])
 
   const loadResources = async () => {
@@ -38,6 +51,7 @@ export function LeftPanel({
       setResources(res)
     } catch (error) {
       console.error('加载资源失败:', error)
+      setResources([])
     }
   }
 
@@ -47,6 +61,7 @@ export function LeftPanel({
       setDataPackages(packages)
     } catch (error) {
       console.error('加载数据包失败:', error)
+      setDataPackages([])
     }
   }
 
