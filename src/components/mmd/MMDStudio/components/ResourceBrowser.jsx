@@ -287,7 +287,7 @@ export function ResourceBrowser({ onSelect, type, onClose }) {
 
         {/* 底部 */}
         <div className={styles.footer}>
-          <span className={styles.path}>路径: public{resourceConfig[type]?.path}</span>
+          <span className={styles.path}>路径: public{resourceConfig[type]?.path?.replace(/^\//, '')}</span>
           <button className={styles.refreshBtn} onClick={scanResources}>
             🔄 刷新
           </button>
