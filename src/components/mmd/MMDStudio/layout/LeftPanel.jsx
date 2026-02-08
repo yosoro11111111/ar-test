@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import styles from './LeftPanel.module.css'
 import { getResourceManager, getDataPackageManager } from '../../core'
-import { LocalResourceDialog } from '../components/LocalResourceLoader'
+import { ResourceBrowser } from '../components/ResourceBrowser'
 
 /**
  * 左侧面板 - 资源库
@@ -342,14 +342,14 @@ export function LeftPanel({
         </div>
       )}
 
-      {/* 本地资源对话框 */}
-      <LocalResourceDialog
-        isOpen={showNetworkDialog}
-        onClose={() => setShowNetworkDialog(false)}
-        onLoad={handleLocalLoad}
-        type={activeTab}
-        title={`选择${getTabName(activeTab)}`}
-      />
+      {/* 资源浏览器 */}
+      {showNetworkDialog && (
+        <ResourceBrowser
+          onSelect={handleLocalLoad}
+          type={activeTab}
+          onClose={() => setShowNetworkDialog(false)}
+        />
+      )}
     </div>
   )
 }
