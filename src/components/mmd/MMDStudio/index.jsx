@@ -3,8 +3,8 @@ import * as THREE from 'three'
 import styles from './MMDStudio.module.css'
 
 // 核心系统
-import { getProjectManager } from './core'
-import { ensureDatabase } from './core/dbUtils'
+import { getProjectManager } from '../core'
+import { ensureDatabase } from '../core/dbUtils'
 
 // 组件
 import { ResourceBrowser } from './components/ResourceBrowser'
