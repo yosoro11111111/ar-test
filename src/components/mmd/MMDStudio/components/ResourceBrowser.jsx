@@ -96,47 +96,68 @@ export function ResourceBrowser({ onSelect, type, onClose }) {
     }
   }
 
-  // 模拟扫描目录（实际应该由后端API提供）
+  // 扫描目录 - 获取public文件夹下的文件列表
   const scanDirectory = async (path, extensions) => {
-    // 这里我们使用一个简化的方法：尝试获取一些已知的文件
-    // 在实际项目中，这应该是一个后端API调用
-    
-    // 对于道具，我们知道有一些文件
-    if (path === '/object/') {
-      return [
-        'Umbrella.glb',
-        'TV.glb',
-        'Presents.glb',
-        'Popcorn.glb',
-        'Lantern.glb',
-        'Keyboard.glb',
-        'Clock.glb',
-        'Campfire.glb',
-        'Bow and Arrow.glb',
-        'Basketball.glb'
-      ]
+    try {
+      // 尝试从后端API获取文件列表
+      // 由于前端无法直接读取文件系统，我们需要一个API端点
+      // 这里先使用硬编码的完整文件列表
+      
+      const fileLists = {
+        '/models/': [
+          'Aether.vrm', 'Albedo1.vrm', 'Albedo2.vrm', 'Alhaitham.vrm', 'Amber.vrm', 'Amber2.vrm',
+          'AratakiItto.vrm', 'Arlecchino.vrm', 'Baizhu.vrm', 'Barbara.vrm', 'Barbara2.vrm',
+          'Beidou.vrm', 'Beidou2.vrm', 'Bennett.vrm', 'Bennett2.vrm', 'Bronya.vrm', 'Candace.vrm',
+          'Celestia.vrm', 'Chongyun.vrm', 'Chongyun2.vrm', 'Collei.vrm', 'Dainsleif1.vrm',
+          'Dainsleif2.vrm', 'Dehya.vrm', 'Diluc1.vrm', 'Diluc2.vrm', 'Diona1.vrm', 'Diona2.vrm',
+          'Dori.vrm', 'Dottore.vrm', 'Eula1.vrm', 'Eula2.vrm', 'Faruzan.vrm', 'Fischl1.vrm',
+          'Fischl2.vrm', 'Ganyu1.vrm', 'Ganyu2.vrm', 'Gorou1.vrm', 'Gorou2.vrm', 'Himeko.vrm',
+          'HuTao.vrm', 'Jean1.vrm', 'Jean2.vrm', 'KaedeharaKazuha.vrm', 'Kaeya1.vrm', 'Kaeya2.vrm',
+          'KamisatoAyaka.vrm', 'KamisatoAyaka2.vrm', 'KamisatoAyato.vrm', 'Katheryne.vrm',
+          'Kaveh.vrm', 'Kazuha.vrm', 'Keqing1.vrm', 'Keqing2.vrm', 'Klara.vrm', 'Klee.vrm',
+          'KujouSara.vrm', 'KujouSara2.vrm', 'KukiShinobu.vrm', 'LaSignora.vrm', 'Layla.vrm',
+          'Lisa.vrm', 'Lisa2.vrm', 'Lumine.vrm', 'Lumine2.vrm', 'Mika.vrm', 'Mimi.vrm',
+          'Mona.vrm', 'Mona2.vrm', 'NaganoharaYoimiya.vrm', 'NaganoharaYoimiya2.vrm',
+          'Nahida.vrm', 'Natasha.vrm', 'Nilou.vrm', 'Ningguang.vrm', 'Ningguang2.vrm',
+          'Noelle.vrm', 'Paimon.vrm', 'Qiqi.vrm', 'Qiqi2.vrm', 'RaidenShogun.vrm',
+          'RaidenShogun2.vrm', 'Razor.vrm', 'Razor2.vrm', 'Rosaria.vrm', 'Rosaria2.vrm',
+          'Sampo.vrm', 'SangonomiyaKokomi.vrm', 'Sayu.vrm', 'Sayu2.vrm', 'Scaramouche.vrm',
+          'Scaramouche2.vrm', 'Seele.vrm', 'Shenhe.vrm', 'Shenhe2.vrm', 'ShikanoinHeizou.vrm',
+          'ShikanoinHeizou2.vrm', 'Sucrose.vrm', 'Tartaglia.vrm', 'Tartaglia2.vrm',
+          'Thoma.vrm', 'Thoma2.vrm', 'Tighnari.vrm', 'Tsaritsa.vrm', 'Venti.vrm',
+          'Venti2.vrm', 'Venti3.vrm', 'Wanderer.vrm', 'Welt.vrm', 'Xiangling.vrm',
+          'Xiangling2.vrm', 'Xiao.vrm', 'Xiao2.vrm', 'Xingqiu.vrm', 'Xingqiu2.vrm',
+          'Xinyan.vrm', 'Xinyan2.vrm', 'YaeMiko.vrm', 'YaeMikoAlt.vrm', 'Yanfei.vrm',
+          'Yanfei2.vrm', 'Yaoyao.vrm', 'Yelan.vrm', 'YunJin.vrm', 'YunJin2.vrm',
+          'Zhongli.vrm', 'Zhongli2.vrm', 'aili.vrm'
+        ],
+        '/object/': [
+          '3D Glasses.glb', 'Arrow.glb', 'Basketball.glb', 'Basketball (Circuit Drone).glb',
+          'Basketball (Silver).glb', 'Batman Toy.glb', 'Batwing Toy.glb', 'Beanbag Chair.glb',
+          'Big Present.glb', 'Bow and Arrow.glb', 'Bubble Gun.glb', 'Button.glb',
+          'Campfire.glb', 'Cardboard Box.glb', 'Cardboard Box (Small).glb', 'Clock.glb',
+          'Corvette.glb', 'Disintegration Pistol.glb', 'Hoop.glb',
+          'Illudium Q-36 Explosive Space Modulator.glb', 'Keyboard.glb', 'Lantern.glb',
+          'Martian Flugelhorn.glb', 'Marvin Flag.glb', 'Mogwai Chest.glb', 'Music Note A.glb',
+          'Music Note B.glb', 'Popcorn Box.glb', 'Popcorn.glb', 'Presents (Small).glb',
+          'Presents.glb', 'Sharpie.glb', 'Spaceship.glb', 'Time Space Gun.glb',
+          'Toast-on-a-Stick.glb', 'Treble Clef.glb', 'TV.glb', 'Ultimatum Answerer.glb',
+          'Umbrella.glb'
+        ],
+        '/scene/': ['test.glb'],
+        '/motion/': [
+          'Zombie Walking.vrma', 'Zombie Running.vrma', 'Walking Forward With Bow.vrma',
+          'Male Standard Walk.vrma', 'Female Run Forward.vrma', 'Dancing The Twerk.vrma',
+          'Boxing Idle.vrma', 'Capoeira Step.vrma', 'Female Idle.vrma',
+          'Male Standing Idle 01.vrma', 'Neutral Idle.vrma', 'Happy Idle Variation 2.vrma'
+        ]
+      }
+      
+      return fileLists[path] || []
+    } catch (error) {
+      console.error('扫描目录失败:', error)
+      return []
     }
-    
-    // 对于场景
-    if (path === '/scene/') {
-      return ['test.glb']
-    }
-    
-    // 对于动作，返回一些示例
-    if (path === '/motion/') {
-      return [
-        'Zombie Walking.vrma',
-        'Zombie Running.vrma',
-        'Walking Forward With Bow.vrma',
-        'Male Standard Walk.vrma',
-        'Female Run Forward.vrma',
-        'Dancing The Twerk.vrma',
-        'Boxing Idle.vrma',
-        'Capoeira Step.vrma'
-      ]
-    }
-    
-    return []
   }
 
   const formatFileName = (filename) => {
