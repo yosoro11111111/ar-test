@@ -1,49 +1,126 @@
-const CACHE_VERSION = 'v6-20260209-1'
+const CACHE_VERSION = 'v7-20260209-2'
 const STATIC_CACHE = `ar-studio-static-${CACHE_VERSION}`
 const MODEL_CACHE = `ar-studio-models-${CACHE_VERSION}`
 const IMAGE_CACHE = `ar-studio-images-${CACHE_VERSION}`
 
-// Static assets list
+// Static assets list - 使用相对路径支持子目录部署
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/src/main.jsx',
-  '/src/App.jsx',
-  '/src/App.css',
-  '/src/index.css'
+  './',
+  './index.html',
+  './assets.json'
 ]
 
-// Model assets list
-const MODEL_ASSETS = [
-  '/models/RaidenShogun.vrm',
-  '/models/Zhongli.vrm',
-  '/models/HuTao.vrm',
-  '/models/KamisatoAyaka.vrm'
-]
+// Model assets list - 动态从 assets.json 加载
+let MODEL_ASSETS = []
 
 // Install event
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing... Version:', CACHE_VERSION)
   
   event.waitUntil(
-    Promise.all([
-      caches.open(STATIC_CACHE).then(cache => {
-        console.log('[SW] Caching static assets')
-        return cache.addAll(STATIC_ASSETS)
-      }),
-      caches.open(MODEL_CACHE).then(cache => {
-        console.log('[SW] Caching models')
-        return cache.addAll(MODEL_ASSETS).catch(err => {
-          console.warn('[SW] Some models failed to cache:', err)
-        })
-      })
-    ])
-    .then(() => {
+    (async () => {
+      // 首先缓存静态资源
+      const staticCache = await caches.open(STATIC_CACHE)
+      console.log('[SW] Caching static assets')
+      await staticCache.addAll(STATIC_ASSETS)
+      
+      // 尝试从 assets.json 加载模型列表
+      try {
+        const assetsResponse = await fetch('./assets.json')
+        if (assetsResponse.ok) {
+          const assets = await assetsResponse.json()
+          MODEL_ASSETS = extractModelPaths(assets)
+          console.log('[SW] Loaded model list from assets.json:', MODEL_ASSETS.length, 'models')
+          
+          // 缓存模型文件
+          if (MODEL_ASSETS.length > 0) {
+            const modelCache = await caches.open(MODEL_CACHE)
+            console.log('[SW] Caching models')
+            await Promise.all(
+              MODEL_ASSETS.map(async (modelPath) => {
+                try {
+                  await modelCache.add(modelPath)
+                } catch (err) {
+                  console.warn('[SW] Failed to cache model:', modelPath, err)
+                }
+              })
+            )
+          }
+        }
+      } catch (err) {
+        console.warn('[SW] Failed to load assets.json:', err)
+      }
+      
       console.log('[SW] Pre-cache complete')
-      return self.skipWaiting()
-    })
+      await self.skipWaiting()
+    })()
   )
 })
+
+// 从 assets.json 提取模型路径
+function extractModelPaths(assets) {
+  const paths = []
+  if (!assets.categories) return paths
+  
+  // 提取角色模型
+  if (assets.categories.characters?.subCategories) {
+    Object.values(assets.categories.characters.subCategories).forEach(category => {
+      if (category.items) {
+        category.items.forEach(item => {
+          if (item.path) {
+            // 转换为相对路径
+            const relativePath = item.path.startsWith('/') ? item.path.substring(1) : item.path
+            paths.push(relativePath)
+          }
+        })
+      }
+    })
+  }
+  
+  // 提取道具模型
+  if (assets.categories.props?.subCategories) {
+    Object.values(assets.categories.props.subCategories).forEach(category => {
+      if (category.items) {
+        category.items.forEach(item => {
+          if (item.path) {
+            const relativePath = item.path.startsWith('/') ? item.path.substring(1) : item.path
+            paths.push(relativePath)
+          }
+        })
+      }
+    })
+  }
+  
+  // 提取场景模型
+  if (assets.categories.scenes?.subCategories) {
+    Object.values(assets.categories.scenes.subCategories).forEach(category => {
+      if (category.items) {
+        category.items.forEach(item => {
+          if (item.path) {
+            const relativePath = item.path.startsWith('/') ? item.path.substring(1) : item.path
+            paths.push(relativePath)
+          }
+        })
+      }
+    })
+  }
+  
+  // 提取动作文件
+  if (assets.categories.motions?.subCategories) {
+    Object.values(assets.categories.motions.subCategories).forEach(category => {
+      if (category.items) {
+        category.items.forEach(item => {
+          if (item.path) {
+            const relativePath = item.path.startsWith('/') ? item.path.substring(1) : item.path
+            paths.push(relativePath)
+          }
+        })
+      }
+    })
+  }
+  
+  return paths
+}
 
 // Activate event
 self.addEventListener('activate', (event) => {
