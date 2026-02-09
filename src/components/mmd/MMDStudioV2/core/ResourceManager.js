@@ -73,9 +73,17 @@ export class ResourceManager {
 
   /**
    * 解析 assets.json
+   * 自动将绝对路径转换为相对路径，支持子目录部署
    */
   parseAssetsJson(data) {
     if (!data.categories) return
+
+    // 辅助函数：转换路径为相对路径
+    const toRelativePath = (path) => {
+      if (!path) return path
+      // 移除开头的斜杠，转换为相对路径
+      return path.startsWith('/') ? path.substring(1) : path
+    }
 
     // 解析角色
     if (data.categories.characters?.subCategories) {
@@ -85,7 +93,7 @@ export class ResourceManager {
             this.availableResources.characters.push({
               id: `char_${categoryKey}_${index}`,
               name: item.name || item.file,
-              path: item.path,
+              path: toRelativePath(item.path),
               category: category.name || categoryKey,
               categoryKey: categoryKey,
               type: 'characters',
@@ -106,7 +114,7 @@ export class ResourceManager {
             this.availableResources.props.push({
               id: `prop_${categoryKey}_${index}`,
               name: item.name || item.file,
-              path: item.path,
+              path: toRelativePath(item.path),
               category: category.name || categoryKey,
               categoryKey: categoryKey,
               type: 'props',
@@ -127,7 +135,7 @@ export class ResourceManager {
             this.availableResources.scenes.push({
               id: `scene_${categoryKey}_${index}`,
               name: item.name || item.file,
-              path: item.path,
+              path: toRelativePath(item.path),
               category: category.name || categoryKey,
               categoryKey: categoryKey,
               type: 'scenes',
@@ -148,7 +156,7 @@ export class ResourceManager {
             this.availableResources.motions.push({
               id: `motion_${categoryKey}_${index}`,
               name: item.name || item.file.replace('.vrma', ''),
-              path: item.path,
+              path: toRelativePath(item.path),
               category: category.name || categoryKey,
               categoryKey: categoryKey,
               type: 'motions',
