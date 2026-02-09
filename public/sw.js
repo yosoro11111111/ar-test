@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v5-20250206-3'
+const CACHE_VERSION = 'v6-20260209-1'
 const STATIC_CACHE = `ar-studio-static-${CACHE_VERSION}`
 const MODEL_CACHE = `ar-studio-models-${CACHE_VERSION}`
 const IMAGE_CACHE = `ar-studio-images-${CACHE_VERSION}`

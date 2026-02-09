@@ -1,2 +1,2 @@
 // MMD Studio 导出
-export { MMDStudio } from './MMDStudio'
+export { MMDStudio } from './MMDStudio/index.jsx'

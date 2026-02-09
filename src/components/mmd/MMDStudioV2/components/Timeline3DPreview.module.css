@@ -1,0 +1,127 @@
+/* 时间轴3D预览样式 */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  background: #1a1a25;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #2a2a3a;
+}
+
+.preview {
+  position: relative;
+  background: #0a0a0f;
+  overflow: hidden;
+}
+
+.previewImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #666;
+}
+
+.placeholderIcon {
+  font-size: 32px;
+  margin-bottom: 8px;
+  opacity: 0.5;
+}
+
+.placeholderText {
+  font-size: 12px;
+  opacity: 0.5;
+}
+
+.timeOverlay {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #fff;
+  font-size: 11px;
+  font-family: monospace;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* 关键帧轨道 */
+.keyframeTrack {
+  position: relative;
+  height: 12px;
+  background: #252535;
+  border-top: 1px solid #2a2a3a;
+}
+
+.keyframe {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.keyframe:hover {
+  transform: translate(-50%, -50%) scale(1.5);
+}
+
+/* 不同类型关键帧的颜色 */
+.keyframe.motion {
+  background: #667eea;
+}
+
+.keyframe.prop {
+  background: #fbbf24;
+}
+
+.keyframe.scene {
+  background: #4ade80;
+}
+
+.keyframe.music {
+  background: #ec4899;
+}
+
+.keyframe.effect {
+  background: #a78bfa;
+}
+
+.keyframe.camera {
+  background: #f87171;
+}
+
+/* 当前时间指示器 */
+.currentTime {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #fff;
+  transform: translateX(-50%);
+  pointer-events: none;
+  box-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+}
+
+.currentTime::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid #fff;
+}

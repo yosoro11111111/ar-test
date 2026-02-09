@@ -1,0 +1,80 @@
+/* 摄像机预览窗口样式 */
+
+.container {
+  position: fixed;
+  bottom: 220px;
+  right: 320px;
+  width: 320px;
+  background: #1a1a25;
+  border: 1px solid #2a2a3a;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  z-index: 100;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #12121a;
+  border-bottom: 1px solid #2a2a3a;
+}
+
+.title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.controls {
+  display: flex;
+  gap: 4px;
+}
+
+.controlBtn {
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #888;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.controlBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e0e0e0;
+}
+
+.canvas {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: #0a0a0f;
+}
+
+.info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  background: #12121a;
+  border-top: 1px solid #2a2a3a;
+  font-size: 11px;
+}
+
+.time {
+  color: #667eea;
+  font-family: 'SF Mono', Monaco, monospace;
+}
+
+.status {
+  color: #888;
+}

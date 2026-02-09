@@ -20,6 +20,12 @@ import { ShortcutHelp } from './components/ui/ShortcutHelp'
 import { ButtonPanel } from './components/ui/ButtonPanel'
 import { TimelineEditor } from './components/features/timeline/TimelineEditor'
 
+// MMD Studio V2
+import { MMDStudioV2 } from './components/mmd/MMDStudioV2'
+
+// 测试组件
+import { SimpleTestComponent } from './components/SimpleTestComponent'
+
 import './App.css'
 import './styles/anime-theme.css'
 
@@ -83,9 +89,6 @@ const useCacheManager = () => {
   return { clearAllCache, getCacheSize }
 }
 
-// 强制导入 Motion Pack 动作
- 
-
 // ==================== 移动端检测 Hook ====================
 const useMobileDetect = () => {
   const [isMobile, setIsMobile] = useState(false)
@@ -106,142 +109,12 @@ const useMobileDetect = () => {
   return { isMobile, isTablet, isDesktop: !isMobile && !isTablet }
 }
 
-// ==================== 角色卡片组件 ====================
-const CharacterCard = ({ model, index, onSelect, isSelected, isMobile }) => {
-  const [isHovered, setIsHovered] = useState(false)
-  
-  const getThemeColor = (name) => {
-    const colors = [
-      { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', accent: '#a78bfa' },
-      { bg: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', accent: '#f472b6' },
-      { bg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', accent: '#60a5fa' },
-      { bg: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', accent: '#34d399' },
-      { bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', accent: '#fbbf24' },
-      { bg: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)', accent: '#f9a8d4' },
-    ]
-    return colors[index % colors.length]
-  }
-  
-  const theme = getThemeColor(model.name)
-  
-  return (
-    <div
-      onClick={() => onSelect(model)}
-      onMouseEnter={() => !isMobile && setIsHovered(true)}
-      onMouseLeave={() => !isMobile && setIsHovered(false)}
-      style={{
-        position: 'relative',
-        width: '100%',
-        aspectRatio: '3/4',
-        borderRadius: isMobile ? '12px' : '16px',
-        overflow: 'hidden',
-        cursor: 'pointer',
-        transform: isHovered ? 'translateY(-4px) scale(1.02)' : 'translateY(0) scale(1)',
-        transition: 'all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        boxShadow: isHovered
-          ? `0 15px 30px rgba(0,0,0,0.3), 0 0 20px ${theme.accent}40`
-          : '0 8px 20px rgba(0,0,0,0.2)',
-        background: theme.bg,
-      }}
-    >
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: `
-          radial-gradient(circle at 30% 20%, rgba(255,255,255,0.3) 0%, transparent 50%),
-          radial-gradient(circle at 70% 80%, rgba(255,255,255,0.2) 0%, transparent 40%)
-        `,
-        opacity: isHovered ? 1 : 0.7,
-        transition: 'opacity 0.3s ease'
-      }} />
-      
-      <div style={{
-        position: 'absolute',
-        top: '10%',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: '60%',
-        aspectRatio: '1',
-        borderRadius: '50%',
-        background: 'rgba(255,255,255,0.2)',
-        backdropFilter: 'blur(10px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: isMobile ? '28px' : '36px',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-        border: '2px solid rgba(255,255,255,0.3)'
-      }}>
-        {model.avatar || ['🌸', '⭐', '🌙', '💫', '🎀', '💎'][index % 6]}
-      </div>
-      
-      <div style={{
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        padding: isMobile ? '10px' : '16px',
-        background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 100%)',
-      }}>
-        <h3 style={{
-          margin: 0,
-          fontSize: isMobile ? '12px' : '14px',
-          fontWeight: '700',
-          color: 'white',
-          textShadow: '0 2px 10px rgba(0,0,0,0.5)',
-          letterSpacing: '1px'
-        }}>
-          {model.name}
-        </h3>
-        <p style={{
-          margin: '4px 0 0 0',
-          fontSize: isMobile ? '8px' : '10px',
-          color: 'rgba(255,255,255,0.8)',
-          letterSpacing: '1px'
-        }}>
-          NO.{String(index + 1).padStart(2, '0')}
-        </p>
-      </div>
-      
-      {isSelected && (
-        <div style={{
-          position: 'absolute',
-          top: '8px',
-          right: '8px',
-          width: '20px',
-          height: '20px',
-          borderRadius: '50%',
-          background: '#10b981',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '12px',
-          boxShadow: '0 4px 12px rgba(16, 185, 129, 0.5)',
-          animation: 'popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)'
-        }}>
-          ✓
-        </div>
-      )}
-      
-      <style>{`
-        @keyframes popIn {
-          0% { transform: scale(0); }
-          100% { transform: scale(1); }
-        }
-      `}</style>
-    </div>
-  )
-}
-
 // ==================== 主应用组件 ====================
 function App() {
   const { isMobile } = useMobileDetect()
   const { settings, updateSetting, resetSettings } = useAppSettings()
-  const { characters, currentCharacter, addCharacter, updateCharacter, deleteCharacter, selectCharacter, reorderCharacters } = useCharacterData()
-  const { clearAllCache, getCacheSize } = useCacheManager()
+  const { characters, currentCharacter, addCharacter, updateCharacter, deleteCharacter, selectCharacter } = useCharacterData()
+  const { clearAllCache } = useCacheManager()
 
   // 新架构状态管理
   const { 
@@ -292,6 +165,9 @@ function App() {
     return saved ? JSON.parse(saved) : []
   })
 
+  // 当前视图模式 - 默认显示AR体验
+  const [currentView, setCurrentView] = useState('ar') // 'ar' | 'mmd' | 'landing'
+
   const fileInputRef = useRef(null)
   const gestureAreaRef = useRef(null)
 
@@ -304,22 +180,19 @@ function App() {
   useGesture({
     elementRef: gestureAreaRef,
     onSwipeLeft: () => {
-      // 切换到下一个动作
       if (!showFileInput && selectedFile) {
         console.log('👈 向左滑动：下一个动作')
         vibrate(20)
       }
     },
     onSwipeRight: () => {
-      // 切换到上一个动作
       if (!showFileInput && selectedFile) {
         console.log('👉 向右滑动：上一个动作')
         vibrate(20)
       }
     },
     onDoubleTap: () => {
-      // 双击功能已禁用，避免与动作按钮点击冲突
-      // 如需拍照，请使用右侧边栏的拍照按钮
+      // 双击功能已禁用
     }
   })
 
@@ -331,17 +204,14 @@ function App() {
   
   // 快捷键处理
   const handlePrevAction = useCallback(() => {
-    // 触发上一个动作逻辑
     vibrate(20)
   }, [])
   
   const handleNextAction = useCallback(() => {
-    // 触发下一个动作逻辑
     vibrate(20)
   }, [])
   
   const handleRandomAction = useCallback(() => {
-    // 随机动作逻辑
     vibrate(30)
   }, [])
   
@@ -404,7 +274,6 @@ function App() {
     setIsLoading(true)
     setLoadingProgress(0)
     
-    // 模拟加载进度
     const progressInterval = setInterval(() => {
       setLoadingProgress(prev => {
         if (prev >= 90) {
@@ -420,7 +289,6 @@ function App() {
       setSelectedFile(file)
       setModelUrl(url)
       
-      // 添加到人物列表
       const newChar = addCharacter({
         name: file.name.replace('.vrm', ''),
         path: isLocal ? file : file.name,
@@ -453,7 +321,6 @@ function App() {
     setSelectedModelIndex(index)
     const modelPath = `/models/${model.filename}`
     
-    // 创建虚拟文件对象
     const dummyContent = new Uint8Array(1)
     dummyContent[0] = 0
     const blob = new Blob([dummyContent], { type: 'model/gltf-binary' })
@@ -477,7 +344,6 @@ function App() {
   const handleSelectAction = (action) => {
     setCurrentAction(action)
     setShowActionPanel(false)
-    // 触发AR场景中的动作
     if (window.executeARAction) {
       window.executeARAction(action)
     }
@@ -507,6 +373,12 @@ function App() {
   // 使用新的统一AR系统 - 默认关闭，使用原有系统
   const [useUnifiedSystem, setUseUnifiedSystem] = useState(false)
 
+  // 渲染MMD Studio V2
+  if (currentView === 'mmd') {
+    return <MMDStudioV2 />
+  }
+
+  // 渲染AR体验主界面
   return (
     <div className="app-container cyberpunk-app" style={{ 
       width: '100vw', 
@@ -516,7 +388,63 @@ function App() {
     }}>
       {/* 启动画面 */}
       {showSplash && (
-        <LoadingScreen onComplete={() => setShowSplash(false)} isMobile={isMobile} />
+        <LoadingScreen 
+          onComplete={() => {
+            setShowSplash(false)
+            // 检查是否需要切换到MMD视图
+            const savedView = localStorage.getItem('ar_paradise_view')
+            if (savedView === 'mmd') {
+              localStorage.removeItem('ar_paradise_view')
+              setCurrentView('mmd')
+            }
+          }} 
+          isMobile={isMobile} 
+        />
+      )}
+      
+      {/* 顶部导航栏 - 添加MMD Studio切换 (始终显示) */}
+      {!showSplash && (
+        <div style={{
+          position: 'absolute',
+          top: '16px',
+          left: '16px',
+          zIndex: 1000,
+          display: 'flex',
+          gap: '12px'
+        }}>
+          <button
+            onClick={() => setCurrentView('ar')}
+            style={{
+              padding: '10px 20px',
+              background: currentView === 'ar' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'rgba(255,255,255,0.1)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '600',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            📷 AR拍照
+          </button>
+          <button
+            onClick={() => setCurrentView('mmd')}
+            style={{
+              padding: '10px 20px',
+              background: currentView === 'mmd' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'rgba(255,255,255,0.1)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '600',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            🎬 MMD Studio
+          </button>
+        </div>
       )}
       
       {/* 使用统一AR系统（可选） */}
@@ -895,7 +823,8 @@ function App() {
               ))}
             </div>
           </div>
-          {/* 角色卡片网格 */}
+
+          {/* 角色列表 */}
           <div style={{
             maxHeight: 'calc(90vh - 200px)',
             overflowY: 'auto',
@@ -910,14 +839,37 @@ function App() {
               padding: '4px'
             }}>
               {filteredModelList.map((model, index) => (
-                <CharacterCard
+                <div
                   key={index}
-                  model={model}
-                  index={index}
-                  onSelect={(m) => handleSelectLocalModel(m, index)}
-                  isSelected={selectedModelIndex === index}
-                  isMobile={isMobile}
-                />
+                  onClick={() => handleSelectLocalModel(model, index)}
+                  style={{
+                    aspectRatio: '3/4',
+                    borderRadius: '12px',
+                    background: selectedModelIndex === index 
+                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                      : 'rgba(255,255,255,0.05)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease',
+                    border: selectedModelIndex === index 
+                      ? '2px solid #667eea'
+                      : '1px solid rgba(255,255,255,0.1)'
+                  }}
+                >
+                  <div style={{ fontSize: '32px', marginBottom: '8px' }}>
+                    {model.avatar || ['🌸', '⭐', '🌙', '💫', '🎀', '💎'][index % 6]}
+                  </div>
+                  <div style={{
+                    fontSize: '12px',
+                    color: selectedModelIndex === index ? '#fff' : 'rgba(255,255,255,0.8)',
+                    fontWeight: '600'
+                  }}>
+                    {model.name}
+                  </div>
+                </div>
               ))}
             </div>
             
@@ -962,7 +914,6 @@ function App() {
         onCreate={() => setShowFileInput(true)}
         onDelete={deleteCharacter}
         onEdit={updateCharacter}
-        onReorder={reorderCharacters}
         isMobile={isMobile}
       />
 
@@ -997,7 +948,7 @@ function App() {
         currentPose={currentAction?.id}
       />
 
-      {/* 加载中界面 - 带进度条 */}
+      {/* 加载中界面 */}
       {isLoading && (
         <div style={{
           position: 'absolute',
@@ -1013,7 +964,6 @@ function App() {
           minWidth: isMobile ? '200px' : '280px',
           boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)'
         }}>
-          {/* 圆形进度 */}
           <div style={{
             width: isMobile ? '80px' : '100px',
             height: isMobile ? '80px' : '100px',
@@ -1183,12 +1133,11 @@ function App() {
             defaultHeight={settings.defaultHeight}
             onOpenCharacterManager={() => setShowCharacterManager(true)}
             onOpenActionPanel={() => setShowActionPanel(true)}
-            onOpenBoneEditor={() => setShowBoneEditor(true)}
           />
         </div>
       )}
 
-      {/* 新按钮面板 - 替换侧边栏和控制球 */}
+      {/* 新按钮面板 */}
       {!showFileInput && selectedFile && (
         <ButtonPanel
           onCharacterManager={() => {
@@ -1210,11 +1159,9 @@ function App() {
           }}
           isMobile={isMobile}
           onActionDrop={(action) => {
-            // 拖放动作到时间轴按钮
             setDraggedAction(action)
             setShowTimeline(true)
             vibrate(50)
-            // 添加到时间轴
             setTimeout(() => {
               addRecentAction(action)
               recordActionUsage(action.id)
@@ -1223,28 +1170,24 @@ function App() {
         />
       )}
 
-      {/* 新功能：时间轴编辑器 - 页签式 */}
+      {/* 时间轴编辑器 */}
       {showTimeline && (
         <TimelineEditor 
           onClose={() => setShowTimeline(false)}
           onExecuteAction={(action) => {
-            // 时间轴播放时执行动作
             handleSelectAction(action)
           }}
           onPause={() => {
-            // 暂停动作播放
             if (window.arSystem) {
               window.arSystem.pauseAnimation()
             }
           }}
           onResume={() => {
-            // 继续动作播放
             if (window.arSystem) {
               window.arSystem.resumeAnimation()
             }
           }}
           onStop={() => {
-            // 停止动作播放
             if (window.arSystem) {
               window.arSystem.stopAnimation()
             }
@@ -1253,10 +1196,10 @@ function App() {
         />
       )}
 
-      {/* 新功能：快捷键帮助面板 */}
+      {/* 快捷键帮助面板 */}
       <ShortcutHelp isOpen={showHelp} onClose={() => setShowHelp(false)} />
 
-      {/* 新功能：UI隐藏提示 */}
+      {/* UI隐藏提示 */}
       {!isUIVisible && !isMobile && (
         <div 
           onClick={toggleUI}

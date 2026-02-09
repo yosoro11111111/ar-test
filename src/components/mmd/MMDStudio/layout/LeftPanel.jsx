@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import styles from './LeftPanel.module.css'
-import { ResourceBrowser } from '../components/ResourceBrowser'
-import { ensureDatabase } from '../../core/dbUtils'
+import { ResourceBrowser } from '../components/ResourceBrowser.jsx'
+import { ensureDatabase } from '../../core/dbUtils.js'
 
 /**
  * 左侧面板 - 资源库

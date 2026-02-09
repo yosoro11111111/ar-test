@@ -1,0 +1,296 @@
+/* 顶部导航栏样式 */
+
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 16px;
+  background-color: #151520;
+  background-image: linear-gradient(180deg, #151520 0%, #12121a 100%);
+  border-bottom: 1px solid #2a2a3a;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 100;
+}
+
+/* 左侧区域 */
+.leftSection {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logoIcon {
+  font-size: 16px;
+}
+
+.logoText {
+  font-size: 13px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.projectInfo {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 12px;
+  border-left: 1px solid #2a2a3a;
+}
+
+.projectName {
+  font-size: 12px;
+  color: #e0e0e0;
+  font-weight: 500;
+}
+
+.modifiedIndicator {
+  color: #667eea;
+  font-size: 14px;
+}
+
+/* 菜单栏 */
+.menuBar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.menuItem {
+  position: relative;
+}
+
+.menuBtn {
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #b0b0b0;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.menuBtn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+}
+
+.menuItem.active .menuBtn {
+  background: rgba(102, 126, 234, 0.2);
+  color: #667eea;
+}
+
+/* 下拉菜单 */
+.dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 200px;
+  background: #1a1a25;
+  border: 1px solid #2a2a3a;
+  border-radius: 8px;
+  padding: 8px 0;
+  margin-top: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  animation: dropdownSlide 0.15s ease;
+}
+
+@keyframes dropdownSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  color: #e0e0e0;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.dropdownItem:hover {
+  background: rgba(102, 126, 234, 0.15);
+  color: #fff;
+}
+
+.itemIcon {
+  width: 20px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.itemLabel {
+  flex: 1;
+}
+
+.shortcut {
+  color: #888;
+  font-size: 11px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.separator {
+  height: 1px;
+  background: #2a2a3a;
+  margin: 8px 0;
+}
+
+/* 右侧区域 */
+.rightSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* 资源包选择 */
+.packageSelector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+}
+
+.packageLabel {
+  font-size: 14px;
+}
+
+.packageSelect {
+  padding: 4px 24px 4px 8px;
+  background: transparent;
+  border: none;
+  color: #b0b0b0;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 4px center;
+}
+
+.packageSelect:hover {
+  color: #fff;
+}
+
+.importBtn {
+  width: 22px;
+  height: 22px;
+  background: #667eea;
+  border: none;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.importBtn:hover {
+  background: #5a6fd6;
+}
+
+/* 分隔线 */
+.divider {
+  width: 1px;
+  height: 24px;
+  background: #2a2a3a;
+}
+
+/* 快捷操作 */
+.quickActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.actionBtn {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.actionBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: scale(1.05);
+}
+
+.actionBtn.active {
+  background: rgba(102, 126, 234, 0.2);
+  color: #667eea;
+}
+
+/* 时间显示 */
+.timeDisplay {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  font-family: 'SF Mono', Monaco, monospace;
+  font-size: 13px;
+}
+
+.timeCurrent {
+  color: #fff;
+  font-weight: 600;
+}
+
+.timeSeparator {
+  color: #555;
+}
+
+.timeTotal {
+  color: #888;
+}
+
+/* 响应式 */
+@media (max-width: 1024px) {
+  .menuBar {
+    display: none;
+  }
+  
+  .logoText {
+    display: none;
+  }
+}

@@ -122,12 +122,12 @@ export const LoadingScreen = ({ onComplete, isMobile }) => {
               <span>进入体验</span>
               <div className="button-glow" />
             </button>
-            <button className="mmd-button" onClick={() => window.location.href = '/ar-director/mmd'}>
+            <button className="mmd-button" onClick={() => {
+              // 设置标记并直接进入MMD Studio
+              window.localStorage.setItem('ar_paradise_view', 'mmd')
+              handleEnter()
+            }}>
               <span>🎬 MMD导演</span>
-              <div className="button-glow" />
-            </button>
-            <button className="mobile-record-button" onClick={() => window.location.href = '/ar-director/record'}>
-              <span>📷 AR全景相机</span>
               <div className="button-glow" />
             </button>
           </div>

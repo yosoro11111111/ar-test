@@ -1,0 +1,115 @@
+.container {
+  width: 260px;
+  height: 100%;
+  background: #15151a;
+  border-left: 1px solid #2a2a35;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.emptyText {
+  font-size: 14px;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.emptySubtext {
+  font-size: 12px;
+  color: #666;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid #2a2a35;
+}
+
+.objectIcon {
+  font-size: 24px;
+}
+
+.objectName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.section {
+  padding: 16px;
+  border-bottom: 1px solid #2a2a35;
+}
+
+.sectionTitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.inputRow label {
+  width: 20px;
+  font-size: 11px;
+  color: #666;
+  font-weight: 600;
+}
+
+.inputRow input {
+  flex: 1;
+  padding: 6px 8px;
+  background: #0a0a0f;
+  border: 1px solid #2a2a35;
+  border-radius: 4px;
+  color: #fff;
+  font-size: 12px;
+}
+
+.inputRow input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #e0e0e0;
+  cursor: pointer;
+}
+
+.checkbox input {
+  cursor: pointer;
+}

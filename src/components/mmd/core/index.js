@@ -1,4 +1,4 @@
 // 核心系统导出
-export { getProjectManager, destroyProjectManager } from './ProjectManager'
-export { getResourceManager, destroyResourceManager } from './ResourceManager'
-export { getDataPackageManager, destroyDataPackageManager } from './DataPackageManager'
+export { getProjectManager, destroyProjectManager } from './ProjectManager.js'
+export { getResourceManager, destroyResourceManager } from './ResourceManager.js'
+export { getDataPackageManager, destroyDataPackageManager } from './DataPackageManager.js'
