@@ -15,6 +15,8 @@ import { ProjectWizard } from './screens/ProjectWizard.jsx'
 import { ExportModal } from './modals/ExportModal.jsx'
 import { SettingsModal } from './modals/SettingsModal.jsx'
 import { ResourcePackModal } from './modals/ResourcePackModal.jsx'
+import { ShortcutsModal } from './modals/ShortcutsModal.jsx'
+import { AboutModal } from './modals/AboutModal.jsx'
 
 // 引导系统
 import { TutorialGuide, shouldShowTutorial } from './components/TutorialGuide.jsx'
@@ -67,6 +69,10 @@ export function MMDStudioV2() {
   const [showExportModal, setShowExportModal] = useState(false)
   const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [showResourcePackModal, setShowResourcePackModal] = useState(false)
+  const [showSearchPanel, setShowSearchPanel] = useState(false)
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false)
+  const [showDocumentationModal, setShowDocumentationModal] = useState(false)
+  const [showAboutModal, setShowAboutModal] = useState(false)
 
   
   // 面板显示状态
@@ -369,6 +375,69 @@ export function MMDStudioV2() {
     setIsModified(true)
   }
 
+  const handleCut = () => {
+    if (selectedClip) {
+      // 复制到剪贴板
+      setClipboard({
+        type: 'clip',
+        data: JSON.parse(JSON.stringify(selectedClip))
+      })
+      // 删除原片段
+      handleDeleteClip(selectedClip.id, selectedTrack.id)
+      console.log('剪切片段:', selectedClip.name)
+    } else if (selectedObject) {
+      // 复制到剪贴板
+      setClipboard({
+        type: 'object',
+        data: JSON.parse(JSON.stringify(selectedObject))
+      })
+      // 删除原对象
+      handleDelete()
+      console.log('剪切对象:', selectedObject.name)
+    }
+  }
+
+  const handleDelete = () => {
+    if (selectedClip && selectedTrack) {
+      handleDeleteClip(selectedClip.id, selectedTrack.id)
+    } else if (selectedObject) {
+      // 根据对象类型删除
+      if (selectedObject.type === 'character' || project.characters?.find(c => c.id === selectedObject.id)) {
+        handleDeleteCharacter(selectedObject.id)
+      } else {
+        // 删除道具
+        setProject(prev => ({
+          ...prev,
+          props: prev.props?.filter(p => p.id !== selectedObject.id) || []
+        }))
+        // 删除对应的轨道
+        setProject(prev => ({
+          ...prev,
+          tracks: prev.tracks.filter(t => t.targetId !== selectedObject.id)
+        }))
+      }
+      setSelectedObject(null)
+      setIsModified(true)
+      console.log('删除对象:', selectedObject.name)
+    }
+  }
+
+  const handleSelectAll = () => {
+    // 根据当前上下文选择所有
+    if (selectedTrack) {
+      // 选择轨道上所有片段
+      const clips = selectedTrack.clips
+      if (clips.length > 0) {
+        setSelectedClip(clips[0])
+        console.log('全选: 选中轨道上', clips.length, '个片段')
+      }
+    } else if (project?.characters?.length > 0) {
+      // 选择所有角色
+      setSelectedObject(project.characters[0])
+      console.log('全选: 选中', project.characters.length, '个角色')
+    }
+  }
+
   // 键盘快捷键
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -386,9 +455,17 @@ export function MMDStudioV2() {
             e.preventDefault()
             handleCopy()
             break
+          case 'x':
+            e.preventDefault()
+            handleCut()
+            break
           case 'v':
             e.preventDefault()
             handlePaste()
+            break
+          case 'a':
+            e.preventDefault()
+            handleSelectAll()
             break
           case 's':
             e.preventDefault()
@@ -2009,7 +2086,10 @@ export function MMDStudioV2() {
         onUndo={handleUndo}
         onRedo={handleRedo}
         onCopy={handleCopy}
+        onCut={handleCut}
         onPaste={handlePaste}
+        onDelete={handleDelete}
+        onSelectAll={handleSelectAll}
         onToggleFullscreen={handleToggleFullscreen}
         onToggleLeftPanel={() => setShowLeftPanel(!showLeftPanel)}
         onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
@@ -2017,6 +2097,13 @@ export function MMDStudioV2() {
         onChangeViewMode={handleChangeViewMode}
         onPreviewRender={handlePreviewRender}
         onFinalRender={handleFinalRender}
+        showLeftPanel={showLeftPanel}
+        showRightPanel={showRightPanel}
+        showTimeline={showTimeline}
+        viewMode={viewMode}
+        onShowShortcuts={() => setShowShortcutsModal(true)}
+        onShowDocumentation={() => setShowDocumentationModal(true)}
+        onShowAbout={() => setShowAboutModal(true)}
       />
 
       {/* 主编辑区 */}
@@ -2046,6 +2133,8 @@ export function MMDStudioV2() {
           onAddCamera={handleAddCameraForSelected}
           viewMode={viewMode}
           onChangeViewMode={handleChangeViewMode}
+          onUndo={handleUndo}
+          onSearch={() => setShowSearchPanel(true)}
         />
 
         {/* 右侧面板 - 属性编辑 */}
@@ -2116,7 +2205,21 @@ export function MMDStudioV2() {
           currentProject={project}
         />
       )}
-      
+
+      {/* 快捷键弹窗 */}
+      {showShortcutsModal && (
+        <ShortcutsModal
+          onClose={() => setShowShortcutsModal(false)}
+        />
+      )}
+
+      {/* 关于弹窗 */}
+      {showAboutModal && (
+        <AboutModal
+          onClose={() => setShowAboutModal(false)}
+        />
+      )}
+
       {/* 引导系统 */}
       {showTutorial && (
         <TutorialGuide

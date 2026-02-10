@@ -46,6 +46,14 @@
 
 .toolBtn.active {
   background: rgba(102, 126, 234, 0.2);
+  border: 1px solid rgba(102, 126, 234, 0.4);
+}
+
+.toolSeparator {
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.1);
+  margin: 0 4px;
 }
 
 .viewControls {

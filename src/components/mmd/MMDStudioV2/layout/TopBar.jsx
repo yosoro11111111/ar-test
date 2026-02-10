@@ -29,14 +29,24 @@ export function TopBar({
   onUndo,
   onRedo,
   onCopy,
+  onCut,
   onPaste,
+  onDelete,
+  onSelectAll,
   onToggleFullscreen,
   onToggleLeftPanel,
   onToggleRightPanel,
   onToggleTimeline,
   onChangeViewMode,
   onPreviewRender,
-  onFinalRender
+  onFinalRender,
+  showLeftPanel,
+  showRightPanel,
+  showTimeline,
+  viewMode,
+  onShowShortcuts,
+  onShowDocumentation,
+  onShowAbout
 }) {
   const [activeMenu, setActiveMenu] = useState(null)
   const menuRef = useRef(null)
@@ -70,20 +80,20 @@ export function TopBar({
       { label: '重做', shortcut: 'Ctrl+Y', action: onRedo },
       { type: 'separator' },
       { label: '复制', shortcut: 'Ctrl+C', action: onCopy },
-      { label: '剪切', shortcut: 'Ctrl+X', action: () => {} },
+      { label: '剪切', shortcut: 'Ctrl+X', action: onCut },
       { label: '粘贴', shortcut: 'Ctrl+V', action: onPaste },
       { type: 'separator' },
-      { label: '删除', shortcut: 'Delete', action: () => {} },
-      { label: '全选', shortcut: 'Ctrl+A', action: () => {} },
+      { label: '删除', shortcut: 'Delete', action: onDelete },
+      { label: '全选', shortcut: 'Ctrl+A', action: onSelectAll },
     ]},
     { id: 'view', label: '视图', items: [
-      { label: '透视图', action: () => onChangeViewMode?.('perspective'), icon: '🔍' },
-      { label: '正交视图', action: () => onChangeViewMode?.('orthographic'), icon: '📐' },
-      { label: '摄像机视图', action: () => onChangeViewMode?.('camera'), icon: '📷' },
+      { label: '透视图', action: () => onChangeViewMode?.('perspective'), icon: '🔍', checked: viewMode === 'perspective' },
+      { label: '正交视图', action: () => onChangeViewMode?.('orthographic'), icon: '📐', checked: viewMode === 'orthographic' },
+      { label: '摄像机视图', action: () => onChangeViewMode?.('camera'), icon: '📷', checked: viewMode === 'camera' },
       { type: 'separator' },
-      { label: '左侧面板', action: onToggleLeftPanel, checkable: true },
-      { label: '右侧面板', action: onToggleRightPanel, checkable: true },
-      { label: '时间轴', action: onToggleTimeline, checkable: true },
+      { label: '左侧面板', action: onToggleLeftPanel, checked: showLeftPanel },
+      { label: '右侧面板', action: onToggleRightPanel, checked: showRightPanel },
+      { label: '时间轴', action: onToggleTimeline, checked: showTimeline },
       { type: 'separator' },
       { label: '全屏', shortcut: 'F11', action: onToggleFullscreen },
     ]},
@@ -94,10 +104,10 @@ export function TopBar({
       { label: '渲染设置', action: onOpenSettings, icon: '⚙️' },
     ]},
     { id: 'help', label: '帮助', items: [
-      { label: '快捷键', action: () => {}, shortcut: '?' },
-      { label: '使用文档', action: () => {} },
+      { label: '快捷键', action: onShowShortcuts, shortcut: '?' },
+      { label: '使用文档', action: onShowDocumentation },
       { type: 'separator' },
-      { label: '关于 MMD Studio', action: () => {} },
+      { label: '关于 MMD Studio', action: onShowAbout },
     ]},
   ]
 
@@ -140,13 +150,15 @@ export function TopBar({
                   ) : (
                     <button
                       key={index}
-                      className={styles.dropdownItem}
+                      className={`${styles.dropdownItem} ${item.checked ? styles.checked : ''}`}
                       onClick={() => {
                         item.action?.()
                         setActiveMenu(null)
                       }}
                     >
-                      <span className={styles.itemIcon}>{item.icon || ''}</span>
+                      <span className={styles.itemIcon}>
+                        {item.checked ? '✓' : (item.icon || '')}
+                      </span>
                       <span className={styles.itemLabel}>{item.label}</span>
                       {item.shortcut && (
                         <span className={styles.shortcut}>{item.shortcut}</span>

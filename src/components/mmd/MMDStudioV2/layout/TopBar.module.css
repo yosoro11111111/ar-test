@@ -138,6 +138,16 @@
   color: #fff;
 }
 
+.dropdownItem.checked {
+  background: rgba(102, 126, 234, 0.1);
+  color: #667eea;
+}
+
+.dropdownItem.checked .itemIcon {
+  color: #667eea;
+  font-weight: bold;
+}
+
 .itemIcon {
   width: 20px;
   text-align: center;

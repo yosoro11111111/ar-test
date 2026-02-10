@@ -21,10 +21,13 @@ export const CenterPanel = forwardRef(function CenterPanel({
   renderEngine,
   onAddCamera,
   viewMode,
-  onChangeViewMode
+  onChangeViewMode,
+  onUndo,
+  onSearch
 }, ref) {
   const canvasRef = useRef(null)
   const [currentViewMode, setCurrentViewMode] = useState(viewMode || 'perspective')
+  const [activeTool, setActiveTool] = useState('select') // select, move, rotate, scale
 
   // 将canvasRef传递给父组件
   useEffect(() => {
@@ -46,17 +49,48 @@ export const CenterPanel = forwardRef(function CenterPanel({
       {/* 视口工具栏 */}
       <div className={styles.toolbar}>
         <div className={styles.toolGroup}>
-          <button className={`${styles.toolBtn} ${styles.active}`} title="选择">
+          <button 
+            className={`${styles.toolBtn} ${activeTool === 'select' ? styles.active : ''}`} 
+            title="选择工具 (Q)"
+            onClick={() => setActiveTool('select')}
+          >
             🖱️
           </button>
-          <button className={styles.toolBtn} title="移动">
+          <button 
+            className={`${styles.toolBtn} ${activeTool === 'move' ? styles.active : ''}`} 
+            title="移动工具 (W)"
+            onClick={() => setActiveTool('move')}
+          >
             ✋
           </button>
-          <button className={styles.toolBtn} title="旋转">
+          <button 
+            className={`${styles.toolBtn} ${activeTool === 'rotate' ? styles.active : ''}`} 
+            title="旋转工具 (E)"
+            onClick={() => setActiveTool('rotate')}
+          >
             🔄
           </button>
-          <button className={styles.toolBtn} title="缩放">
+          <button 
+            className={`${styles.toolBtn} ${activeTool === 'scale' ? styles.active : ''}`} 
+            title="缩放工具 (R)"
+            onClick={() => setActiveTool('scale')}
+          >
             🔍
+          </button>
+          <div className={styles.toolSeparator} />
+          <button 
+            className={styles.toolBtn} 
+            title="撤销 (Ctrl+Z)"
+            onClick={() => onUndo?.()}
+          >
+            ↩️
+          </button>
+          <button 
+            className={styles.toolBtn} 
+            title="搜索 (Ctrl+F)"
+            onClick={() => onSearch?.()}
+          >
+            🔎
           </button>
         </div>
         
