@@ -1,6 +1,7 @@
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import styles from './LeftPanel.module.css'
 import { MotionGroupPanel } from '../components/MotionGroupPanel.jsx'
+import { ThumbnailGenerator } from '../core/ThumbnailGenerator.js'
 
 /**
  * 左侧面板 - 资源库 V3
@@ -26,7 +27,22 @@ export function LeftPanel({
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [selectedResources, setSelectedResources] = useState(new Set())
-  
+  const [thumbnails, setThumbnails] = useState({})
+  const [isGeneratingThumbnails, setIsGeneratingThumbnails] = useState(false)
+
+  // 缩略图生成器
+  const thumbnailGenerator = useRef(null)
+
+  // 初始化缩略图生成器
+  useEffect(() => {
+    thumbnailGenerator.current = new ThumbnailGenerator()
+    thumbnailGenerator.current.init()
+
+    return () => {
+      thumbnailGenerator.current?.dispose()
+    }
+  }, [])
+
   // 纯色场景颜色选择器状态
   const [showColorPicker, setShowColorPicker] = useState(false)
   const [selectedColor, setSelectedColor] = useState('#0a0a1a')
@@ -39,6 +55,53 @@ export function LeftPanel({
     console.log('LeftPanel - activeTab:', activeTab)
     console.log('LeftPanel - current tab resources:', availableResources[activeTab])
   }, [availableResources, loadedResources, activeTab])
+
+  // 生成缩略图
+  useEffect(() => {
+    const generateThumbnails = async () => {
+      if (!thumbnailGenerator.current || currentResources.length === 0) return
+
+      setIsGeneratingThumbnails(true)
+      const newThumbnails = { ...thumbnails }
+
+      for (const resource of currentResources) {
+        // 如果已经有缩略图，跳过
+        if (newThumbnails[resource.id]) continue
+
+        try {
+          let thumbnail
+          const path = resource.path || resource.url || resource.file
+
+          switch (activeTab) {
+            case 'characters':
+              thumbnail = await thumbnailGenerator.current.generateVRMThumbnail(path)
+              break
+            case 'scenes':
+              thumbnail = await thumbnailGenerator.current.generateSceneThumbnail(path)
+              break
+            case 'props':
+              thumbnail = await thumbnailGenerator.current.generatePropThumbnail(path)
+              break
+            case 'motions':
+              thumbnail = await thumbnailGenerator.current.generateMotionThumbnail(path)
+              break
+            default:
+              thumbnail = thumbnailGenerator.current.generatePlaceholderThumbnail(activeTab.slice(0, -1))
+          }
+
+          newThumbnails[resource.id] = thumbnail
+        } catch (error) {
+          console.warn(`生成资源 ${resource.id} 的缩略图失败:`, error)
+          newThumbnails[resource.id] = thumbnailGenerator.current.generatePlaceholderThumbnail(activeTab.slice(0, -1))
+        }
+      }
+
+      setThumbnails(newThumbnails)
+      setIsGeneratingThumbnails(false)
+    }
+
+    generateThumbnails()
+  }, [currentResources, activeTab])
 
   const tabs = [
     { id: 'characters', name: '角色', icon: '👤', tooltip: '角色' },
@@ -237,7 +300,8 @@ export function LeftPanel({
   const renderResourceCard = (item) => {
     const isSelected = selectedResources.has(item.id)
     const isLoaded = item.loaded || item.status === 'loaded'
-    
+    const thumbnail = thumbnails[item.id]
+
     const icons = {
       characters: '👤',
       props: '📦',
@@ -247,8 +311,8 @@ export function LeftPanel({
     }
 
     return (
-      <div 
-        key={item.id} 
+      <div
+        key={item.id}
         className={`${styles.resourceCard} ${isSelected ? styles.selected : ''} ${isLoaded ? styles.loaded : ''}`}
         draggable={true}
         onDragStart={(e) => handleDragStart(e, item)}
@@ -263,9 +327,18 @@ export function LeftPanel({
           />
         </label>
 
-        {/* 图标 */}
+        {/* 缩略图 */}
         <div className={styles.resourcePreview}>
-          <span className={styles.resourceIcon}>{icons[activeTab]}</span>
+          {thumbnail ? (
+            <img
+              src={thumbnail}
+              alt={item.name}
+              className={styles.thumbnail}
+              loading="lazy"
+            />
+          ) : (
+            <span className={styles.resourceIcon}>{icons[activeTab]}</span>
+          )}
           {isLoaded && <span className={styles.loadedBadge}>✓</span>}
         </div>
 
