@@ -18,6 +18,7 @@ import { ResourcePackModal } from './modals/ResourcePackModal.jsx'
 import { ShortcutsModal } from './modals/ShortcutsModal.jsx'
 import { AboutModal } from './modals/AboutModal.jsx'
 import { EffectsModal } from './modals/EffectsModal.jsx'
+import { RenderExportModal } from './modals/RenderExportModal.jsx'
 
 // 引导系统
 import { TutorialGuide, shouldShowTutorial } from './components/TutorialGuide.jsx'
@@ -76,6 +77,7 @@ export function MMDStudioV2() {
   const [showAboutModal, setShowAboutModal] = useState(false)
   const [isPickingPosition, setIsPickingPosition] = useState(false)
   const [showEffectsModal, setShowEffectsModal] = useState(false)
+  const [showRenderExportModal, setShowRenderExportModal] = useState(false)
 
   
   // 面板显示状态
@@ -512,7 +514,7 @@ export function MMDStudioV2() {
 
   const handleFinalRender = () => {
     console.log('最终渲染')
-    setShowExportModal(true)
+    setShowRenderExportModal(true)
   }
 
   // 切换视图模式
@@ -2300,6 +2302,15 @@ export function MMDStudioV2() {
           project={project}
           onClose={() => setShowEffectsModal(false)}
           onUpdateProject={handleUpdateProject}
+        />
+      )}
+
+      {/* 渲染导出弹窗 */}
+      {showRenderExportModal && (
+        <RenderExportModal
+          project={project}
+          onClose={() => setShowRenderExportModal(false)}
+          renderEngine={renderEngine}
         />
       )}
 
