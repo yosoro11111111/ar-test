@@ -1937,7 +1937,7 @@ export function MMDStudioV2() {
       )
     }))
     setIsModified(true)
-    
+
     // 如果更新的是道具的特质，同步到clip和渲染引擎
     if (updates.traits) {
       setProject(prev => ({
@@ -1946,8 +1946,8 @@ export function MMDStudioV2() {
           if (t.type === 'prop' && t.clips?.some(c => c.propId === objectId)) {
             return {
               ...t,
-              clips: t.clips.map(c => 
-                c.propId === objectId 
+              clips: t.clips.map(c =>
+                c.propId === objectId
                   ? { ...c, traits: { ...c.traits, ...updates.traits } }
                   : c
               )
@@ -1956,10 +1956,10 @@ export function MMDStudioV2() {
           return t
         })
       }))
-      
+
       // 同步到渲染引擎
       if (renderEngine.current) {
-        const propTrack = project?.tracks?.find(t => 
+        const propTrack = project?.tracks?.find(t =>
           t.type === 'prop' && t.clips?.some(c => c.propId === objectId)
         )
         if (propTrack) {
@@ -1971,17 +1971,39 @@ export function MMDStudioV2() {
         }
       }
     }
-    
+
     // 同步transform更新到渲染引擎
     if (updates.transform && renderEngine.current) {
-      const object = project?.characters?.find(c => c.id === objectId) || 
+      const object = project?.characters?.find(c => c.id === objectId) ||
                      project?.props?.find(p => p.id === objectId)
       if (object) {
         renderEngine.current.updateObjectTransform(
-          objectId, 
-          object.type, 
+          objectId,
+          object.type,
           updates.transform
         )
+      }
+    }
+
+    // 同步位置、旋转、缩放更新到渲染引擎
+    if ((updates.position || updates.rotation || updates.scale) && renderEngine.current) {
+      const object = project?.characters?.find(c => c.id === objectId) ||
+                     project?.props?.find(p => p.id === objectId)
+      if (object) {
+        const transform = {
+          position: updates.position || object.position,
+          rotation: updates.rotation || object.rotation,
+          scale: updates.scale !== undefined ? updates.scale : object.scale
+        }
+        renderEngine.current.updateObjectTransform(
+          objectId,
+          object.type || 'prop',
+          transform
+        )
+        // 立即强制渲染
+        requestAnimationFrame(() => {
+          renderEngine.current?.forceRender()
+        })
       }
     }
   }
