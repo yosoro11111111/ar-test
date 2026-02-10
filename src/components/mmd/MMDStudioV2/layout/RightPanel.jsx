@@ -586,85 +586,230 @@ export function RightPanel({
     )
   }
 
-  // 场景片段设置面板
-  const renderScenePanel = () => (
-    <div className={styles.panelContent}>
-      {renderTimeProperties()}
-      
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <span className={styles.sectionIcon}>🏞️</span>
-          <span className={styles.sectionTitle}>场景类型</span>
-        </div>
-        <div className={styles.sceneTypeGrid}>
-          {[
-            { id: 'glb', name: '3D模型', icon: '🎲' },
-            { id: 'color', name: '纯色', icon: '🎨' },
-            { id: 'video', name: '视频', icon: '🎬' },
-            { id: 'image', name: '图片', icon: '🖼️' }
-          ].map(type => (
-            <button
-              key={type.id}
-              className={`${styles.sceneTypeBtn} ${selectedClip?.sceneType === type.id ? styles.active : ''}`}
-              onClick={() => handleClipPropertyChange('sceneType', type.id)}
-            >
-              <span className={styles.sceneTypeIcon}>{type.icon}</span>
-              <span className={styles.sceneTypeName}>{type.name}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+  // 场景片段设置面板 - 支持混合渲染
+  const renderScenePanel = () => {
+    // 获取当前场景的图层
+    const layers = selectedClip?.layers || [
+      { id: 'base', type: selectedClip?.sceneType || 'color', enabled: true, opacity: 1, blendMode: 'normal' }
+    ]
 
-      {selectedClip?.sceneType === 'color' && (
+    // 添加新图层
+    const handleAddLayer = (type) => {
+      const newLayer = {
+        id: `layer_${Date.now()}`,
+        type,
+        enabled: true,
+        opacity: 1,
+        blendMode: 'normal',
+        color: type === 'color' ? '#0a0a0f' : undefined,
+        path: type === 'glb' || type === 'image' || type === 'video' ? '' : undefined
+      }
+      handleClipPropertyChange('layers', [...layers, newLayer])
+    }
+
+    // 更新图层
+    const handleUpdateLayer = (layerId, updates) => {
+      handleClipPropertyChange('layers', layers.map(l => l.id === layerId ? { ...l, ...updates } : l))
+    }
+
+    // 删除图层
+    const handleDeleteLayer = (layerId) => {
+      if (layers.length <= 1) {
+        alert('至少需要保留一个图层')
+        return
+      }
+      handleClipPropertyChange('layers', layers.filter(l => l.id !== layerId))
+    }
+
+    // 移动图层
+    const handleMoveLayer = (layerId, direction) => {
+      const index = layers.findIndex(l => l.id === layerId)
+      if (direction === 'up' && index > 0) {
+        const newLayers = [...layers]
+        ;[newLayers[index], newLayers[index - 1]] = [newLayers[index - 1], newLayers[index]]
+        handleClipPropertyChange('layers', newLayers)
+      } else if (direction === 'down' && index < layers.length - 1) {
+        const newLayers = [...layers]
+        ;[newLayers[index], newLayers[index + 1]] = [newLayers[index + 1], newLayers[index]]
+        handleClipPropertyChange('layers', newLayers)
+      }
+    }
+
+    return (
+      <div className={styles.panelContent}>
+        {renderTimeProperties()}
+
         <div className={styles.section}>
           <div className={styles.sectionHeader}>
-            <span className={styles.sectionIcon}>🎨</span>
-            <span className={styles.sectionTitle}>背景颜色</span>
+            <span className={styles.sectionIcon}>🥞</span>
+            <span className={styles.sectionTitle}>场景图层</span>
+            <span className={styles.layerCount}>{layers.length} 层</span>
           </div>
-          <div className={styles.colorPicker}>
-            <input
-              type="color"
-              value={selectedClip?.color || '#0a0a0f'}
-              onChange={(e) => handleClipPropertyChange('color', e.target.value)}
-              className={styles.colorInput}
-            />
-            <span className={styles.colorValue}>{selectedClip?.color || '#0a0a0f'}</span>
-          </div>
-        </div>
-      )}
 
-      <div className={styles.section}>
-        <div className={styles.sectionHeader}>
-          <span className={styles.sectionIcon}>🔄</span>
-          <span className={styles.sectionTitle}>混合设置</span>
+          {/* 图层列表 */}
+          <div className={styles.layersList}>
+            {layers.map((layer, index) => (
+              <div key={layer.id} className={`${styles.layerItem} ${!layer.enabled ? styles.disabled : ''}`}>
+                <div className={styles.layerHeader}>
+                  <span className={styles.layerIndex}>{index + 1}</span>
+                  <span className={styles.layerTypeIcon}>
+                    {layer.type === 'color' && '🎨'}
+                    {layer.type === 'glb' && '🎲'}
+                    {layer.type === 'image' && '🖼️'}
+                    {layer.type === 'video' && '🎬'}
+                  </span>
+                  <span className={styles.layerTypeName}>
+                    {layer.type === 'color' && '纯色'}
+                    {layer.type === 'glb' && '3D模型'}
+                    {layer.type === 'image' && '图片'}
+                    {layer.type === 'video' && '视频'}
+                  </span>
+                  <div className={styles.layerActions}>
+                    <button
+                      className={styles.layerToggle}
+                      onClick={() => handleUpdateLayer(layer.id, { enabled: !layer.enabled })}
+                      title={layer.enabled ? '隐藏' : '显示'}
+                    >
+                      {layer.enabled ? '👁️' : '🚫'}
+                    </button>
+                    <button
+                      className={styles.layerMove}
+                      onClick={() => handleMoveLayer(layer.id, 'up')}
+                      disabled={index === 0}
+                      title="上移"
+                    >
+                      ↑
+                    </button>
+                    <button
+                      className={styles.layerMove}
+                      onClick={() => handleMoveLayer(layer.id, 'down')}
+                      disabled={index === layers.length - 1}
+                      title="下移"
+                    >
+                      ↓
+                    </button>
+                    <button
+                      className={styles.layerDelete}
+                      onClick={() => handleDeleteLayer(layer.id)}
+                      title="删除"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+
+                {/* 图层设置 */}
+                <div className={styles.layerSettings}>
+                  {layer.type === 'color' && (
+                    <div className={styles.layerSetting}>
+                      <label>颜色</label>
+                      <input
+                        type="color"
+                        value={layer.color || '#0a0a0f'}
+                        onChange={(e) => handleUpdateLayer(layer.id, { color: e.target.value })}
+                        className={styles.colorInput}
+                      />
+                      <span className={styles.colorValue}>{layer.color || '#0a0a0f'}</span>
+                    </div>
+                  )}
+
+                  {(layer.type === 'glb' || layer.type === 'image' || layer.type === 'video') && (
+                    <div className={styles.layerSetting}>
+                      <label>文件路径</label>
+                      <input
+                        type="text"
+                        value={layer.path || ''}
+                        onChange={(e) => handleUpdateLayer(layer.id, { path: e.target.value })}
+                        placeholder={`输入${layer.type === 'glb' ? 'GLB' : layer.type === 'image' ? '图片' : '视频'}路径`}
+                        className={styles.pathInput}
+                      />
+                    </div>
+                  )}
+
+                  <div className={styles.layerSetting}>
+                    <label>不透明度</label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={layer.opacity || 1}
+                      onChange={(e) => handleUpdateLayer(layer.id, { opacity: parseFloat(e.target.value) })}
+                      className={styles.opacitySlider}
+                    />
+                    <span className={styles.opacityValue}>{Math.round((layer.opacity || 1) * 100)}%</span>
+                  </div>
+
+                  <div className={styles.layerSetting}>
+                    <label>混合模式</label>
+                    <select
+                      value={layer.blendMode || 'normal'}
+                      onChange={(e) => handleUpdateLayer(layer.id, { blendMode: e.target.value })}
+                      className={styles.blendModeSelect}
+                    >
+                      <option value="normal">正常</option>
+                      <option value="multiply">正片叠底</option>
+                      <option value="screen">滤色</option>
+                      <option value="overlay">叠加</option>
+                      <option value="add">相加</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 添加图层按钮 */}
+          <div className={styles.addLayerButtons}>
+            <span className={styles.addLayerLabel}>添加图层:</span>
+            <button className={styles.addLayerBtn} onClick={() => handleAddLayer('color')}>
+              🎨 纯色
+            </button>
+            <button className={styles.addLayerBtn} onClick={() => handleAddLayer('glb')}>
+              🎲 3D模型
+            </button>
+            <button className={styles.addLayerBtn} onClick={() => handleAddLayer('image')}>
+              🖼️ 图片
+            </button>
+            <button className={styles.addLayerBtn} onClick={() => handleAddLayer('video')}>
+              🎬 视频
+            </button>
+          </div>
         </div>
-        <div className={styles.propertyRow}>
-          <label>淡入时长</label>
-          <input
-            type="number"
-            value={selectedClip?.fadeIn || 0}
-            onChange={(e) => handleClipPropertyChange('fadeIn', parseFloat(e.target.value))}
-            step="0.1"
-            min="0"
-            className={styles.propertyInput}
-          />
-          <span>秒</span>
-        </div>
-        <div className={styles.propertyRow}>
-          <label>淡出时长</label>
-          <input
-            type="number"
-            value={selectedClip?.fadeOut || 0}
-            onChange={(e) => handleClipPropertyChange('fadeOut', parseFloat(e.target.value))}
-            step="0.1"
-            min="0"
-            className={styles.propertyInput}
-          />
-          <span>秒</span>
+
+        <div className={styles.section}>
+          <div className={styles.sectionHeader}>
+            <span className={styles.sectionIcon}>🔄</span>
+            <span className={styles.sectionTitle}>混合设置</span>
+          </div>
+          <div className={styles.propertyRow}>
+            <label>淡入时长</label>
+            <input
+              type="number"
+              value={selectedClip?.fadeIn || 0}
+              onChange={(e) => handleClipPropertyChange('fadeIn', parseFloat(e.target.value))}
+              step="0.1"
+              min="0"
+              className={styles.propertyInput}
+            />
+            <span>秒</span>
+          </div>
+          <div className={styles.propertyRow}>
+            <label>淡出时长</label>
+            <input
+              type="number"
+              value={selectedClip?.fadeOut || 0}
+              onChange={(e) => handleClipPropertyChange('fadeOut', parseFloat(e.target.value))}
+              step="0.1"
+              min="0"
+              className={styles.propertyInput}
+            />
+            <span>秒</span>
+          </div>
         </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   // 摄像机片段设置面板
   const renderCameraPanel = () => (
