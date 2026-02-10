@@ -34,12 +34,35 @@ export function ResourcePackModal({
   })
   const [exportPackName, setExportPackName] = useState('')
   const [showExportConfirm, setShowExportConfirm] = useState(false)
+  const [importProgress, setImportProgress] = useState(0)
+  const [isImporting, setIsImporting] = useState(false)
+  const [importStatus, setImportStatus] = useState('')
+  const [loadedResources, setLoadedResources] = useState({
+    characters: [],
+    props: [],
+    scenes: [],
+    motions: [],
+    motionGroups: [],
+    music: [],
+    models: []
+  })
 
   // 加载数据
   useEffect(() => {
     if (resourceManager) {
       setLoadedPacks(resourceManager.getLoadedPacks())
       setLocalStats(resourceManager.getStats())
+      // 加载已加载的资源列表
+      const resources = resourceManager.getAvailableResources()
+      setLoadedResources({
+        characters: resources.characters || [],
+        props: resources.props || [],
+        scenes: resources.scenes || [],
+        motions: resources.motions || [],
+        motionGroups: resources.motionGroups || [],
+        music: resources.music || [],
+        models: resources.models || []
+      })
     }
   }, [resourceManager])
 
@@ -79,18 +102,57 @@ export function ResourcePackModal({
       alert('资源管理器未初始化')
       return
     }
-    
+
     console.log('导入文件:', selectedFile, '类型:', typeof selectedFile, '是否为File:', selectedFile instanceof File)
 
+    setIsImporting(true)
+    setImportProgress(0)
+    setImportStatus('准备导入...')
+
     try {
+      // 模拟进度更新
+      const progressInterval = setInterval(() => {
+        setImportProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval)
+            return 90
+          }
+          return prev + 10
+        })
+      }, 200)
+
+      setImportStatus('解压资源包...')
       const pack = await resourceManager.importResourcePack(selectedFile)
-      setLoadedPacks(resourceManager.getLoadedPacks())
-      setLocalStats(resourceManager.getStats())
-      onImport?.(pack)
-      setSelectedFile(null)
-      alert(`资源包 "${pack.name}" 导入成功！`)
+
+      clearInterval(progressInterval)
+      setImportProgress(100)
+      setImportStatus('导入完成！')
+
+      setTimeout(() => {
+        setLoadedPacks(resourceManager.getLoadedPacks())
+        setLocalStats(resourceManager.getStats())
+        // 刷新已加载资源列表
+        const resources = resourceManager.getAvailableResources()
+        setLoadedResources({
+          characters: resources.characters || [],
+          props: resources.props || [],
+          scenes: resources.scenes || [],
+          motions: resources.motions || [],
+          motionGroups: resources.motionGroups || [],
+          music: resources.music || [],
+          models: resources.models || []
+        })
+        onImport?.(pack)
+        setSelectedFile(null)
+        setIsImporting(false)
+        setImportProgress(0)
+        setImportStatus('')
+      }, 500)
     } catch (error) {
       console.error('导入失败:', error)
+      setIsImporting(false)
+      setImportProgress(0)
+      setImportStatus('')
       alert('导入失败: ' + error.message)
     }
   }
@@ -278,6 +340,68 @@ export function ResourcePackModal({
                 )}
               </div>
 
+              <div className={styles.section}>
+                <div className={styles.sectionHeader}>
+                  <span className={styles.sectionTitle}>已加载资源列表</span>
+                  <span className={styles.sectionSubtitle}>所有可用资源</span>
+                </div>
+
+                <div className={styles.loadedResourcesList}>
+                  {Object.entries(loadedResources).map(([type, items]) => {
+                    const typeNames = {
+                      characters: '角色',
+                      props: '道具',
+                      scenes: '场景',
+                      motions: '动作',
+                      motionGroups: '动作组',
+                      music: '音乐',
+                      models: '模型'
+                    }
+                    const typeIcons = {
+                      characters: '👤',
+                      props: '📦',
+                      scenes: '🏞️',
+                      motions: '🎭',
+                      motionGroups: '🎬',
+                      music: '🎵',
+                      models: '🧊'
+                    }
+
+                    if (items.length === 0) return null
+
+                    return (
+                      <div key={type} className={styles.loadedResourceType}>
+                        <div className={styles.loadedResourceHeader}>
+                          <span className={styles.loadedResourceIcon}>{typeIcons[type]}</span>
+                          <span className={styles.loadedResourceName}>{typeNames[type]}</span>
+                          <span className={styles.loadedResourceCount}>{items.length} 个</span>
+                        </div>
+                        <div className={styles.loadedResourceItems}>
+                          {items.slice(0, 5).map(item => (
+                            <div key={item.id} className={styles.loadedResourceItem}>
+                              <span className={styles.loadedResourceItemName}>{item.name}</span>
+                              {item.packName && (
+                                <span className={styles.loadedResourceItemPack}>{item.packName}</span>
+                              )}
+                            </div>
+                          ))}
+                          {items.length > 5 && (
+                            <div className={styles.loadedResourceMore}>
+                              还有 {items.length - 5} 个...
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {Object.values(loadedResources).every(arr => arr.length === 0) && (
+                    <div className={styles.emptyLoadedResources}>
+                      暂无已加载的资源
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className={styles.infoBox}>
                 <div className={styles.infoTitle}>💡 提示</div>
                 <p>本地资源会自动从 public 文件夹加载，无需网络连接。</p>
@@ -360,18 +484,34 @@ export function ResourcePackModal({
                       <div className={styles.fileSize}>
                         {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
                       </div>
+                      {isImporting && (
+                        <div className={styles.progressContainer}>
+                          <div className={styles.progressBar}>
+                            <div
+                              className={styles.progressFill}
+                              style={{ width: `${importProgress}%` }}
+                            />
+                          </div>
+                          <div className={styles.progressStatus}>
+                            <span>{importStatus}</span>
+                            <span>{importProgress}%</span>
+                          </div>
+                        </div>
+                      )}
                       <div className={styles.fileActions}>
                         <button
                           className={styles.btnSecondary}
-                          onClick={() => setSelectedFile(null)}
+                          onClick={() => !isImporting && setSelectedFile(null)}
+                          disabled={isImporting}
                         >
                           移除
                         </button>
                         <button
                           className={styles.btnPrimary}
                           onClick={handleImport}
+                          disabled={isImporting}
                         >
-                          导入
+                          {isImporting ? '导入中...' : '导入'}
                         </button>
                       </div>
                     </div>
