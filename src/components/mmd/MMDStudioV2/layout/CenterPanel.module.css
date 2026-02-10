@@ -138,6 +138,11 @@
   height: 100%;
   display: block;
   background: linear-gradient(135deg, #0a0a0f 0%, #151520 100%);
+  cursor: default;
+}
+
+.canvas.picking {
+  cursor: crosshair;
 }
 
 /* 覆盖层信息 */

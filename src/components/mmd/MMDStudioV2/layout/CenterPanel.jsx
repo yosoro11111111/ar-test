@@ -23,7 +23,9 @@ export const CenterPanel = forwardRef(function CenterPanel({
   viewMode,
   onChangeViewMode,
   onUndo,
-  onSearch
+  onSearch,
+  isPickingPosition,
+  onCanvasClick
 }, ref) {
   const canvasRef = useRef(null)
   const [currentViewMode, setCurrentViewMode] = useState(viewMode || 'perspective')
@@ -115,7 +117,11 @@ export const CenterPanel = forwardRef(function CenterPanel({
       
       {/* 3D视口 */}
       <div className={styles.viewport}>
-        <canvas ref={canvasRef} className={styles.canvas} />
+        <canvas
+          ref={canvasRef}
+          className={`${styles.canvas} ${isPickingPosition ? styles.picking : ''}`}
+          onClick={onCanvasClick}
+        />
         
         {/* 时间和选中信息 */}
         <div className={styles.infoOverlay}>

@@ -158,6 +158,51 @@
   font-size: 13px;
   font-weight: 600;
   color: #e0e0e0;
+  flex: 1;
+}
+
+.pickBtn {
+  padding: 4px 10px;
+  background: rgba(102, 126, 234, 0.15);
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  border-radius: 4px;
+  color: #667eea;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pickBtn:hover {
+  background: rgba(102, 126, 234, 0.25);
+}
+
+.pickBtn.active {
+  background: rgba(102, 126, 234, 0.4);
+  border-color: #667eea;
+}
+
+.orientationPresets {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.presetBtn {
+  flex: 1;
+  padding: 4px 0;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: #aaa;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.presetBtn:hover {
+  background: rgba(102, 126, 234, 0.15);
+  border-color: rgba(102, 126, 234, 0.3);
+  color: #667eea;
 }
 
 /* 输入组 */

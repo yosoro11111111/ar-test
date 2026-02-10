@@ -20,7 +20,9 @@ export function RightPanel({
   project,
   onUpdateObject,
   onUpdateClip,
-  onUpdateProject
+  onUpdateProject,
+  onPickPosition,
+  isPickingPosition
 }) {
   const [activeTab, setActiveTab] = useState('transform')
 
@@ -140,6 +142,18 @@ export function RightPanel({
 
   // ============ 渲染不同面板 ============
   
+  // 处理朝向变化
+  const handleOrientationChange = (axis, value) => {
+    if (!selectedObject) return
+    const numValue = parseFloat(value) || 0
+    onUpdateObject(selectedObject.id, {
+      orientation: {
+        ...selectedObject.orientation,
+        [axis]: numValue
+      }
+    })
+  }
+
   // 变换面板
   const renderTransformPanel = () => (
     <div className={styles.panelContent}>
@@ -148,6 +162,13 @@ export function RightPanel({
         <div className={styles.sectionHeader}>
           <span className={styles.sectionIcon}>📍</span>
           <span className={styles.sectionTitle}>位置</span>
+          <button
+            className={`${styles.pickBtn} ${isPickingPosition ? styles.active : ''}`}
+            onClick={() => onPickPosition?.()}
+            title="在预览区点击选择位置"
+          >
+            {isPickingPosition ? '✓ 点击选择中' : '👆 选择位置'}
+          </button>
         </div>
         <div className={styles.inputGroup}>
           <div className={styles.inputRow}>
@@ -180,6 +201,87 @@ export function RightPanel({
               step="0.1"
             />
           </div>
+        </div>
+      </div>
+
+      {/* 模型朝向 */}
+      <div className={styles.section}>
+        <div className={styles.sectionHeader}>
+          <span className={styles.sectionIcon}>🧭</span>
+          <span className={styles.sectionTitle}>模型朝向</span>
+        </div>
+        <div className={styles.inputGroup}>
+          <div className={styles.inputRow}>
+            <label className={`${styles.axisLabel} ${styles.axisX}`}>前向 X</label>
+            <input
+              type="number"
+              className={styles.numberInput}
+              value={selectedObject?.orientation?.x?.toFixed(2) || '0.00'}
+              onChange={(e) => handleOrientationChange('x', e.target.value)}
+              step="0.1"
+              placeholder="模型前方向量X"
+            />
+          </div>
+          <div className={styles.inputRow}>
+            <label className={`${styles.axisLabel} ${styles.axisY}`}>前向 Y</label>
+            <input
+              type="number"
+              className={styles.numberInput}
+              value={selectedObject?.orientation?.y?.toFixed(2) || '0.00'}
+              onChange={(e) => handleOrientationChange('y', e.target.value)}
+              step="0.1"
+              placeholder="模型前方向量Y"
+            />
+          </div>
+          <div className={styles.inputRow}>
+            <label className={`${styles.axisLabel} ${styles.axisZ}`}>前向 Z</label>
+            <input
+              type="number"
+              className={styles.numberInput}
+              value={selectedObject?.orientation?.z?.toFixed(2) || '0.00'}
+              onChange={(e) => handleOrientationChange('z', e.target.value)}
+              step="0.1"
+              placeholder="模型前方向量Z"
+            />
+          </div>
+        </div>
+        <div className={styles.orientationPresets}>
+          <button
+            className={styles.presetBtn}
+            onClick={() => {
+              onUpdateObject(selectedObject.id, { orientation: { x: 0, y: 0, z: 1 } })
+            }}
+            title="面向Z轴正方向"
+          >
+            前
+          </button>
+          <button
+            className={styles.presetBtn}
+            onClick={() => {
+              onUpdateObject(selectedObject.id, { orientation: { x: 0, y: 0, z: -1 } })
+            }}
+            title="面向Z轴负方向"
+          >
+            后
+          </button>
+          <button
+            className={styles.presetBtn}
+            onClick={() => {
+              onUpdateObject(selectedObject.id, { orientation: { x: 1, y: 0, z: 0 } })
+            }}
+            title="面向X轴正方向"
+          >
+            右
+          </button>
+          <button
+            className={styles.presetBtn}
+            onClick={() => {
+              onUpdateObject(selectedObject.id, { orientation: { x: -1, y: 0, z: 0 } })
+            }}
+            title="面向X轴负方向"
+          >
+            左
+          </button>
         </div>
       </div>
 

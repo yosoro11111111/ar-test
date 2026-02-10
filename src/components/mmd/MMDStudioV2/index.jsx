@@ -73,6 +73,7 @@ export function MMDStudioV2() {
   const [showShortcutsModal, setShowShortcutsModal] = useState(false)
   const [showDocumentationModal, setShowDocumentationModal] = useState(false)
   const [showAboutModal, setShowAboutModal] = useState(false)
+  const [isPickingPosition, setIsPickingPosition] = useState(false)
 
   
   // 面板显示状态
@@ -2006,6 +2007,50 @@ export function MMDStudioV2() {
         })
       }
     }
+
+    // 同步朝向更新到渲染引擎
+    if (updates.orientation && renderEngine.current) {
+      const object = project?.characters?.find(c => c.id === objectId) ||
+                     project?.props?.find(p => p.id === objectId)
+      if (object) {
+        renderEngine.current.updateObjectOrientation?.(objectId, updates.orientation)
+        // 立即强制渲染
+        requestAnimationFrame(() => {
+          renderEngine.current?.forceRender()
+        })
+      }
+    }
+  }
+
+  // 处理位置选择
+  const handlePickPosition = () => {
+    setIsPickingPosition(!isPickingPosition)
+    console.log(isPickingPosition ? '取消位置选择模式' : '进入位置选择模式')
+  }
+
+  // 处理画布点击（用于位置选择）
+  const handleCanvasClick = (event) => {
+    if (!isPickingPosition || !renderEngine.current || !selectedObject) return
+
+    // 获取点击位置
+    const canvas = canvasRef.current
+    const rect = canvas.getBoundingClientRect()
+    const x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+    const y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+
+    // 使用渲染引擎的射线检测获取世界坐标
+    const worldPosition = renderEngine.current.getWorldPositionFromScreen?.(x, y)
+
+    if (worldPosition) {
+      // 更新对象位置
+      handleUpdateObject(selectedObject.id, {
+        position: worldPosition
+      })
+      console.log('选择位置:', worldPosition)
+    }
+
+    // 退出位置选择模式
+    setIsPickingPosition(false)
   }
 
   const handleUpdateProject = (updates) => {
@@ -2157,6 +2202,8 @@ export function MMDStudioV2() {
           onChangeViewMode={handleChangeViewMode}
           onUndo={handleUndo}
           onSearch={() => setShowSearchPanel(true)}
+          isPickingPosition={isPickingPosition}
+          onCanvasClick={handleCanvasClick}
         />
 
         {/* 右侧面板 - 属性编辑 */}
@@ -2169,6 +2216,8 @@ export function MMDStudioV2() {
             onUpdateObject={handleUpdateObject}
             onUpdateClip={handleUpdateClip}
             onUpdateProject={handleUpdateProject}
+            onPickPosition={handlePickPosition}
+            isPickingPosition={isPickingPosition}
           />
         )}
       </div>
