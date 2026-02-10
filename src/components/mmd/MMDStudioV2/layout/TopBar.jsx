@@ -46,7 +46,8 @@ export function TopBar({
   viewMode,
   onShowShortcuts,
   onShowDocumentation,
-  onShowAbout
+  onShowAbout,
+  onShowEffects
 }) {
   const [activeMenu, setActiveMenu] = useState(null)
   const menuRef = useRef(null)
@@ -101,6 +102,7 @@ export function TopBar({
       { label: '预览渲染', action: onPreviewRender, icon: '👁️' },
       { label: '最终渲染', action: onFinalRender, icon: '🎬' },
       { type: 'separator' },
+      { label: '场景特效', action: onShowEffects, icon: '✨' },
       { label: '渲染设置', action: onOpenSettings, icon: '⚙️' },
     ]},
     { id: 'help', label: '帮助', items: [

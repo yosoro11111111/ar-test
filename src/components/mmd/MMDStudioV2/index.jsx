@@ -17,6 +17,7 @@ import { SettingsModal } from './modals/SettingsModal.jsx'
 import { ResourcePackModal } from './modals/ResourcePackModal.jsx'
 import { ShortcutsModal } from './modals/ShortcutsModal.jsx'
 import { AboutModal } from './modals/AboutModal.jsx'
+import { EffectsModal } from './modals/EffectsModal.jsx'
 
 // 引导系统
 import { TutorialGuide, shouldShowTutorial } from './components/TutorialGuide.jsx'
@@ -74,6 +75,7 @@ export function MMDStudioV2() {
   const [showDocumentationModal, setShowDocumentationModal] = useState(false)
   const [showAboutModal, setShowAboutModal] = useState(false)
   const [isPickingPosition, setIsPickingPosition] = useState(false)
+  const [showEffectsModal, setShowEffectsModal] = useState(false)
 
   
   // 面板显示状态
@@ -2171,6 +2173,7 @@ export function MMDStudioV2() {
         onShowShortcuts={() => setShowShortcutsModal(true)}
         onShowDocumentation={() => setShowDocumentationModal(true)}
         onShowAbout={() => setShowAboutModal(true)}
+        onShowEffects={() => setShowEffectsModal(true)}
       />
 
       {/* 主编辑区 */}
@@ -2288,6 +2291,15 @@ export function MMDStudioV2() {
       {showAboutModal && (
         <AboutModal
           onClose={() => setShowAboutModal(false)}
+        />
+      )}
+
+      {/* 特效弹窗 */}
+      {showEffectsModal && (
+        <EffectsModal
+          project={project}
+          onClose={() => setShowEffectsModal(false)}
+          onUpdateProject={handleUpdateProject}
         />
       )}
 

@@ -1,0 +1,400 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal {
+  background: #1a1a25;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 900px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+}
+
+.closeBtn {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #888;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.closeBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tab {
+  padding: 12px 24px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #888;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  color: #fff;
+}
+
+.tab.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+}
+
+.content {
+  flex: 1;
+  overflow: hidden;
+  padding: 24px;
+}
+
+.groupsPanel {
+  display: flex;
+  gap: 24px;
+  height: 100%;
+}
+
+.groupsList {
+  width: 280px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.groupCard {
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.groupCard:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+.groupCard.selected {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: #667eea;
+}
+
+.groupHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.groupName {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.groupName:focus {
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+}
+
+.groupTime {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.groupEffects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.effectTag {
+  padding: 2px 8px;
+  background: rgba(102, 126, 234, 0.15);
+  border-radius: 4px;
+  font-size: 11px;
+  color: #667eea;
+}
+
+.effectTag.disabled {
+  opacity: 0.5;
+  background: rgba(255, 255, 255, 0.05);
+  color: #888;
+}
+
+.emptyTag {
+  font-size: 11px;
+  color: #666;
+  font-style: italic;
+}
+
+.addGroupBtn {
+  padding: 12px;
+  background: rgba(102, 126, 234, 0.1);
+  border: 1px dashed rgba(102, 126, 234, 0.3);
+  border-radius: 8px;
+  color: #667eea;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.addGroupBtn:hover {
+  background: rgba(102, 126, 234, 0.2);
+}
+
+.groupEditor {
+  flex: 1;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+  overflow-y: auto;
+}
+
+.editorTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 16px 0;
+}
+
+.timeInputs {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.inputRow label {
+  width: 80px;
+  font-size: 13px;
+  color: #aaa;
+}
+
+.inputRow input[type="number"] {
+  width: 100px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 13px;
+}
+
+.inputRow span {
+  font-size: 13px;
+  color: #888;
+}
+
+.effectsTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #667eea;
+  margin: 0 0 12px 0;
+}
+
+.effectsList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.effectItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.effectItem:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.effectItem.editing {
+  border-color: #667eea;
+  background: rgba(102, 126, 234, 0.1);
+}
+
+.effectIcon {
+  font-size: 16px;
+}
+
+.effectName {
+  flex: 1;
+  font-size: 13px;
+  color: #fff;
+}
+
+.effectItem input[type="range"] {
+  width: 100px;
+}
+
+.toggleBtn {
+  width: 28px;
+  height: 28px;
+  background: rgba(102, 126, 234, 0.2);
+  border: none;
+  border-radius: 4px;
+  color: #667eea;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.deleteBtn {
+  width: 28px;
+  height: 28px;
+  background: rgba(255, 100, 100, 0.1);
+  border: none;
+  border-radius: 4px;
+  color: #ff6464;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.addEffectSection {
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.effectTypes {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.effectTypeBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.effectTypeBtn:hover {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+.typeIcon {
+  font-size: 20px;
+}
+
+.typeName {
+  font-size: 11px;
+  color: #aaa;
+}
+
+.libraryPanel {
+  height: 100%;
+  overflow-y: auto;
+}
+
+.effectGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.effectCard {
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+.effectCard:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(102, 126, 234, 0.3);
+}
+
+.effectIconLarge {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.effectNameLarge {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 4px 0;
+}
+
+.effectDesc {
+  font-size: 11px;
+  color: #888;
+  margin: 0;
+}
