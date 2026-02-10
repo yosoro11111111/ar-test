@@ -1,0 +1,371 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal {
+  background: #1a1a25;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 900px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+}
+
+.closeBtn {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #888;
+  font-size: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.closeBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.trackSelector {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.trackBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #ccc;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.trackBtn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.trackBtn.active {
+  background: rgba(102, 126, 234, 0.1);
+  color: #fff;
+}
+
+.trackDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.trackCount {
+  margin-left: auto;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  font-size: 12px;
+  color: #888;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.addBtn {
+  padding: 10px 20px;
+  background: rgba(102, 126, 234, 0.15);
+  border: 1px solid rgba(102, 126, 234, 0.3);
+  border-radius: 8px;
+  color: #667eea;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.addBtn:hover {
+  background: rgba(102, 126, 234, 0.25);
+}
+
+.zoomControls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.zoomControls button {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #ccc;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.zoomControls button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.zoomControls span {
+  font-size: 13px;
+  color: #888;
+  min-width: 60px;
+  text-align: center;
+}
+
+.timelineContainer {
+  overflow-x: auto;
+  margin-bottom: 24px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.timeline {
+  position: relative;
+  height: 200px;
+  min-width: 100%;
+  padding: 20px 0;
+}
+
+.timeRuler {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.timeMark {
+  position: absolute;
+  top: 0;
+  height: 100%;
+}
+
+.timeLabel {
+  font-size: 11px;
+  color: #888;
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+}
+
+.timeLine {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.keyframesTrack {
+  position: absolute;
+  top: 50px;
+  left: 0;
+  right: 0;
+  height: 40px;
+}
+
+.keyframe {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.keyframeDiamond {
+  width: 100%;
+  height: 100%;
+  transform: rotate(45deg);
+  border-radius: 2px;
+}
+
+.keyframe:hover {
+  transform: translate(-50%, -50%) scale(1.2);
+}
+
+.keyframe.selected {
+  transform: translate(-50%, -50%) scale(1.3);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+}
+
+.currentTimeIndicator {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #ff6464;
+  pointer-events: none;
+}
+
+.currentTimeIndicator::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -4px;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 8px solid #ff6464;
+}
+
+.curvePreview {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.properties {
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 8px;
+}
+
+.propertiesTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #667eea;
+  margin: 0 0 16px 0;
+}
+
+.propertyRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.propertyRow label {
+  width: 60px;
+  font-size: 13px;
+  color: #aaa;
+}
+
+.propertyRow input[type="number"] {
+  flex: 1;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 14px;
+}
+
+.propertyRow span {
+  font-size: 12px;
+  color: #888;
+}
+
+.interpolationButtons {
+  display: flex;
+  gap: 8px;
+}
+
+.interpolationBtn {
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.interpolationBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.interpolationBtn.active {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: #667eea;
+}
+
+.deleteKeyframeBtn {
+  width: 100%;
+  padding: 12px;
+  margin-top: 16px;
+  background: rgba(255, 100, 100, 0.1);
+  border: 1px solid rgba(255, 100, 100, 0.3);
+  border-radius: 8px;
+  color: #ff6464;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.deleteKeyframeBtn:hover {
+  background: rgba(255, 100, 100, 0.2);
+}
+
+.footer {
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.doneBtn {
+  width: 100%;
+  padding: 14px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.doneBtn:hover {
+  opacity: 0.9;
+}
