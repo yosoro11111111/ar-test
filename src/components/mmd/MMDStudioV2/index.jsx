@@ -1146,7 +1146,7 @@ export function MMDStudioV2() {
     
     // 加载3D模型到场景中
     if (renderEngine.current && resource.path) {
-      console.log('正在加载道具模型:', resource.name, resource.path)
+      console.log('正在加载道具模型:', resource.name, resource.path);
       
       // 使用 async/await 确保调用 forceRender
       (async () => {
