@@ -29,6 +29,8 @@ export function TimelinePanel({
   const [dragOver, setDragOver] = useState(false)
   const [contextMenu, setContextMenu] = useState(null)
   const [resizingClip, setResizingClip] = useState(null)
+  const [dragPreview, setDragPreview] = useState(null)
+  const [dropTarget, setDropTarget] = useState(null)
 
   const duration = project?.duration || 120
 
@@ -153,24 +155,67 @@ export function TimelinePanel({
     try {
       const data = JSON.parse(e.dataTransfer.getData('application/json') || '{}')
       e.dataTransfer.dropEffect = data.type === 'clip' ? 'move' : 'copy'
+      
+      // 更新拖放预览位置
+      if (timelineRef.current) {
+        const rect = timelineRef.current.getBoundingClientRect()
+        const x = e.clientX - rect.left
+        const percentage = x / rect.width
+        const dropTime = Math.max(0, Math.min(percentage * duration, duration))
+        setDragPreview({
+          time: dropTime,
+          type: data.type,
+          name: data.name || data.clip?.name || '资源'
+        })
+      }
     } catch {
       e.dataTransfer.dropEffect = 'copy'
     }
     setDragOver(true)
   }
-  
+
   // 专门处理 clip 拖动的 dragOver
-  const handleClipDragOver = (e) => {
+  const handleClipDragOver = (e, track = null) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
+    
+    if (timelineRef.current) {
+      const rect = timelineRef.current.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const percentage = x / rect.width
+      const dropTime = Math.max(0, Math.min(percentage * duration, duration))
+      
+      try {
+        const data = JSON.parse(e.dataTransfer.getData('application/json') || '{}')
+        if (data.type === 'clip') {
+          const clipDuration = data.originalEnd - data.originalStart
+          setDragPreview({
+            time: dropTime,
+            duration: clipDuration,
+            type: 'clip',
+            name: data.clip?.name || '片段'
+          })
+        }
+      } catch {}
+    }
+    
+    if (track) {
+      setDropTarget(track.id)
+    }
     setDragOver(true)
   }
 
-  const handleDragLeave = () => setDragOver(false)
+  const handleDragLeave = () => {
+    setDragOver(false)
+    setDragPreview(null)
+    setDropTarget(null)
+  }
 
   const handleDrop = (e, targetInfo = null) => {
     e.preventDefault()
     setDragOver(false)
+    setDragPreview(null)
+    setDropTarget(null)
 
     try {
       const data = JSON.parse(e.dataTransfer.getData('application/json') || '{}')
@@ -216,17 +261,19 @@ export function TimelinePanel({
   const handleClipDrop = (e, targetTrack) => {
     e.preventDefault()
     e.stopPropagation()
-    
+    setDragPreview(null)
+    setDropTarget(null)
+
     try {
       const data = JSON.parse(e.dataTransfer.getData('application/json') || '{}')
       if (data.type !== 'clip') return
-      
+
       if (!timelineRef.current) return
       const rect = timelineRef.current.getBoundingClientRect()
       const x = e.clientX - rect.left
       const percentage = x / rect.width
       const dropTime = Math.max(0, Math.min(percentage * duration, duration))
-      
+
       const clipDuration = data.originalEnd - data.originalStart
       onUpdateClip?.(data.sourceTrackId, data.clip.id, { start: dropTime, end: dropTime + clipDuration })
     } catch (error) {
@@ -281,35 +328,61 @@ export function TimelinePanel({
   )
 
   // 渲染轨道内容
-  const renderTrackContent = (track) => (
-    <div
-      key={`content-${track.id}`}
-      className={`${styles.trackContentRow} ${selectedTrack?.id === track.id ? styles.selected : ''}`}
-      onClick={handleTimelineClick}
-      onDragOver={handleClipDragOver}
-      onDrop={(e) => handleClipDrop(e, track)}
-    >
-      {track.clips?.map(clip => (
-        <div
-          key={clip.id}
-          className={`${styles.clip} ${selectedClip?.id === clip.id ? styles.selected : ''}`}
-          style={getClipStyle(clip)}
-          onClick={(e) => handleClipClick(e, clip, track)}
-          onContextMenu={(e) => handleContextMenu(e, 'clip', { clip, track })}
-          draggable
-          onDragStart={(e) => handleClipDragStart(e, clip, track)}
-        >
-          <div className={styles.clipHandleLeft} onMouseDown={(e) => handleClipResizeStart(e, clip, track, 'left')} />
-          <div className={styles.clipContent}>
-            <span className={styles.clipIcon}>{getTrackIcon(track.type)}</span>
-            <span className={styles.clipName}>{clip.name}</span>
-            <span className={styles.clipDuration}>{(clip.end - clip.start).toFixed(1)}s</span>
+  const renderTrackContent = (track) => {
+    // 计算拖放预览位置
+    const getPreviewStyle = () => {
+      if (!dragPreview || dropTarget !== track.id) return null
+      const left = (dragPreview.time / duration) * 100
+      const width = dragPreview.duration
+        ? ((dragPreview.duration / duration) * 100)
+        : 5 // 默认宽度
+      return {
+        left: `${left}%`,
+        width: `${Math.max(0.5, width)}%`
+      }
+    }
+
+    const previewStyle = getPreviewStyle()
+
+    return (
+      <div
+        key={`content-${track.id}`}
+        className={`${styles.trackContentRow} ${selectedTrack?.id === track.id ? styles.selected : ''} ${dropTarget === track.id ? styles.dropTarget : ''}`}
+        onClick={handleTimelineClick}
+        onDragOver={(e) => handleClipDragOver(e, track)}
+        onDrop={(e) => handleClipDrop(e, track)}
+        onDragLeave={() => setDropTarget(null)}
+      >
+        {track.clips?.map(clip => (
+          <div
+            key={clip.id}
+            className={`${styles.clip} ${selectedClip?.id === clip.id ? styles.selected : ''}`}
+            style={getClipStyle(clip)}
+            onClick={(e) => handleClipClick(e, clip, track)}
+            onContextMenu={(e) => handleContextMenu(e, 'clip', { clip, track })}
+            draggable
+            onDragStart={(e) => handleClipDragStart(e, clip, track)}
+          >
+            <div className={styles.clipHandleLeft} onMouseDown={(e) => handleClipResizeStart(e, clip, track, 'left')} />
+            <div className={styles.clipContent}>
+              <span className={styles.clipIcon}>{getTrackIcon(track.type)}</span>
+              <span className={styles.clipName}>{clip.name}</span>
+              <span className={styles.clipDuration}>{(clip.end - clip.start).toFixed(1)}s</span>
+            </div>
+            <div className={styles.clipHandleRight} onMouseDown={(e) => handleClipResizeStart(e, clip, track, 'right')} />
           </div>
-          <div className={styles.clipHandleRight} onMouseDown={(e) => handleClipResizeStart(e, clip, track, 'right')} />
-        </div>
-      ))}
-    </div>
-  )
+        ))}
+
+        {/* 拖放预览 */}
+        {previewStyle && (
+          <div className={styles.dragPreview} style={previewStyle}>
+            <span className={styles.dragPreviewName}>{dragPreview.name}</span>
+            <span className={styles.dragPreviewTime}>{dragPreview.time.toFixed(1)}s</span>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   // 渲染人物分组
   const renderCharacterGroup = (group) => {
